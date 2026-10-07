@@ -58,7 +58,7 @@ Each was a defect in the v0 draft, and each has a test class named after it in
 
 | Missing | Waiting on |
 | --- | --- |
-| The node side of store-and-forward (§5.3 buffer, cumulative ack) | Nothing. `wire.pack` and `wire.restamp` are the pieces; the buffer policy around them is next |
+| A *real* node (firmware) | **Q6**, and hardware. The behaviour is specified and simulated in [sim/node.py](../sim/node.py) |
 | A link driver (Meshtastic) | **Q6** |
 | The aggregate datastream kind | **Q20** |
 
@@ -66,7 +66,7 @@ Each was a defect in the v0 draft, and each has a test class named after it in
 | Sharing grants and erasure (§7.3, §7.6) | **Q16**, **Q17** |
 | A GIS client actually reading it (QGIS) | The HTTP layer below — documents being right is necessary, not sufficient |
 | An HTTP service (`$filter`, `$expand`, `$top`, paging) | Nothing. `sensorthings.py` produces the documents; routing and query options are the next layer |
-| The physics that makes readings mean something | Nothing. Build-order step 2 |
+| Harrow Bend assembled — six beds, paddock, research plot, hoop house, well | Nothing. Build-order step 5, and the biggest remaining gap |
 | Field-level conflict resolution and conflict events (§7.4) | **Q14** — which fields must never resolve silently |
 
 `State.validate()` returns every violation it can see rather than raising on the
