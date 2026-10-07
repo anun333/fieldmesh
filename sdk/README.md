@@ -55,7 +55,7 @@ Each was a defect in the v0 draft, and each has a test class named after it in
 
 | Missing | Waiting on |
 | --- | --- |
-| The wire message and gateway ingest (§5.1, §5.2) | open-questions **Q5** — the binary encoding |
+| The wire message and gateway ingest (§5.1, §5.2) | **Unblocked** — Q5 decided (CBOR packed + CDDL). The aggregate variant still waits on **Q20** |
 
 | The command contract (§6) | Scope: the first release ships observations only, and §6 freezes after a season |
 | Sharing grants and erasure (§7.3, §7.6) | **Q16**, **Q17** |
