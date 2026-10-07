@@ -1,0 +1,13 @@
+librefarm
+Copyright 2026 the librefarm authors
+
+This product includes software developed as part of the campus_twin project, by the
+same author, which is licensed under "Apache-2.0 OR GPL-3.0-or-later" at its origin. The files in sdk/
+that derive from it exercise the Apache-2.0 option and are marked with
+SPDX-License-Identifier: Apache-2.0.
+
+See sdk/PROVENANCE.md for exactly which files these are and how they were changed.
+
+Note: librefarm's repository-wide license is not yet decided (see
+docs/spec/open-questions.md Q2). LICENSE-APACHE-2.0 at the repository root is the
+license text that sdk/ refers to; it is not a decision about the project as a whole.

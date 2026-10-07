@@ -1,0 +1,12 @@
+# Site-specific material — treated like a .env, never committed.
+# One subdirectory per farm: field boundaries, well logs, contacts, photographs,
+# certification records. See docs/VIRTUAL_FARM.md.
+.site/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
