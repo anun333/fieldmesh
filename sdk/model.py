@@ -1,0 +1,370 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+"""The layer-zero contract as code (spec v0.1 §1–§4).
+
+Every type here is **frozen**. That is not a style preference: §3.2 says an
+observation is written once and never altered, and §3.3 moved quality off the
+observation for the same reason. A mutable dataclass would let a caller do the one
+thing the spec forbids, and the append-only log in `log.py` could not detect it.
+Corrections are new records (§7.3); re-derivations supersede (§3.2); quality
+judgements are separate assertions (§3.3).
+
+The constructors reject what the spec forbids, so a violation fails at the boundary
+rather than becoming a bad row somebody has to explain a season later:
+
+* UTC-aware timestamps only (§2 "everything is stored in UTC")
+* `measured_at_uncertainty` present and non-zero (§2)
+* `seq` within uint16, `boot` non-negative (§1)
+* a `raw` datastream has no `derived_from`; a `derived` one must have it (§3.1)
+* a raw observation carries no calibration and is never superseded (§3.2)
+* a derived observation must name the calibration that produced it (§3.2)
+* `usable` agrees with `flags` unless a person overrode it (§3.3)
+
+Cross-object rules need both objects, so they live in `Observation.validate_against`
+rather than in `__post_init__`.
+
+Note: these are value types compared with `==`. They hold plain dicts for the
+open-ended fields (`thresholds`, `provenance`, `coefficients`, `buffer_policy`), so
+hashing an instance raises — key collections by `.id`, which is the identity the
+spec actually uses.
+"""
+from __future__ import annotations
+
+import datetime as _dt
+from dataclasses import dataclass, field
+from enum import Enum
+from uuid import UUID
+
+from ids import is_uuid7
+
+UTC = _dt.timezone.utc
+
+
+# ---------------------------------------------------------------- enumerations
+
+class ClockQuality(str, Enum):
+    """§2. A category, not a bound — the bound is `measured_at_uncertainty`."""
+
+    GPS = "gps"
+    NETWORK = "network"
+    RTC_SYNCED = "rtc_synced"
+    RTC_UNSYNCED = "rtc_unsynced"
+    NONE = "none"
+
+
+class DatastreamKind(str, Enum):
+    RAW = "raw"
+    DERIVED = "derived"
+
+
+class QualityFlag(str, Enum):
+    """§3.3. A *set* of these, not one of them.
+
+    `stale` is deliberately absent: §4.2 makes staleness a datastream state,
+    because flagging a reading would mean mutating a record that was correct when
+    written, on the evidence of a later reading that never arrived. Device
+    warnings are absent for the same kind of reason (§4.3) — battery is a
+    property of a device, and belongs in its own datastream.
+    """
+
+    SUSPECT = "suspect"
+    STUCK = "stuck"
+    OUT_OF_RANGE = "out_of_range"
+    RATE_EXCEEDED = "rate_exceeded"
+
+
+class Usable(str, Enum):
+    GOOD = "good"
+    QUESTIONABLE = "questionable"
+    BAD = "bad"
+
+
+class Assertor(str, Enum):
+    FOUNDATION = "foundation"
+    PERSON = "person"
+
+
+#: §3.3 precedence: a person outranks the foundation.
+ASSERTOR_PRECEDENCE: dict[Assertor, int] = {Assertor.FOUNDATION: 0, Assertor.PERSON: 1}
+
+_BAD_FLAGS = frozenset({QualityFlag.STUCK, QualityFlag.OUT_OF_RANGE})
+
+
+def derive_usable(flags) -> Usable:
+    """The canonical §3.3 summary: `bad` if stuck or out of range, `questionable`
+    if only suspect or rate-exceeded, `good` if nothing is flagged.
+
+    One function, so two implementations cannot disagree on the same input — which
+    is the whole reason the flag set has a summary at all.
+    """
+    flags = frozenset(flags)
+    if flags & _BAD_FLAGS:
+        return Usable.BAD
+    if flags:
+        return Usable.QUESTIONABLE
+    return Usable.GOOD
+
+
+# ------------------------------------------------------------------ validators
+
+def _uuid7(value, name: str) -> UUID:
+    if not isinstance(value, UUID):
+        raise TypeError(f"{name} must be a UUID, got {type(value).__name__}")
+    if not is_uuid7(value):
+        raise ValueError(f"{name} must be a UUIDv7 (§1), got version {value.version}")
+    return value
+
+
+def _opt_uuid7(value, name: str):
+    return None if value is None else _uuid7(value, name)
+
+
+def _utc(value, name: str) -> _dt.datetime:
+    if not isinstance(value, _dt.datetime):
+        raise TypeError(f"{name} must be a datetime, got {type(value).__name__}")
+    if value.tzinfo is None:
+        raise ValueError(f"{name} must be timezone-aware and UTC (§2); got naive")
+    if value.utcoffset() != _dt.timedelta(0):
+        raise ValueError(f"{name} must be UTC (§2); got offset {value.utcoffset()}")
+    return value
+
+
+# --------------------------------------------------------------------- records
+
+@dataclass(frozen=True, slots=True)
+class Datastream:
+    """§3.1. One sensor, one observed property, one unit, on one Thing.
+
+    The 2.0 SensorThings draft allows several observed properties per datastream;
+    one is a subset of that, so this maps unchanged to 1.1 and to 2.0.
+
+    `feature` lives here rather than on each observation because for a fixed
+    installed sensor it never changes (§3.1).
+    """
+
+    id: UUID
+    thing: UUID
+    sensor: UUID
+    observed_property: str          # a vocabulary URI, never free text (§3.4)
+    feature: UUID
+    kind: DatastreamKind
+    unit: str | None = None         # UCUM code; None for a boolean or state (§3.4)
+    derived_from: UUID | None = None
+    expected_interval: float | None = None   # seconds; drives staleness (§4.2)
+    thresholds: dict = field(default_factory=dict)
+    buffer_policy: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.thing, "thing")
+        _uuid7(self.sensor, "sensor")
+        _uuid7(self.feature, "feature")
+        _opt_uuid7(self.derived_from, "derived_from")
+        if not isinstance(self.kind, DatastreamKind):
+            raise TypeError("kind must be a DatastreamKind")
+        if not self.observed_property or "://" not in str(self.observed_property):
+            raise ValueError(
+                "observed_property must be a vocabulary URI, not free text (§3.4)")
+        if self.kind is DatastreamKind.RAW and self.derived_from is not None:
+            raise ValueError("a raw datastream has no derived_from (§3.1)")
+        if self.kind is DatastreamKind.DERIVED and self.derived_from is None:
+            raise ValueError("a derived datastream must name its derived_from (§3.1)")
+        if self.derived_from == self.id:
+            raise ValueError("a datastream cannot derive from itself")
+        if self.expected_interval is not None and self.expected_interval <= 0:
+            raise ValueError("expected_interval must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class Calibration:
+    """§4.1. Carries a validity interval, because §3.2 selects calibration by
+    `measured_at` and that is unanswerable without knowing what was in force when.
+
+    `valid_to = None` means "still in force".
+    """
+
+    id: UUID
+    sensor: UUID
+    method: str
+    valid_from: _dt.datetime
+    valid_to: _dt.datetime | None = None
+    reference: str | None = None
+    coefficients: dict = field(default_factory=dict)
+    performed_by: UUID | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.sensor, "sensor")
+        _opt_uuid7(self.performed_by, "performed_by")
+        _utc(self.valid_from, "valid_from")
+        if self.valid_to is not None:
+            _utc(self.valid_to, "valid_to")
+            if self.valid_to <= self.valid_from:
+                raise ValueError("valid_to must be after valid_from")
+
+    def covers(self, when: _dt.datetime) -> bool:
+        """Half-open [valid_from, valid_to), so adjacent calibrations never both
+        apply to one instant."""
+        _utc(when, "when")
+        if when < self.valid_from:
+            return False
+        return self.valid_to is None or when < self.valid_to
+
+
+@dataclass(frozen=True, slots=True)
+class Observation:
+    """§3.2. Written once, never altered.
+
+    `node`, `boot` and `seq` ride along because §2's ordering rule needs them: a
+    node's own counter is authoritative for its own readings even when its clock
+    is not.
+    """
+
+    id: UUID
+    datastream: UUID
+    measured_at: _dt.datetime
+    measured_at_uncertainty: float          # seconds, half-width (§2)
+    received_at: _dt.datetime
+    result: float | int | str | bool | None
+    clock_quality: ClockQuality
+    node: str | None = None
+    boot: int | None = None
+    seq: int | None = None
+    feature: UUID | None = None             # override; None = the datastream's (§3.1)
+    calibration: UUID | None = None
+    supersedes: UUID | None = None
+    provenance: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.datastream, "datastream")
+        _opt_uuid7(self.feature, "feature")
+        _opt_uuid7(self.calibration, "calibration")
+        _opt_uuid7(self.supersedes, "supersedes")
+        _utc(self.measured_at, "measured_at")
+        _utc(self.received_at, "received_at")
+        if not isinstance(self.clock_quality, ClockQuality):
+            raise TypeError("clock_quality must be a ClockQuality")
+        u = self.measured_at_uncertainty
+        if not isinstance(u, (int, float)) or isinstance(u, bool):
+            raise TypeError("measured_at_uncertainty must be a number (§2)")
+        if u <= 0:
+            raise ValueError(
+                "measured_at_uncertainty is mandatory and never zero (§2); "
+                "a timestamp nobody can bound is unusable to a research logger")
+        if self.seq is not None and not 0 <= self.seq <= 0xFFFF:
+            raise ValueError("seq is uint16 (§1)")
+        if self.boot is not None and self.boot < 0:
+            raise ValueError("boot must not be negative (§1)")
+        if self.supersedes == self.id:
+            raise ValueError("an observation cannot supersede itself")
+
+    @property
+    def node_order(self) -> tuple[int, int] | None:
+        """`(boot, seq)` when known — authoritative within one node (§2)."""
+        if self.boot is None or self.seq is None:
+            return None
+        return (self.boot, self.seq)
+
+    def interval(self) -> tuple[_dt.datetime, _dt.datetime]:
+        """The window `measured_at` is known to lie in (§2)."""
+        half = _dt.timedelta(seconds=self.measured_at_uncertainty)
+        return (self.measured_at - half, self.measured_at + half)
+
+    def effective_feature(self, datastream: Datastream) -> UUID:
+        """The observation's own feature, else the datastream's (§3.1)."""
+        return self.feature if self.feature is not None else datastream.feature
+
+    def validate_against(self, datastream: Datastream) -> None:
+        """The §3.2 rules that need the datastream to check."""
+        if datastream.id != self.datastream:
+            raise ValueError("datastream mismatch")
+        if datastream.kind is DatastreamKind.RAW:
+            if self.calibration is not None:
+                raise ValueError(
+                    "a raw observation carries no calibration — raw is what the "
+                    "node sent (§3.2)")
+            if self.supersedes is not None:
+                raise ValueError(
+                    "a raw observation is never superseded; it is the archival "
+                    "truth (§3.2)")
+        elif self.calibration is None:
+            raise ValueError(
+                "a derived observation must name the calibration that produced "
+                "it (§3.2)")
+
+
+@dataclass(frozen=True, slots=True)
+class Threshold:
+    """§4.2. Versioned, so an assertion can name the version it used and a retune
+    cannot silently re-flag history."""
+
+    id: UUID
+    datastream: UUID
+    values: dict = field(default_factory=dict)
+    created_at: _dt.datetime | None = None
+    supersedes: UUID | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.datastream, "datastream")
+        _opt_uuid7(self.supersedes, "supersedes")
+        if self.created_at is not None:
+            _utc(self.created_at, "created_at")
+
+
+@dataclass(frozen=True, slots=True)
+class QualityAssertion:
+    """§3.3. A claim about an observation, by a named check, under a named
+    threshold version, at a stated time — never a column on the observation.
+
+    A person's override is a new assertion with `assertor = PERSON`, and the
+    machine's original stays visible.
+    """
+
+    id: UUID
+    observation: UUID
+    flags: frozenset
+    usable: Usable
+    check: str
+    asserted_at: _dt.datetime
+    assertor: Assertor = Assertor.FOUNDATION
+    check_version: str | None = None
+    threshold_version: UUID | None = None
+    assertor_id: UUID | None = None
+    supersedes: UUID | None = None
+    note: str | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.observation, "observation")
+        _opt_uuid7(self.threshold_version, "threshold_version")
+        _opt_uuid7(self.assertor_id, "assertor_id")
+        _opt_uuid7(self.supersedes, "supersedes")
+        _utc(self.asserted_at, "asserted_at")
+        if not isinstance(self.assertor, Assertor):
+            raise TypeError("assertor must be an Assertor")
+        if not isinstance(self.usable, Usable):
+            raise TypeError("usable must be a Usable")
+        flags = frozenset(self.flags)
+        for f in flags:
+            if not isinstance(f, QualityFlag):
+                raise TypeError(f"flags must contain QualityFlag, got {f!r}")
+        object.__setattr__(self, "flags", flags)
+        if not self.check:
+            raise ValueError("check must name the check that produced this (§3.3)")
+        # The foundation must be self-consistent; only a person may disagree with
+        # the derivation, and then the disagreement is the point (§3.3).
+        if self.assertor is Assertor.FOUNDATION:
+            expected = derive_usable(flags)
+            if self.usable is not expected:
+                raise ValueError(
+                    f"usable={self.usable.value} contradicts flags "
+                    f"{sorted(f.value for f in flags)} (expected "
+                    f"{expected.value}); only a person may override (§3.3)")
+        if self.supersedes == self.id:
+            raise ValueError("an assertion cannot supersede itself")
+
+    @property
+    def precedence(self) -> int:
+        return ASSERTOR_PRECEDENCE[self.assertor]

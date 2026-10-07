@@ -152,7 +152,7 @@ Adopt the sibling convention unchanged: a gitignored `.site/` directory, one sub
 
 ## Build order
 
-1. **The data model and the log**, with no devices at all — the contract as code, plus the append-only and supersession tests.
+1. ~~**The data model and the log**, with no devices at all — the contract as code, plus the append-only and supersession tests.~~ **Done** — [sdk/](../sdk/), 116 tests. The four clauses v0 got wrong each have a regression test class: recalibration appends, calibration is selected by `measured_at`, quality is an assertion with precedence, and ordering prefers a node's counter over its clock.
 2. **`sim_physics` equivalent**: soil moisture responding to weather, irrigation and evaporation; a trough draining as stock drink. Enough to make readings mean something.
 3. **Simulated nodes over a simulated link**, with the airtime budget as exact arithmetic that fails loudly when a fleet reports too often.
 4. **The fault library**: drift, flatline, out-of-range, clock skew, reboot, outage, backlog eviction, dropped and repeated messages.

@@ -61,17 +61,20 @@ an artifact that does not exist yet. Copying them now would mean rewriting them.
 | --- | --- | --- |
 | `mesh_emulator.py` | Virtual nodes for the simulated farm | **Q5** — the emulator has to emit layer zero's wire message, and the encoding is undecided. The harness ports cleanly (deterministic seed, profile table, stdout-or-MQTT, `--once`, `--no-jitter`); the payload cannot. Its profile table is also entirely buildings domain (CO₂, PM2.5, chilled water, condenser probes) and becomes soil moisture, trough level and hoop-house climate. |
 | `meshtastic_bridge.py` | The gateway's first link driver | **Q5**, plus the registry (§1) and batching (§5.2) in code |
-| `csv_replay.py` | CSV adapter (§10) and dataset replay (§9.2) | The observation and datastream model in code (§3); also coupled to the `campus-twin/v1` batch shape and its metric/unit/layer binding |
+| `csv_replay.py` | CSV adapter (§10) and dataset replay (§9.2) | **Unblocked** — the datastream and observation model now exists in `model.py`. Still needs retargeting off the `campus-twin/v1` batch shape and its metric/unit/layer binding |
 | `modbus_collector.py`, `modbus_emulator.py` | The wired driver and its emulator | The driver manifest (§9.1) |
-| `mqtt_bridge.py`, `mqtt_emulator.py` | The bus observations publish on (§5.1) | The observation shape |
+| `mqtt_bridge.py`, `mqtt_emulator.py` | The bus observations publish on (§5.1) | **Unblocked** — the observation shape now exists |
 | `test_metric_registry.py` | The gate that fails a producer emitting an unregistered name — the enforcement §3.4 needs | **Q4b** — which vocabulary |
 
-Most of these unblock at step 1 of the build order in
-[VIRTUAL_FARM.md](../docs/VIRTUAL_FARM.md): the data model and the log, as code.
+Step 1 of the build order in [VIRTUAL_FARM.md](../docs/VIRTUAL_FARM.md) — the data
+model and the log — is **done** (see [README.md](README.md)), which unblocked three of
+these. What remains is blocked on decisions rather than on code: Q5 for anything that
+has to emit a wire message, Q4b for the vocabulary gate, and the driver manifest for
+the collector pair.
 
 ## Dependencies
 
-Both files here are **stdlib only**, which is why they could move first. Upstream's
+Everything in `sdk/` is **stdlib only**, which is why these two could move first. Upstream's
 optional extras (`paho-mqtt` for the live MQTT path, `bacpypes3` for BACnet) are not
 required by anything in `sdk/`.
 
