@@ -27,6 +27,8 @@ import datetime as _dt
 import os
 import sys
 
+import harness
+import link as lk
 import node as nd
 import physics as ph
 
@@ -107,7 +109,10 @@ def build(*, stuck_float: bool, dr: int, seed: int, start: _dt.datetime):
         nd.Channel(2, 300.0, 300.0,
                    lambda t: round(t.trough_fraction["paddock"] * 1000),
                    name="paddock trough"),
-    ], dr=dr, policy=nd.BufferPolicy(buffer_max=400))
+    ], dr=dr, policy=nd.BufferPolicy(buffer_max=400),
+        # Mandatory on a link that relies on cumulative acknowledgement: without a
+        # deadline one lost frame stalls highest_contiguous forever (§5.2).
+        ack_timeout_s=1800.0)
 
     return world, node, G.Gateway(registry, log, state), log
 
@@ -120,50 +125,62 @@ def main() -> int:
                     help="hours of radio outage, starting at 06:00 on day 1")
     ap.add_argument("--stuck-float", action="store_true",
                     help="the float valve sticks shut and the trough empties")
+    ap.add_argument("--link", default="wired", choices=sorted(lk.PRESETS),
+                    help="link profile: loss, delay, duplication, ack loss")
     ap.add_argument("--dr", type=int, default=0, choices=(0, 1, 2, 3, 4, 5))
+    ap.add_argument("--clock-offset", type=float, default=0.0,
+                    help="hours the node's clock is wrong by (§2: it cancels)")
     ap.add_argument("--seed", type=int, default=1)
     args = ap.parse_args()
 
     start = _dt.datetime(2026, 7, 15, 0, 0, tzinfo=ph.UTC)
     world, node, gateway, log = build(stuck_float=args.stuck_float, dr=args.dr,
                                       seed=args.seed, start=start)
+    profile = lk.PRESETS[args.link]
+    link = lk.Link(profile, seed=args.seed)
+    outages = []
+    if args.outage:
+        outage_from = start + _dt.timedelta(hours=6)
+        outages.append((outage_from, outage_from + _dt.timedelta(hours=args.outage)))
+
     print(f"Harrow Bend  ·  {args.days:g} day(s) from {start:%Y-%m-%d}  ·  "
-          f"EU868 DR{args.dr}  ·  seed {args.seed}")
+          f"EU868 DR{args.dr}  ·  link {profile.name}  ·  seed {args.seed}")
     print(f"node {NODE:#x}  ·  {node.feasibility()}")
     print(f"transmit ceiling {node.transmit_interval_s:.0f} s "
-          f"(tightest max_latency)\n")
+          f"(tightest max_latency)")
+    if args.clock_offset:
+        print(f"node clock is {args.clock_offset:+g} h wrong — §2 reports ages, "
+              f"so it cancels")
+    print()
 
-    outage_from = start + _dt.timedelta(hours=6)
-    outage_to = outage_from + _dt.timedelta(hours=args.outage)
-    sent = deferred = 0
-
-    for truth in world.run(days=args.days):
-        node.sample(truth)
-        now = truth.when.timestamp()
-        if outage_from <= truth.when < outage_to:
-            continue                      # radio down: the node keeps buffering
-        if node.due(now) or node.behind(now):
-            for attempt in node.drain(now, max_messages=8):
-                gateway.receive(attempt.payload, received_at=truth.when)
-                node.ack(attempt.seq)     # the gateway's cumulative ack
-                sent += 1
-            if node.buffered and not node.due(now):
-                deferred += 1
+    report = harness.run(world=world, node=node, gateway=gateway, link=link,
+                         days=args.days, outages=outages,
+                         node_clock_offset_s=args.clock_offset * 3600.0)
 
     state = gateway.state
-    live = state.live_observations()
     kinds = {}
     for event in log:
         kinds[event.kind] = kinds.get(event.kind, 0) + 1
 
-    print(f"{'messages delivered':<26}{sent}")
-    print(f"{'node buffer at the end':<26}{node.buffered} buffered, "
-          f"{node.dropped_pending} evictions unreported")
-    print(f"{'duty used in the last hour':<26}"
+    print("link")
+    for key, value in report.link.items():
+        print(f"  {key:<24}{value}")
+    print(f"  loss rate               {link.loss_rate() * 100:.1f}%")
+    print()
+    print("ingest")
+    print(f"  frames ingested         {report.frames_ingested}")
+    print(f"  duplicates rejected     {report.duplicates_rejected}")
+    print(f"  readings requeued       {report.requeued}")
+    print(f"  acks sent               {report.acks_sent}")
+    print()
+    print("state")
+    print(f"  node buffer             {node.buffered} buffered, "
+          f"{node.unacked} unacked, {node.dropped_pending} evictions unreported")
+    print(f"  duty in the last hour   "
           f"{node.duty.used(world.when.timestamp()):.1f} s of 36 s")
-    print(f"{'observations in the log':<26}{len(state.observations)}")
-    print(f"{'live observations':<26}{len(live)}")
-    print(f"{'state.validate()':<26}{state.validate() or 'clean'}")
+    print(f"  observations            {len(state.observations)}")
+    print(f"  live observations       {len(state.live_observations())}")
+    print(f"  validate()              {state.validate() or 'clean'}")
     print()
     print("log events")
     for kind in sorted(kinds):
@@ -171,17 +188,17 @@ def main() -> int:
 
     flagged = [a for a in state.assertions if a.flags]
     print()
-    print(f"quality assertions        {len(state.assertions)} "
-          f"({len(flagged)} with a flag)")
-    for assertion in flagged[:6]:
+    print(f"quality                   {len(state.assertions)} assertions, "
+          f"{len(flagged)} flagged")
+    for assertion in flagged[:5]:
         obs = next(o for o in state.observations if o.id == assertion.observation)
         ds = state.datastreams[obs.datastream]
         label = "trough" if ds.observed_property == TROUGH else "soil"
         print(f"  {obs.measured_at:%m-%d %H:%M}  {label:<7}{obs.result!s:>7}  "
               f"{assertion.usable.value:<13}"
               f"{','.join(sorted(f.value for f in assertion.flags))}")
-    if len(flagged) > 6:
-        print(f"  ... and {len(flagged) - 6} more")
+    if len(flagged) > 5:
+        print(f"  ... and {len(flagged) - 5} more")
     return 0
 
 

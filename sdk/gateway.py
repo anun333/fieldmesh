@@ -207,6 +207,28 @@ class Gateway:
                             assertions=tuple(assertions), gaps=tuple(gaps),
                             reboot=reboot, unbound=tuple(unbound))
 
+    def highest_contiguous(self, node: int, boot: int, site=None) -> int | None:
+        """The highest sequence number with no hole below it, for this `(node, boot)`.
+
+        §5.2's cumulative acknowledgement: on a link that confirms nothing, the
+        gateway periodically tells the node this number and the node releases its
+        buffer up to it. One small downlink retires many uplinks, which is what
+        makes store-and-forward affordable without a confirmation per frame.
+
+        Contiguous is the whole point — acknowledging the *highest* seen would
+        quietly discard whatever is still missing below it.
+        """
+        binding = self.registry.node_for(node)
+        if binding is None:
+            return None
+        tracker = self._trackers.get((site or binding.site, node, boot))
+        if tracker is None or not tracker.seen:
+            return None
+        run = min(tracker.seen)
+        while run + 1 in tracker.seen:
+            run += 1
+        return run % SEQ_RANGE
+
     # -------------------------------------------------------------- internals
 
     def _note_reboot(self, binding, node: int, boot: int) -> bool:

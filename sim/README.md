@@ -4,7 +4,7 @@ Build-order steps 2–4 from [docs/VIRTUAL_FARM.md](../docs/VIRTUAL_FARM.md). St
 only (plus `cbor2`, via the SDK), Apache-2.0.
 
 ```sh
-cd sim && python3 -m unittest discover -p 'test_*.py'   # 87 tests
+cd sim && python3 -m unittest discover -p 'test_*.py'   # 127 tests
 python3 world_demo.py                                   # a day of Harrow Bend
 python3 world_demo.py --stuck-float                     # the fault, and the catch
 python3 world_demo.py --outage 10 --days 2              # buffer, evict, report
@@ -14,8 +14,11 @@ python3 world_demo.py --dr 3                            # a better link
 | Module | What it is |
 | --- | --- |
 | `physics.py` | Ground truth: a seeded seasonal climate, a soil water balance, a trough with a float valve |
-| `node.py` | A duty-cycled node: sampling, buffering, transmit-time restamping, eviction, cumulative ack, reboot |
-| `world_demo.py` | The whole chain — physics → node → wire → gateway → observations |
+| `node.py` | A duty-cycled node: sampling, buffering, transmit-time restamping, eviction, resend, reboot |
+| `link.py` | A radio that loses, delays, duplicates, drops acks and goes out — seeded |
+| `faults.py` | Injectable sensor faults: drift, sticking, bias, noise, death, out-of-range |
+| `harness.py` | The loop, in §5.1's order, shared by the demo and the tests |
+| `world_demo.py` | The whole chain — physics → node → link → gateway → observations |
 
 ## Ground truth lives in `physics.py`, and only there
 
@@ -51,18 +54,46 @@ The sim earns its keep by failing. Four defects, each now a spec amendment:
    SensorThings output. A calibration may now declare its output resolution (§3.2).
 4. **Two readings could land on one instant**, violating §3.2's uniqueness. Wire ages
    are whole seconds, so that bounds the minimum sample interval per channel (§5.2).
+5. **A resend took a fresh sequence number**, so the gateway could not recognise it and
+   wrote the same readings again at timestamps a rounding apart — 2498 observations
+   where 768 were expected. §6.3 states this rule for commands; it was never stated for
+   readings, and now is (§5.2).
+6. **Without an acknowledgement deadline, one lost frame stalled delivery forever.**
+   The gateway's highest contiguous sequence cannot pass a hole, so the node held every
+   later reading until it began evicting — healthy-looking and delivering nothing (§5.2).
+7. **Two mixed-clock bugs, both in this harness rather than the SDK.** Sampling against
+   true time while transmitting against a skewed clock, and polling the link for
+   acknowledgements on the node's clock instead of the medium's. Neither raised an
+   error; the first silently destroyed §2's offset cancellation and the second made the
+   node resend forever. A node has one clock and the link has another, and the spec now
+   says so.
 
 `test_world.py` is where that first one is pinned: a clean day must produce a clean
 record, *and* every reading must still be assessed — silence because nothing was
 checked is not the same as silence because nothing was wrong.
 
+## Why clock skew is not an injectable fault
+
+Because §2 makes it a non-event, and that is worth demonstrating rather than
+asserting. A node reports **ages**, computed from its own clock at both ends, so a
+constant offset subtracts out exactly: `(t2 + e) - (t1 + e)` is `t2 - t1`. A node six
+hours wrong still produces a correct `measured_at`, and
+`test_faults.py::TestClockOffsetCancels` proves it. Only drift across the buffer dwell
+survives, and over the minutes or hours a reading actually waits it is far below the
+uncertainty the node already declares.
+
+What *does* corrupt times is stamping the age when the reading is taken rather than
+when the frame leaves — the mistake §2 warns about. `Node.stamp_at_sample` models it
+so the damage is visible: without an outage it is invisible, which is exactly why it
+would ship, and after a six-hour outage the entire window collapses onto the recovery
+instant and nothing in the record says so.
+
 ## Not here yet
 
-Faults the sim cannot inject: drift, clock skew, node reboot, and duplicated or
-reordered frames. Those need a link layer between the node and the gateway that can
-lose, delay and repeat — currently `world_demo.py` hands frames over directly, so
-every message arrives exactly once and in order. That link is what step 3 still
-wants, and it is the prerequisite for a scored drill (step 6).
+A **scored drill** (step 6): seed a fault, show the farmer-facing symptom, and score
+the detector's verdict against `Sensor.injected()` with precision, recall and a
+false-alarm rate on clean rows. The producers and the ground truth both exist now; the
+scoring does not.
 
-Harrow Bend itself is not assembled: this is one bed and one trough, not the six
-beds, paddock, research plot, hoop house and well of the completeness matrix.
+**Harrow Bend itself is not assembled** — this is one bed and one trough, not the six
+beds, paddock, research plot, hoop house and well of the completeness matrix (step 5).

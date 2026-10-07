@@ -114,6 +114,7 @@ class Transmission:
     airtime_s: float = 0.0
     dropped_reported: int = 0
     deferred: str | None = None       # why nothing was sent
+    resend: bool = False              # a retry under its original seq (§5.2)
 
     @property
     def sent(self) -> bool:
@@ -127,17 +128,23 @@ class _Held:
     sampled_at_s: float
     reading: object
     seq: int | None = None            # set once it has been sent
+    awaiting_resend: bool = False     # its acknowledgement never came
 
 
 class Node:
     """A duty-cycled sensing node."""
 
     __slots__ = ("node_id", "channels", "policy", "dr", "duty", "boot", "seq",
-                 "_held", "_dropped", "_last_sample", "_last_tx", "_sent_order")
+                 "ack_timeout_s", "stamp_at_sample", "clock_offset_s",
+                 "_held", "_dropped",
+                 "_last_sample", "_last_tx", "_sent_order", "_sent_at")
 
     def __init__(self, node_id: int, channels, *, policy: BufferPolicy | None = None,
                  dr: int = 0, boot: int = 1,
-                 duty_budget_s: float = DUTY_CYCLE_BUDGET_S):
+                 duty_budget_s: float = DUTY_CYCLE_BUDGET_S,
+                 ack_timeout_s: float | None = None,
+                 stamp_at_sample: bool = False,
+                 clock_offset_s: float = 0.0):
         if not channels:
             raise ValueError("a node needs at least one channel")
         self.node_id = node_id
@@ -152,6 +159,23 @@ class Node:
         self._last_sample: dict[int, float] = {}
         self._last_tx: float | None = None
         self._sent_order: list[int] = []
+        self._sent_at: dict[int, float] = {}
+        #: How long to wait for a cumulative ack before assuming the frame was
+        #: lost and requeueing its readings. None means never give up, which is
+        #: only safe on a link that confirms every frame.
+        self.ack_timeout_s = ack_timeout_s
+        #: A deliberate §2 violation, for the sim only. A node that records a
+        #: reading's age when it *samples* records zero — the reading is new — and
+        #: never updates it, so a buffered batch arrives claiming every reading was
+        #: taken at the instant the frame landed. Modelled so the damage can be
+        #: shown; never set it on anything real.
+        self.stamp_at_sample = stamp_at_sample
+        #: How wrong this node's clock is. §2 has nodes report ages rather than
+        #: timestamps precisely so that a constant offset cancels: the node
+        #: subtracts two readings of its own clock, and the error goes with it. One
+        #: clock, used for both ends — mixing a true sample time with a skewed
+        #: transmit time is how this breaks, and it breaks silently.
+        self.clock_offset_s = clock_offset_s
 
     # ------------------------------------------------------------- properties
 
@@ -169,6 +193,11 @@ class Node:
     def buffered(self) -> int:
         """Readings sampled but never sent."""
         return sum(1 for h in self._held if h.seq is None)
+
+    @property
+    def awaiting_resend(self) -> int:
+        """Readings whose frame was sent and never acknowledged."""
+        return sum(1 for h in self._held if h.awaiting_resend)
 
     @property
     def unacked(self) -> int:
@@ -223,7 +252,7 @@ class Node:
 
     def sample(self, truth) -> int:
         """Sample every channel that is due. Returns how many readings were taken."""
-        now_s = truth.when.timestamp()
+        now_s = truth.when.timestamp() + self.clock_offset_s
         taken = 0
         for channel in self.channels.values():
             last = self._last_sample.get(channel.channel)
@@ -292,20 +321,54 @@ class Node:
 
         Ages are computed here, not at sample time (§2). A batch that waited three
         days leaves with three days of age on it.
+
+        A frame awaiting resend goes first and **keeps its sequence number**, so the
+        gateway can recognise it as the message it may already hold.
         """
-        pending = [h for h in self._held if h.seq is None]
+        resend = self._oldest_resend()
+        if resend is not None:
+            return self._send(resend, now_s, seq=resend[0].seq, resend=True)
+
+        pending = [h for h in self._held
+                   if h.seq is None and not h.awaiting_resend]
         if not pending:
             return Transmission(payload=None, deferred="nothing buffered")
+        return self._send(self._drain_order(pending), now_s, seq=self.seq,
+                          resend=False)
 
-        ordered = self._drain_order(pending)
+    def _oldest_resend(self):
+        """The earliest-sent frame still awaiting acknowledgement, as a group."""
+        for seq in self._sent_order:
+            group = [h for h in self._held
+                     if h.seq == seq and h.awaiting_resend]
+            if group:
+                return group
+        return None
+
+    def _send(self, ordered, now_s: float, *, seq: int,
+              resend: bool) -> Transmission:
+        ordered = list(ordered)
+        if self.stamp_at_sample:
+            # The mistake: the age was recorded when the reading was taken, so it
+            # is zero, and nobody updated it. The gateway then computes
+            # `measured_at = received_at`, collapsing a whole buffered batch onto
+            # the instant the frame arrived.
+            zeroed = [wire.Reading(h.reading.channel, 0, h.reading.value)
+                      for h in ordered]
+            return self._emit(ordered, zeroed, 0, now_s, seq=seq, resend=resend)
+        reference = (min(h.sampled_at_s for h in ordered) if self.stamp_at_sample
+                     else now_s)
         candidates = [wire.Reading(h.reading.channel,
-                                   int(now_s - h.sampled_at_s), h.reading.value)
+                                   int(reference - h.sampled_at_s),
+                                   h.reading.value)
                       for h in ordered]
         base = min(r.age_delta for r in candidates)
         candidates = [wire.Reading(r.channel, r.age_delta - base, r.value)
                       for r in candidates]
 
-        seq = self.seq
+        return self._emit(ordered, candidates, base, now_s, seq=seq, resend=resend)
+
+    def _emit(self, ordered, candidates, base, now_s, *, seq, resend):
         try:
             payload, count = wire.pack(candidates, boot=self.boot, seq=seq,
                                        base_age=base, max_payload=self.max_payload,
@@ -324,13 +387,17 @@ class Node:
         self.duty.record(airtime, now_s)
         for held in ordered[:count]:
             held.seq = seq
-        self._sent_order.append(seq)
+            held.awaiting_resend = False
+        self._sent_at[seq] = now_s
         reported = self._dropped
         self._dropped = 0
-        self.seq = (self.seq + 1) & 0xFFFF
+        if not resend:
+            self._sent_order.append(seq)
+            self.seq = (self.seq + 1) & 0xFFFF
         self._last_tx = now_s
         return Transmission(payload=payload, seq=seq, readings=count,
-                            airtime_s=airtime, dropped_reported=reported)
+                            airtime_s=airtime, dropped_reported=reported,
+                            resend=resend)
 
     def _drain_order(self, pending):
         """§5.3. Oldest first keeps a series unbroken; newest first gets the
@@ -354,6 +421,8 @@ class Node:
         before = len(self._held)
         self._held = [h for h in self._held if h.seq not in released]
         self._sent_order = self._sent_order[cutoff + 1:]
+        for gone in released:
+            self._sent_at.pop(gone, None)
         return before - len(self._held)
 
     def nack(self) -> int:
@@ -362,9 +431,45 @@ class Node:
         for held in self._held:
             if held.seq is not None:
                 held.seq = None
+                held.awaiting_resend = False
                 requeued += 1
         self._sent_order.clear()
+        self._sent_at.clear()
         return requeued
+
+    def expire_unacked(self, now_s: float) -> int:
+        """Mark frames whose acknowledgement never came for resend (§5.2).
+
+        On a link that confirms nothing, a lost frame and a slow one are
+        indistinguishable until this deadline passes.
+
+        **The resend keeps its original sequence number.** This is the same rule
+        §6.3 states for commands, and it matters here for the same reason: the
+        dedup key is `(site, node, boot, seq)`, so a retry under a fresh number is
+        a *new message* as far as the gateway is concerned. It then writes the same
+        readings again, at timestamps that differ by the rounding of a recomputed
+        age — phantom readings a second away from the real ones, in a series nobody
+        can later untangle. Measured on a lossy link: 2498 observations where 768
+        were expected.
+
+        A deadline is **mandatory** on a link that relies on cumulative
+        acknowledgement. Without one, a single lost frame stalls
+        `highest_contiguous` at the hole below it forever and the node holds every
+        later reading until it starts evicting.
+        """
+        if self.ack_timeout_s is None:
+            return 0
+        expired = [s for s in self._sent_order
+                   if now_s - self._sent_at.get(s, now_s) >= self.ack_timeout_s]
+        if not expired:
+            return 0
+        stale = set(expired)
+        marked = 0
+        for held in self._held:
+            if held.seq in stale and not held.awaiting_resend:
+                held.awaiting_resend = True
+                marked += 1
+        return marked
 
     # ------------------------------------------------------------------ power
 
@@ -383,9 +488,11 @@ class Node:
         else:
             for held in self._held:
                 held.seq = None
+                held.awaiting_resend = False
         self.boot += 1
         self.seq = 0
         self._sent_order.clear()
+        self._sent_at.clear()
         self._last_sample.clear()
         self._last_tx = None
         return lost
