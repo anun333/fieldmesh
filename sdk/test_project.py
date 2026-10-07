@@ -14,7 +14,7 @@ import fixtures as fx
 import log as L
 import project as P
 from ids import uuid7
-from model import Assertor, ClockQuality, QualityFlag, Usable
+from model import Assertor, Calibration, ClockQuality, QualityFlag, Usable
 
 UTC = _dt.timezone.utc
 
@@ -120,6 +120,60 @@ class TestCalibrationSelection(unittest.TestCase):
                                 valid_to=_dt.datetime(2026, 7, 1, tzinfo=UTC))
         clashes = P.overlapping_calibrations(self.cals + [sloppy], self.sensor)
         self.assertTrue(clashes)
+
+
+class TestCalibrationApplication(unittest.TestCase):
+    """§3.2: reproducible from raw value, calibration and driver version."""
+
+    @staticmethod
+    def _cal(method="linear", **coefficients):
+        return Calibration(id=uuid7(), sensor=uuid7(), method=method,
+                           valid_from=fx.at(-60), coefficients=coefficients)
+
+    def test_linear_scaling(self):
+        self.assertAlmostEqual(P.apply_calibration(231, self._cal(a=0.001)), 0.231)
+
+    def test_an_offset_is_applied(self):
+        self.assertAlmostEqual(
+            P.apply_calibration(231, self._cal(a=0.001, b=-0.01)), 0.221)
+
+    def test_identity_passes_the_value_through(self):
+        cal = fx.calibration(uuid7(), method="identity")
+        self.assertEqual(P.apply_calibration(231, cal), 231)
+
+    def test_a_polynomial(self):
+        cal = self._cal("polynomial", c=[0.0, 0.001, 0.0000001])
+        self.assertAlmostEqual(P.apply_calibration(100, cal), 0.1 + 0.001)
+
+    def test_an_unknown_method_raises_rather_than_passing_through(self):
+        """A silent passthrough would put an uncalibrated number in a calibrated
+        series, which is the silent cleaning the spec exists to prevent."""
+        cal = fx.calibration(uuid7(), method="sorcery")
+        with self.assertRaisesRegex(P.CalibrationError, "unknown method"):
+            P.apply_calibration(231, cal)
+
+    def test_a_missing_coefficient_raises(self):
+        with self.assertRaisesRegex(P.CalibrationError, "coefficient"):
+            P.apply_calibration(231, self._cal(b=1.0))
+
+    def test_declared_decimals_refuse_precision_the_probe_lacks(self):
+        """0.001 * 86 is exactly 0.08600000000000001 in IEEE 754 — correct, and a
+        claim of seventeen significant figures no probe can support."""
+        noisy = P.apply_calibration(86, self._cal(a=0.001))
+        self.assertNotEqual(noisy, 0.086)
+        clean = P.apply_calibration(86, self._cal(a=0.001, decimals=3))
+        self.assertEqual(clean, 0.086)
+
+    def test_rounding_is_part_of_the_calibration_so_it_stays_reproducible(self):
+        cal = self._cal(a=0.001, decimals=3)
+        self.assertEqual(P.apply_calibration(86, cal),
+                         P.apply_calibration(86, cal))
+
+    def test_a_bad_decimals_declaration_is_refused(self):
+        with self.assertRaises(P.CalibrationError):
+            P.apply_calibration(86, self._cal(a=0.001, decimals="three"))
+        with self.assertRaises(P.CalibrationError):
+            P.apply_calibration(86, self._cal(a=0.001, decimals=-1))
 
 
 class TestQualityPrecedence(unittest.TestCase):

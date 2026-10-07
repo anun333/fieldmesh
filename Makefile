@@ -1,10 +1,11 @@
 # librefarm — layer zero
 .POSIX:
-.PHONY: help test demo q5 q5-points power frost clean
+.PHONY: help test demo world q5 q5-points power frost clean
 
 help:
 	@echo "test   run every test (sdk + tools)"
 	@echo "demo   log -> derived state -> SensorThings, no hardware"
+	@echo "world  a day of farm physics through a node to the gateway"
 	@echo "q5     the encoding measurement behind the Q5 decision"
 	@echo "q5-points  what each encoding costs at realistic sample/transmit rates"
 	@echo "power  where a node's battery goes, per datastream"
@@ -14,9 +15,13 @@ help:
 test:
 	@cd sdk && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd tools && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
+	@cd sim && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 
 demo:
 	@cd sdk && python3 demo.py
+
+world:
+	@cd sim && python3 world_demo.py
 
 q5:
 	@cd tools && python3 q5_encoding.py

@@ -150,6 +150,20 @@ class CalibrationError(Exception):
     """A calibration that cannot be applied. Never approximated."""
 
 
+def _resolve(value: float, coefficients: dict) -> float:
+    """Round to the calibration's declared output resolution, if it declares one."""
+    decimals = coefficients.get("decimals")
+    if decimals is None:
+        return value
+    try:
+        places = int(decimals)
+    except (TypeError, ValueError) as exc:
+        raise CalibrationError(f"decimals must be an integer, got {decimals!r}") from exc
+    if places < 0:
+        raise CalibrationError("decimals must not be negative")
+    return round(value, places)
+
+
 def apply_calibration(raw_value, calibration: Calibration):
     """Compute a derived result from a raw one (§3.2).
 
@@ -165,6 +179,15 @@ def apply_calibration(raw_value, calibration: Calibration):
     raw series and becomes `0.231` here, through coefficients that carry the
     scale. Recalibrating changes those coefficients and supersedes the derived
     rows; the raw series never moves.
+
+    A calibration MAY declare `decimals`, the output resolution. `0.001 * 86` is
+    exactly `0.08600000000000001` in IEEE 754 — correct, reproducible, and a claim
+    of seventeen significant figures that no probe can support. Rounding to a
+    declared resolution is not cleaning the data: it is declining to assert
+    precision the instrument does not have, and because the resolution is part of
+    the calibration record the derivation stays reproducible from
+    `(raw value, calibration, driver version)` exactly as §3.2 requires. Omit it
+    and nothing is rounded.
     """
     method = (calibration.method or "").strip().lower()
     coefficients = calibration.coefficients or {}
@@ -181,14 +204,15 @@ def apply_calibration(raw_value, calibration: Calibration):
                 f"calibration {calibration.id} declares method {method!r} but has "
                 f"no usable coefficient 'a'") from exc
         b = float(coefficients.get("b", 0.0))
-        return a * raw_value + b
+        return _resolve(a * raw_value + b, coefficients)
     if method in ("polynomial", "poly"):
         coeffs = coefficients.get("c")
         if not isinstance(coeffs, (list, tuple)) or not coeffs:
             raise CalibrationError(
                 f"calibration {calibration.id} declares {method!r} but has no "
                 f"coefficient list 'c'")
-        return sum(float(c) * raw_value ** i for i, c in enumerate(coeffs))
+        return _resolve(sum(float(c) * raw_value ** i
+                            for i, c in enumerate(coeffs)), coefficients)
     raise CalibrationError(
         f"calibration {calibration.id} declares unknown method {method!r}; "
         f"refusing to guess, because a silent passthrough would put an "

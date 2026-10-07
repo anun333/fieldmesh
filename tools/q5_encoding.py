@@ -29,9 +29,16 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import struct
+import sys
 
 import cbor2
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "sdk"))
+from airtime import (DUTY_CYCLE_BUDGET_S, LORAWAN_OVERHEAD,  # noqa: E402
+                     MAX_APP_PAYLOAD, SF_FOR_DR, time_on_air)
 
 VERSION = 1
 NODE_ID = 0x4F2A17B3        # a Meshtastic node number
@@ -182,32 +189,6 @@ CANDIDATES = [
     ("SenML-CBOR + custom labels", senml_cbor_extended),
     ("CBOR maps (named keys)", cbor_maps),
 ]
-
-
-# ------------------------------------------------------------------- airtime
-
-def time_on_air(payload_bytes: int, sf: int, *, bw_hz: int = 125_000,
-                coding_rate: int = 1, preamble: int = 8, crc: int = 1,
-                explicit_header: bool = True) -> float:
-    """LoRa time-on-air in seconds (Semtech SX127x datasheet §4.1.1.7).
-
-    `payload_bytes` is the PHY payload — for LoRaWAN that is the application
-    payload plus 13 bytes of MHDR/DevAddr/FCtrl/FCnt/FPort/MIC.
-    """
-    t_sym = (2 ** sf) / bw_hz
-    t_preamble = (preamble + 4.25) * t_sym
-    low_rate_opt = 1 if sf >= 11 else 0     # mandatory at SF11/12 on 125 kHz
-    numerator = 8 * payload_bytes - 4 * sf + 28 + 16 * crc - (0 if explicit_header else 20)
-    denominator = 4 * (sf - 2 * low_rate_opt)
-    payload_symb = 8 + max(math.ceil(numerator / denominator) * (coding_rate + 4), 0)
-    return t_preamble + payload_symb * t_sym
-
-
-LORAWAN_OVERHEAD = 13
-#: EU868 maximum application payload by data rate (LoRaWAN regional parameters).
-MAX_APP_PAYLOAD = {0: 51, 1: 51, 2: 51, 3: 115, 4: 222, 5: 222}
-SF_FOR_DR = {0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7}
-DUTY_CYCLE_BUDGET_S = 36.0      # 1% of an hour, per sub-band per device
 
 
 #: Realistic (sample interval, transmit interval) pairs in minutes. Sampling and

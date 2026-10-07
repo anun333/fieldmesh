@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""The airtime arithmetic the Q5 decision rests on (spec v0.1 §5.2)."""
+"""The encodings compared for Q5 (spec v0.1 §5.2).
+
+The airtime arithmetic these rest on moved to `sdk/airtime.py`, where a
+link driver can use it at runtime; its tests are `sdk/test_airtime.py`.
+"""
 from __future__ import annotations
 
 import os
@@ -9,55 +13,6 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import q5_encoding as q5  # noqa: E402
-
-
-class TestTimeOnAir(unittest.TestCase):
-    """Checked against the Semtech SX127x formula and widely published
-    LoRaWAN airtime figures. If this arithmetic is wrong, the whole Q5
-    comparison is wrong, so it is pinned rather than trusted."""
-
-    def test_sf12_full_dr0_frame(self):
-        """The load-bearing number: SF12, BW125, CR4/5, 64-byte PHY payload
-        (51 app + 13 LoRaWAN), with the low-data-rate optimisation on.
-
-            T_sym      = 2^12 / 125000           = 32.768 ms
-            T_preamble = 12.25 x 32.768           = 401.408 ms
-            symbols    = 8 + ceil(508/40) x 5     = 73
-            T_payload  = 73 x 32.768              = 2392.064 ms
-            ToA                                   = 2793.472 ms
-        """
-        self.assertAlmostEqual(q5.time_on_air(64, 12), 2.793472, delta=0.000001)
-
-    def test_sf7_small_frame(self):
-        """Hand-derived rather than recalled, so the expectation is checkable:
-
-            T_sym      = 2^7 / 125000           = 1.024 ms
-            T_preamble = (8 + 4.25) x 1.024      = 12.544 ms
-            symbols    = 8 + ceil(224/28) x 5    = 48
-            T_payload  = 48 x 1.024              = 49.152 ms
-            ToA                                  = 61.696 ms
-        """
-        self.assertAlmostEqual(q5.time_on_air(26, 7), 0.061696, delta=0.000001)
-
-    def test_each_step_down_in_spreading_factor_roughly_halves_airtime(self):
-        for sf in (8, 9, 10):
-            faster = q5.time_on_air(40, sf)
-            slower = q5.time_on_air(40, sf + 1)
-            self.assertLess(faster, slower)
-            self.assertAlmostEqual(slower / faster, 2.0, delta=0.35)
-
-    def test_low_data_rate_optimisation_applies_at_sf11_and_12(self):
-        """Mandatory on 125 kHz at SF11/12, and it costs airtime — a jump
-        bigger than the SF step alone would predict."""
-        ratio_10_11 = q5.time_on_air(40, 11) / q5.time_on_air(40, 10)
-        ratio_9_10 = q5.time_on_air(40, 10) / q5.time_on_air(40, 9)
-        self.assertGreater(ratio_10_11, ratio_9_10)
-
-    def test_airtime_grows_with_payload(self):
-        self.assertLess(q5.time_on_air(20, 12), q5.time_on_air(60, 12))
-
-    def test_duty_cycle_budget_is_one_percent_of_an_hour(self):
-        self.assertEqual(q5.DUTY_CYCLE_BUDGET_S, 36.0)
 
 
 class TestEncodings(unittest.TestCase):
