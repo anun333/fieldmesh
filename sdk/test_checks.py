@@ -103,6 +103,71 @@ class TestFlatline(unittest.TestCase):
         self.assertEqual(_flags(C.assess(state, obs[3])), [])
 
 
+class TestFlatlineIsSampleRateIndependent(unittest.TestCase):
+    """§4.2 says "identical values for LONGER THAN physically plausible" — a
+    duration. A count-only threshold means different physical things on two farms
+    that sample at different rates, which makes it untunable."""
+
+    def _flat_run(self, sample_minutes, hours, **thresholds):
+        """A probe frozen at one value for `hours`, sampled every n minutes."""
+        ds = fx.raw_datastream(expected_interval=sample_minutes * 60,
+                              thresholds=thresholds)
+        count = int(hours * 60 / sample_minutes) + 1
+        obs = [fx.observation(ds, result=0.31, measured_at=fx.at(i * sample_minutes),
+                              seq=i) for i in range(count)]
+        return obs[-1], _state(ds, *obs)
+
+    def test_a_duration_threshold_means_the_same_thing_at_any_sample_rate(self):
+        """The property the count-based version did not have."""
+        for sample_minutes in (60, 15, 5, 1):
+            with self.subTest(sample_minutes=sample_minutes):
+                obs, state = self._flat_run(sample_minutes, hours=8,
+                                           flat_seconds=6 * 3600, flat_n=2)
+                self.assertEqual(_flags(C.assess(state, obs)), ["stuck"],
+                                 "8 hours frozen is 8 hours frozen")
+                obs, state = self._flat_run(sample_minutes, hours=4,
+                                           flat_seconds=6 * 3600, flat_n=2)
+                self.assertEqual(_flags(C.assess(state, obs)), [],
+                                 "4 hours frozen is under a 6-hour limit")
+
+    def test_a_count_only_threshold_is_coupled_to_the_sample_rate(self):
+        """Demonstrating the trap rather than asserting it. The same flat_n=12
+        catches a 1-hour freeze at 5-minute sampling and misses it at hourly."""
+        fast, state_fast = self._flat_run(5, hours=1, flat_n=12)
+        self.assertEqual(_flags(C.assess(state_fast, fast)), ["stuck"])
+        slow, state_slow = self._flat_run(60, hours=1, flat_n=12)
+        self.assertEqual(_flags(C.assess(state_slow, slow)), [],
+                         "same threshold, same physical fault, opposite verdict")
+
+    def test_both_knobs_must_be_satisfied_when_both_are_set(self):
+        """flat_n is a confidence guard: two equal readings an hour apart prove
+        very little, however long the span between them."""
+        obs, state = self._flat_run(60, hours=12, flat_seconds=3600, flat_n=50)
+        self.assertEqual(_flags(C.assess(state, obs)), [],
+                         "the span qualifies but there are too few samples")
+        obs, state = self._flat_run(60, hours=12, flat_seconds=3600, flat_n=2)
+        self.assertEqual(_flags(C.assess(state, obs)), ["stuck"])
+
+    def test_the_evidence_says_so_when_only_a_count_threshold_is_set(self):
+        obs, state = self._flat_run(5, hours=2, flat_n=12)
+        reason = C.assess(state, obs).evidence["fired"]["flatline"]
+        self.assertIn("moves with the sample rate", reason)
+
+    def test_the_evidence_reports_the_span_not_just_the_count(self):
+        obs, state = self._flat_run(15, hours=8, flat_seconds=3600, flat_n=2)
+        reason = C.assess(state, obs).evidence["fired"]["flatline"]
+        self.assertIn("unchanged over", reason)
+        self.assertIn("28800s", reason)
+
+    def test_a_fresh_value_resets_the_span(self):
+        ds = fx.raw_datastream(thresholds={"flat_seconds": 3600, "flat_n": 2})
+        obs = [fx.observation(ds, result=0.31, measured_at=fx.at(i * 60), seq=i)
+               for i in range(8)]
+        obs.append(fx.observation(ds, result=0.44, measured_at=fx.at(8 * 60), seq=8))
+        state = _state(ds, *obs)
+        self.assertEqual(_flags(C.assess(state, obs[-1])), [])
+
+
 class TestRateOfChange(unittest.TestCase):
     def _pair(self, a, b, minutes_apart, limit):
         ds = fx.raw_datastream(thresholds={"max_rate_per_s": limit})

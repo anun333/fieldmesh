@@ -56,7 +56,18 @@ SUITE_VERSION = "1"
 #: worse than one that fires rarely, because a farmer who stops trusting the
 #: flags has lost the whole feature.
 DEFAULTS = {
-    "flat_n": 12,            # consecutive identical values before `stuck`
+    # Flatline has two knobs on purpose. `flat_seconds` is the physical one —
+    # §4.2 says "identical values for LONGER THAN physically plausible", which is
+    # a duration, and how long a frozen reading is implausible is a property of
+    # the measurand, not of how often you sample it. `flat_n` is a confidence
+    # guard: two equal readings an hour apart prove very little.
+    #
+    # A count-only threshold is coupled to the sample rate, and that coupling is
+    # a trap: `flat_n: 12` means twelve hours at hourly sampling and one hour at
+    # five-minute sampling, so the "same" threshold means different physical
+    # things on two farms. Set `flat_seconds` for anything that matters.
+    "flat_seconds": None,    # duration of an identical run before `stuck`
+    "flat_n": 12,            # minimum samples before a flat run is believed
     "min": None,             # no range check unless configured
     "max": None,
     "max_rate_per_s": None,  # no rate check unless configured
@@ -107,23 +118,44 @@ def check_flatline(obs: Observation, series, values, peers) -> Finding | None:
     """§4.2 Flatline → `stuck`. Identical values for longer than physically
     plausible.
 
-    Counts back from this observation through the series. A probe reading exactly
-    the same number for many samples is either in a bucket or dead, and either way
-    the value is not a measurement of the soil.
+    Walks back through the series measuring both how *long* the identical run has
+    lasted and how many samples it contains. A probe reading exactly the same
+    number for hours is either in a bucket or dead, and either way the value is
+    not a measurement of the soil.
+
+    `flat_seconds` is the real threshold because the spec's own wording is about
+    duration; `flat_n` guards against calling two equal readings an hour apart a
+    flatline. When both are set, both must be satisfied. When only `flat_n` is
+    set the check still works, but its meaning moves with the sample rate — see
+    DEFAULTS.
     """
-    n = values.get("flat_n")
-    if n is None or obs.result is None:
+    seconds_limit = values.get("flat_seconds")
+    n_limit = values.get("flat_n")
+    if obs.result is None or (seconds_limit is None and n_limit is None):
         return None
-    run = 0
+
+    run, oldest = 0, obs
     for earlier in _upto(series, obs):
         if earlier.result != obs.result:
             break
         run += 1
-    if run >= n:
-        return Finding(QualityFlag.STUCK, "flatline",
-                       f"{run} consecutive readings of {obs.result} "
-                       f"(threshold {n})")
-    return None
+        oldest = earlier
+    span = (obs.measured_at - oldest.measured_at).total_seconds()
+
+    if n_limit is not None and run < n_limit:
+        return None
+    if seconds_limit is not None and span < seconds_limit:
+        return None
+    if seconds_limit is None and n_limit is None:
+        return None
+
+    detail = f"{run + 1} readings of {obs.result} unchanged over {span:.0f}s"
+    if seconds_limit is not None:
+        detail += f" (limit {seconds_limit:.0f}s)"
+    else:
+        detail += f" (limit {n_limit} samples; no flat_seconds set, so this "
+        detail += "threshold moves with the sample rate)"
+    return Finding(QualityFlag.STUCK, "flatline", detail)
 
 
 def check_rate(obs: Observation, series, values, peers) -> Finding | None:

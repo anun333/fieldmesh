@@ -210,10 +210,66 @@ SF_FOR_DR = {0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7}
 DUTY_CYCLE_BUDGET_S = 36.0      # 1% of an hour, per sub-band per device
 
 
+#: Realistic (sample interval, transmit interval) pairs in minutes. Sampling and
+#: transmitting are different numbers — that is what batching is for — and the
+#: duty cycle is spent on the second one.
+OPERATING_POINTS = [(60, 60), (30, 60), (15, 60), (5, 60), (5, 30), (1, 60)]
+
+
+def capacity(encode, limit: int, with_node: bool = True) -> int:
+    """Largest batch this encoding fits inside `limit` bytes."""
+    best = 0
+    for n in range(1, 2 * len(CHANNELS) + 1):
+        _widen(n)
+        if len(encode(n, with_node)) <= limit:
+            best = n
+        else:
+            break
+    return best
+
+
+def _widen(n: int) -> None:
+    """Extend the sample batch to n readings, keeping it deterministic."""
+    global CHANNELS, AGE_DELTAS, VALUES
+    CHANNELS = [((i % 8) + 1) for i in range(max(n, 8))]
+    AGE_DELTAS = [i * 300 for i in range(max(n, 8))]
+    VALUES = [231 + (i % 40) for i in range(max(n, 8))]
+
+
+def operating_points(encode, sf: int, limit: int, with_node: bool = True):
+    """What each realistic duty actually costs, as a share of the 36 s budget."""
+    cap = capacity(encode, limit, with_node)
+    rows = []
+    for sample_min, tx_min in OPERATING_POINTS:
+        per_tx = max(1, tx_min // sample_min)
+        msgs = math.ceil(per_tx / cap) if cap else 0
+        _widen(min(per_tx, cap) if cap else 1)
+        size = len(encode(min(per_tx, cap) if cap else 1, with_node))
+        toa = time_on_air(size + LORAWAN_OVERHEAD, sf)
+        airtime = msgs * toa * (60 / tx_min)
+        rows.append((sample_min, tx_min, per_tx, cap, msgs, airtime,
+                     airtime / DUTY_CYCLE_BUDGET_S * 100))
+    return rows
+
+
+def drain_hours(encode, sf: int, limit: int, sample_min: int,
+                outage_days: int = 3, with_node: bool = True) -> tuple[int, float]:
+    """Readings held after an outage, and hours of duty budget to clear them."""
+    cap = capacity(encode, limit, with_node)
+    backlog = outage_days * 24 * (60 // sample_min)
+    _widen(cap)
+    toa = time_on_air(len(encode(cap, with_node)) + LORAWAN_OVERHEAD, sf)
+    msgs = math.ceil(backlog / cap)
+    return backlog, msgs * toa / DUTY_CYCLE_BUDGET_S
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--readings", type=int, default=8, help="readings per batch")
+    ap.add_argument("--operating-points", action="store_true",
+                    help="cost at realistic sample/transmit intervals, not at the "
+                         "maximum (this is the number that decides anything)")
     ap.add_argument("--dr", type=int, default=0, choices=sorted(SF_FOR_DR),
                     help="EU868 data rate (default 0 = SF12, the worst case)")
     ap.add_argument("--no-node-id", action="store_true",
@@ -225,6 +281,30 @@ def main() -> int:
     sf = SF_FOR_DR[args.dr]
     limit = MAX_APP_PAYLOAD[args.dr]
     with_node = not args.no_node_id
+
+    if args.operating_points:
+        print(f"EU868 DR{args.dr} (SF{sf}), 1% duty cycle = "
+              f"{DUTY_CYCLE_BUDGET_S:.0f} s/h. 'budget' is the share used.\n")
+        hdr = (f"{'sample':>9}{'transmit':>10}{'rdg/tx':>8}{'cap':>5}"
+               f"{'msgs/tx':>9}{'airtime/h':>11}{'budget':>9}")
+        for label, fn in (("hand-packed struct", hand_packed),
+                          ("CBOR packed + CDDL", cbor_packed_flat)):
+            print(f"--- {label} ---")
+            print(hdr)
+            for s, tx, per, cap, msgs, air, pct in operating_points(
+                    fn, sf, limit, with_node):
+                print(f"{s:>6}min{tx:>7}min{per:>8}{cap:>5}{msgs:>9}"
+                      f"{air:>9.1f}s{pct:>8.1f}%")
+            print()
+        print("--- backlog drain after a 3-day outage ---")
+        for label, fn in (("hand-packed struct", hand_packed),
+                          ("CBOR packed + CDDL", cbor_packed_flat)):
+            for s in (60, 5):
+                backlog, hours = drain_hours(fn, sf, limit, s, with_node=with_node)
+                print(f"  {label:<20}{s:>3}min sampling -> {backlog:>4} readings, "
+                      f"{hours:>5.1f} h of budget")
+        _widen(n)
+        return 0
 
     print(f"{n} readings per batch | EU868 DR{args.dr} (SF{sf}) | "
           f"app payload limit {limit} B | duty budget {DUTY_CYCLE_BUDGET_S:.0f} s/h"

@@ -1,7 +1,7 @@
 # Q5 measured: which binary encoding
 
 Run 2026-10-07 with [tools/q5_encoding.py](../../tools/q5_encoding.py).
-Reproduce with `make q5`.
+Reproduce with `make q5`; the operating-point tables with `make q5-points`.
 
 open-questions Q5 recommended deciding this on a measured number rather than an
 argument, because §12 puts the format version in every packet and nodes already in
@@ -52,30 +52,54 @@ rejected — so extended SenML is SenML no stock consumer may accept. The
 interoperability that made it attractive is gone and the bytes are still 3.5x the
 floor. One reading per message at DR0.
 
+## Correction: the 25% was the wrong number
+
+The table above compares candidates at their **maximum** batch size, and a maximum
+is not an operating point. Asked whether hourly sampling would do, the comparison
+had to be redone at realistic duties — `--operating-points`:
+
+| Sample | Transmit | Readings/tx | Msgs/tx | Airtime/h | Share of 36 s |
+| --- | --- | --- | --- | --- | --- |
+| 60 min | 60 min | 1 | 1 | 1.6 / **1.8** s | 4.6% / **5.0%** |
+| 30 min | 60 min | 2 | 1 | 1.8 / **2.0** s | 5.0% / **5.5%** |
+| 15 min | 60 min | 4 | 1 | 2.1 / **2.3** s | 5.9% / **6.4%** |
+| 5 min | 60 min | 12 | 2 | 5.6 / **5.6** s | 15.5% / **15.5%** |
+| 1 min | 60 min | 60 | 8 / **10** | 22.3 / **27.9** s | 62% / **78%** |
+
+(hand-packed / **CBOR packed**.)
+
+**At every realistic duty the two encodings are within a few tenths of a second of
+each other, out of 36.** At hourly sampling the difference is 0.2 s/h — half a
+percent of the budget. At five-minute sampling with hourly transmission they are
+*identical*, because both need two messages.
+
+So the honest conclusion is not "CBOR costs 25% and that is affordable". It is
+**airtime does not decide between the surviving candidates at all.** The 25%
+difference in maximum throughput is invisible at any rate a farm would actually
+run, and it becomes visible only in two places:
+
+- **one-minute sampling** — 62% of the budget against 78%, where the margin starts
+  to matter;
+- **backlog drain** (§5.3) — after a three-day outage a five-minute node holds 864
+  readings, 8.4 hours of budget hand-packed against 11.2 in CBOR. At hourly
+  sampling the same outage is 72 readings and under an hour either way.
+
 ## The decision: CBOR packed arrays with a CDDL schema
 
-Unchanged from the recommendation, but now on evidence rather than taste, and with
-the cost known instead of assumed.
+Since airtime does not decide it, what does is tooling. CBOR brings a schema
+language (CDDL), COSE for signing, and a decoder in every language — which is what
+§12's versioned format and §9.2's conformance suite need. A hand-rolled struct has
+no schema, no versioning story beyond a byte we define ourselves, and no tooling,
+and §9.2 cannot certify a driver against a layout that exists only in prose. That
+was always the argument; the measurement's contribution is showing that it costs
+nothing to act on.
 
-**What it costs: 25%.** Six readings per message instead of eight, 77 readings per
-hour instead of 103.
-
-**Why that is affordable.** A five-minute sampling interval is 12 readings an hour,
-so 77 is six times any realistic steady-state rate for one node. The place the 25%
-actually bites is backlog drain (§5.3): after a three-day outage a five-minute node
-holds about 864 readings, which is 8.4 hours of draining hand-packed against 11.2
-hours in CBOR. Real, and not decisive — both are well inside the next outage.
-
-**What it buys.** A standard encoding with a schema language (CDDL), COSE for
-signing, and a decoder in every language — which is what §12's versioned format and
-§9.2's conformance suite actually need. A hand-rolled struct is 25% better on
-airtime and has no schema, no versioning story beyond a byte we define ourselves,
-and no tooling; §9.2 cannot certify a driver against a layout that exists only in
-prose.
-
-**Protocol Buffers is rejected on measurement.** 91 bytes, four readings per
-message, half the throughput of the floor, for a schema story CDDL already
-provides. Field tags and varint framing are the wrong trade at this payload size.
+**Protocol Buffers is rejected, though more narrowly than the first table
+suggested.** 91 bytes and four readings per message is half the floor's maximum
+throughput, which the operating-point table shows is mostly irrelevant — at hourly
+sampling it would also sit around 5% of the budget. It loses on the same ground
+CBOR wins: field tags and varint framing buy nothing over CDDL here, while
+requiring a code generator in the node's build. A closer call than it looked.
 
 **The hand-packed layout stays documented as an escape hatch**, for a node that must
 drain a very long backlog at SF12 and nothing else. Not the default, and not two
@@ -95,6 +119,41 @@ commands piggyback in `FOpts` and shrink the available `FRMPayload`, and ADR mov
 the data rate under the node while it is running. Batch size must be computed from
 the **current** data rate with headroom, not fixed at build time. The encoder needs
 a `max_payload` argument, not a constant.
+
+## Is hourly sampling enough?
+
+For soil moisture **trends**, yes — ET depletion is a slow process, commercial
+loggers commonly default to 15-60 minutes, and the power budget prefers it. But
+three clauses want faster data, and they are the reason sampling and transmission
+are separate numbers:
+
+- **A stuck float valve on a stock trough.** Hourly detection of an empty trough in
+  summer is an animal-welfare problem, and livestock water monitoring is the module
+  recommended to ship first.
+- **Flatline detection (§4.2).** A threshold expressed in samples means twelve hours
+  at hourly sampling and one hour at five-minute — which is the defect this question
+  exposed; see below.
+- **Rate-of-change (§4.2).** At hourly resolution a real irrigation event and a
+  sensor fault look alike, so the check loses most of its discriminating power.
+
+The resolution is that **batching exists precisely so these can differ**: sample
+every five minutes for the health checks, transmit once an hour. That is 15.5% of
+the duty budget, and the readings arrive in two messages instead of twelve.
+
+## The defect this exposed: count-based thresholds
+
+§4.2's own wording is "identical values for **longer than** physically plausible" —
+a duration. The first implementation used a *count* (`flat_n`), which means the same
+configured threshold is a different physical test on two farms that sample at
+different rates. `flat_n: 12` catches a one-hour freeze at five-minute sampling and
+misses it entirely at hourly.
+
+Fixed: `flat_seconds` is now the primary threshold and `flat_n` is a confidence
+guard (two equal readings an hour apart prove little, whatever the span between
+them). `sdk/test_checks.py::TestFlatlineIsSampleRateIndependent` asserts the
+property that was missing — the same duration threshold gives the same verdict at
+60, 15, 5 and 1 minute sampling — and demonstrates the count-only trap rather than
+describing it.
 
 ## What this does not settle
 
