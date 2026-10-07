@@ -368,6 +368,26 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q19 | Should an assertion's `evidence` object be normative, and what shape? | Blocks third parties |
 | Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | Blocks v0 node firmware |
 
+**Q18 is no longer what it looked like.** A search of the OGC repository before
+drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
+labelled `sensing v2.0`: *"Since no one really knows what to do with the
+resultQuality DQ_Element property on Observation, we need something better."* The
+removal is deliberate, issue **#68** documents why `DQ_Element` was unusable
+(ambiguous between ISO 19115 and 19157; no category result type), and sixteen
+comments carry a worked replacement design from the EU CitiObs project and UFZ's
+`saqc`. Asking for `resultQuality` back would have been asking for the thing they
+already decided was broken.
+
+What #174 does have is four questions still open — annotation cardinality, whether
+compound types are too hard for clients, how history is represented, and how a
+measure's parameters are stored — and this project had to answer all four to build
+§3.3. The draft at [q18-ogc-issue-draft.md](../notes/q18-ogc-issue-draft.md) is
+therefore a **comment on #174**, not a new issue, and it supplies evidence rather
+than requests. Last activity on #174 was 2025-08-25; the 2.0 draft was submitted
+three months later without a quality model.
+
+The original framing, kept because the underlying facts are still true:
+
 On **Q18 — yes, and soon.** The 2.0 draft (23-019) has no `resultQuality` attribute: Table 17 lists `id`, `phenomenonTime`, `result`, `resultTime`, `validTime` and `properties`, and the string `resultQuality` appears nowhere in the document, nor does `DQ_Element`. SensorThings 1.1 had it, typed `DQ_Element` with multiplicity zero-to-many. The formal comment period closed on 18 January 2026, but the standard is unpublished and issues are still accepted in the OGC SensorThings GitHub repository, so there is a window. A farm data foundation that must distinguish a stuck sensor from a dry soil is a good concrete argument for keeping a structured quality field in the core, and "we are building on this and here is what we lose" is the kind of feedback a draft standard is for. Cost: an hour. Upside: the mapping in v0.1 §3.3 stops being a workaround.
 
 ## Q19. Should `evidence` on a quality assertion be normative?
