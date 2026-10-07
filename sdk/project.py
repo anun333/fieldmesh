@@ -146,6 +146,55 @@ def overlapping_calibrations(calibrations, sensor: UUID) -> list[tuple]:
     return clashes
 
 
+class CalibrationError(Exception):
+    """A calibration that cannot be applied. Never approximated."""
+
+
+def apply_calibration(raw_value, calibration: Calibration):
+    """Compute a derived result from a raw one (§3.2).
+
+    §3.2 requires the derivation be reproducible from
+    `(raw value, calibration record, driver version)` alone, so the method is
+    named in the record and only known methods are honoured. An unknown method
+    **raises** rather than falling back to identity: a silent passthrough would
+    publish an uncalibrated number in a calibrated series, which is exactly the
+    silent cleaning the spec exists to prevent.
+
+    The wire scale lives here too. §5.1 says the node applies nothing and §3.2
+    says raw is exactly what the node sent, so a probe's `231` stays `231` in the
+    raw series and becomes `0.231` here, through coefficients that carry the
+    scale. Recalibrating changes those coefficients and supersedes the derived
+    rows; the raw series never moves.
+    """
+    method = (calibration.method or "").strip().lower()
+    coefficients = calibration.coefficients or {}
+    if method in ("identity", "none", "passthrough"):
+        return raw_value
+    if method in ("linear", "two-point", "two_point"):
+        if not isinstance(raw_value, (int, float)) or isinstance(raw_value, bool):
+            raise CalibrationError(
+                f"linear calibration needs a number, got {type(raw_value).__name__}")
+        try:
+            a = float(coefficients["a"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CalibrationError(
+                f"calibration {calibration.id} declares method {method!r} but has "
+                f"no usable coefficient 'a'") from exc
+        b = float(coefficients.get("b", 0.0))
+        return a * raw_value + b
+    if method in ("polynomial", "poly"):
+        coeffs = coefficients.get("c")
+        if not isinstance(coeffs, (list, tuple)) or not coeffs:
+            raise CalibrationError(
+                f"calibration {calibration.id} declares {method!r} but has no "
+                f"coefficient list 'c'")
+        return sum(float(c) * raw_value ** i for i, c in enumerate(coeffs))
+    raise CalibrationError(
+        f"calibration {calibration.id} declares unknown method {method!r}; "
+        f"refusing to guess, because a silent passthrough would put an "
+        f"uncalibrated value in a calibrated series (§3.2)")
+
+
 # ---------------------------------------------------------------- ordering
 
 def precedes(a: Observation, b: Observation) -> bool:
@@ -234,6 +283,30 @@ class State:
         stamps = [o.measured_at for o in self.observations
                   if o.datastream == datastream_id]
         return datastream_health(ds, max(stamps) if stamps else None, now)
+
+    def add(self, record) -> None:
+        """Fold one record into the current state.
+
+        Same dispatch as `state_from_log`, so a gateway that appends and folds
+        ends up with exactly what a replay would produce. Records keyed by id are
+        replaced; observations and assertions accumulate, because supersession
+        rather than replacement is how they change (§3.2, §3.3).
+        """
+        slot = _DISPATCH.get(type(record))
+        if slot is None:
+            return
+        attr, keyed = slot
+        if keyed:
+            getattr(self, attr)[record.id] = record
+        else:
+            getattr(self, attr).append(record)
+
+    def derived_of(self, raw_datastream_id: UUID):
+        """The derived datastream computed from this raw one, if there is one (§3.2)."""
+        for ds in self.datastreams.values():
+            if ds.kind is DatastreamKind.DERIVED and ds.derived_from == raw_datastream_id:
+                return ds
+        return None
 
     def validate(self) -> list[str]:
         """Every spec violation the state can see. Empty list means clean.

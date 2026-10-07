@@ -5,7 +5,7 @@ model and the log, with no devices at all. Stdlib only, Apache-2.0.
 
 ```sh
 cd sdk
-python3 -m unittest discover -p 'test_*.py'   # 192 tests, ~0.10s
+python3 -m unittest discover -p 'test_*.py'   # 259 tests, ~0.15s
 python3 demo.py                               # see it run: log -> state -> SensorThings
 python3 demo.py --interval                    # phenomenonTime as the §2 uncertainty window
 python3 demo.py --v2                          # the unpublished 2.0 draft dialect
@@ -23,6 +23,9 @@ python3 demo.py --json                        # the served Observations collecti
 | `log.py` | §7.1, §7.3 | The append-only log. No update, no delete, by construction |
 | `project.py` | §2, §3.2, §3.3, §4.2, §7.1 | Derived state: live rows, quality precedence, calibration by `measured_at`, staleness, ordering |
 | `fixtures.py` | — | Record builders for tests, and the seed of the virtual farm's own |
+| `wire.py` | §5.2, §5.3 | The wire message: CBOR packed arrays, a CDDL schema, payload-budget-aware packing, and transmit-time restamping |
+| `registry.py` | §1, §8.1, §9.1 | Short wire ids to full identities, plus each node's clock source and uncertainty budget |
+| `gateway.py` | §5.1, §5.4, §8.1 | Ingest: decode, quarantine, dedup, gaps, reboots, raw, derive, assess |
 | `checks.py` | §4.2 | The four health checks, writing assertions and never mutations. One assertion per run carrying the union of flags |
 | `sensorthings.py` | §10, §3.2 | The SensorThings out-adapter. Serves **live observations only**, which is the compatibility promise v0 would have broken. Validated against FROST-Server |
 | `demo.py` | — | One command that exercises the whole chain, no hardware and no site data |
@@ -55,7 +58,9 @@ Each was a defect in the v0 draft, and each has a test class named after it in
 
 | Missing | Waiting on |
 | --- | --- |
-| The wire message and gateway ingest (§5.1, §5.2) | **Unblocked** — Q5 decided (CBOR packed + CDDL). The aggregate variant still waits on **Q20** |
+| The node side of store-and-forward (§5.3 buffer, cumulative ack) | Nothing. `wire.pack` and `wire.restamp` are the pieces; the buffer policy around them is next |
+| A link driver (Meshtastic) | **Q6** |
+| The aggregate datastream kind | **Q20** |
 
 | The command contract (§6) | Scope: the first release ships observations only, and §6 freezes after a season |
 | Sharing grants and erasure (§7.3, §7.6) | **Q16**, **Q17** |
@@ -93,6 +98,32 @@ insert of these documents (`201`), round-tripped `resultQuality` with nested
 Observation documents are at full key parity with its own. The findings are pinned
 in `TestValidatedAgainstFrost` so they survive without the container; the method
 and what it caught are in [frost-validation.md](../docs/notes/frost-validation.md).
+
+## Ingest
+
+`wire.py` + `registry.py` + `gateway.py` are §5.1's step 4 in order: resolve ids,
+compute times, dedup on `(site, node, boot, seq)`, write raw, derive by the
+calibration in force at `measured_at`, assess.
+
+Everything it learns that is not a reading, it records — an unparseable frame, an
+unapproved device, a hole in a sequence, a reboot, an evicted backlog, a channel with
+no binding, a calibration it cannot apply. The alternative is a dataset with quiet
+holes and no way to tell a gap from a reading that never existed.
+
+Four behaviours where the easy implementation is wrong, each with a test:
+
+1. **An unregistered node is quarantined, not dropped** (§8.1). Its frames are
+   logged so the device can be approved and the data replayed; nothing of its
+   reaches an observation.
+2. **A sequence going backwards is usually a wrap, not a replay** (§1). Getting this
+   wrong discards a node's next 32768 readings.
+3. **A `seq` reset after a reboot is not a duplicate** — the v0 defect, now a
+   regression test.
+4. **Two readings may not land on one instant.** Wire ages are whole seconds, so a
+   channel sampled faster than 1 Hz cannot express distinct instants, and writing
+   both would break §3.2's uniqueness. The gateway keeps the first and records the
+   second. This one was found by `State.validate()` failing in a test — the
+   invariant earning its keep.
 
 ## Health checks
 
