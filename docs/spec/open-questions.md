@@ -18,7 +18,9 @@ Each question lists **all** options considered, not just the two in the original
 
 # Part A — Blocks v0
 
-> **Q1 has been reclassified.** The decision to build against a simulated farm first ([VIRTUAL_FARM.md](../VIRTUAL_FARM.md)) moves the pilot farm off the development critical path. It is kept in this section because its timing constraint is unchanged and unforgiving, but it no longer gates the first release. Q5 also softens: it becomes decidable by measurement once simulated nodes exist, rather than by argument now.
+> **Q1 has been reclassified.** The decision to build against a simulated farm first ([VIRTUAL_FARM.md](../VIRTUAL_FARM.md)) moves the pilot farm off the development critical path. It is kept in this section because its timing constraint is unchanged and unforgiving, but it no longer gates the first release.
+>
+> **Q5 is now decided** (2026-10-07, on measurement) and no longer blocks anything. It is kept below with its full option table, because the two candidates the measurement eliminated were eliminated for reasons worth not re-litigating.
 
 ## Q1. Who is the first pilot farm, and what crop or livestock?
 
@@ -80,7 +82,9 @@ Whatever is chosen, the rule in v0.1 §3.4 stands: a URI, never free text.
 
 ## Q5. Binary encoding
 
-**Status: blocks v0.** No wire format means no conformance test and no node firmware.
+**Status: DECIDED 2026-10-07 — CBOR packed arrays with a CDDL schema.** It blocked
+build-order steps 3-7, so it was the critical path; it turned out to be decidable by
+direct measurement without waiting for simulated nodes.
 
 The original pair was Protocol Buffers or CBOR. Two more are worth knowing about, one of which is designed for precisely this job.
 
@@ -96,9 +100,23 @@ The original pair was Protocol Buffers or CBOR. Two more are worth knowing about
 | FlatBuffers / Cap'n Proto | Medium | Zero-copy reads | Solves a problem a farm node does not have |
 | ASN.1 UPER | Smallest schema-defined | Genuinely the most compact standardized option | Tooling is hostile; nobody on a volunteer project will enjoy it |
 
-**Recommendation: CBOR with packed arrays and a CDDL schema**, after a measurement — and the simulated nodes are where that measurement happens, with the airtime budget as exact arithmetic that fails loudly when a fleet reports too often. Encode one realistic batch — eight readings, two bytes each, with `boot`, `seq` and ages — in CBOR-packed, protobuf and SenML-CBOR, and compare bytes against a real DR0 payload budget. Decide on the measured number, and record it in the spec, because this is the one decision that is genuinely expensive to revisit once nodes are in the field.
+**Decided on measurement, 2026-10-07: CBOR packed arrays with a CDDL schema.** Full result and method in [notes/q5-encoding-measurement.md](../notes/q5-encoding-measurement.md); reproduce with `make q5`.
 
-Evaluate SenML seriously before dismissing it: if its extension points can carry `boot` and `seq` without ugliness, the interoperability win is real.
+Scored on what §5.2 says actually binds — readings per hour inside a 1% duty cycle at EU868 DR0 (SF12), the worst case a node must survive:
+
+| Encoding | 8 readings | Max batch at DR0 | Readings/h |
+| --- | --- | --- | --- |
+| Hand-packed struct (the floor) | 51 B | 8 | 103 |
+| **CBOR packed, flat + CDDL** | 64 B | 6 | **77** |
+| Protocol Buffers | 91 B | 4 | 52 |
+| SenML-CBOR + custom labels | 177 B | 1 | 13 |
+| CBOR maps, named keys | 178 B | **0** | 0 |
+
+**Two candidates are eliminated by measurement, not taste.** CBOR with named keys cannot carry a *single* reading at DR0 — 56 bytes against a 51-byte limit. And SenML, the most interesting candidate, does not survive carrying `boot` and `seq`: it has nowhere to put them, adding `boot_`/`seq_` costs 15 bytes, and RFC 8428 requires a label ending in `_` to be understood or the record rejected — so extended SenML is SenML that no stock consumer may accept. The interoperability that made it attractive is gone and it is still 3.5x the floor.
+
+**CBOR packed costs 25%** against the hand-packed floor — six readings per message instead of eight. Affordable: a five-minute sampling interval is 12 readings an hour, so 77 is six times any realistic steady-state rate. Where it bites is backlog drain (§5.3) — a three-day outage at five-minute intervals is 8.4 hours of draining hand-packed against 11.2 in CBOR, which is real and not decisive. What it buys is a schema language, COSE signing and decoders everywhere, which §12's versioned format and §9.2's conformance suite need and a prose-only struct cannot provide. Protobuf is rejected on the number: half the throughput of the floor for a schema story CDDL already gives.
+
+The hand-packed layout stays **documented as an escape hatch** for a node draining a very long backlog at SF12, distinguished by the version byte — a profile, not a second format.
 
 ## Q6. Which link ships first
 
