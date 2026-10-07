@@ -97,7 +97,7 @@ The farm is complete when every row is live on it with meaningful data. Each row
 | | A grant issued, used, revoked — and the revocation not retracting what was already delivered | §7.6 |
 | | A module that went down, missed events, and replayed them from its cursor | §7.5 |
 | Interop | A full export round-trip losing nothing, raw and assertions included | §7.6 |
-| | A SensorThings 1.1 endpoint validated against FROST-Server | §10 |
+| | A SensorThings 1.1 endpoint validated against FROST-Server | §10 — serializer built ([sdk/sensorthings.py](../sdk/sensorthings.py)); validated against a real client, not yet |
 | Apps | All three acceptance-test apps running against the farm, unchanged | §15 |
 | History | A full simulated season behind the trends: drift, weather, repairs | §9.2 |
 

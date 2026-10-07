@@ -4,7 +4,12 @@ Build-order step 1 from [docs/VIRTUAL_FARM.md](../docs/VIRTUAL_FARM.md): the dat
 model and the log, with no devices at all. Stdlib only, Apache-2.0.
 
 ```sh
-cd sdk && python3 -m unittest discover -p 'test_*.py'    # 116 tests, ~0.06s
+cd sdk
+python3 -m unittest discover -p 'test_*.py'   # 156 tests, ~0.09s
+python3 demo.py                               # see it run: log -> state -> SensorThings
+python3 demo.py --interval                    # phenomenonTime as the §2 uncertainty window
+python3 demo.py --v2                          # the unpublished 2.0 draft dialect
+python3 demo.py --json                        # the served Observations collection
 ```
 
 ## Modules
@@ -18,6 +23,8 @@ cd sdk && python3 -m unittest discover -p 'test_*.py'    # 116 tests, ~0.06s
 | `log.py` | §7.1, §7.3 | The append-only log. No update, no delete, by construction |
 | `project.py` | §2, §3.2, §3.3, §4.2, §7.1 | Derived state: live rows, quality precedence, calibration by `measured_at`, staleness, ordering |
 | `fixtures.py` | — | Record builders for tests, and the seed of the virtual farm's own |
+| `sensorthings.py` | §10, §3.2 | The SensorThings out-adapter. Serves **live observations only**, which is the compatibility promise v0 would have broken |
+| `demo.py` | — | One command that exercises the whole chain, no hardware and no site data |
 | `spool.py` | §5.2 | Gateway-side store-and-forward: retry, auth, spool, drain |
 | `modbus_rtu.py` | §9 | Modbus RTU framing over serial, read function codes only (see [PROVENANCE.md](PROVENANCE.md)) |
 
@@ -51,8 +58,37 @@ Each was a defect in the v0 draft, and each has a test class named after it in
 | Health-check implementations (§4.2) | Nothing. The assertion shape is here; the checks are build-order step 4 |
 | The command contract (§6) | Scope: the first release ships observations only, and §6 freezes after a season |
 | Sharing grants and erasure (§7.3, §7.6) | **Q16**, **Q17** |
-| SensorThings serialization (§10) | Nothing structural — next obvious piece of work |
+| SensorThings validation against FROST-Server | Nothing — the serializer is here, but "works with existing tools" is only a claim until it has answered a real client |
+| An HTTP service (`$filter`, `$expand`, `$top`, paging) | Nothing. `sensorthings.py` produces the documents; routing and query options are the next layer |
 | Field-level conflict resolution and conflict events (§7.4) | **Q14** — which fields must never resolve silently |
 
 `State.validate()` returns every violation it can see rather than raising on the
 first, so a conformance run can show all of them at once.
+
+## The SensorThings mapping
+
+Four decisions in `sensorthings.py` that could each reasonably have gone the other
+way, so they are stated rather than buried:
+
+1. **Only live observations are served.** A recalibrated series keeps both rows in
+   the log forever; serving both would put two observations at one
+   `phenomenonTime` and double every client's chart. This is the single most
+   important line in the adapter.
+2. **Layer-zero fields are namespaced under `parameters/librefarm`.** 1.1
+   documents `parameters` as environmental conditions during measurement;
+   `received_at`, `boot` and `seq` are not that. Nesting keeps `$filter` paths
+   working and reduces the 2.0 migration (`parameters` → `properties`) to one key.
+3. **`resultTime` is null.** It means "when the result was generated", which layer
+   zero does not record. `received_at` is a different thing, and claiming it here
+   would be a small lie in a field researchers read. 1.1 explicitly allows null.
+4. **`resultQuality` is emitted for a clean assertion too**, and omitted only when
+   nothing has been asserted — "checked, no objection" is a judgement, and
+   collapsing it into "not checked" discards what a certifier cares about.
+
+The version-dependent names live in one `Dialect` class, which is what makes §10's
+"one thin layer" checkable: `test_the_model_knows_nothing_about_sensorthings`
+greps `model.py` for `@iot`, `phenomenonTime`, `resultQuality` and
+`unitOfMeasurement` and fails if any of them leaked in. `SensorThings20Draft`
+exists to prove the seam, and its `supports_quality = False` is where the dropped
+`resultQuality` of open-questions Q18 becomes visible: quality falls into the
+extras bag, where nothing standards-aware will look.
