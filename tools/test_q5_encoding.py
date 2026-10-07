@@ -3,13 +3,12 @@
 """The airtime arithmetic the Q5 decision rests on (spec v0.1 §5.2)."""
 from __future__ import annotations
 
-import importlib.util
+import os
+import sys
 import unittest
 
-_spec = importlib.util.spec_from_file_location(
-    "q5", __file__.replace("test_q5_encoding.py", "q5_encoding.py"))
-q5 = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(q5)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import q5_encoding as q5  # noqa: E402
 
 
 class TestTimeOnAir(unittest.TestCase):

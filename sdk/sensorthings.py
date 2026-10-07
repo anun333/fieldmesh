@@ -257,6 +257,7 @@ class Service:
             "kind": kind,
             "derived_from": str(ds.derived_from) if ds.derived_from else None,
             "expected_interval_s": ds.expected_interval,
+            "max_latency_s": ds.max_latency,
             "thresholds": dict(ds.thresholds),
             "health": self._health(ds).value,
         }

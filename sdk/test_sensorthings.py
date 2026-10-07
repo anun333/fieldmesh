@@ -59,6 +59,12 @@ class TestOnlyLiveObservationsAreServed(unittest.TestCase):
         kinds = sorted(d["properties"]["kind"] for d in doc["value"])
         self.assertEqual(kinds, ["derived", "raw"])
 
+    def test_datastream_properties_carry_both_intervals(self):
+        """§5.3.1: a client (and a farmer) can see which series is expensive."""
+        props = self.svc.datastream(self.raw)["properties"]
+        self.assertEqual(props["expected_interval_s"], self.raw.expected_interval)
+        self.assertEqual(props["max_latency_s"], self.raw.max_latency)
+
     def test_a_derived_datastream_points_at_its_source(self):
         doc = self.svc.datastreams()
         derived = [d for d in doc["value"] if d["properties"]["kind"] == "derived"][0]

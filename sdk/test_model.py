@@ -128,6 +128,22 @@ class TestDatastream(unittest.TestCase):
         with self.assertRaises(ValueError):
             fx.raw_datastream(expected_interval=0)
 
+    def test_max_latency_must_be_positive(self):
+        with self.assertRaises(ValueError):
+            fx.raw_datastream(max_latency=0)
+
+    def test_sampling_and_latency_are_independent(self):
+        """§3.1/§5.3.1: how often a series is read and how fast it must arrive
+        are different numbers, and only the second spends the battery. A series
+        may legitimately be sampled often and reported slowly, or the reverse."""
+        sleepy = fx.raw_datastream(expected_interval=300.0, max_latency=3600.0)
+        self.assertLess(sleepy.expected_interval, sleepy.max_latency)
+        urgent = fx.raw_datastream(expected_interval=3600.0, max_latency=60.0)
+        self.assertGreater(urgent.expected_interval, urgent.max_latency)
+
+    def test_latency_is_optional(self):
+        self.assertIsNone(fx.raw_datastream(max_latency=None).max_latency)
+
 
 class TestFeature(unittest.TestCase):
     """§3.1: feature on the datastream, overridable per observation."""

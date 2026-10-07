@@ -30,7 +30,8 @@ def at(minutes: float = 0, *, base: _dt.datetime = T0) -> _dt.datetime:
 
 
 def raw_datastream(*, thing=None, sensor=None, feature=None,
-                   expected_interval=300.0, **kw) -> Datastream:
+                   expected_interval=300.0, max_latency=3600.0,
+                   **kw) -> Datastream:
     return Datastream(
         id=uuid7(),
         thing=thing or uuid7(),
@@ -40,6 +41,7 @@ def raw_datastream(*, thing=None, sensor=None, feature=None,
         kind=DatastreamKind.RAW,
         unit="cm3/cm3",
         expected_interval=expected_interval,
+        max_latency=max_latency,
         **kw,
     )
 
@@ -55,6 +57,7 @@ def derived_datastream(raw: Datastream, **kw) -> Datastream:
         derived_from=raw.id,
         unit=raw.unit,
         expected_interval=raw.expected_interval,
+        max_latency=raw.max_latency,
         **kw,
     )
 

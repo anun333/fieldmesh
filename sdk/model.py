@@ -140,6 +140,13 @@ class Datastream:
 
     `feature` lives here rather than on each observation because for a fixed
     installed sensor it never changes (§3.1).
+
+    `expected_interval` and `max_latency` are deliberately separate: the first is
+    how often this series is sampled and drives staleness (§4.2); the second is
+    how stale a reading may be when it reaches the gateway, and it is the one
+    that spends the battery, because a node's transmit interval is the tightest
+    `max_latency` it carries (§5.3.1). Reading a sensor is under 2% of a node's
+    energy; the radio is the rest.
     """
 
     id: UUID
@@ -151,6 +158,8 @@ class Datastream:
     unit: str | None = None         # UCUM code; None for a boolean or state (§3.4)
     derived_from: UUID | None = None
     expected_interval: float | None = None   # seconds; drives staleness (§4.2)
+    max_latency: float | None = None         # seconds; drives the transmit
+                                             # schedule and the battery (§5.3.1)
     thresholds: dict = field(default_factory=dict)
     buffer_policy: dict = field(default_factory=dict)
 
@@ -173,6 +182,8 @@ class Datastream:
             raise ValueError("a datastream cannot derive from itself")
         if self.expected_interval is not None and self.expected_interval <= 0:
             raise ValueError("expected_interval must be positive")
+        if self.max_latency is not None and self.max_latency <= 0:
+            raise ValueError("max_latency must be positive")
 
 
 @dataclass(frozen=True, slots=True)

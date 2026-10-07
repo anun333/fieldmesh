@@ -84,6 +84,7 @@ _CONVERTERS = {
         "unit": (_same, _same),
         "derived_from": (_enc_uuid, _dec_uuid),
         "expected_interval": (_same, _same),
+        "max_latency": (_same, _same),
         "thresholds": (_same, _same),
         "buffer_policy": (_same, _same),
     },

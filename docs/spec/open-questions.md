@@ -366,6 +366,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q17 | Crypto-shredding key management for erasure (§7.3): per-subject keys, where they live, and what happens to a backup taken before the shred | Blocks the pilot |
 | Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | Now |
 | Q19 | Should an assertion's `evidence` object be normative, and what shape? | Blocks third parties |
+| Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | Blocks v0 node firmware |
 
 On **Q18 — yes, and soon.** The 2.0 draft (23-019) has no `resultQuality` attribute: Table 17 lists `id`, `phenomenonTime`, `result`, `resultTime`, `validTime` and `properties`, and the string `resultQuality` appears nowhere in the document, nor does `DQ_Element`. SensorThings 1.1 had it, typed `DQ_Element` with multiplicity zero-to-many. The formal comment period closed on 18 January 2026, but the standard is unpublished and issues are still accepted in the OGC SensorThings GitHub repository, so there is a window. A farm data foundation that must distinguish a stuck sensor from a dry soil is a good concrete argument for keeping a structured quality field in the core, and "we are building on this and here is what we lose" is the kind of feedback a draft standard is for. Cost: an hour. Upside: the mapping in v0.1 §3.3 stops being a workaround.
 
@@ -388,3 +389,37 @@ this reading, and what objected" — and that is the pair *Auditable* actually
 promises. Deciding it before the health checks have run a season would freeze a
 guess; deciding it after third parties ship drivers would be too late, so the
 window is between build-order steps 4 and 7.
+
+## Q20. May a node send an aggregate instead of every sample?
+
+**Status: blocks v0 node firmware.** Raised by the power measurement in
+[notes/power-budget.md](../notes/power-budget.md).
+
+There is a tension between three clauses that only shows up once power is counted.
+§4.2 runs health checks **in the foundation**; §5.1 says the node "samples, applies
+nothing"; and the power model says you pay for what you *send*. Together those mean
+**detection resolution equals transmitted resolution**: to catch a flatline at
+five-minute resolution the gateway must receive five-minute data, and that is the
+expensive thing. A farmer who wants a stuck probe caught within the hour must pay
+hourly-resolution airtime for a series they otherwise only care about daily.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **Send every sample; accept the cost** | §5.1 and §3.2 stay exactly as written — raw is what the node sent, and nothing on the node can be wrong in a way the log cannot show | The honest-data principle ends up charging for detection a farmer may not want at that resolution. On a shared node it is nearly free; on a sleepy one it is most of the budget |
+| **Node sends a compact aggregate for low-urgency series** — sample count, min, max, and the length of the current unchanged run | Preserves what the checks actually need (a flat run and a rate excursion are both detectable from those four numbers) for a handful of bytes instead of twelve readings. Would make hourly reporting with five-minute detection possible | The node has now computed something, which §5.1 forbids and §3.2 complicates — an aggregate is not "exactly what the node sent" for any one instant, so it needs its own datastream kind rather than passing as raw |
+| **Move the checks onto the node** | Cheapest of all; the node already has the samples | Squarely against §5.1 and §4.2, and it puts threshold versioning and assertion provenance on a microcontroller that cannot be audited or updated over LoRa (§8.1) |
+| **Per-series choice, declared in the manifest** | The farmer decides where to spend, per series | Two ingest paths and two conformance stories; a driver author can pick the cheap one by default and quietly lose detectability |
+
+**Recommendation: option 2, as a third datastream `kind`** — `raw`, `derived`, and
+an `aggregate` whose observations carry a window rather than an instant and are
+explicitly not raw readings. That keeps §5.1 intact for raw series (a node still
+applies no calibration and no judgement), keeps §3.2's archival claim honest
+(an aggregate is a different thing, labelled as one), and gives the health checks
+something to work on without paying full resolution. It is a real addition to the
+data model though, not a tweak, so it wants deciding before node firmware is
+written rather than after.
+
+Worth noting what is *not* in tension: on a node that already transmits often for an
+urgent series, sending every sample of a sleepy one costs under 2%. This question
+only bites for a node whose series are all slow, which is exactly the node where
+battery life matters most.
