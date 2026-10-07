@@ -297,6 +297,52 @@ class TestEntitySetsAndLinks(unittest.TestCase):
             json.dumps(doc)
 
 
+class TestValidatedAgainstFrost(unittest.TestCase):
+    """Findings from running FROST-Server as a conformance oracle.
+
+    FROST accepted a deep insert of these documents (HTTP 201) and round-tripped
+    `resultQuality` — nested `evidence` included — and `parameters/librefarm`
+    intact, so both extension decisions hold in the reference implementation.
+    These tests pin the two places where its output and ours differed.
+    """
+
+    def setUp(self):
+        self.ds = fx.raw_datastream()
+        self.obs = fx.observation(self.ds)
+        self.svc = st.Service(_state(self.ds, self.obs))
+
+    def test_datastream_omits_result_time(self):
+        """1.1 Table 10 makes Datastream.resultTime zero-to-one, and layer zero
+        records no result times. FROST omits it; emitting a bare null was noise."""
+        self.assertNotIn("resultTime", self.svc.datastream(self.ds))
+
+    def test_observation_still_emits_result_time_as_null(self):
+        """Table 18 makes it "One (mandatory)" and explicitly nullable, so here
+        the null is required rather than noise."""
+        doc = self.svc.observation(self.obs)
+        self.assertIn("resultTime", doc)
+        self.assertIsNone(doc["resultTime"])
+
+    def test_count_is_included_by_default_as_example_11_shows(self):
+        """1.1's Example 11 emits @iot.count on a plain entity-set request with
+        no query options."""
+        self.assertIn("@iot.count", self.svc.observations())
+
+    def test_count_can_be_suppressed_the_way_frost_does(self):
+        """FROST omits it unless $count=true. Both readings are defensible, so an
+        HTTP layer passes $count through rather than this being hard-coded."""
+        doc = self.svc.observations(count=False)
+        self.assertNotIn("@iot.count", doc)
+        self.assertIn("value", doc)
+
+    def test_every_entity_set_honours_count(self):
+        for getter in (self.svc.datastreams, self.svc.things, self.svc.sensors,
+                       self.svc.observed_properties, self.svc.features_of_interest):
+            with self.subTest(getter.__name__):
+                self.assertNotIn("@iot.count", getter(count=False))
+                self.assertIn("@iot.count", getter())
+
+
 class TestDialectSeam(unittest.TestCase):
     """§10 — the migration is confined to one layer, which is only true if the
     version-dependent names live in one table."""

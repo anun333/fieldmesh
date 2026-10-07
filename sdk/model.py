@@ -315,11 +315,24 @@ class Threshold:
 
 @dataclass(frozen=True, slots=True)
 class QualityAssertion:
-    """§3.3. A claim about an observation, by a named check, under a named
+    """§3.3. A claim about an observation, by a named assessment, under a named
     threshold version, at a stated time — never a column on the observation.
 
     A person's override is a new assertion with `assertor = PERSON`, and the
     machine's original stays visible.
+
+    **`check` names an assessment run, not a single check**, and `flags` carries
+    the union of everything that fired in it. This resolves an ambiguity in the
+    spec as written: §4.2 lists four checks that each produce one flag, while
+    §3.3 makes `flags` a set *and* has precedence select exactly one live
+    assertion. If each check wrote its own assertion, two firing at once would
+    mean one silently wins and the other's flag disappears — the precise kind of
+    silent loss this model exists to prevent. One assertion per run, carrying the
+    union, is the only reading under which §3.3's precedence rule is coherent.
+
+    `evidence` then records which individual checks fired and why, so collapsing
+    them into one assertion loses no provenance. It is additive and optional;
+    whether it should be normative is open (see the spec's open questions).
     """
 
     id: UUID
@@ -334,6 +347,7 @@ class QualityAssertion:
     assertor_id: UUID | None = None
     supersedes: UUID | None = None
     note: str | None = None
+    evidence: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _uuid7(self.id, "id")

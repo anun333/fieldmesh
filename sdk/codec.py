@@ -133,6 +133,7 @@ _CONVERTERS = {
         "assertor_id": (_enc_uuid, _dec_uuid),
         "supersedes": (_enc_uuid, _dec_uuid),
         "note": (_same, _same),
+        "evidence": (_same, _same),
     },
 }
 

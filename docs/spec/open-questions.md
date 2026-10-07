@@ -345,5 +345,26 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q16 | Default grant scope: does a new grant include observations that arrive after it was made? Safer default is no, but it makes research sharing tedious | Blocks the pilot |
 | Q17 | Crypto-shredding key management for erasure (§7.3): per-subject keys, where they live, and what happens to a backup taken before the shred | Blocks the pilot |
 | Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | Now |
+| Q19 | Should an assertion's `evidence` object be normative, and what shape? | Blocks third parties |
 
 On **Q18 — yes, and soon.** The 2.0 draft (23-019) has no `resultQuality` attribute: Table 17 lists `id`, `phenomenonTime`, `result`, `resultTime`, `validTime` and `properties`, and the string `resultQuality` appears nowhere in the document, nor does `DQ_Element`. SensorThings 1.1 had it, typed `DQ_Element` with multiplicity zero-to-many. The formal comment period closed on 18 January 2026, but the standard is unpublished and issues are still accepted in the OGC SensorThings GitHub repository, so there is a window. A farm data foundation that must distinguish a stuck sensor from a dry soil is a good concrete argument for keeping a structured quality field in the core, and "we are building on this and here is what we lose" is the kind of feedback a draft standard is for. Cost: an hour. Upside: the mapping in v0.1 §3.3 stops being a workaround.
+
+## Q19. Should `evidence` on a quality assertion be normative?
+
+**Status: blocks third parties.** Added by the §17 amendment of 2026-10-07. The
+field exists and is populated; whether a conforming implementation must produce it,
+and in what shape, is undecided.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **Leave it optional and unspecified** | Costs nothing now; implementations experiment before the shape is frozen | Two implementations produce incomparable evidence, so a conformance suite cannot test it and a farmer cannot compare two gateways' reasoning |
+| **Normative with a fixed shape** (`checks_run`, `fired`, `thresholds`) | A false alarm becomes traceable *across* implementations, which is what the audit principle promises; the conformance suite can assert it | Freezes a shape before much experience with real checks; a check with unusual evidence has to distort it |
+| **Normative minimum, open extension** | A floor the suite can test, with room above it | The usual risk: the extension area becomes where everything interesting lives, and comparability erodes anyway |
+| **Drop it; put reasoning in `note`** | One fewer field | A string is unqueryable, so "which threshold caused this false alarm" goes back to being read by a human |
+
+**Recommendation: normative minimum, open extension**, once two or three real
+checks exist. `checks_run` and `fired` are the floor — they answer "what looked at
+this reading, and what objected" — and that is the pair *Auditable* actually
+promises. Deciding it before the health checks have run a season would freeze a
+guess; deciding it after third parties ship drivers would be too late, so the
+window is between build-order steps 4 and 7.

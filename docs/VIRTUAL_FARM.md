@@ -97,7 +97,7 @@ The farm is complete when every row is live on it with meaningful data. Each row
 | | A grant issued, used, revoked — and the revocation not retracting what was already delivered | §7.6 |
 | | A module that went down, missed events, and replayed them from its cursor | §7.5 |
 | Interop | A full export round-trip losing nothing, raw and assertions included | §7.6 |
-| | A SensorThings 1.1 endpoint validated against FROST-Server | §10 — serializer built ([sdk/sensorthings.py](../sdk/sensorthings.py)); validated against a real client, not yet |
+| | A SensorThings 1.1 endpoint validated against FROST-Server | §10 — **done**: documents accepted at full key parity ([notes/frost-validation.md](notes/frost-validation.md)). A GIS client still needs the HTTP layer |
 | Apps | All three acceptance-test apps running against the farm, unchanged | §15 |
 | History | A full simulated season behind the trends: drift, weather, repairs | §9.2 |
 
@@ -155,7 +155,7 @@ Adopt the sibling convention unchanged: a gitignored `.site/` directory, one sub
 1. ~~**The data model and the log**, with no devices at all — the contract as code, plus the append-only and supersession tests.~~ **Done** — [sdk/](../sdk/), 116 tests. The four clauses v0 got wrong each have a regression test class: recalibration appends, calibration is selected by `measured_at`, quality is an assertion with precedence, and ordering prefers a node's counter over its clock.
 2. **`sim_physics` equivalent**: soil moisture responding to weather, irrigation and evaporation; a trough draining as stock drink. Enough to make readings mean something.
 3. **Simulated nodes over a simulated link**, with the airtime budget as exact arithmetic that fails loudly when a fleet reports too often.
-4. **The fault library**: drift, flatline, out-of-range, clock skew, reboot, outage, backlog eviction, dropped and repeated messages.
+4. **The fault library**: drift, flatline, out-of-range, clock skew, reboot, outage, backlog eviction, dropped and repeated messages. *The detector half is built — [sdk/checks.py](../sdk/checks.py), §4.2's four checks with 31 tests. What is missing is the producer half: faults the sim injects, so detection can be scored against ground truth rather than against hand-written fixtures.*
 5. **Harrow Bend assembled**, deterministic, with the completeness matrix enforced as a test.
 6. **A scored drill**: seed a fault, show the farmer-facing symptom, score the health check's verdict against ground truth.
 7. **One real link and one real device driver**, validated against the sim's expectations.

@@ -5,7 +5,7 @@ model and the log, with no devices at all. Stdlib only, Apache-2.0.
 
 ```sh
 cd sdk
-python3 -m unittest discover -p 'test_*.py'   # 156 tests, ~0.09s
+python3 -m unittest discover -p 'test_*.py'   # 192 tests, ~0.10s
 python3 demo.py                               # see it run: log -> state -> SensorThings
 python3 demo.py --interval                    # phenomenonTime as the §2 uncertainty window
 python3 demo.py --v2                          # the unpublished 2.0 draft dialect
@@ -23,7 +23,8 @@ python3 demo.py --json                        # the served Observations collecti
 | `log.py` | §7.1, §7.3 | The append-only log. No update, no delete, by construction |
 | `project.py` | §2, §3.2, §3.3, §4.2, §7.1 | Derived state: live rows, quality precedence, calibration by `measured_at`, staleness, ordering |
 | `fixtures.py` | — | Record builders for tests, and the seed of the virtual farm's own |
-| `sensorthings.py` | §10, §3.2 | The SensorThings out-adapter. Serves **live observations only**, which is the compatibility promise v0 would have broken |
+| `checks.py` | §4.2 | The four health checks, writing assertions and never mutations. One assertion per run carrying the union of flags |
+| `sensorthings.py` | §10, §3.2 | The SensorThings out-adapter. Serves **live observations only**, which is the compatibility promise v0 would have broken. Validated against FROST-Server |
 | `demo.py` | — | One command that exercises the whole chain, no hardware and no site data |
 | `spool.py` | §5.2 | Gateway-side store-and-forward: retry, auth, spool, drain |
 | `modbus_rtu.py` | §9 | Modbus RTU framing over serial, read function codes only (see [PROVENANCE.md](PROVENANCE.md)) |
@@ -55,11 +56,12 @@ Each was a defect in the v0 draft, and each has a test class named after it in
 | Missing | Waiting on |
 | --- | --- |
 | The wire message and gateway ingest (§5.1, §5.2) | open-questions **Q5** — the binary encoding |
-| Health-check implementations (§4.2) | Nothing. The assertion shape is here; the checks are build-order step 4 |
+
 | The command contract (§6) | Scope: the first release ships observations only, and §6 freezes after a season |
 | Sharing grants and erasure (§7.3, §7.6) | **Q16**, **Q17** |
-| SensorThings validation against FROST-Server | Nothing — the serializer is here, but "works with existing tools" is only a claim until it has answered a real client |
+| A GIS client actually reading it (QGIS) | The HTTP layer below — documents being right is necessary, not sufficient |
 | An HTTP service (`$filter`, `$expand`, `$top`, paging) | Nothing. `sensorthings.py` produces the documents; routing and query options are the next layer |
+| The physics that makes readings mean something | Nothing. Build-order step 2 |
 | Field-level conflict resolution and conflict events (§7.4) | **Q14** — which fields must never resolve silently |
 
 `State.validate()` returns every violation it can see rather than raising on the
@@ -84,6 +86,30 @@ way, so they are stated rather than buried:
 4. **`resultQuality` is emitted for a clean assertion too**, and omitted only when
    nothing has been asserted — "checked, no objection" is a judgement, and
    collapsing it into "not checked" discards what a certifier cares about.
+
+Validated against the reference implementation: FROST-Server accepted a deep
+insert of these documents (`201`), round-tripped `resultQuality` with nested
+`evidence` and `parameters/librefarm` intact, and after one fix the Datastream and
+Observation documents are at full key parity with its own. The findings are pinned
+in `TestValidatedAgainstFrost` so they survive without the container; the method
+and what it caught are in [frost-validation.md](../docs/notes/frost-validation.md).
+
+## Health checks
+
+Four checks (§4.2), writing assertions and never touching an observation. The
+thing worth knowing is that they produce **one assertion per run** carrying the
+union of flags, not one assertion each. §4.2's four one-flag checks and §3.3's
+single live assertion could not both hold as written: two checks firing together
+meant one won on precedence and the other's finding silently vanished.
+`test_separate_assertions_per_check_would_lose_a_flag` demonstrates it rather than
+asserting it, and the spec now carries the amendment (§17) with `evidence`
+recording which check fired and why.
+
+Three smaller judgements: cross-check flags only `suspect`, because when two
+probes disagree it cannot say which lies; a longer gap permits a larger rate
+change, since three hours of absence genuinely allows more movement than three
+minutes; and `assess_series` will never supersede a person's override with a
+machine verdict (§3.3).
 
 The version-dependent names live in one `Dialect` class, which is what makes §10's
 "one thin layer" checkable: `test_the_model_knows_nothing_about_sensorthings`

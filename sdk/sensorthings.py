@@ -162,9 +162,21 @@ class Service:
         base = self._link(entity_set, ident)
         return {f"{role}{d.nav_suffix}": f"{base}/{role}" for role in roles}
 
-    def collection(self, items: list) -> dict:
+    def collection(self, items: list, *, count: bool = True) -> dict:
+        """An entity-set response.
+
+        `@iot.count` is included by default because 1.1's own Example 11 shows it
+        on a plain entity-set request with no query options. FROST-Server is more
+        conservative and omits it unless `$count=true` is asked for — both read
+        the spec defensibly, so this is a parameter rather than a decision, and
+        an HTTP layer honours `$count` by passing it through.
+        """
         d = self.dialect
-        return {d.count_key: len(items), d.value_key: list(items)}
+        doc = {}
+        if count:
+            doc[d.count_key] = len(items)
+        doc[d.value_key] = list(items)
+        return doc
 
     # ------------------------------------------------------------ entities
 
@@ -235,9 +247,12 @@ class Service:
             f"{kind} series for observed property {ds.observed_property}")
         doc["unitOfMeasurement"] = self.unit_of_measurement(ds)
         doc["observationType"] = self._datastream_observation_type(ds)
-        extent = self._phenomenon_extent(ds.id)
-        doc["phenomenonTime"] = extent
-        doc["resultTime"] = None
+        doc["phenomenonTime"] = self._phenomenon_extent(ds.id)
+        # 1.1 Table 10 makes Datastream.resultTime zero-to-one, and layer zero
+        # records no result times, so the field is omitted rather than emitted as
+        # a null. FROST-Server omits it too. Observation.resultTime is "One
+        # (mandatory)" and nullable, so that one is emitted as null.
+
         doc["properties"] = {
             "kind": kind,
             "derived_from": str(ds.derived_from) if ds.derived_from else None,
@@ -295,13 +310,14 @@ class Service:
 
     # ---------------------------------------------------------- entity sets
 
-    def datastreams(self) -> dict:
+    def datastreams(self, *, count: bool = True) -> dict:
         return self.collection([self.datastream(ds) for ds in
                                 sorted(self.state.datastreams.values(),
-                                       key=lambda d: d.id.int)])
+                                       key=lambda d: d.id.int)], count=count)
 
     def observations(self, datastream_id: UUID | None = None,
-                     *, expand: tuple[str, ...] = ()) -> dict:
+                     *, expand: tuple[str, ...] = (),
+                     count: bool = True) -> dict:
         """**Live observations only** (§3.2).
 
         A superseded row stays in the log forever and is never served here, so a
@@ -311,25 +327,28 @@ class Service:
         if datastream_id is not None:
             live = [o for o in live if o.datastream == datastream_id]
         return self.collection([self.observation(o, expand=expand)
-                                for o in P.order_observations(live)])
+                                for o in P.order_observations(live)], count=count)
 
-    def things(self) -> dict:
+    def things(self, *, count: bool = True) -> dict:
         idents = {ds.thing for ds in self.state.datastreams.values()}
-        return self.collection([self.thing(i) for i in sorted(idents, key=lambda u: u.int)])
+        return self.collection([self.thing(i) for i in
+                                sorted(idents, key=lambda u: u.int)], count=count)
 
-    def sensors(self) -> dict:
+    def sensors(self, *, count: bool = True) -> dict:
         idents = {ds.sensor for ds in self.state.datastreams.values()}
-        return self.collection([self.sensor(i) for i in sorted(idents, key=lambda u: u.int)])
+        return self.collection([self.sensor(i) for i in
+                                sorted(idents, key=lambda u: u.int)], count=count)
 
-    def observed_properties(self) -> dict:
+    def observed_properties(self, *, count: bool = True) -> dict:
         uris = {ds.observed_property for ds in self.state.datastreams.values()}
-        return self.collection([self.observed_property(u) for u in sorted(uris)])
+        return self.collection([self.observed_property(u) for u in sorted(uris)],
+                               count=count)
 
-    def features_of_interest(self) -> dict:
+    def features_of_interest(self, *, count: bool = True) -> dict:
         idents = {ds.feature for ds in self.state.datastreams.values()}
         idents |= {o.feature for o in self.state.observations if o.feature}
-        return self.collection([self.feature_of_interest(i)
-                                for i in sorted(idents, key=lambda u: u.int)])
+        return self.collection([self.feature_of_interest(i) for i in
+                                sorted(idents, key=lambda u: u.int)], count=count)
 
     def root(self) -> dict:
         """The service document: every entity set this view serves."""
@@ -382,4 +401,6 @@ def _quality_element(a: QualityAssertion) -> dict:
         "thresholdVersion": str(a.threshold_version) if a.threshold_version else None,
         "assertedAt": iso(a.asserted_at),
         "assertor": a.assertor.value,
+        "evidence": dict(a.evidence),
+        "note": a.note,
     }
