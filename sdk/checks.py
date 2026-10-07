@@ -229,8 +229,16 @@ def _previous(series, obs):
 
 
 def _peers(state: P.State, obs: Observation, window_s: float = 900.0):
-    """Live observations of the same property on the same feature, from a
-    *different* sensor, close enough in time to be comparable."""
+    """Live observations comparable to this one: same observed property, same
+    feature, same *kind* and unit, from a different sensor, close enough in time.
+
+    **Kind and unit are not optional here.** A raw series is in whatever the node
+    sent — a soil probe's `280` — and a derived series is in physical units,
+    `0.280`. Comparing across them is a unit error that makes every pair of probes
+    look like they violently disagree. Measured before this guard existed: a 99.8%
+    false-alarm rate on a farm with nothing wrong with it, because each derived
+    reading was being compared against its neighbour's raw one.
+    """
     own = state.datastreams.get(obs.datastream)
     if own is None:
         return []
@@ -242,6 +250,8 @@ def _peers(state: P.State, obs: Observation, window_s: float = 900.0):
         if ds is None or ds.sensor == own.sensor:
             continue
         if ds.observed_property != own.observed_property:
+            continue
+        if ds.kind is not own.kind or ds.unit != own.unit:
             continue
         if other.effective_feature(ds) != obs.effective_feature(own):
             continue

@@ -228,6 +228,40 @@ class TestCrossCheck(unittest.TestCase):
         mine, state = self._two_probes(0.30, 0.32)
         self.assertEqual(_flags(C.assess(state, mine)), [])
 
+    def test_a_raw_series_is_not_a_peer_of_a_derived_one(self):
+        """The unit error that produced a 99.8% false-alarm rate on a farm with
+        nothing wrong with it: a derived reading of 0.280 was being compared against
+        its neighbour's raw reading of 280."""
+        feature = uuid7()
+        mine = fx.raw_datastream(feature=feature,
+                                 thresholds={"cross_tolerance": 0.05})
+        derived_mine = fx.derived_datastream(mine, thresholds={"cross_tolerance": 0.05})
+        neighbour = fx.raw_datastream(feature=feature,
+                                      thresholds={"cross_tolerance": 0.05})
+        derived_neighbour = fx.derived_datastream(
+            neighbour, thresholds={"cross_tolerance": 0.05})
+
+        physical = fx.observation(derived_mine, result=0.280, calibration=uuid7())
+        wire_units = fx.observation(neighbour, result=280)
+        agreeing = fx.observation(derived_neighbour, result=0.281,
+                                  calibration=uuid7())
+        state = _state(mine, derived_mine, neighbour, derived_neighbour,
+                       physical, wire_units, agreeing)
+        self.assertEqual(_flags(C.assess(state, physical)), [],
+                         "0.280 must be compared with 0.281, not with 280")
+
+    def test_a_unit_mismatch_is_not_a_peer(self):
+        feature = uuid7()
+        import dataclasses
+        mine = fx.raw_datastream(feature=feature,
+                                 thresholds={"cross_tolerance": 0.05})
+        theirs = dataclasses.replace(
+            fx.raw_datastream(feature=feature,
+                              thresholds={"cross_tolerance": 0.05}), unit="%")
+        a = fx.observation(mine, result=0.28)
+        b = fx.observation(theirs, result=28.0)
+        self.assertEqual(_flags(C.assess(_state(mine, theirs, a, b), a)), [])
+
     def test_a_different_feature_is_not_a_peer(self):
         mine, state = self._two_probes(0.30, 0.90, same_feature=False)
         self.assertEqual(_flags(C.assess(state, mine)), [])

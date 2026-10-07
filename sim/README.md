@@ -4,7 +4,8 @@ Build-order steps 2–4 from [docs/VIRTUAL_FARM.md](../docs/VIRTUAL_FARM.md). St
 only (plus `cbor2`, via the SDK), Apache-2.0.
 
 ```sh
-cd sim && python3 -m unittest discover -p 'test_*.py'   # 127 tests
+cd sim && python3 -m unittest discover -p 'test_*.py'   # 144 tests (~30 s; the drills are slow)
+python3 drill.py --compare                              # one probe against two
 python3 world_demo.py                                   # a day of Harrow Bend
 python3 world_demo.py --stuck-float                     # the fault, and the catch
 python3 world_demo.py --outage 10 --days 2              # buffer, evict, report
@@ -18,6 +19,7 @@ python3 world_demo.py --dr 3                            # a better link
 | `link.py` | A radio that loses, delays, duplicates, drops acks and goes out — seeded |
 | `faults.py` | Injectable sensor faults: drift, sticking, bias, noise, death, out-of-range |
 | `harness.py` | The loop, in §5.1's order, shared by the demo and the tests |
+| `drill.py` | Seeded faults scored against ground truth: recall, precision, false alarms, latency |
 | `world_demo.py` | The whole chain — physics → node → link → gateway → observations |
 
 ## Ground truth lives in `physics.py`, and only there
@@ -88,12 +90,30 @@ so the damage is visible: without an outage it is invisible, which is exactly wh
 would ship, and after a six-hour outage the entire window collapses onto the recovery
 instant and nothing in the record says so.
 
-## Not here yet
+## What the drills measured
 
-A **scored drill** (step 6): seed a fault, show the farmer-facing symptom, and score
-the detector's verdict against `Sensor.injected()` with precision, recall and a
-false-alarm rate on clean rows. The producers and the ground truth both exist now; the
-scoring does not.
+`make drill`. Onset at a third of the way in, scored against `Sensor.injected()`:
+
+| fault | 1 probe | 2 probes |
+| --- | --- | --- |
+| control (nothing wrong) | 0 flags | 0 flags |
+| disconnected, reads its rail | 100% | 100% |
+| frozen probe | 87% | 87% |
+| **drift +0.05/day** | **0%** | **79%** |
+| **noise sigma 0.03** | **0%** | **19%** |
+| **bias +0.08** | **0%** | **100%** |
+| dead (absence, not a wrong value) | no flags — correct | no flags — correct |
+
+**A single probe on a feature cannot see drift, bias or noise at all.** Every reading
+is individually plausible and the series looks healthy. Drift is the commonest real
+failure of the three, so this is an installation decision, not a tuning one.
+
+The first scored run reported a **99.8% false-alarm rate on a clean farm**, which is
+how the cross-check's unit error was found: it was comparing a derived series in
+physical units against a neighbour's raw series in wire units, 0.280 against 280. No
+amount of fault-detection recall would have revealed that — only the control did.
+
+## Not here yet
 
 **Harrow Bend itself is not assembled** — this is one bed and one trough, not the six
 beds, paddock, research plot, hoop house and well of the completeness matrix (step 5).

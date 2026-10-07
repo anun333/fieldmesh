@@ -78,7 +78,7 @@ The farm is complete when every row is live on it with meaningful data. Each row
 | | One series recalibrated mid-season, with superseded rows still present and exactly one live row per timestamp | §3.2 `supersedes` |
 | | A backfilled reading that got the calibration in force when it was taken, not the current one | §3.2 |
 | | A mobile or handheld reading that overrides its datastream's feature | §3.1 |
-| Quality | One live instance of each flag: `stuck`, `out_of_range`, `rate_exceeded`, `suspect` | §3.3 |
+| Quality | One live instance of each flag: `stuck`, `out_of_range`, `rate_exceeded`, `suspect` | §3.3 — all four produced by [sim/drill.py](../sim/drill.py) |
 | | A reading carrying two flags at once | §3.3 flag-set |
 | | A person's override outranking a machine assertion, with the original still visible | §3.3 precedence |
 | | A threshold retuned mid-season, with historical assertions unchanged and traceable to the old version | §3.3 |
@@ -157,7 +157,7 @@ Adopt the sibling convention unchanged: a gitignored `.site/` directory, one sub
 3. ~~**Simulated nodes over a simulated link**, with the airtime budget as exact arithmetic that fails loudly when a fleet reports too often.~~ **Done** — [sim/node.py](../sim/node.py) and [sim/link.py](../sim/link.py), 60 tests. The node samples, buffers, restamps at transmit, packs to the payload budget, evicts with a reported count, resends under its original sequence number, and defers rather than drops when the duty cycle is spent. The link loses, delays, duplicates, drops acknowledgements and goes out entirely — all seeded. Three spec defects came out of putting the two together.
 4. **The fault library**: drift, flatline, out-of-range, clock skew, reboot, outage, backlog eviction, dropped and repeated messages. *Mostly built — [sim/faults.py](../sim/faults.py), 21 tests. Injectable: drift, sticking, bias, noise, death, out-of-range, plus a stuck float valve and the link's loss, delay, duplication and outage. [sim/test_world.py](../sim/test_world.py) scores them against ground truth including the half that is easy to forget — **a healthy farm must stay quiet** — which caught two threshold defects the moment it was written. Clock skew is deliberately absent: §2 reports ages, so a constant offset cancels, and `test_faults.py` demonstrates that rather than asserting it. What remains is a scored drill (step 6), not more producers.*
 5. **Harrow Bend assembled**, deterministic, with the completeness matrix enforced as a test.
-6. **A scored drill**: seed a fault, show the farmer-facing symptom, score the health check's verdict against ground truth.
+6. ~~**A scored drill**: seed a fault, show the farmer-facing symptom, score the health check's verdict against ground truth.~~ **Done** — [sim/drill.py](../sim/drill.py), 17 tests, `make drill`. Precision, recall, false-alarm rate on clean readings and latency from onset, scored against `Sensor.injected()` which the checks cannot reach. Its first run found a unit error worth more than the drill cost to build.
 7. **One real link and one real device driver**, validated against the sim's expectations.
 8. **Then the pilot farm**, with the apps already working and the contract already exercised.
 
