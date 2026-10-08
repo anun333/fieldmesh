@@ -43,9 +43,15 @@ copyright.
 
 ## Dependencies
 
-One third-party library: **`cbor2`**, MIT-licensed, for the CBOR wire format (Q5). MIT
-combines with Apache-2.0 and with AGPL-3.0 without condition beyond keeping its notice,
-and nothing here bundles it — it is installed, not vendored. See `requirements.txt`.
+Two third-party libraries, both installed rather than vendored:
+
+| library | licence | used by | file |
+| --- | --- | --- | --- |
+| `cbor2` | MIT | `sdk/wire.py` — the CBOR wire format (Q5) | `requirements.txt` |
+| `protobuf` | BSD-3-Clause | `tools/q5_encoding.py` only — the measurement that sized Protocol Buffers against CBOR | `requirements-tools.txt` |
+
+Both combine with Apache-2.0 and AGPL-3.0 without condition beyond keeping their notices.
+Nothing in `sdk/`, `sim/` or `server/` needs protobuf.
 
 ## Inherited code
 

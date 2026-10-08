@@ -1,0 +1,5 @@
+# Only for tools/q5_encoding.py, the measurement behind the Q5 encoding decision, which
+# sizes Protocol Buffers against CBOR using the real library rather than an estimate.
+# Nothing in sdk/, sim/ or server/ needs it. BSD-3-Clause.
+-r requirements.txt
+protobuf>=4.21

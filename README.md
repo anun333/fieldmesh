@@ -18,7 +18,8 @@ outright.
 
 Tested on Python 3.12. **One dependency**, `cbor2`, for the CBOR wire format
 (`pip install -r requirements.txt`, or `python3-cbor2` on Debian and Ubuntu); everything
-else is the standard library. On Windows the `zoneinfo` module also wants `tzdata`.
+else is the standard library. `make test` also runs the Q5 measurement tool's tests, which
+need `protobuf` — `pip install -r requirements-tools.txt` installs both. On Windows the `zoneinfo` module also wants `tzdata`.
 
 ```sh
 make test       # every test, about a minute
