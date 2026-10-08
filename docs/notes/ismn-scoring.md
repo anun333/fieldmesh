@@ -87,9 +87,13 @@ material to set a `max_step` from ([Q23](../spec/open-questions.md)).
 ISMN's C03 — "above the saturation point" — uses saturation derived from the global HWSD soil
 database. At McAllister Farm, 5 cm, that puts saturation at **0.427**: every C03 reading is
 at or above it, and every good reading below. The flagged readings run from 0.427 to 0.492
-and cluster in wet winters, while a silt loam's actual porosity is typically 0.45–0.50. Our
-0.46 limit catches those above 0.46. Neither number knows this soil. The disagreement is over
-the site's porosity, not over the sensor.
+and cluster in wet winters. HWSD gives these stations about 50% sand and 25% clay — closer to
+a loam than the silt loam a first draft of this note assumed, and a loam's porosity runs
+lower, roughly 0.43–0.47. So readings near 0.49 are high even for this soil, and a sensor
+calibration error is as plausible as a database one: the Hydraprobe's factory calibration is
+known to drift in some soils. Our 0.46 limit catches those above 0.46. Neither number knows
+this soil, and this data cannot settle which of the three — database, sensor or our limit — is
+wrong.
 
 One sensor dominates the agreement figure: Allen Farms at 1.02 m reads above both limits for
 60% of its record — a waterlogged subsoil or a calibration fault, and the data alone cannot
@@ -110,6 +114,39 @@ series does not carry. **D01 — soil below 0 °C — is within reach:** capacit
 only liquid water, so frozen soil reads falsely dry, and our soil probes now report
 temperature on the same device (§4.1). A frozen-soil check is a candidate for §4.2. D04, a
 rise with no rain, needs a rain gauge on the farm.
+
+## Beyond Tennessee: soil texture, and the size of a jump
+
+Both open questions needed more than one soil. Holding climate fixed — 19 SCAN stations in
+Köppen Cfa, humid subtropical, like Tennessee — and contrasting texture by HWSD:
+
+**The dwell depends on soil as much as on depth.** 99.9th-percentile run of one identical
+value on good readings, in hours:
+
+| depth | sandy, 4 (≥70% sand) | Tennessee loam, 3 | clay, 12 (≥45% clay) |
+| --- | --- | --- | --- |
+| 5 cm | 8 | 7 | 15 |
+| 20 cm | 9 | 9 | 27 |
+| 51 cm | 15 | 21 | 47 |
+| 1.02 m | 15 | 63 | 57 |
+
+Sand drains fast enough that 18 hours is right at every depth; clay is past it by 20 cm. Q24's
+recommendation was revised to make a threshold learned from each series' own history the
+primary mechanism, with a texture- and depth-aware default only until the history exists.
+
+**A spike is not a big step.** One hourly step in the top 20 cm, 8 million good readings:
+
+| | median | 99th | 99.9th | 99.99th |
+| --- | --- | --- | --- | --- |
+| good | 0.001 | 0.016 | 0.069 | 0.167 |
+| ISMN spike (D06) | 0.006 | 0.072 | 0.225 | 0.362 |
+| ISMN jump (D07, D08) | 0.074 | 0.337 | 0.524 | 0.856 |
+
+Healthy soil can rise 0.17 in an hour after heavy rain on sand, and ISMN's spike flags sit
+mostly on small steps, because its detector marks the region around an excursion rather than
+the jump. No step-size threshold separates these. Q23 was revised to recommend detecting the
+*shape* — an excursion that returns within a sample or two, which rain does not do — with a
+step cap near 0.17 per hour kept only as a backstop.
 
 ## Caveats
 

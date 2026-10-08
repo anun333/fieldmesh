@@ -243,10 +243,29 @@ an irrigation event adds about 0.08 however long you wait to look.
 | Make the rate limit depend on the declared sample interval | One number per series, simple | Couples the threshold to sampling again — the exact mistake `flat_seconds` was introduced to undo |
 | Leave it; document that rate is for fast-sampled series | No change | Every hourly logger, and the whole of ISMN, gets a check that cannot fire while appearing to run |
 
-**Recommendation: `max_step` with a gap allowance** — a fixed cap for gaps up to an hour or
-two, growing with the gap beyond that, and the evidence saying which bound fired. It needs a
-measurement before a number: ISMN's own `D06` spikes, once the download is in, give the
-distribution of real one-step jumps flagged as implausible, which is the data to set it from.
+**Measured since — and it changes the recommendation.** One hourly step in the top 20 cm,
+19 humid-subtropical SCAN stations, 8 million good readings, in m³/m³:
+
+| | median | 90th | 99th | 99.9th | 99.99th |
+| --- | --- | --- | --- | --- | --- |
+| good | 0.001 | 0.005 | 0.016 | 0.069 | 0.167 |
+| ISMN spike (D06) | 0.006 | 0.016 | 0.072 | 0.225 | 0.362 |
+| ISMN jump (D07, D08) | 0.074 | 0.167 | 0.337 | 0.524 | 0.856 |
+
+The distributions overlap. Healthy soil legitimately rises 0.17 in an hour after heavy rain
+on sand, which is more than half of ISMN's jumps. And readings flagged as spikes mostly have
+*small* steps: ISMN's detector is spectrum-based and marks the region around an excursion,
+not the jump. **A step-size cap cannot reproduce it** at any false-alarm rate a farmer would
+accept.
+
+**Recommendation, revised: detect the shape, and keep a cap only as a backstop.** What tells a
+spike from rain is not the size of the rise but that it *comes back*: a rain rise holds and
+then drains over hours to days, while a spike returns within one or two samples. A
+spike check that looks for an excursion and return within a short window is
+sampling-interval-independent by construction, which is the property the current check
+lacks. Keep a `max_step` near the good 99.99th percentile (about 0.17 per hour) only to catch
+jumps no soil can make. The simulator's `Spike` fault is already this shape, which is why
+the 15-minute check caught it.
 
 ## Q24. Flatline thresholds that know how deep the probe is
 
@@ -281,11 +300,30 @@ wave the siting check reads.
 | Flatline off below some depth | Simple; no false alarms | A deep probe that really dies is then invisible to the one check that sees it |
 | One threshold for everything, set long enough for 1 m | No false alarms | At 5 cm it would wait two weeks to notice a probe in a bucket |
 
-**Recommendation: both of the first two, in that order** — the depth-scaled default from the
-installation record from day one, refined per series once it has a season of its own history,
-with the depth default as floor and cap. And note what the 351-hour maximum cannot tell us:
-whether it was healthy soil or a stuck sensor ISMN did not flag. The default should sit
-above the 99.9th percentile, not the maximum.
+**Soil texture matters as much as depth — measured, and it changes the recommendation.**
+Holding climate fixed (Köppen Cfa, humid subtropical, like Tennessee), the 99.9th-percentile
+dwell on good readings, in hours:
+
+| depth | sandy, 4 stations (≥70% sand) | Tennessee loam, 3 | clay, 12 stations (≥45% clay) |
+| --- | --- | --- | --- |
+| 5 cm | 8 | 7 | 15 |
+| 10 cm | 11 | 8 | 17 |
+| 20 cm | 9 | 9 | 27 |
+| 51 cm | 15 | 21 | 47 |
+| 1.02 m | 15 | 63 | 57 |
+
+Sand drains so fast that 18 hours is right at every depth; clay is past it by 20 cm. A
+depth-only default would be too strict in sand and too lax in clay at once.
+
+**Recommendation, revised: learn each series' threshold from its own history** — several
+times its observed 99.9th-percentile dwell — as the primary mechanism, because it absorbs
+depth, texture, climate and sensor resolution together. Until a series has a season of
+history, use a conservative default from depth *and* texture, taken from the clay column,
+so a new probe errs towards quiet rather than towards a flood of false `stuck` flags. The
+default doubles as the floor and cap on what a series may learn, so a probe stuck from the
+day it was installed cannot teach itself that stuck is normal. And note what the 351-hour
+maximum at Tennessee's 1 m cannot tell us — healthy soil, or a stuck sensor ISMN did not
+flag — which is why every number here is a 99.9th percentile, not a maximum.
 
 ## Q5. Binary encoding
 
