@@ -77,6 +77,25 @@ def observation_type(result) -> str:
     return ANY_OBSERVATION
 
 
+#: What `serverSettings.conformance` declares (1.1 §9.2.1: SHALL be present, listing
+#: every requirement implemented — a whole class only where *every* requirement in it
+#: is met). Declared narrowly on purpose: a client reads this to decide what it may
+#: rely on, so overclaiming is worse than underclaiming.
+#:
+#: Not declared, and why:
+#:   request-data     — `$filter`'s geospatial functions (st_within and friends) are
+#:                      refused with 501, so the class is not fully met.
+#:   resource-path    — `$ref` association links are not served.
+#:   create-update-delete, batch-request, data-array, multi-datastream — read-only by
+#:                      design (§7.1: the log is the write path); MultiDatastream unused.
+#:   MQTT classes     — not served.
+CONFORMANCE = tuple(
+    "http://www.opengis.net/spec/iot_sensing/1.1/req/datamodel/" + name
+    for name in ("thing", "location", "historical-location", "datastream", "sensor",
+                 "observed-property", "observation", "feature-of-interest",
+                 "entity-control-information"))
+
+
 def humanise_term(uri: str) -> str:
     """A legible name for a vocabulary URI: the last path segment, unpunctuated.
 
@@ -259,14 +278,64 @@ class Service:
         doc["description"] = self._label(ident, "description",
                                          "A thing layer zero observes")
         doc["properties"] = self._with_language({}, ident)
-        # **No `Locations` link.** 1.1 makes Thing.Locations 0..*, and layer zero has
-        # no Location record: geometry here belongs to a feature of interest — a bed, a
-        # paddock, a trough — not to the Thing that happens to observe it. Advertising
-        # the link anyway is what this used to do, and a walk of every emitted link
-        # found it answering 404 to itself. A link you cannot answer is worse than one
-        # you never offered, because the client only learns after following it.
-        doc.update(self._navs("Things", ident, "Datastreams"))
+        # Locations and HistoricalLocations links are present and **answer**. An
+        # earlier version advertised Locations with nothing behind it (a 404 to its own
+        # link), and the version after that dropped the link — which 1.1's
+        # entity-control requirement does not allow either. The right answer was a
+        # collection that tells the truth, even when the truth is "empty".
+        doc.update(self._navs("Things", ident, "Datastreams", "Locations",
+                              "HistoricalLocations"))
         return doc
+
+    # ------------------------------------------------------------ locations
+
+    def _features_of_thing(self, thing) -> set:
+        return {ds.feature for ds in self.state.datastreams.values()
+                if ds.thing == thing and ds.feature is not None}
+
+    def location_ids(self, thing=None) -> list:
+        """Locations are the geometry of the features a Thing observes.
+
+        A Thing in this model is a station observing one feature — a bed, a paddock —
+        and a Location is where it stands, so its geometry is the feature's. The
+        Location's id *is* the feature's id: one place, seen from two entity sets,
+        which is the same equivalence FROST-Server makes when it generates a feature of
+        interest from a Location. A feature with no geometry has no Location, because
+        a Location with no position would be a claim about nothing.
+        """
+        if thing is not None:
+            candidates = self._features_of_thing(thing)
+        else:
+            candidates = {ds.feature for ds in self.state.datastreams.values()
+                          if ds.feature is not None}
+        return sorted((f for f in candidates if self.geometries.get(f)),
+                      key=lambda u: u.int)
+
+    def location(self, ident: UUID) -> dict:
+        doc = self._control("Locations", ident)
+        doc["name"] = self._label(ident, "name", str(ident))
+        doc["description"] = self._label(ident, "description",
+                                         "Where a station stands")
+        doc["encodingType"] = "application/geo+json"
+        doc["location"] = self.geometries.get(ident)
+        doc["properties"] = self._with_language({}, ident)
+        doc.update(self._navs("Locations", ident, "Things", "HistoricalLocations"))
+        return doc
+
+    def locations(self, *, count: bool = True) -> dict:
+        return self.collection([self.location(i) for i in self.location_ids()],
+                               count=count)
+
+    def historical_locations(self, *, count: bool = True) -> dict:
+        """Always empty, and truthfully so.
+
+        A HistoricalLocation records a *Thing* moving. Things here are stations bound to
+        a feature, and do not move; what moves is a device, and §4.1 records that as an
+        Installation — which 1.1 has no entity for, because 1.1 gives Sensors no
+        position at all. Inventing a history for Things would misreport where the
+        movement happened, so the collection is served, and served empty.
+        """
+        return self.collection([], count=count)
 
     def sensor(self, ident: UUID) -> dict:
         """A Sensor, enriched from its §4.1 `Device` record when one exists.
@@ -509,11 +578,18 @@ class Service:
                                 sorted(idents, key=lambda u: u.int)], count=count)
 
     def root(self) -> dict:
-        """The service document: every entity set this view serves."""
-        sets = ["Things", "Datastreams", "Sensors", "ObservedProperties",
-                "Observations", self.dialect.feature_set]
+        """The service document: every entity set, and `serverSettings` (1.1 §9.2.1).
+
+        `serverSettings` is a SHALL in 1.1, and this omitted it until the standard's own
+        text was checked — QGIS never complained, which is why it took reading the
+        standard rather than a client to find it.
+        """
+        sets = ["Things", "Locations", "HistoricalLocations", "Datastreams",
+                "Sensors", "ObservedProperties", "Observations",
+                self.dialect.feature_set]
         return {self.dialect.value_key: [
-            {"name": s, "url": f"{self._root()}/{s}"} for s in sets]}
+                    {"name": s, "url": f"{self._root()}/{s}"} for s in sets],
+                "serverSettings": {"conformance": list(CONFORMANCE)}}
 
     # ------------------------------------------------------------ internals
 

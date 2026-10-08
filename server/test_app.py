@@ -52,9 +52,10 @@ class TestServiceDocument(_Case):
         status, _, doc = self.get("/v1.1")
         self.assertEqual(status, 200)
         names = {e["name"] for e in doc["value"]}
-        self.assertEqual(names, {"Things", "Datastreams", "Sensors",
-                                 "ObservedProperties", "Observations",
-                                 "FeaturesOfInterest"})
+        self.assertEqual(names, {"Things", "Locations", "HistoricalLocations",
+                                 "Datastreams", "Sensors", "ObservedProperties",
+                                 "Observations", "FeaturesOfInterest"})
+        self.assertIn("conformance", doc["serverSettings"])
 
     def test_the_bare_root_advertises_the_versioned_path(self):
         status, _, doc = self.get("/")
@@ -425,3 +426,31 @@ class TestAcceptLanguage(unittest.TestCase):
     def test_one_request_in_spanish_does_not_leak_into_the_next(self):
         self.feature("es")
         self.assertEqual(self.feature()["name"], "bed 1")
+
+
+class TestLocationsOverHttp(unittest.TestCase):
+
+    def setUp(self):
+        self.ds, self.state = _farm(rows=2)
+        point = {"type": "Point", "coordinates": [0.0002, 0.0001]}
+        self.app = A.make_app(self.state, geometries={self.ds.feature: point})
+
+    def get(self, path, query=""):
+        status, _, body = self.app.handle("GET", path, query)
+        return status, json.loads(body)
+
+    def test_a_things_locations_link_answers_with_its_location(self):
+        _, things = self.get("/v1.1/Things")
+        link = things["value"][0]["Locations@iot.navigationLink"]
+        status, doc = self.get(urlparse(link).path)
+        self.assertEqual(status, 200)
+        self.assertEqual(doc["value"][0]["location"]["type"], "Point")
+
+    def test_a_location_leads_back_to_its_thing(self):
+        status, doc = self.get(f"/v1.1/Locations({self.ds.feature})/Things")
+        self.assertEqual(status, 200)
+        self.assertEqual(doc["value"][0]["@iot.id"], str(self.ds.thing))
+
+    def test_historical_locations_answer_empty(self):
+        status, doc = self.get(f"/v1.1/Things({self.ds.thing})/HistoricalLocations")
+        self.assertEqual((status, doc["value"]), (200, []))

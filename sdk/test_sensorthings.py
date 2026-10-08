@@ -321,9 +321,25 @@ class TestEntitySetsAndLinks(unittest.TestCase):
 
     def test_root_lists_every_entity_set(self):
         names = {e["name"] for e in self.svc.root()["value"]}
-        self.assertEqual(names, {"Things", "Datastreams", "Sensors",
-                                 "ObservedProperties", "Observations",
-                                 "FeaturesOfInterest"})
+        self.assertEqual(names, {"Things", "Locations", "HistoricalLocations",
+                                 "Datastreams", "Sensors", "ObservedProperties",
+                                 "Observations", "FeaturesOfInterest"})
+
+    def test_root_carries_server_settings_as_1_1_requires(self):
+        """§9.2.1: serverSettings SHALL be present with a conformance array. This was
+        missing until the standard's text was checked; no client had complained."""
+        settings = self.svc.root()["serverSettings"]
+        self.assertIn("conformance", settings)
+        self.assertTrue(all(u.startswith("http://www.opengis.net/spec/iot_sensing/1.1/")
+                            for u in settings["conformance"]))
+
+    def test_conformance_does_not_claim_what_is_not_implemented(self):
+        """A client reads this to decide what it may rely on; overclaiming is worse
+        than underclaiming. Read-only, no MQTT, no geospatial $filter, no $ref."""
+        claimed = " ".join(self.svc.root()["serverSettings"]["conformance"])
+        for not_ours in ("create-update-delete", "mqtt", "batch-request",
+                         "request-data", "resource-path", "multi-datastream"):
+            self.assertNotIn(not_ours, claimed)
 
     def test_everything_is_json_serialisable(self):
         for doc in (self.svc.root(), self.svc.datastreams(), self.svc.observations(),
@@ -494,11 +510,34 @@ class TestFeatureGeometry(unittest.TestCase):
         self.assertEqual(doc["name"], "bed2")
 
 
-class TestThingHasNoLocationsLink(unittest.TestCase):
+class TestLocations(unittest.TestCase):
+    """A Thing's Locations link exists and answers truthfully — the third attempt.
 
-    def test_things_do_not_advertise_a_locations_link(self):
-        """We serve no Locations, and a link that answers 404 is worse than none."""
-        ds = fx.raw_datastream()
-        doc = st.Service(_state(ds)).thing(ds.thing)
-        self.assertNotIn("Locations@iot.navigationLink", doc)
-        self.assertIn("Datastreams@iot.navigationLink", doc)
+    First it was advertised with nothing behind it (a 404 to its own link). Then it was
+    dropped, which 1.1's entity-control requirement does not allow either. A collection
+    that answers, empty when the truth is empty, is what was wanted all along.
+    """
+
+    def setUp(self):
+        self.ds = fx.raw_datastream()
+        self.point = {"type": "Point", "coordinates": [0.0001, 0.0]}
+
+    def test_things_advertise_locations_and_historical_locations(self):
+        doc = st.Service(_state(self.ds)).thing(self.ds.thing)
+        self.assertIn("Locations@iot.navigationLink", doc)
+        self.assertIn("HistoricalLocations@iot.navigationLink", doc)
+
+    def test_a_thing_is_located_at_its_features_geometry(self):
+        svc = st.Service(_state(self.ds), geometries={self.ds.feature: self.point})
+        self.assertEqual(svc.location_ids(self.ds.thing), [self.ds.feature])
+        self.assertEqual(svc.location(self.ds.feature)["location"], self.point)
+
+    def test_without_geometry_there_is_no_location_rather_than_an_empty_one(self):
+        """A Location with no position would be a claim about nothing."""
+        self.assertEqual(st.Service(_state(self.ds)).location_ids(self.ds.thing), [])
+
+    def test_historical_locations_are_served_and_empty(self):
+        """Things here do not move; devices do, and §4.1 records that as Installations,
+        which 1.1 has nowhere to put. Inventing a Thing history would misplace it."""
+        doc = st.Service(_state(self.ds)).historical_locations()
+        self.assertEqual(doc["value"], [])

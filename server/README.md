@@ -40,9 +40,13 @@ because a real client found two such links; see
 
 ## What it does not do
 
-`$metadata` (the CSDL document), `$apply`, lambda operators, geospatial filter
-functions, arithmetic in `$filter`, MQTT, Locations and HistoricalLocations, and
-anything that writes. Each refuses by name rather than by silence.
+`$apply`, lambda operators, geospatial filter functions, arithmetic in `$filter`, `$ref`
+association links, MQTT, and anything that writes. Each refuses by name rather than by
+silence, and `serverSettings.conformance` at the service root claims only the nine
+data-model requirements actually met. `$metadata` answers 501; it is an OData document
+that SensorThings 1.1 does not require. HistoricalLocations is served and always empty:
+Things here do not move, and devices that do are §4.1 Installations, which 1.1 has no
+entity for.
 
 Not hardened for exposure to a network, and single-threaded by choice: a read-only
 projection served to one GIS client at a time is the use case, and concurrency would

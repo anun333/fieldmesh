@@ -53,6 +53,8 @@ _SETS = {
     "Observations": None,            # handled specially: it is the unbounded one
     "FeaturesOfInterest": "features_of_interest",
     "Features": "features_of_interest",
+    "Locations": "locations",
+    "HistoricalLocations": "historical_locations",
 }
 
 #: Navigation links this service resolves, as (set, nav) -> handler name.
@@ -66,6 +68,10 @@ _NAVS = {
     ("Observations", "FeatureOfInterest"),
     ("Sensors", "Datastreams"),
     ("ObservedProperties", "Datastreams"),
+    ("Things", "Locations"),
+    ("Things", "HistoricalLocations"),
+    ("Locations", "Things"),
+    ("Locations", "HistoricalLocations"),
 }
 
 _MUTATING = ("POST", "PATCH", "PUT", "DELETE", "MERGE")
@@ -516,6 +522,15 @@ class App:
             else:
                 keep = {str(ds.id) for ds in streams}
             return [d for d in items if d.get("@iot.id") in keep]
+        if head == "Locations" and kind == "Things":
+            keep = {str(f) for f in self.service.location_ids(ident)}
+            return [d for d in items if d.get("@iot.id") in keep]
+        if head == "Things" and kind == "Locations":
+            keep = {str(ds.thing) for ds in self.state.datastreams.values()
+                    if ds.feature == ident}
+            return [d for d in items if d.get("@iot.id") in keep]
+        if head == "HistoricalLocations":
+            return []
         return items
 
     def _observation_items(self, options: Options, scope):
@@ -563,7 +578,8 @@ class App:
     def _follow(self, head: str, entity_id: UUID, nav: str,
                 options: Options, query: str):
         """One navigation hop, to a collection or to a single entity."""
-        if nav in ("Datastreams", "Observations"):
+        if nav in ("Datastreams", "Observations", "Locations", "HistoricalLocations",
+                   "Things"):
             return self._collection(nav, options, query, scope=(head, entity_id))
         # A single-valued navigation link.
         if head == "Datastreams":
