@@ -155,7 +155,8 @@ def usable_of(assertions, observation_id: UUID) -> Usable:
 
 # ------------------------------------------------------------- calibration
 
-def calibration_for(calibrations, sensor: UUID, measured_at: _dt.datetime):
+def calibration_for(calibrations, sensor: UUID, measured_at: _dt.datetime,
+                    datastream: UUID | None = None):
     """The calibration in force for `sensor` when the reading was taken (§3.2).
 
     Selected by `measured_at`, never by ingest time — applying whatever is current
@@ -163,20 +164,40 @@ def calibration_for(calibrations, sensor: UUID, measured_at: _dt.datetime):
     from a buffer, which is an *Honest data* violation produced entirely by an
     unstated default.
 
-    Overlapping intervals are a data error, not something to resolve quietly, so
-    the latest `valid_from` wins and the overlap is reported by
+    **And by channel.** A calibration that names this raw `datastream` beats one that
+    covers the whole sensor, and one naming a *different* datastream never applies.
+    Without that, a two-channel device's calibrations compete and the later one is
+    applied to both — which is what happened the first time a soil probe reported
+    temperature as well as moisture.
+
+    Overlapping intervals within one scope are a data error, not something to
+    resolve quietly, so the latest `valid_from` wins and the overlap is reported by
     `overlapping_calibrations`.
     """
-    matches = [c for c in calibrations
-               if c.sensor == sensor and c.covers(measured_at)]
+    specific, general = [], []
+    for c in calibrations:
+        if c.sensor != sensor or not c.covers(measured_at):
+            continue
+        if c.datastream is None:
+            general.append(c)
+        elif c.datastream == datastream:
+            specific.append(c)
+    matches = specific or general
     if not matches:
         return None
     return max(matches, key=lambda c: (c.valid_from, c.id.int))
 
 
-def overlapping_calibrations(calibrations, sensor: UUID) -> list[tuple]:
-    """Pairs of calibrations for one sensor whose validity intervals overlap."""
-    cals = sorted((c for c in calibrations if c.sensor == sensor),
+def overlapping_calibrations(calibrations, sensor: UUID,
+                             datastream: UUID | None = None) -> list[tuple]:
+    """Pairs of calibrations in one scope whose validity intervals overlap.
+
+    The scope is the sensor *and* the datastream. Two calibrations on one TEROS-12 —
+    one for moisture, one for temperature — are not an overlap; they convert
+    different channels and never compete.
+    """
+    cals = sorted((c for c in calibrations
+                   if c.sensor == sensor and c.datastream == datastream),
                   key=lambda c: c.valid_from)
     clashes = []
     for i, a in enumerate(cals):
@@ -441,8 +462,10 @@ class State:
         found = self.live_assertion_for(observation_id)
         return found.usable if found is not None else Usable.GOOD
 
-    def calibration_for(self, sensor: UUID, measured_at: _dt.datetime):
-        return calibration_for(self.calibrations.values(), sensor, measured_at)
+    def calibration_for(self, sensor: UUID, measured_at: _dt.datetime,
+                        datastream: UUID | None = None):
+        return calibration_for(self.calibrations.values(), sensor, measured_at,
+                               datastream)
 
     def health_of(self, datastream_id: UUID, now: _dt.datetime) -> Health:
         ds = self.datastreams[datastream_id]
@@ -642,11 +665,13 @@ class State:
             if ds.kind is DatastreamKind.DERIVED and ds.derived_from not in self.datastreams:
                 problems.append(f"datastream {ds.id} derives from unknown "
                                 f"{ds.derived_from}")
-        seen_sensors = {c.sensor for c in self.calibrations.values()}
-        for sensor in seen_sensors:
-            for a, b in overlapping_calibrations(self.calibrations.values(), sensor):
+        scopes = {(c.sensor, c.datastream) for c in self.calibrations.values()}
+        for sensor, datastream in scopes:
+            for a, b in overlapping_calibrations(self.calibrations.values(), sensor,
+                                                 datastream):
+                where = f" datastream {datastream}" if datastream else ""
                 problems.append(f"calibrations {a.id} and {b.id} overlap for "
-                                f"sensor {sensor}")
+                                f"sensor {sensor}{where}")
         # §4.1. Two installations covering one instant is the failure that makes
         # "how deep was this probe then" unanswerable, which is the whole reason the
         # record carries dates. Checked here rather than in `Installation.__post_init__`

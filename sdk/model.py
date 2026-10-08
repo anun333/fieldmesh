@@ -367,6 +367,14 @@ class Calibration:
     `measured_at` and that is unanswerable without knowing what was in force when.
 
     `valid_to = None` means "still in force".
+
+    **`datastream` scopes it to one raw channel.** A device with one channel needs
+    nothing more, and `None` keeps that case — a calibration for the whole sensor.
+    But a TEROS-12 reports moisture and temperature from one body, and a multi-depth
+    probe can report six moistures. Selected by sensor alone, the two calibrations
+    on a TEROS-12 competed, the later one won for both, and every moisture reading on
+    twelve probes was derived with the temperature coefficients — 29.2 cm3/cm3 for a
+    soil holding 0.292. `validate` reported the overlap; nothing in ingest asked it.
     """
 
     id: UUID
@@ -377,11 +385,13 @@ class Calibration:
     reference: str | None = None
     coefficients: dict = field(default_factory=dict)
     performed_by: UUID | None = None
+    datastream: UUID | None = None
 
     def __post_init__(self) -> None:
         _uuid7(self.id, "id")
         _uuid7(self.sensor, "sensor")
         _opt_uuid7(self.performed_by, "performed_by")
+        _opt_uuid7(self.datastream, "datastream")
         _utc(self.valid_from, "valid_from")
         if self.valid_to is not None:
             _utc(self.valid_to, "valid_to")

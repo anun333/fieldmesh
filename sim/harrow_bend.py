@@ -68,10 +68,12 @@ AIR_TEMP = V.AIR_TEMPERATURE
 HUMIDITY = V.RELATIVE_HUMIDITY
 BATTERY = V.BATTERY_VOLTAGE
 RSSI = V.RSSI
+SOIL_TEMP = V.SOIL_TEMPERATURE
 
 #: Hardware a person would recognise, per measurand. Fictional, like the farm.
 _MODELS = {
     V.SOIL_WATER: "TEROS-12",
+    V.SOIL_TEMPERATURE: "TEROS-12",
     V.VESSEL_FILL_FRACTION: "float-level TL-1",
     V.AIR_TEMPERATURE: "SHT-35",
     V.RELATIVE_HUMIDITY: "SHT-35",
@@ -106,6 +108,21 @@ AIR_THRESHOLDS = {"min": -30.0, "max": 60.0, "flat_seconds": 6 * 3600,
                   "flat_n": 12}
 BATTERY_THRESHOLDS = {"min": 3.2, "max": 4.3, "flat_n": None,
                       "flat_seconds": None}
+#: Soil temperature. The flatline window is long because a deep probe's daily swing
+#: at 0.1 C resolution can hold one value for many hours, and that is a correct
+#: reading — the same quantisation-dwell lesson as moisture (§4.2).
+SOIL_TEMP_THRESHOLDS = {"min": -15.0, "max": 55.0, "flat_seconds": 36 * 3600,
+                        "flat_n": 6, "max_rate_per_s": 0.0012}
+
+
+def _moisture(truth, siting) -> float:
+    """What a moisture probe reads where it physically is.
+
+    The bed's water content, plus a little more with depth — deeper soil holds more,
+    and this reproduces the old fixed `+0.03` at 40 cm exactly while staying
+    continuous for a probe moved to any other depth.
+    """
+    return truth.soil[siting.bed] + 0.15 * (siting.depth_m - 0.20)
 
 
 @dataclass
@@ -131,6 +148,21 @@ class Spike(F.Fault):
 
 
 @dataclass
+class Siting:
+    """Where a probe **physically** is — deliberately separate from where the log
+    says it is.
+
+    The `Installation` record is a claim a person made. This is the ground truth the
+    simulator reads from, and the gap between the two is exactly what a siting check
+    exists to find. Shared by every series a device feeds, so a TEROS-12 that is
+    moved takes its moisture *and* its temperature readings with it.
+    """
+
+    bed: str
+    depth_m: float
+
+
+@dataclass
 class Series:
     """One point: its raw and derived datastreams, its calibration, its sensor."""
 
@@ -143,6 +175,7 @@ class Series:
     channel: int
     device: object = None            # §4.1 Device
     installation: object = None      # §4.1 Installation, the open one
+    siting: Siting | None = None     # where it physically is, which may disagree
 
 
 @dataclass
@@ -239,8 +272,13 @@ def labels(farm) -> dict:
 
 
 def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
-            interval, latency, read, channel, sensor_id=None, faults=()):
-    sensor_id = sensor_id or uuid7()
+            interval, latency, read, channel, sensor_id=None, faults=(),
+            same_device_as: str | None = None):
+    """One point. With `same_device_as`, a second datastream on an existing device —
+    a TEROS-12 reports moisture and temperature from one body, so they share one
+    `Device`, one `Installation` and one physical siting."""
+    sibling = farm.series[same_device_as] if same_device_as else None
+    sensor_id = sibling.device.id if sibling else (sensor_id or uuid7())
     thing = farm.features[feature]["thing"]
     raw = Datastream(id=uuid7(), thing=thing, sensor=sensor_id,
                      observed_property=prop, feature=farm.features[feature]["id"],
@@ -252,7 +290,8 @@ def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
                          kind=DatastreamKind.DERIVED, derived_from=raw.id,
                          unit=unit, expected_interval=interval,
                          max_latency=latency, thresholds=thresholds)
-    cal = Calibration(id=uuid7(), sensor=sensor_id, method="linear",
+    cal = Calibration(id=uuid7(), sensor=sensor_id, datastream=raw.id,
+                      method="linear",
                       valid_from=_dt.datetime(2026, 1, 1, tzinfo=ph.UTC),
                       coefficients={"a": 1.0 / scale, "b": 0.0,
                                     "decimals": decimals})
@@ -264,24 +303,29 @@ def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
     # nothing behind it until §4.1 was built — so a probe could be moved between beds
     # with nothing recording that it had happened. Installed where its feature is, at
     # the depth its name claims, from the day the season starts.
-    device = Device(id=sensor_id, kind=DeviceKind.SENSOR, site=farm.site,
-                    model=_MODELS.get(prop, "generic probe"),
-                    serial=f"SN-{sensor_id.hex[:8]}",
-                    manufacturer="Harrow Bend Instruments",
-                    firmware="1.4.2", driver="librefarm.sim", driver_version="0",
-                    capabilities={"dedup_volatile": False,
-                                  "confirms_delivery": True})
-    install = Installation(id=uuid7(), device=sensor_id,
-                           feature=farm.features[feature]["id"],
-                           installed_at=farm.world.start,
-                           depth_m=_DEPTHS.get(name.rsplit("_", 1)[-1]))
-    for record in (device, install):
-        farm.log.append_record(record)
-        farm.state.add(record)
+    if sibling is not None:
+        device, install, siting = sibling.device, sibling.installation, sibling.siting
+    else:
+        device = Device(id=sensor_id, kind=DeviceKind.SENSOR, site=farm.site,
+                        model=_MODELS.get(prop, "generic probe"),
+                        serial=f"SN-{sensor_id.hex[:8]}",
+                        manufacturer="Harrow Bend Instruments",
+                        firmware="1.4.2", driver="librefarm.sim",
+                        driver_version="0",
+                        capabilities={"dedup_volatile": False,
+                                      "confirms_delivery": True})
+        depth = _DEPTHS.get(name.rsplit("_", 1)[-1])
+        install = Installation(id=uuid7(), device=sensor_id,
+                               feature=farm.features[feature]["id"],
+                               installed_at=farm.world.start, depth_m=depth)
+        siting = Siting(bed=feature, depth_m=depth) if depth is not None else None
+        for record in (device, install):
+            farm.log.append_record(record)
+            farm.state.add(record)
 
     series = Series(name=name, raw=raw, derived=derived, calibration=cal,
                     threshold=th, channel=channel, device=device,
-                    installation=install,
+                    installation=install, siting=siting,
                     sensor=F.Sensor(read, scale=scale, faults=list(faults),
                                     name=name))
     farm.series[name] = series
@@ -314,14 +358,32 @@ def build(*, seed: int = 1, start: _dt.datetime = START,
         farm.features[name] = {"id": uuid7(), "thing": uuid7(), "name": name}
 
     # --- soil, two depths per bed -------------------------------------------
+    # Each probe reads through its *physical* siting rather than a bed name fixed at
+    # build time. The first version bound the bed into the reader, so `relocate`
+    # wrote records saying a probe had moved to bed2 while the simulated probe went
+    # on reading bed6 — the records moved and the probe did not, which is precisely
+    # the disagreement a siting check exists to catch, introduced by the simulator.
+    holder: dict = {}
     for index, bed in enumerate(("bed1", "bed2", "bed3", "bed4", "bed5", "bed6")):
         for depth, channel in (("shallow", 1), ("deep", 2)):
-            offset = 0.0 if depth == "shallow" else 0.03   # deeper holds more
-            _series(farm, name=f"{bed}_{depth}", feature=bed, prop=SOIL,
-                    unit="cm3/cm3", scale=1000.0, decimals=3,
-                    thresholds=SOIL_THRESHOLDS, interval=900.0, latency=3600.0,
-                    channel=channel + 2 * (index % 3),
-                    read=(lambda b, o: lambda t: t.soil[b] + o)(bed, offset))
+            name = f"{bed}_{depth}"
+            series = _series(
+                farm, name=name, feature=bed, prop=SOIL, unit="cm3/cm3",
+                scale=1000.0, decimals=3, thresholds=SOIL_THRESHOLDS,
+                interval=900.0, latency=3600.0, channel=channel + 2 * (index % 3),
+                read=(lambda n: lambda t: _moisture(t, holder[n]))(name))
+            holder[name] = series.siting
+            # The same TEROS-12 body reports soil temperature (§4.1: one device,
+            # two datastreams). Hourly, because soil heat moves slowly and the daily
+            # wave needs no finer sampling to be fitted — a quarter of the airtime
+            # that matching the moisture interval would cost.
+            _series(farm, name=f"{name}_temp", feature=bed, prop=SOIL_TEMP,
+                    unit="Cel", scale=10.0, decimals=1,
+                    thresholds=SOIL_TEMP_THRESHOLDS, interval=3600.0,
+                    latency=3600.0, channel=20 + channel + 2 * (index % 3),
+                    same_device_as=name,
+                    read=(lambda n: lambda t: t.soil_temp_at(
+                        holder[n].bed, holder[n].depth_m))(name))
 
     # --- troughs: the urgent series, tight latency ---------------------------
     for channel, trough in enumerate(("trough_north", "trough_south"), start=1):
@@ -353,10 +415,16 @@ def build(*, seed: int = 1, start: _dt.datetime = START,
     plan = [
         ("beds_a", 0x4F2A1701, ClockQuality.RTC_UNSYNCED, 12.0, nd.CHRONOLOGICAL,
          ["bed1_shallow", "bed1_deep", "bed2_shallow", "bed2_deep",
-          "bed3_shallow", "bed3_deep"], lk.MESHTASTIC),
+          "bed3_shallow", "bed3_deep",
+          "bed1_shallow_temp", "bed1_deep_temp", "bed2_shallow_temp",
+          "bed2_deep_temp", "bed3_shallow_temp", "bed3_deep_temp"],
+         lk.MESHTASTIC),
         ("beds_b", 0x4F2A1702, ClockQuality.RTC_SYNCED, 2.0, nd.CHRONOLOGICAL,
          ["bed4_shallow", "bed4_deep", "bed5_shallow", "bed5_deep",
-          "bed6_shallow", "bed6_deep"], lk.MESHTASTIC),
+          "bed6_shallow", "bed6_deep",
+          "bed4_shallow_temp", "bed4_deep_temp", "bed5_shallow_temp",
+          "bed5_deep_temp", "bed6_shallow_temp", "bed6_deep_temp"],
+         lk.MESHTASTIC),
         ("paddock", 0x4F2A1703, ClockQuality.GPS, 0.5, nd.FRESH_FIRST,
          ["trough_north", "trough_south"], lk.LORAWAN_CONFIRMED),
         ("plot", 0x4F2A1704, ClockQuality.NETWORK, 1.5, nd.CHRONOLOGICAL,
@@ -473,11 +541,13 @@ def recalibrate(farm: Farm, series_name: str, at: _dt.datetime, *,
     """
     series = farm.series[series_name]
     old = series.calibration
-    closed = Calibration(id=old.id, sensor=old.sensor, method=old.method,
+    closed = Calibration(id=old.id, sensor=old.sensor, datastream=old.datastream,
+                         method=old.method,
                          valid_from=old.valid_from, valid_to=at,
                          reference=old.reference, coefficients=old.coefficients,
                          performed_by=old.performed_by)
-    fresh = Calibration(id=uuid7(), sensor=old.sensor, method="linear",
+    fresh = Calibration(id=uuid7(), sensor=old.sensor, datastream=old.datastream,
+                        method="linear",
                         valid_from=at,
                         coefficients={"a": 1.0 / scale, "b": 0.0,
                                       "decimals": decimals})
@@ -552,8 +622,40 @@ def relocate(farm: Farm, series_name: str, *, to: str, at: _dt.datetime,
     for record in (closed, fresh, moved):
         farm.log.append_record(record)
         farm.state.add(record)
-    series.installation = fresh
+    # The probe physically moves too, and every datastream on the device with it.
+    # Before this, only the records moved, and the simulated probe went on reading
+    # its old bed — a logged move whose readings said otherwise.
+    for other in _series_of_device(farm, old.device):
+        other.installation = fresh
+    if series.siting is not None:
+        series.siting.bed = to
+        if depth_m is not None:
+            series.siting.depth_m = depth_m
     return fresh
+
+
+def displace(farm: Farm, series_name: str, *, depth_m: float | None = None,
+             bed: str | None = None) -> Siting:
+    """Move a probe **without recording it** — the fault a siting check exists for.
+
+    Frost heave, a cultivator catching the cable, someone pulling a probe to look at
+    it and pushing it back in shallower. Nothing is appended to the log: the
+    `Installation` still says where the probe was put, and only the physics knows
+    where it is now. Ground truth for the drill is the disagreement between the two.
+    """
+    siting = farm.series[series_name].siting
+    if siting is None:
+        raise ValueError(f"{series_name} has no physical siting to disturb")
+    if depth_m is not None:
+        siting.depth_m = depth_m
+    if bed is not None:
+        siting.bed = bed
+    return siting
+
+
+def _series_of_device(farm: Farm, device_id):
+    return [s for s in farm.series.values()
+            if s.device is not None and s.device.id == device_id]
 
 
 def service(farm: Farm, series_name: str, *, at: _dt.datetime,

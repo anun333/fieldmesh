@@ -384,7 +384,8 @@ class Gateway:
         # §3.2: by measured_at, never by ingest time. A reading that spent three
         # days in a buffer gets the coefficients that were in force when it was
         # taken.
-        calibration = self.state.calibration_for(sensor, raw.measured_at)
+        calibration = self.state.calibration_for(sensor, raw.measured_at,
+                                                 raw_datastream_id)
         if calibration is None:
             return None
         try:

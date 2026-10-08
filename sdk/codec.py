@@ -130,6 +130,7 @@ _CONVERTERS = {
         "reference": (_same, _same),
         "coefficients": (_same, _same),
         "performed_by": (_enc_uuid, _dec_uuid),
+        "datastream": (_enc_uuid, _dec_uuid),
     },
     Observation: {
         "id": (_enc_uuid, _dec_uuid),

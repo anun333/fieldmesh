@@ -259,3 +259,69 @@ class TestDeviceView(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMultiChannelCalibration(unittest.TestCase):
+    """One device, two channels, two calibrations — the case that silently derived
+    every moisture reading on twelve probes with the temperature coefficients."""
+
+    def setUp(self):
+        from model import Calibration
+        self.Calibration = Calibration
+        self.sensor = uuid7()
+        self.moisture = fx.raw_datastream(sensor=self.sensor)
+        self.temperature = fx.raw_datastream(sensor=self.sensor, unit="Cel")
+        self.cal_m = Calibration(id=uuid7(), sensor=self.sensor,
+                                 datastream=self.moisture.id, method="linear",
+                                 valid_from=when(1), coefficients={"a": 0.001})
+        self.cal_t = Calibration(id=uuid7(), sensor=self.sensor,
+                                 datastream=self.temperature.id, method="linear",
+                                 valid_from=when(2), coefficients={"a": 0.1})
+        self.cals = [self.cal_m, self.cal_t]
+
+    def test_each_channel_gets_its_own_calibration(self):
+        self.assertIs(P.calibration_for(self.cals, self.sensor, when(6),
+                                        self.moisture.id), self.cal_m)
+        self.assertIs(P.calibration_for(self.cals, self.sensor, when(6),
+                                        self.temperature.id), self.cal_t)
+
+    def test_the_later_calibration_does_not_win_for_the_other_channel(self):
+        """The defect: by sensor alone, the later `valid_from` was applied to both."""
+        chosen = P.calibration_for(self.cals, self.sensor, when(6), self.moisture.id)
+        self.assertEqual(chosen.coefficients["a"], 0.001)
+
+    def test_two_channels_calibrations_are_not_an_overlap(self):
+        self.assertEqual(P.overlapping_calibrations(self.cals, self.sensor,
+                                                    self.moisture.id), [])
+        log = L.Log()
+        for record in (self.moisture, self.temperature, *self.cals):
+            log.append_record(record)
+        self.assertEqual(P.state_from_log(log).validate(), [])
+
+    def test_a_channel_specific_calibration_beats_a_sensor_wide_one(self):
+        general = self.Calibration(id=uuid7(), sensor=self.sensor, method="linear",
+                                   valid_from=when(4), coefficients={"a": 9.0})
+        chosen = P.calibration_for([*self.cals, general], self.sensor, when(6),
+                                   self.moisture.id)
+        self.assertIs(chosen, self.cal_m)
+
+    def test_a_single_channel_device_still_uses_a_sensor_wide_calibration(self):
+        """`datastream=None` keeps the old behaviour for the common case."""
+        general = self.Calibration(id=uuid7(), sensor=self.sensor, method="linear",
+                                   valid_from=when(1), coefficients={"a": 0.5})
+        self.assertIs(P.calibration_for([general], self.sensor, when(6),
+                                        self.moisture.id), general)
+
+    def test_a_calibration_for_another_channel_never_applies(self):
+        self.assertIsNone(P.calibration_for([self.cal_t], self.sensor, when(6),
+                                            self.moisture.id))
+
+    def test_overlap_within_one_channel_is_still_reported(self):
+        clash = self.Calibration(id=uuid7(), sensor=self.sensor,
+                                 datastream=self.moisture.id, method="linear",
+                                 valid_from=when(3), coefficients={"a": 0.002})
+        self.assertEqual(len(P.overlapping_calibrations(
+            [self.cal_m, clash], self.sensor, self.moisture.id)), 1)
+
+    def test_the_scope_round_trips(self):
+        self.assertEqual(codec.load(codec.dump(self.cal_m)), self.cal_m)

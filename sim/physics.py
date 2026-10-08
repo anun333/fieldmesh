@@ -92,7 +92,14 @@ class Climate:
 
     @staticmethod
     def _diurnal(when: _dt.datetime) -> float:
-        """Coldest around 05:00, warmest around 15:00."""
+        """Coldest at 05:00, warmest at **17:00**.
+
+        This said 15:00 until the soil heat model made the phase load-bearing.
+        `-cos(2π(h - 5)/24)` is a pure sinusoid, so its maximum is twelve hours after
+        its minimum. The code was what every measurement had been taken against, so it
+        is the docstring that changed — a siting check that infers depth from *when*
+        the daily peak arrives would have been calibrated two hours wrong.
+        """
         hour = when.hour + when.minute / 60.0
         return -math.cos(2 * math.pi * (hour - 5) / 24.0)
 
@@ -129,6 +136,42 @@ class Climate:
                        raining=self._raining)
 
 
+# --------------------------------------------------------------- soil heat
+
+#: Layer thickness and count for the soil heat model: 40 layers of 2.5 cm, to 1 m.
+#: Chosen against the explicit scheme's stability limit, which needs
+#: `kappa * dt / dz**2 <= 0.5`. At the wettest diffusivity below and a 5-minute
+#: step that ratio is 0.34, so the scheme is stable without substepping.
+HEAT_DZ = 0.025
+HEAT_LAYERS = 41
+DIURNAL_OMEGA = 2 * math.pi / 86400.0
+
+#: How much warmer bare, sunlit soil runs than the air above it at solar noon.
+SOLAR_SURFACE_GAIN_C = 4.0
+
+
+def thermal_diffusivity(theta: float) -> float:
+    """Soil thermal diffusivity in m2/s, from volumetric water content.
+
+    Rises steeply as a dry soil wets — water bridges the air gaps between grains —
+    and flattens past about 0.25. The range, roughly 2.5e-7 to 7e-7, is typical of a
+    loam. **This is the confounder the siting check has to survive:** a dry bed damps
+    the daily wave faster than a wet one, so a probe in a dry bed looks deeper than it
+    is, and a check calibrated on one bed would misread every other.
+    """
+    return 2.5e-7 + 4.5e-7 * min(1.0, max(0.0, theta) / 0.25)
+
+
+def damping_depth(kappa: float) -> float:
+    """The depth at which the daily wave falls to 1/e, in metres.
+
+    `sqrt(2 kappa / omega)`. Each damping depth down, the daily swing shrinks by a
+    factor of e and the daily peak arrives 24/2π ≈ 3.8 hours later — the two
+    signatures a probe's depth leaves in its own temperature record.
+    """
+    return math.sqrt(2.0 * kappa / DIURNAL_OMEGA)
+
+
 # ------------------------------------------------------------------- soil beds
 
 @dataclass
@@ -153,6 +196,11 @@ class SoilBed:
     #: Fraction of the water above field capacity that drains away each hour.
     drainage_per_hour: float = 0.35
     theta: float = 0.28
+    #: Soil temperature by layer, top down, `HEAT_DZ` apart. None until the first
+    #: heat step, which seeds every layer at the deep boundary — so the daily wave
+    #: needs roughly a day to establish itself at 20 cm, as it would after a real
+    #: probe is pushed into undisturbed ground.
+    temps: list = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if not self.wilting_point < self.field_capacity < self.saturation:
@@ -196,6 +244,40 @@ class SoilBed:
 
         self.theta = self._clamp(water / self.depth_mm)
         return self.theta
+
+    def step_heat(self, surface_c: float, deep_c: float) -> None:
+        """Advance the soil temperature profile one tick by explicit diffusion.
+
+        The surface layer is forced to `surface_c` and the bottom held at `deep_c`;
+        everything between follows the heat equation with this bed's own
+        diffusivity. That is what makes the daily wave arrive later and weaker with
+        depth, by the amounts `damping_depth` predicts — and differently in a wet bed
+        than a dry one.
+        """
+        if self.temps is None:
+            self.temps = [deep_c] * HEAT_LAYERS
+        ratio = (thermal_diffusivity(self.theta) * STEP.total_seconds()
+                 / (HEAT_DZ * HEAT_DZ))
+        old = self.temps
+        new = old[:]
+        new[0] = surface_c
+        for i in range(1, HEAT_LAYERS - 1):
+            new[i] = old[i] + ratio * (old[i - 1] - 2.0 * old[i] + old[i + 1])
+        new[-1] = deep_c
+        self.temps = new
+
+    def temp_at(self, depth_m: float) -> float:
+        """Temperature at a depth, linearly between the two nearest layers."""
+        if self.temps is None:
+            raise ValueError("the heat model has not been stepped yet")
+        if depth_m <= 0:
+            return self.temps[0]
+        position = depth_m / HEAT_DZ
+        lower = int(position)
+        if lower >= HEAT_LAYERS - 1:
+            return self.temps[-1]
+        frac = position - lower
+        return self.temps[lower] * (1 - frac) + self.temps[lower + 1] * frac
 
 
 # --------------------------------------------------------------------- troughs
@@ -255,6 +337,19 @@ class Truth:
     soil_stress: dict           # bed name -> 0..1
     trough_l: dict              # trough name -> litres
     trough_fraction: dict       # trough name -> 0..1
+    soil_temp: dict = None      # bed name -> layer temperatures, top down
+
+    def soil_temp_at(self, bed: str, depth_m: float) -> float:
+        """What a temperature sensor at `depth_m` in `bed` would read now."""
+        profile = self.soil_temp[bed]
+        if depth_m <= 0:
+            return profile[0]
+        position = depth_m / HEAT_DZ
+        lower = int(position)
+        if lower >= len(profile) - 1:
+            return profile[-1]
+        frac = position - lower
+        return profile[lower] * (1 - frac) + profile[lower + 1] * frac
 
 
 class World:
@@ -290,8 +385,15 @@ class World:
 
     def step(self) -> Truth:
         weather = self.climate.step(self.when)
+        # Sunlit soil runs warmer than the air at midday; rain removes the gain.
+        hour = self.when.hour + self.when.minute / 60.0
+        daylight = max(0.0, math.sin(math.pi * (hour - 6.0) / 12.0))
+        gain = 0.0 if weather.raining else SOLAR_SURFACE_GAIN_C * daylight
+        surface_c = weather.air_temp_c + gain
+        deep_c = self.climate._seasonal_temp(self.when)
         for name, bed in self.beds.items():
             bed.step(weather, irrigation_mm=self._pending_mm.pop(name, 0.0))
+            bed.step_heat(surface_c, deep_c)
         for trough in self.troughs.values():
             trough.step(self.when, weather)
         truth = Truth(
@@ -302,6 +404,7 @@ class World:
             trough_l={n: round(t.level_l, 2) for n, t in self.troughs.items()},
             trough_fraction={n: round(t.level_fraction, 4)
                              for n, t in self.troughs.items()},
+            soil_temp={n: tuple(b.temps) for n, b in self.beds.items()},
         )
         self.when = self.when + STEP
         return truth
