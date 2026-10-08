@@ -81,3 +81,33 @@ class TestScoring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReader(unittest.TestCase):
+    """The format as the real archive has it, verified on 2026-10-08."""
+
+    HEADER = ("SCAN SCAN Allen_Farms 35.07470 -86.89380 215.0 0.0508 0.0508 "
+              "'Stevens-Hydraprobe-Analog'")
+
+    def test_the_header_is_read_including_a_quoted_instrument(self):
+        sensor = S.parse_header(self.HEADER, "SCAN/Allen_Farms/x.stm")
+        self.assertEqual((sensor.network, sensor.station), ("SCAN", "Allen_Farms"))
+        self.assertEqual((sensor.lat, sensor.lon), (35.0747, -86.8938))
+        self.assertEqual(sensor.depth_to, 0.0508)
+        self.assertEqual(sensor.instrument, "Stevens-Hydraprobe-Analog")
+
+    def test_records_are_utc_with_combined_flags_kept_whole(self):
+        rows = list(S.parse_records(["2003/06/04 00:00 0.349 G V",
+                                     "2003/06/04 01:00 0.452 C03,D02 V"]))
+        self.assertEqual(rows[0][0], _dt.datetime(2003, 6, 4, tzinfo=UTC))
+        self.assertEqual(rows[1][1:], (0.452, "C03,D02"))
+        self.assertEqual(S.families(rows[1][2]), {"range", "ancillary"})
+
+    def test_a_missing_value_is_none_not_a_number(self):
+        rows = list(S.parse_records(["2003/06/04 00:00 -9999 M V"]))
+        self.assertIsNone(rows[0][1])
+
+    def test_a_malformed_line_raises_rather_than_being_skipped(self):
+        """A format surprise must be found, not averaged away."""
+        with self.assertRaises(ValueError):
+            list(S.parse_records(["2003/06/04 00:00"]))

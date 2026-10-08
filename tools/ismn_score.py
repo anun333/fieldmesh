@@ -11,12 +11,35 @@ without hardware: real sensors, real faults, someone else's labels.
 be right — their checks use ancillary data ours do not, and ours use thresholds theirs
 do not. The report says "agreement" and never "accuracy".
 
-## The flag mapping is provisional
+## The flag mapping, verified against the archive
 
-From the ISMN documentation and the HESS 2021 paper, *not yet from the data*. The
-research note that recommended this tool said to verify the vocabulary against a real
-download before relying on it, and this module records which families it expects so
-that an unexpected one is reported loudly rather than counted as clean.
+Checked on 2026-10-08 against `ISMN_qualityflags_description.txt` inside a complete ISMN
+download, which matched the documentation exactly. ISMN asks that the paper behind the
+flags be cited wherever they are used:
+
+    Dorigo, W.A. et al. (2013). Global Automated Quality Control of In Situ Soil
+    Moisture data from the International Soil Moisture Network. Vadose Zone Journal
+    12(3). doi:10.2136/vzj2012.0097
+
+Two things the real files showed that the documentation did not:
+
+* **C03 is common** — 7.5% of one Tennessee probe's readings. Its "saturation point" is
+  derived from the global HWSD soil database, not from the site, so on a clay-rich soil a
+  C03 may be the database disagreeing with the sensor rather than the sensor being wrong.
+* **D01-D03 are freezing flags** (soil and air below 0 C). Capacitance probes read only
+  liquid water, so frozen soil reads falsely dry. Our probes now report temperature on
+  the same device, so this is a check layer zero could run; it has no counterpart yet.
+
+## Reading the archive
+
+Straight from the zip, member by member. Never extracted: the complete archive is 6.3 GB
+compressed and **49 GB** uncompressed. Treat it as untrusted data — the tool reads values
+and never executes anything in it. Each `.stm` file is a header line —
+`CSE Network Station Lat Lon Elevation DepthFrom DepthTo 'Sensor'` — then records of
+`yyyy/mm/dd HH:MM value ismn_flags provider_flag`, times in UTC.
+
+    python3 -I ismn_score.py ~/Downloads/ISMN_archive_20261008.zip \
+        --network SCAN --box 34.98,36.68,-90.31,-81.65 --max-depth 0.11
 """
 from __future__ import annotations
 
@@ -39,7 +62,7 @@ from model import (ClockQuality, Datastream, DatastreamKind,  # noqa: E402
 UTC = _dt.timezone.utc
 
 #: ISMN flag -> (family, the §4.2 flag that would be the counterpart, or None).
-#: PROVISIONAL — see the module docstring.
+#: Verified against ISMN_qualityflags_description.txt — see the module docstring.
 ISMN_FLAGS = {
     "G": ("good", None),
     "C01": ("range", QualityFlag.OUT_OF_RANGE),     # below 0 m3/m3
@@ -125,3 +148,118 @@ def score_series(rows, *, interval_s: float = 3600.0,
             elif expected is not None and expected in ours:
                 score.caught[family] += 1
     return score
+
+
+# ---------------------------------------------------------------- the reader
+
+@dataclass(frozen=True, slots=True)
+class Sensor:
+    member: str
+    network: str
+    station: str
+    lat: float
+    lon: float
+    depth_from: float
+    depth_to: float
+    instrument: str
+
+
+def parse_header(line: str, member: str) -> Sensor:
+    parts = line.split()
+    instrument = line.split("'")[1] if line.count("'") >= 2 else " ".join(parts[8:])
+    return Sensor(member=member, network=parts[1], station=parts[2],
+                  lat=float(parts[3]), lon=float(parts[4]),
+                  depth_from=float(parts[6]), depth_to=float(parts[7]),
+                  instrument=instrument)
+
+
+def parse_records(lines):
+    """`(utc datetime, value or None, ismn_flags)` per record. A malformed line raises
+    rather than being skipped, so a format surprise is found, not averaged away."""
+    for number, line in enumerate(lines, start=2):
+        parts = line.split()
+        if not parts:
+            continue
+        if len(parts) < 4:
+            raise ValueError(f"line {number}: expected date, time, value, flag: {line!r}")
+        when = _dt.datetime.strptime(parts[0] + " " + parts[1],
+                                     "%Y/%m/%d %H:%M").replace(tzinfo=UTC)
+        flags = parts[3]
+        value = None if "M" in flags.split(",") else float(parts[2])
+        yield when, value, flags
+
+
+def sensors(zip_path: str, *, network: str | None = None, variable: str = "sm",
+            box=None, max_depth: float | None = None):
+    """Soil-moisture sensors in the archive that match the filters, headers only."""
+    import zipfile
+    with zipfile.ZipFile(zip_path) as archive:
+        for info in archive.infolist():
+            name = info.filename
+            if not name.endswith(".stm") or f"_{variable}_" not in name:
+                continue
+            if network and not name.startswith(network + "/"):
+                continue
+            with archive.open(info) as handle:
+                header = handle.readline().decode("utf-8", "replace")
+            sensor = parse_header(header, name)
+            if box and not (box[0] <= sensor.lat <= box[1]
+                            and box[2] <= sensor.lon <= box[3]):
+                continue
+            if max_depth is not None and sensor.depth_to > max_depth:
+                continue
+            yield sensor
+
+
+def read_sensor(zip_path: str, sensor: Sensor):
+    import zipfile
+    with zipfile.ZipFile(zip_path) as archive:
+        text = archive.read(sensor.member).decode("utf-8", "replace")
+    lines = text.splitlines()
+    return list(parse_records(lines[1:]))
+
+
+def main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("archive")
+    ap.add_argument("--network")
+    ap.add_argument("--box", help="lat_min,lat_max,lon_min,lon_max")
+    ap.add_argument("--max-depth", type=float)
+    ap.add_argument("--limit", type=int, help="score at most this many sensors")
+    args = ap.parse_args(argv)
+    box = tuple(float(x) for x in args.box.split(",")) if args.box else None
+
+    total = Score()
+    chosen = list(sensors(args.archive, network=args.network, box=box,
+                          max_depth=args.max_depth))[:args.limit]
+    print(f"{len(chosen)} sensors\n")
+    for sensor in chosen:
+        score = score_series(read_sensor(args.archive, sensor))
+        total.readings += score.readings
+        total.by_family.update(score.by_family)
+        total.caught.update(score.caught)
+        total.ours_on_good.update(score.ours_on_good)
+        print(f"  {sensor.station:<18} {sensor.depth_to:5.3f} m  "
+              f"{score.readings:>7} readings  "
+              + "  ".join(f"{fam} {score.caught.get(fam, 0)}/{n}"
+                          for fam, n in sorted(score.by_family.items())
+                          if fam != "good"))
+    print(f"\n{total.readings} readings scored\n")
+    print(f"  {'ISMN family':<14}{'readings':>10}{'we flag it':>12}{'agreement':>11}")
+    for family, n in sorted(total.by_family.items(), key=lambda kv: -kv[1]):
+        rate = total.agreement(family)
+        shown = "-" if family in ("good", "ancillary") or rate is None else f"{rate:.0%}"
+        print(f"  {family:<14}{n:>10}{total.caught.get(family, 0):>12}{shown:>11}")
+    good = total.by_family.get("good", 0)
+    flagged_good = sum(total.ours_on_good.values())
+    print(f"\n  On readings ISMN calls good ({good}), we raised: "
+          + (", ".join(f"{k} {v}" for k, v in total.ours_on_good.most_common())
+             or "nothing"))
+    print("  Agreement, not accuracy: where we differ, either could be right.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
