@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # The virtual farm — the sim as layer zero's substrate
 
 Oct 7, 2026. Companion to [spec/v0.1.md](spec/v0.1.md).

@@ -44,6 +44,7 @@ import physics as ph
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "sdk"))
 import gateway as G  # noqa: E402
+import vocab as V  # noqa: E402
 import log as L  # noqa: E402
 import project as P  # noqa: E402
 from ids import uuid7  # noqa: E402
@@ -52,7 +53,7 @@ from model import (Calibration, ClockQuality, Datastream,  # noqa: E402
 from registry import NodeBinding, Registry  # noqa: E402
 
 NODE = 0x4F2A17B3
-SOIL = "http://vocab.example.org/cf/soil_moisture_content"
+SOIL = V.SOIL_WATER
 START = _dt.datetime(2026, 7, 1, 0, 0, tzinfo=ph.UTC)
 
 #: Thresholds for a soil series, chosen with the quantisation dwell in mind (§4.2):

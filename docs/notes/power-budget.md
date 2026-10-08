@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Where a node's battery actually goes
 
 Run 2026-10-07 with [tools/power_budget.py](../../tools/power_budget.py).

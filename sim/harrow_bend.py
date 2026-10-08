@@ -44,6 +44,7 @@ import physics as ph
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "sdk"))
 import gateway as G  # noqa: E402
+import vocab as V  # noqa: E402
 import log as L  # noqa: E402
 import project as P  # noqa: E402
 from ids import uuid7  # noqa: E402
@@ -57,12 +58,14 @@ START = _dt.datetime(2026, 6, 1, 0, 0, tzinfo=ph.UTC)
 #: nothing here can be mistaken for a real location.
 ANCHOR = {"type": "Point", "coordinates": [0.0, 0.0]}
 
-SOIL = "http://vocab.example.org/cf/soil_moisture_content"
-LEVEL = "http://vocab.example.org/odm2/water_level_fraction"
-AIR_TEMP = "http://vocab.example.org/cf/air_temperature"
-HUMIDITY = "http://vocab.example.org/cf/relative_humidity"
-BATTERY = "http://vocab.example.org/cf/battery_voltage"
-RSSI = "http://vocab.example.org/local/radio_signal_strength"
+#: Real, resolvable vocabulary terms — see sdk/vocab.py, which records which
+#: vocabulary each came from and why the one local term had to be local.
+SOIL = V.SOIL_WATER
+LEVEL = V.VESSEL_FILL_FRACTION
+AIR_TEMP = V.AIR_TEMPERATURE
+HUMIDITY = V.RELATIVE_HUMIDITY
+BATTERY = V.BATTERY_VOLTAGE
+RSSI = V.RSSI
 
 #: Soil thresholds, each derived from something physical rather than picked.
 #:

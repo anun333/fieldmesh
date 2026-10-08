@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as _dt
 
+import vocab as V
 from ids import uuid7
 from model import (Assertor, Calibration, ClockQuality, Datastream,
                    DatastreamKind, Observation, QualityAssertion, Threshold,
@@ -21,7 +22,9 @@ from model import (Assertor, Calibration, ClockQuality, Datastream,
 
 UTC = _dt.timezone.utc
 
-SOIL_MOISTURE = "http://vocab.example.org/cf/soil_moisture_content"
+#: The CF standard name for volumetric water content. See vocab.py for why the
+#: obvious-looking `soil_moisture_content` is not it.
+SOIL_MOISTURE = V.SOIL_WATER
 T0 = _dt.datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
 

@@ -35,6 +35,7 @@ import physics as ph
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "sdk"))
 import gateway as G  # noqa: E402
+import vocab as V  # noqa: E402
 import log as L  # noqa: E402
 import project as P  # noqa: E402
 from ids import uuid7  # noqa: E402
@@ -43,8 +44,8 @@ from model import (ClockQuality, Datastream, DatastreamKind,  # noqa: E402
 from registry import NodeBinding, Registry  # noqa: E402
 
 NODE = 0x4F2A17B3
-SOIL = "http://vocab.example.org/cf/soil_moisture_content"
-TROUGH = "http://vocab.example.org/odm2/water_level_fraction"
+SOIL = V.SOIL_WATER
+TROUGH = V.VESSEL_FILL_FRACTION
 
 
 def _pair(log, state, thing, sensor, feature, prop, unit, *, interval, latency,

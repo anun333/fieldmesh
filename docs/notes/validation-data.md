@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Is public data enough to really test this?
 
 Researched 2026-10-07, after testing the APIs rather than reading about them.

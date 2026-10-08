@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Q5 measured: which binary encoding
 
 Run 2026-10-07 with [tools/q5_encoding.py](../../tools/q5_encoding.py).

@@ -1,8 +1,37 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Draft: comment on OGC SensorThings issue #174
 
-**Status: draft for review. Not sent.**
-Destination: a comment on <https://github.com/opengeospatial/sensorthings/issues/174>
-("Data Quality model extension"), **not** a new issue.
+**Status: POSTED 2026-10-07** as
+<https://github.com/opengeospatial/sensorthings/issues/174#issuecomment-6050541663>
+on issue #174 ("Data Quality model extension"), **not** as a new issue.
+
+The posted text differs from the draft below in two ways, both decided at send time:
+
+1. **A section was added on the `Datastream` approach**, because re-reading the thread
+   before sending showed the draft ignored its most recent and still-unanswered
+   proposal. @uloup argued on 2025-08-24 for *mapping instead of extending* — quality
+   flags as `Observation`s in a sibling `Datastream`, sharing `phenomenonTime` — and
+   nobody answered in the fourteen months since. We have unusually direct evidence,
+   because we already use parallel datastreams for raw versus calibrated, and the
+   99.8% false-alarm rate from `_peers` comparing `280` against `0.280` is exactly the
+   failure a flags-as-datastream mapping would inherit. Posting a comment that talked
+   past the live question would have been the "repeats rather than adds" failure the
+   checklist below was written to prevent.
+2. **The project is not linked**, reversing the draft's recommendation below. The
+   reason is circumstance, not reconsideration: the repository is private, so a link
+   would have been a 404 in a standards thread, which costs more credibility than the
+   link would buy. The offer to share the model and to test a proposal against a
+   working endpoint carries the same weight and costs nothing. Revisit when the
+   repository is public.
+
+The threshold-versioning paragraph also gained a direct question back to the thread —
+under the `Datastream` mapping, a mid-season retune forces a choice between forking a
+datastream per retune or mutating the procedure and losing the ability to explain an
+old flag. That is the one thing we could not answer for ourselves, so it is worth
+asking the people who have thought about it longer.
+
+Everything below is the draft as it stood before sending, kept because the reasoning
+about what *not* to send is the part worth keeping.
 
 ## What changed from the first draft, and why
 

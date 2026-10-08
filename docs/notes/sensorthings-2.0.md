@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # What the SensorThings 2.0 draft looks like
 
 Read Oct 7, 2026, against the editor's rendering of OGC 23-019 and the published 1.1 standard (OGC 18-088). Written to answer one question: what changes for layer zero, and does it change the decision to ship on 1.1.

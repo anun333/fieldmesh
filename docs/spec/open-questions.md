@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Open questions: every option
 
 Companion to [v0.1](v0.1.md). Oct 7, 2026.
@@ -50,7 +51,37 @@ What makes the criterion live is the **Tennessee Mesonet**: 95 stations, one per
 
 ## Q4. Unit system, and observed-property vocabulary
 
-**Status: blocks v0.** A datastream cannot be declared without both.
+**Status: DECIDED 2026-10-07 — UCUM for units, and the layered vocabulary recommended
+below.** Implemented as [sdk/vocab.py](../../sdk/vocab.py), which is now the only place
+an observed-property URI is written down. Every URI was fetched and returned 200 on the
+day of the decision, because a term nobody can resolve is free text with extra syntax.
+
+Deciding it found a real defect rather than merely settling a preference. The
+placeholders said `cf/soil_moisture_content`, and **`soil_moisture_content` is not a CF
+standard name at any version of the table.** The nearest real CF names are mass-based
+(`mass_content_of_water_in_soil`, kg m-2), so the plausible-looking guess pointed at the
+wrong dimension. The volumetric quantity a soil probe reports is
+`volume_fraction_of_condensed_water_in_soil`, canonical units `1` — which is exactly what
+`cm3/cm3` is. A unit error wearing a credible URI is the failure mode this question was
+really about, and we had already shipped one.
+
+What landed, against checked CF table version 95 (2026-09-16):
+
+| Measurand | Term | Source |
+| --- | --- | --- |
+| Soil water content | `volume_fraction_of_condensed_water_in_soil` | CF |
+| Air temperature, relative humidity, soil temperature | the obvious CF names | CF |
+| Field capacity, wilting point | `..._at_field_capacity`, `..._at_wilting_point` | CF |
+| Battery voltage | `batteryVoltage` | ODM2 |
+| Signal strength | `receivedSignalStrenghtIndication` | ODM2 |
+| Trough fill fraction | `vessel_fill_fraction` | **local** |
+
+One local term out of nine, and the reason is recorded rather than shrugged at: ODM2's
+`waterLevel` is a **height in metres**, and what a float-regulated stock trough usefully
+reports is how full it is — dimensionless, bounded, and the thing §4.2's thresholds are
+expressed in. Declaring a fraction under a term defined as a length would have been the
+same class of error as the placeholder. A test asserts the local-term list, so adding a
+second one breaks the build and prompts the trip upstream.
 
 ### Q4a. Units
 
@@ -87,6 +118,34 @@ The original draft paired this with AGROVOC. Worth separating: **AGROVOC is a mu
 - A local registry with resolvable URIs for genuine gaps, and publish the gaps upstream rather than accumulating private terms.
 
 Whatever is chosen, the rule in v0.1 §3.4 stands: a URI, never free text.
+
+## Q4c. The durable namespace for local vocabulary terms
+
+**Status: blocks publication of the vocabulary; blocks nothing in code.** Raised by the
+Q4 decision of 2026-10-07, which produced exactly one local term and therefore a
+namespace to put it in.
+
+`sdk/vocab.py` currently uses `https://anun333.github.io/librefarm/vocab/`. It does not
+resolve, because the repository is private, and it is the wrong long-term answer anyway:
+a vocabulary namespace is supposed to outlive its hosting, and that one is pinned to a
+personal account name. Every URI changes if the project ever gets an organisation or a
+domain — and changing a published identifier is the thing identifiers exist to avoid.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **w3id.org permanent identifier** | Purpose-built for exactly this: a stable URI that redirects to wherever hosting currently lives, so hosting can move and the identifier cannot. Free. Community-run, widely used for vocabularies | Requires a pull request to the w3id repository, which means the first outside interaction. Adds a redirect hop |
+| A project domain | Fully self-owned; shortest URIs; obvious home for human-readable term pages | Costs money annually, forever, and a lapsed registration is worse than no domain — somebody else can serve your identifiers |
+| GitHub Pages under an organisation | Free; resolves as soon as it is public; no third party in the path | Still pinned to one hosting provider and one account name; moves break the URIs |
+| GitHub Pages under the personal account (today) | Zero work; already written down | Does not resolve while the repo is private, and bakes a username into every identifier |
+| `urn:` namespace | Honest about not being resolvable | Resolves for nobody, which gives up the property that made CF and ODM2 worth choosing |
+| Publish the gap upstream and own no namespace | Nothing to maintain; the right end state | Upstream acceptance is not on our schedule, and the term is needed now |
+
+**Recommendation: w3id.org, and submit `vessel_fill_fraction` to ODM2 in parallel.** The
+two are not alternatives — w3id is insurance for however long upstream takes, and if
+ODM2 accepts the term the local one becomes a permanent redirect to theirs, which is
+precisely the case w3id is designed for. Do it when the repository goes public, since a
+redirect to a 404 helps nobody. Until then the single `LOCAL` constant in
+[sdk/vocab.py](../../sdk/vocab.py) is the whole migration surface.
 
 ## Q5. Binary encoding
 
@@ -210,7 +269,12 @@ If B's projector proves too much work for the first season, **take E deliberatel
 
 ## Q2. License for the spec, SDK and reference implementation
 
-**Status: blocks third parties.** A device maker will not evaluate an SDK with an undecided license.
+**Status: DECIDED 2026-10-07 — the three-license split, as recommended below.** Spec and
+all prose CC-BY-4.0; `sdk/`, `sim/` and `tools/` Apache-2.0; `server/` AGPL-3.0-or-later.
+Written down in [LICENSING.md](../../LICENSING.md), with every file carrying an SPDX line.
+Decided before the first outside contribution, which was the whole constraint — after one,
+relicensing needs every contributor's agreement. The options are kept below because the
+reasoning is the part that has to survive, not the verdict.
 
 | Option | For | Against |
 | --- | --- | --- |

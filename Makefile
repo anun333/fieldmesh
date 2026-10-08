@@ -1,6 +1,6 @@
 # librefarm — layer zero
 .POSIX:
-.PHONY: help test demo world drill q5 q5-points power frost clean
+.PHONY: help test demo world drill q5 q5-points power vocab frost clean
 
 help:
 	@echo "test   run every test (sdk + tools)"
@@ -10,6 +10,7 @@ help:
 	@echo "q5     the encoding measurement behind the Q5 decision"
 	@echo "q5-points  what each encoding costs at realistic sample/transmit rates"
 	@echo "power  where a node's battery goes, per datastream"
+	@echo "vocab  every observed-property term, its source and its unit"
 	@echo "frost  stand up FROST-Server as a conformance oracle"
 	@echo "clean  remove __pycache__"
 
@@ -35,6 +36,9 @@ q5-points:
 
 power:
 	@cd tools && python3 power_budget.py
+
+vocab:
+	@cd sdk && python3 vocab.py
 
 frost:
 	@echo "See docs/notes/frost-validation.md for the two-container recipe."

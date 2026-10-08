@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Validated against FROST-Server
 
 Run 2026-10-07 against `fraunhoferiosb/frost-server:latest` with
