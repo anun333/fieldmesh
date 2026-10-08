@@ -129,13 +129,15 @@ class _Held:
     reading: object
     seq: int | None = None            # set once it has been sent
     awaiting_resend: bool = False     # its acknowledgement never came
+    attempts: int = 0                 # transmissions so far
 
 
 class Node:
     """A duty-cycled sensing node."""
 
     __slots__ = ("node_id", "channels", "policy", "dr", "duty", "boot", "seq",
-                 "ack_timeout_s", "stamp_at_sample", "clock_offset_s",
+                 "ack_timeout_s", "resend_horizon_s", "stamp_at_sample",
+                 "clock_offset_s",
                  "_held", "_dropped",
                  "_last_sample", "_last_tx", "_sent_order", "_sent_at")
 
@@ -143,6 +145,7 @@ class Node:
                  dr: int = 0, boot: int = 1,
                  duty_budget_s: float = DUTY_CYCLE_BUDGET_S,
                  ack_timeout_s: float | None = None,
+                 resend_horizon_s: float = 3 * 86400.0,
                  stamp_at_sample: bool = False,
                  clock_offset_s: float = 0.0):
         if not channels:
@@ -164,6 +167,20 @@ class Node:
         #: lost and requeueing its readings. None means never give up, which is
         #: only safe on a link that confirms every frame.
         self.ack_timeout_s = ack_timeout_s
+        #: How long the node keeps trying to deliver a reading before giving up.
+        #:
+        #: It needs a bound at all because unbounded resending livelocks: a resend
+        #: goes first by design, so a frame whose acknowledgement can never arrive
+        #: blocks every reading behind it and the node saturates its buffer while
+        #: looking busy. Measured: 316 readings stuck behind one such frame.
+        #:
+        #: The bound must be in **time**, not attempts. An attempt count silently
+        #: caps how long a node can survive an outage — four attempts at a
+        #: half-hour deadline is two hours, so a three-day outage lost everything
+        #: while appearing to work. This is the farmer-facing number: how long the
+        #: node holds a reading before it becomes a recorded gap (§5.4). It should
+        #: exceed the longest outage the deployment intends to survive.
+        self.resend_horizon_s = resend_horizon_s
         #: A deliberate §2 violation, for the sim only. A node that records a
         #: reading's age when it *samples* records zero — the reading is new — and
         #: never updates it, so a buffered batch arrives claiming every reading was
@@ -388,6 +405,7 @@ class Node:
         for held in ordered[:count]:
             held.seq = seq
             held.awaiting_resend = False
+            held.attempts += 1
         self._sent_at[seq] = now_s
         reported = self._dropped
         self._dropped = 0
@@ -432,6 +450,7 @@ class Node:
             if held.seq is not None:
                 held.seq = None
                 held.awaiting_resend = False
+                held.attempts = 0
                 requeued += 1
         self._sent_order.clear()
         self._sent_at.clear()
@@ -459,14 +478,35 @@ class Node:
         """
         if self.ack_timeout_s is None:
             return 0
+
+        # The horizon sweep is unconditional, and has to be. Resending refreshes a
+        # frame's deadline, so a frame the node keeps retrying never looks "stale"
+        # and would never be reconsidered — which is the livelock wearing a
+        # disguise. Age is measured from when the reading was *sampled*, which no
+        # amount of retrying changes.
+        abandoned = 0
+        if self.resend_horizon_s is not None:
+            keep = []
+            for held in self._held:
+                if (held.seq is not None
+                        and now_s - held.sampled_at_s > self.resend_horizon_s):
+                    abandoned += 1
+                    continue
+                keep.append(held)
+            if abandoned:
+                # §5.4: undeliverable is a gap, recorded, not an indefinite block.
+                self._held = keep
+                self._dropped += abandoned
+                alive = {h.seq for h in self._held if h.seq is not None}
+                self._sent_order = [s for s in self._sent_order if s in alive]
+                for gone in set(self._sent_at) - alive:
+                    self._sent_at.pop(gone, None)
+
         expired = [s for s in self._sent_order
                    if now_s - self._sent_at.get(s, now_s) >= self.ack_timeout_s]
-        if not expired:
-            return 0
-        stale = set(expired)
         marked = 0
         for held in self._held:
-            if held.seq in stale and not held.awaiting_resend:
+            if held.seq in set(expired) and not held.awaiting_resend:
                 held.awaiting_resend = True
                 marked += 1
         return marked

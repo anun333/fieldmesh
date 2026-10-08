@@ -67,6 +67,7 @@ UNBOUND = "unbound_channel"
 UNDERIVABLE = "underivable_reading"
 COLLISION = "timestamp_collision"
 
+_MISSING = object()
 SEQ_RANGE = 1 << 16
 SEQ_WRAP_THRESHOLD = SEQ_RANGE // 2
 
@@ -79,6 +80,62 @@ class _SeqTracker:
     last_raw: int | None = None
     highest: int = -1
     seen: set = field(default_factory=set)
+    #: The high-water mark with no hole below it, maintained incrementally.
+    #: Recomputing it from `min(seen)` on every acknowledgement was O(n) per ack
+    #: and quadratic over a season — §5.2's cumulative ack is sent every few
+    #: minutes, so it has to be cheap.
+    contiguous: int = -1
+    #: When `highest` last moved.
+    highest_at: float = 0.0
+    #: When the current hole first appeared, or None while there is none. Measured
+    #: from the hole, not from the high-water mark: on a busy node the mark keeps
+    #: advancing while the hole sits there untouched, so a grace period keyed to
+    #: the mark never elapses and the hole is never abandoned.
+    hole_since: float | None = None
+
+    def note(self, absolute: int, at_s: float = 0.0) -> None:
+        """Record an accepted message and advance the contiguous mark."""
+        self.seen.add(absolute)
+        if absolute > self.highest:
+            self.highest = absolute
+            self.highest_at = at_s
+        if self.contiguous < 0:
+            self.contiguous = min(self.seen) if self.seen else -1
+            if self.contiguous != absolute and absolute != min(self.seen):
+                self.contiguous = min(self.seen)
+        while self.contiguous + 1 in self.seen:
+            self.contiguous += 1
+        if self.contiguous >= self.highest:
+            self.hole_since = None
+        elif self.hole_since is None:
+            self.hole_since = at_s
+
+    def abandon_stale_holes(self, now_s: float, grace_s: float) -> int:
+        """Advance past a hole nothing is going to fill.
+
+        **A cumulative acknowledgement cannot pass a permanently lost frame**, and
+        without this it never tries: one unrecoverable hole blocks release forever,
+        including for every reading that arrived perfectly well after it. Measured
+        on a three-day outage: 800 readings held by a node whose gateway mark was
+        stuck behind frames that no longer existed anywhere.
+
+        A hole below the highest seen, where nothing has advanced the high-water
+        mark for `grace_s`, is declared permanent. The gap was already logged when
+        it was noticed (§5.4), so nothing is being hidden — the gateway is only
+        admitting that it is not coming.
+        """
+        if self.highest < 0 or self.contiguous >= self.highest:
+            return 0
+        if self.hole_since is None or now_s - self.hole_since < grace_s:
+            return 0
+        skipped = 0
+        while self.contiguous < self.highest and (self.contiguous + 1) not in self.seen:
+            self.contiguous += 1
+            skipped += 1
+        while self.contiguous + 1 in self.seen:
+            self.contiguous += 1
+        self.hole_since = None if self.contiguous >= self.highest else now_s
+        return skipped
 
     def absolute(self, seq: int) -> int:
         if self.last_raw is not None and seq < self.last_raw:
@@ -111,13 +168,21 @@ class IngestResult:
 class Gateway:
     """Expands wire frames into observations, and records everything else."""
 
-    __slots__ = ("registry", "log", "state", "_trackers")
+    __slots__ = ("registry", "log", "state", "_trackers", "_thresholds",
+                 "_threshold_count", "_announced_boots", "hole_grace_s")
 
     def __init__(self, registry: Registry, log, state: P.State | None = None):
         self.registry = registry
         self.log = log
         self.state = state if state is not None else P.state_from_log(log)
         self._trackers: dict[tuple[UUID, int, int], _SeqTracker] = {}
+        self._thresholds: dict = {}
+        self._threshold_count = -1
+        self._announced_boots: set = set()
+        #: How long a hole waits before it is declared permanent (§5.2). Long
+        #: enough that a node's own resend had every chance; short enough that a
+        #: lost frame does not block delivery for a season.
+        self.hole_grace_s = 6 * 3600.0
         self._rebuild_trackers()
 
     def _rebuild_trackers(self) -> None:
@@ -132,9 +197,7 @@ class Gateway:
                 continue
             key = (binding.site, node, obs.boot)
             tracker = self._trackers.setdefault(key, _SeqTracker())
-            absolute = tracker.absolute(obs.seq)
-            tracker.seen.add(absolute)
-            tracker.highest = max(tracker.highest, absolute)
+            tracker.note(tracker.absolute(obs.seq), obs.received_at.timestamp())
 
     # ------------------------------------------------------------------ ingest
 
@@ -175,8 +238,7 @@ class Gateway:
 
         reboot = self._note_reboot(binding, node, message.boot)
         gaps = self._note_gaps(binding, node, message, tracker, absolute, received_at)
-        tracker.seen.add(absolute)
-        tracker.highest = max(tracker.highest, absolute)
+        tracker.note(absolute, received_at.timestamp())
 
         raw_written, derived_written, assertions, unbound = [], [], [], []
         for reading in message.readings:
@@ -207,7 +269,8 @@ class Gateway:
                             assertions=tuple(assertions), gaps=tuple(gaps),
                             reboot=reboot, unbound=tuple(unbound))
 
-    def highest_contiguous(self, node: int, boot: int, site=None) -> int | None:
+    def highest_contiguous(self, node: int, boot: int, site=None, *,
+                           now_s: float | None = None) -> int | None:
         """The highest sequence number with no hole below it, for this `(node, boot)`.
 
         §5.2's cumulative acknowledgement: on a link that confirms nothing, the
@@ -224,17 +287,34 @@ class Gateway:
         tracker = self._trackers.get((site or binding.site, node, boot))
         if tracker is None or not tracker.seen:
             return None
-        run = min(tracker.seen)
-        while run + 1 in tracker.seen:
-            run += 1
-        return run % SEQ_RANGE
+        if now_s is not None:
+            skipped = tracker.abandon_stale_holes(now_s, self.hole_grace_s)
+            if skipped:
+                self.log.append(GAP, {
+                    "node": node, "boot": boot, "site": site or binding.site,
+                    "abandoned_messages": skipped,
+                    "after_seq": (tracker.contiguous - skipped) % SEQ_RANGE,
+                    "reason": "no frame has advanced this node's high-water mark "
+                              "for the grace period, so the hole is declared "
+                              "permanent and the cumulative acknowledgement moves "
+                              "past it — otherwise it blocks release forever"})
+        return tracker.contiguous % SEQ_RANGE
 
     # -------------------------------------------------------------- internals
 
     def _note_reboot(self, binding, node: int, boot: int) -> bool:
-        """§5.4: a boot increment is a reboot, not a gap, and is logged as such."""
+        """§5.4: a boot increment is a reboot, not a gap, and is logged **once**.
+
+        Announced per `(node, boot)`, not per frame. Logging it on every frame that
+        carries the new boot counter turned one reboot into 480 events and would
+        have buried the real ones.
+        """
+        key = (binding.site, node, boot)
+        if key in self._announced_boots:
+            return False
         previous = [b for (site, n, b) in self._trackers
                     if site == binding.site and n == node and b != boot]
+        self._announced_boots.add(key)
         if not previous or boot <= max(previous):
             return False
         self.log.append(REBOOT, {"node": node, "boot": boot,
@@ -342,17 +422,28 @@ class Gateway:
         datastream = self.state.datastreams.get(observation.datastream)
         if datastream is None:
             return None
-        threshold = _latest_threshold(self.state, datastream.id)
+        threshold = self._threshold_for(datastream.id)
         assertion = C.assess(self.state, observation, threshold=threshold)
         self._append(assertion)
         return assertion
 
+    def _threshold_for(self, datastream_id: UUID):
+        """Cached: thresholds change rarely and scanning them per reading is waste."""
+        cached = self._thresholds.get(datastream_id, _MISSING)
+        if cached is not _MISSING and self._threshold_count == len(self.state.thresholds):
+            return cached
+        self._threshold_count = len(self.state.thresholds)
+        found = _latest_threshold(self.state, datastream_id)
+        self._thresholds[datastream_id] = found
+        return found
+
     def _occupied(self, datastream_id: UUID, measured_at: _dt.datetime) -> bool:
-        """Is there already a live observation on this series at this instant?"""
-        for obs in self.state.observations:
-            if obs.datastream == datastream_id and obs.measured_at == measured_at:
-                return True
-        return False
+        """Is there already an observation on this series at this instant?
+
+        Via the state's per-datastream index: scanning every observation per reading
+        made ingest quadratic in the size of the log.
+        """
+        return self.state.has_observation_at(datastream_id, measured_at)
 
     def _append(self, record) -> None:
         self.log.append_record(record)

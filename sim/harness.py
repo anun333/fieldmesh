@@ -116,7 +116,8 @@ def run(*, world, node, gateway, link=None, days: float = 1.0,
 
         if link.needs_cumulative_ack and (last_ack is None
                                           or true_now - last_ack >= ack_every_s):
-            acked = gateway.highest_contiguous(node.node_id, node.boot)
+            acked = gateway.highest_contiguous(node.node_id, node.boot,
+                                               now_s=true_now)
             if acked is not None:
                 link.send_ack(acked, true_now)
                 report.acks_sent += 1

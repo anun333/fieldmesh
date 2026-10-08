@@ -134,13 +134,17 @@ def check_flatline(obs: Observation, series, values, peers) -> Finding | None:
     if obs.result is None or (seconds_limit is None and n_limit is None):
         return None
 
+    earlier_rows = _upto(series, obs)
     run, oldest = 0, obs
-    for earlier in _upto(series, obs):
+    for earlier in earlier_rows:
         if earlier.result != obs.result:
             break
         run += 1
         oldest = earlier
     span = (obs.measured_at - oldest.measured_at).total_seconds()
+    #: True when the run reached the start of the window we were given, so the span
+    #: is a floor rather than the real duration.
+    truncated = bool(earlier_rows) and run == len(earlier_rows)
 
     if n_limit is not None and run < n_limit:
         return None
@@ -149,7 +153,9 @@ def check_flatline(obs: Observation, series, values, peers) -> Finding | None:
     if seconds_limit is None and n_limit is None:
         return None
 
-    detail = f"{run + 1} readings of {obs.result} unchanged over {span:.0f}s"
+    at_least = "at least " if truncated else ""
+    detail = (f"{run + 1} readings of {obs.result} unchanged over "
+              f"{at_least}{span:.0f}s")
     if seconds_limit is not None:
         detail += f" (limit {seconds_limit:.0f}s)"
     else:
@@ -208,19 +214,56 @@ DEFAULT_CHECKS = (check_range, check_flatline, check_rate, check_cross)
 
 # --------------------------------------------------------------- the assessor
 
-def _series(state: P.State, datastream_id: UUID) -> list[Observation]:
-    live = [o for o in state.live_observations().values()
-            if o.datastream == datastream_id]
-    return P.order_observations(live)
+def _lookback(datastream, values) -> int:
+    """How many recent samples the checks can possibly need.
+
+    Flatline is the only check that walks backwards, and it stops at the first value
+    that differs, so it never needs more than its own threshold's worth of history.
+    Rate needs one predecessor. Everything else needs none.
+    """
+    needed = 2
+    seconds = values.get("flat_seconds")
+    interval = datastream.expected_interval
+    if seconds and interval:
+        needed = max(needed, int(seconds / interval) + 2)
+    count = values.get("flat_n")
+    if count:
+        needed = max(needed, int(count) + 2)
+    # Generously, because the verdict needs only the threshold's worth but the
+    # *evidence* should report how long the value has really been frozen — a
+    # farmer wants "stuck for eight hours", not "stuck for the 75 minutes we
+    # bothered to look at". Beyond this the finding says "at least".
+    return max(32, needed * 8)
+
+
+def _series(state: P.State, datastream_id: UUID,
+            limit: int | None = None) -> list[Observation]:
+    """The live rows of one series, in §2's order, optionally only the recent ones.
+
+    Two bounds, both there because the first season-scale run was quadratic against
+    §7.2's promise that years of readings never slow everyday work: the rows come
+    from the state's per-datastream index rather than from filtering the whole live
+    set, and `limit` keeps a check from re-sorting a season every time it looks at
+    one reading. A backfilled row older than the window cannot change a flatline
+    verdict, because the run stops at the first differing value anyway.
+    """
+    return P.order_observations(
+        state.live_observations_of(datastream_id, tail=limit))
 
 
 def _upto(series, obs):
-    """The series before `obs`, nearest first."""
-    try:
-        index = series.index(obs)
-    except ValueError:
-        return []
-    return list(reversed(series[:index]))
+    """The series before `obs`, nearest first.
+
+    Located by `id`, not by value. `list.index` invokes the dataclass's generated
+    `__eq__`, which compares every field of every candidate — including the
+    provenance dict — and at season scale that was the single most expensive thing
+    in ingest. An id comparison answers the same question.
+    """
+    target = obs.id
+    for position, row in enumerate(series):
+        if row.id == target:
+            return series[position - 1::-1] if position else []
+    return []
 
 
 def _previous(series, obs):
@@ -242,22 +285,28 @@ def _peers(state: P.State, obs: Observation, window_s: float = 900.0):
     own = state.datastreams.get(obs.datastream)
     if own is None:
         return []
+    # Find the comparable *datastreams* first — there are a handful of those, and
+    # thousands of observations. Filtering every observation in the log for every
+    # assessment is what made this quadratic.
+    peer_streams = [ds for ds in state.datastreams.values()
+                    if ds.id != own.id
+                    and ds.sensor != own.sensor
+                    and ds.observed_property == own.observed_property
+                    and ds.kind is own.kind
+                    and ds.unit == own.unit
+                    and ds.feature == own.feature]
+    if not peer_streams:
+        return []
+    mine = obs.effective_feature(own)
     out = []
-    for other in state.live_observations().values():
-        if other.datastream == obs.datastream:
-            continue
-        ds = state.datastreams.get(other.datastream)
-        if ds is None or ds.sensor == own.sensor:
-            continue
-        if ds.observed_property != own.observed_property:
-            continue
-        if ds.kind is not own.kind or ds.unit != own.unit:
-            continue
-        if other.effective_feature(ds) != obs.effective_feature(own):
-            continue
-        if abs((other.measured_at - obs.measured_at).total_seconds()) > window_s:
-            continue
-        out.append(other)
+    for ds in peer_streams:
+        # Only the tail can be inside the window, and the window is minutes.
+        for other in state.live_observations_of(ds.id, tail=64):
+            if other.effective_feature(ds) != mine:
+                continue
+            if abs((other.measured_at - obs.measured_at).total_seconds()) > window_s:
+                continue
+            out.append(other)
     return out
 
 
@@ -274,7 +323,7 @@ def assess(state: P.State, obs: Observation, *,
     """
     datastream = state.datastreams[obs.datastream]
     values = thresholds_for(datastream, threshold)
-    series = _series(state, obs.datastream)
+    series = _series(state, obs.datastream, limit=_lookback(datastream, values))
     peers = _peers(state, obs)
 
     findings = [f for f in (c(obs, series, values, peers) for c in checks)
@@ -314,8 +363,8 @@ def assess_series(state: P.State, datastream_id: UUID, *,
     an assertion are skipped, so a routine pass is cheap and idempotent.
     """
     out = []
-    for obs in _series(state, datastream_id):
-        existing = P.live_assertion(state.assertions, obs.id)
+    for obs in _series(state, datastream_id):          # the whole series, by design
+        existing = state.live_assertion_for(obs.id)
         if existing is not None and not reassess:
             continue
         if existing is not None and existing.assertor is Assertor.PERSON:

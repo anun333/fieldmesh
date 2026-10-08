@@ -33,6 +33,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import os
+from bisect import insort
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -152,15 +153,20 @@ class Log:
 
     # ------------------------------------------------------------- writing
 
-    def append(self, kind: str, payload: dict) -> Event:
-        """Append one event. The only way anything enters the log."""
+    def append(self, kind: str, payload: dict, *, encoded: bool = False) -> Event:
+        """Append one event. The only way anything enters the log.
+
+        `encoded` says the payload is already JSON-able, which `append_record`
+        knows because `codec.dump` produced it. Re-walking an encoded document was
+        a third of the ingest cost at season scale.
+        """
         if not kind:
             raise LogError("an event must have a kind")
         event = Event(
             id=uuid7(),
             stamp=self._hlc.now(),
             kind=kind,
-            payload=codec.jsonable(payload),
+            payload=payload if encoded else codec.jsonable(payload),
             recorded_at=_dt.datetime.now(tz=_dt.timezone.utc),
         )
         return self._commit(event)
@@ -170,7 +176,7 @@ class Log:
         kind = RECORD_KINDS.get(type(record).__name__)
         if kind is None:
             raise LogError(f"no event kind for {type(record).__name__}")
-        return self.append(kind, codec.dump(record))
+        return self.append(kind, codec.dump(record), encoded=True)
 
     def correct(self, target: UUID, reason: str, *, replacement=None) -> Event:
         """Record a correction as a compensating event (§7.3).
@@ -203,12 +209,23 @@ class Log:
 
     # ------------------------------------------------------------ internals
 
+    @staticmethod
+    def _order(event: Event):
+        return (event.stamp.wall_ms, event.stamp.counter, event.id.int)
+
     def _commit(self, event: Event) -> Event:
         if event.id in self._ids:
             raise LogError(f"duplicate event id {event.id}")
-        self._events.append(event)
+        # HLC stamps are monotonic for events this log issues itself, so the
+        # ordinary case is an append at the end. Sorting the whole history on every
+        # append made that O(n log n) per event and O(n^2 log n) over a season —
+        # one simulated day of a five-node farm spent sixteen seconds in here,
+        # against §7.2's promise that years of readings never slow everyday work.
+        if self._events and self._order(event) < self._order(self._events[-1]):
+            insort(self._events, event, key=self._order)
+        else:
+            self._events.append(event)
         self._ids.add(event.id)
-        self._events.sort(key=lambda e: (e.stamp.wall_ms, e.stamp.counter, e.id.int))
         if self._path:
             with open(self._path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event.to_jsonable(), separators=(",", ":")) + "\n")
@@ -233,4 +250,4 @@ class Log:
                 self._events.append(event)
                 self._ids.add(event.id)
                 self._hlc.update(event.stamp)
-        self._events.sort(key=lambda e: (e.stamp.wall_ms, e.stamp.counter, e.id.int))
+        self._events.sort(key=self._order)

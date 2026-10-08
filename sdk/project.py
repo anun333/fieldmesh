@@ -285,6 +285,12 @@ class State:
 
     Built by replaying records in log order; holds the full history as well, so
     `live_*` can be recomputed and a superseded row stays inspectable.
+
+    The indexes are not an optimisation detail. §7.2 promises that years of
+    readings never slow everyday records, and the first season-scale run broke that
+    promise badly: rebuilding the live set on every quality check made ingest
+    quadratic, and one simulated day of a five-node farm took a minute. These keep
+    the same answers and make them cheap.
     """
 
     datastreams: dict = field(default_factory=dict)
@@ -292,12 +298,72 @@ class State:
     thresholds: dict = field(default_factory=dict)
     observations: list = field(default_factory=list)
     assertions: list = field(default_factory=list)
+    _by_datastream: dict = field(default_factory=dict, repr=False)
+    _times_by_datastream: dict = field(default_factory=dict, repr=False)
+    _superseded_obs: set = field(default_factory=set, repr=False)
+    _by_observation: dict = field(default_factory=dict, repr=False)
+    _superseded_assertions: set = field(default_factory=set, repr=False)
+
+    def observations_of(self, datastream_id: UUID) -> list:
+        """Every observation on one series, in insertion order."""
+        return self._by_datastream.get(datastream_id, [])
+
+    def has_observation_at(self, datastream_id: UUID, measured_at) -> bool:
+        """§3.2's uniqueness check, in constant time.
+
+        Scanning the series for every arriving reading made ingest quadratic.
+        """
+        return measured_at in self._times_by_datastream.get(datastream_id, ())
+
+    def assertions_about(self, observation_id: UUID) -> list:
+        return self._by_observation.get(observation_id, [])
 
     def live_observations(self, *, strict: bool = True) -> dict:
-        return live_observations(self.observations, strict=strict)
+        out: dict = {}
+        for obs in self.observations:
+            if obs.id in self._superseded_obs:
+                continue
+            key = (obs.datastream, obs.measured_at)
+            clash = out.get(key)
+            if clash is None:
+                out[key] = obs
+                continue
+            if strict:
+                raise ProjectionError(
+                    f"two live observations for datastream {obs.datastream} at "
+                    f"{obs.measured_at.isoformat()} ({clash.id} and {obs.id}) — "
+                    f"§3.2 allows exactly one; a re-derivation must carry "
+                    f"`supersedes`")
+            out[key] = max(clash, obs, key=lambda o: o.id.int)
+        return out
+
+    def live_observations_of(self, datastream_id: UUID,
+                             tail: int | None = None) -> list:
+        """The live rows of one series, which is what a health check needs.
+
+        `tail` takes only the most recent rows *before* filtering, so a check that
+        needs an hour of history does not pay for a season of it. Taken generously
+        — supersession is rare, so a slice of the raw tail contains at least `tail`
+        live rows in any realistic log.
+        """
+        rows = self._by_datastream.get(datastream_id, [])
+        if tail is not None and len(rows) > tail:
+            rows = rows[-tail:]
+        if not self._superseded_obs:
+            return list(rows)
+        return [o for o in rows if o.id not in self._superseded_obs]
+
+    def live_assertion_for(self, observation_id: UUID):
+        candidates = [a for a in self.assertions_about(observation_id)
+                      if a.id not in self._superseded_assertions]
+        if not candidates:
+            return None
+        return max(candidates, key=lambda a: (a.precedence, a.asserted_at,
+                                              a.id.int))
 
     def usable_of(self, observation_id: UUID) -> Usable:
-        return usable_of(self.assertions, observation_id)
+        found = self.live_assertion_for(observation_id)
+        return found.usable if found is not None else Usable.GOOD
 
     def calibration_for(self, sensor: UUID, measured_at: _dt.datetime):
         return calibration_for(self.calibrations.values(), sensor, measured_at)
@@ -322,8 +388,18 @@ class State:
         attr, keyed = slot
         if keyed:
             getattr(self, attr)[record.id] = record
-        else:
-            getattr(self, attr).append(record)
+            return
+        getattr(self, attr).append(record)
+        if attr == "observations":
+            self._by_datastream.setdefault(record.datastream, []).append(record)
+            self._times_by_datastream.setdefault(
+                record.datastream, set()).add(record.measured_at)
+            if record.supersedes is not None:
+                self._superseded_obs.add(record.supersedes)
+        elif attr == "assertions":
+            self._by_observation.setdefault(record.observation, []).append(record)
+            if record.supersedes is not None:
+                self._superseded_assertions.add(record.supersedes)
 
     def derived_of(self, raw_datastream_id: UUID):
         """The derived datastream computed from this raw one, if there is one (§3.2)."""
@@ -381,15 +457,12 @@ def state_from_log(log) -> State:
     (§7.4) — the one place where "the latest version of this record" is decided.
     Observations and assertions accumulate instead, because supersession rather
     than replacement is how they change (§3.2, §3.3).
+
+    This goes through `State.add` rather than repeating its dispatch, so a replay
+    and an incremental fold end up identical — including the indexes. An earlier
+    version duplicated the dispatch here and silently skipped them.
     """
     state = State()
     for record in log.records():
-        slot = _DISPATCH.get(type(record))
-        if slot is None:
-            continue
-        attr, keyed = slot
-        if keyed:
-            getattr(state, attr)[record.id] = record
-        else:
-            getattr(state, attr).append(record)
+        state.add(record)
     return state

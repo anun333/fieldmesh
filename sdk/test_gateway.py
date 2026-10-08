@@ -192,6 +192,19 @@ class TestGapsAreRecorded(unittest.TestCase):
         r = self.gw.receive(_frame(boot=4, seq=11), received_at=NOW)
         self.assertEqual(r.gaps, ())
 
+    def test_a_reboot_is_logged_once_not_on_every_later_frame(self):
+        """§5.4 wants the event, not a stream of them. One reboot logged on every
+        subsequent frame turned a single event into 480 and would have buried the
+        real ones."""
+        self.gw.receive(_frame(boot=4, seq=1), received_at=NOW)
+        first = self.gw.receive(_frame(boot=5, seq=0, base_age=9), received_at=NOW)
+        self.assertTrue(first.reboot)
+        for seq in range(1, 6):
+            later = self.gw.receive(_frame(boot=5, seq=seq, base_age=9 - seq),
+                                    received_at=NOW)
+            self.assertFalse(later.reboot, "already announced")
+        self.assertEqual(len([e for e in self.log if e.kind == G.REBOOT]), 1)
+
     def test_a_reboot_is_a_reboot_not_a_gap(self):
         self.gw.receive(_frame(boot=4, seq=900), received_at=NOW)
         r = self.gw.receive(_frame(boot=5, seq=0, base_age=7), received_at=NOW)

@@ -288,7 +288,7 @@ class Service:
             "supersedes": str(obs.supersedes) if obs.supersedes else None,
             "provenance": dict(obs.provenance),
         }
-        assertion = P.live_assertion(self.state.assertions, obs.id)
+        assertion = self.state.live_assertion_for(obs.id)
         if assertion is not None:
             quality = [_quality_element(assertion)]
             if d.supports_quality:
