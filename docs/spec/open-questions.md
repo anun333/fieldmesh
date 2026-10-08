@@ -301,25 +301,26 @@ wave the siting check reads.
 | One threshold for everything, set long enough for 1 m | No false alarms | At 5 cm it would wait two weeks to notice a probe in a bucket |
 
 **Soil texture matters as much as depth — measured, and it changes the recommendation.**
-Holding climate fixed (Köppen Cfa, humid subtropical, like Tennessee), the 99.9th-percentile
-dwell on good readings, in hours:
+For all 87 humid-subtropical SCAN stations (1,720 probes), grouped by the USDA soil survey's
+texture at each probe's own depth, the 99.9th-percentile dwell on good readings:
 
-| depth | sandy, 4 stations (≥70% sand) | Tennessee loam, 3 | clay, 12 stations (≥45% clay) |
+| depth | sandy | loamy | clayey |
 | --- | --- | --- | --- |
-| 5 cm | 8 | 7 | 15 |
-| 10 cm | 11 | 8 | 17 |
-| 20 cm | 9 | 9 | 27 |
-| 51 cm | 15 | 21 | 47 |
-| 1.02 m | 15 | 63 | 57 |
+| top 20 cm | 9 h | 11 h | 19 h |
+| 51 cm | 15 h | 22 h | 32 h |
+| 1 m | 22 h | 40 h | 64 h |
 
-Sand drains so fast that 18 hours is right at every depth; clay is past it by 20 cm. A
-depth-only default would be too strict in sand and too lax in clay at once.
+(An earlier version grouped by the global HWSD database, which turned out to misclassify
+Tennessee and Mississippi soils at field scale; this replaces it.)
 
 **Recommendation, revised: learn each series' threshold from its own history** — several
 times its observed 99.9th-percentile dwell — as the primary mechanism, because it absorbs
 depth, texture, climate and sensor resolution together. Until a series has a season of
-history, use a conservative default from depth *and* texture, taken from the clay column,
-so a new probe errs towards quiet rather than towards a flood of false `stuck` flags. The
+history, use a default from depth *and* texture looked up in the soil survey at the probe's
+location — [tools/soil_survey.py](../../tools/soil_survey.py) does this for any US point —
+so a new probe starts from its own soil rather than from one number for all of them. Where
+no survey exists, fall back to the clay column, so a new probe errs towards quiet rather
+than towards a flood of false `stuck` flags. The
 default doubles as the floor and cap on what a series may learn, so a probe stuck from the
 day it was installed cannot teach itself that stuck is normal. And note what the 351-hour
 maximum at Tennessee's 1 m cannot tell us — healthy soil, or a stuck sensor ISMN did not

@@ -82,22 +82,47 @@ the 0.00015/s limit was set for 15-minute sampling and allows a single step of 0
 over an hour. Real data now confirms it. ISMN's own D06 and D07/D08 readings are the
 material to set a `max_step` from ([Q23](../spec/open-questions.md)).
 
-### Range disagreements are about porosity
+### Range disagreements: the soil map sides with ISMN
 
-ISMN's C03 — "above the saturation point" — uses saturation derived from the global HWSD soil
-database. At McAllister Farm, 5 cm, that puts saturation at **0.427**: every C03 reading is
-at or above it, and every good reading below. The flagged readings run from 0.427 to 0.492
-and cluster in wet winters. HWSD gives these stations about 50% sand and 25% clay — closer to
-a loam than the silt loam a first draft of this note assumed, and a loam's porosity runs
-lower, roughly 0.43–0.47. So readings near 0.49 are high even for this soil, and a sensor
-calibration error is as plausible as a database one: probes of this kind ship with a generic
-factory calibration whose accuracy depends on the soil. Our 0.46 limit catches those above 0.46. Neither number knows
-this soil, and this data cannot settle which of the three — database, sensor or our limit — is
-wrong.
+ISMN's C03 — "above the saturation point" — uses saturation from the global HWSD soil
+database, about 1 km resolution. At McAllister Farm, 5 cm, that puts saturation at
+**0.427**: every C03 reading is at or above it, and every good reading below. The flagged
+readings run from 0.427 to 0.492 and cluster in wet winters.
 
-One sensor dominates the agreement figure: Allen Farms at 1.02 m reads above both limits for
-60% of its record — a waterlogged subsoil or a calibration fault, and the data alone cannot
-say which. Without it, range agreement is about 42%.
+The USDA soil survey (SSURGO), mapped at field scale, settles it. McAllister Farm is
+**Dickson silt loam**, whose top horizon saturates at **0.42**; Allen Farms is Hampshire silt
+loam, also 0.42 near the surface; Eastview Farm is Decatur silty clay loam. So readings to
+0.49 are above what the soil can physically hold, ISMN's flag is probably right, and our
+generic 0.46 was too lenient. The likeliest cause is the probes' generic factory calibration
+reading high in this soil — probes of this kind ship with one calibration whose accuracy
+depends on the soil.
+
+*Corrected twice.* A first draft called these soils silt loam, by assumption. A revision
+"corrected" that to loam on the strength of HWSD's 50% sand and 25% clay, and argued the
+disagreement was the database's porosity against ours. The field-scale survey says silt
+loam and silty clay loam, and puts saturation where ISMN does. HWSD was wrong about the
+texture, and the revision was wrong to trust it.
+
+One sensor dominates the generic agreement figure: Allen Farms at 1.02 m reads above both
+limits for 60% of its record. The soil survey says it sits in a horizon (76–119 cm) that
+saturates at **0.30** — so whatever it is measuring, it is not reading that soil's water
+content correctly. Without it, generic range agreement is about 42%.
+
+### A starting range from the soil map
+
+Replacing the generic 0.46 with each probe's soil-survey saturation at its own depth, plus
+0.02:
+
+| | generic 0.46 | from the soil map |
+| --- | --- | --- |
+| ISMN above-saturation readings caught | 74% | **89%** |
+| readings ISMN rates good, flagged | 0.00% | 1.30% |
+
+99% of that 1.30% is the Allen Farms 1.02 m probe, where the map and ISMN agree something is
+wrong and the map is simply stricter. Without it, the map-derived limit flags **0.02%** of
+good readings. A limit read off the soil map is a better starting point than any generic
+number; [tools/soil_survey.py](../../tools/soil_survey.py) produces one for any US location
+and depth.
 
 ### "Saturated plateaus" are mostly wet soil
 
@@ -117,22 +142,27 @@ rise with no rain, needs a rain gauge on the farm.
 
 ## Beyond Tennessee: soil texture, and the size of a jump
 
-Both open questions needed more than one soil. Holding climate fixed — 19 SCAN stations in
-Köppen Cfa, humid subtropical, like Tennessee — and contrasting texture by HWSD:
-
 **The dwell depends on soil as much as on depth.** 99.9th-percentile run of one identical
-value on good readings, in hours:
+value on good readings, in hours, for every humid-subtropical (Köppen Cfa) SCAN station —
+87 stations, 1,720 probes — grouped by the **soil-survey texture at each probe's own depth**
+(sandy ≥ 70% sand, clayey ≥ 35% clay, loamy otherwise; probe counts in brackets):
 
-| depth | sandy, 4 (≥70% sand) | Tennessee loam, 3 | clay, 12 (≥45% clay) |
+| depth | sandy | loamy | clayey |
 | --- | --- | --- | --- |
-| 5 cm | 8 | 7 | 15 |
-| 20 cm | 9 | 9 | 27 |
-| 51 cm | 15 | 21 | 47 |
-| 1.02 m | 15 | 63 | 57 |
+| top 20 cm | 9 h (166) | 11 h (682) | 19 h (200) |
+| 51 cm | 15 h (27) | 22 h (161) | 32 h (154) |
+| 1 m | 22 h (29) | 40 h (179) | 64 h (123) |
 
-Sand drains fast enough that 18 hours is right at every depth; clay is past it by 20 cm. Q24's
-recommendation was revised to make a threshold learned from each series' own history the
-primary mechanism, with a texture- and depth-aware default only until the history exists.
+The dwell grows with depth and with clay, cleanly in both directions. 18 hours is right for
+sandy and loamy soil near the surface and wrong almost everywhere else. Q24 now recommends a
+threshold learned from each series' own history, starting from this table looked up by the
+soil survey; `tools/soil_survey.py` does the lookup.
+
+*An earlier version of this table was wrong twice.* It grouped stations by HWSD texture,
+which misclassifies at field scale — it calls Tennessee's silt loams loam and Starkville,
+Mississippi, 55% clay where the survey finds a sandy loam over 28%-clay loam. And a first
+rerun had a bug in reading the climate class that dropped most stations, leaving 15. This
+table replaces both.
 
 **A spike is not a big step.** One hourly step in the top 20 cm, 8 million good readings:
 
