@@ -122,6 +122,12 @@ def decode(payload: bytes) -> Message:
         doc = cbor2.loads(payload)
     except Exception as exc:                       # noqa: BLE001 - any codec error
         raise WireError(f"not CBOR: {exc}") from exc
+    if doc is getattr(cbor2, "break_marker", object()):
+        # A break code outside an indefinite-length item is not a data item (RFC 8949
+        # §3.2.1). cbor2 6 refuses it; cbor2 5 returned a sentinel. Refusing it here
+        # makes the answer the same whichever version is installed — the first CI run,
+        # on a newer cbor2 than this machine's, is how the difference was found.
+        raise WireError("not CBOR: a lone break code is not a data item")
     if not isinstance(doc, list) or len(doc) != 7:
         raise WireError(f"expected 7 fields, got {type(doc).__name__} "
                         f"of length {len(doc) if isinstance(doc, list) else '?'}")

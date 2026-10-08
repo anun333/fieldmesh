@@ -49,11 +49,18 @@ class TestRefusals(unittest.TestCase):
         with self.assertRaisesRegex(wire.WireError, "not CBOR"):
             wire.decode(b"\x87\x01")          # array of 7, one item present
 
-    def test_parseable_cbor_that_is_not_a_frame_is_refused_on_shape(self):
-        """`\xff` is a valid CBOR break marker, so it parses and then fails the
-        shape check. Both refusal paths matter; neither guesses."""
-        with self.assertRaisesRegex(wire.WireError, "expected 7 fields"):
+    def test_a_lone_break_code_is_not_cbor_whatever_the_library_version(self):
+        """`\xff` outside an indefinite-length item is not a data item (RFC 8949
+        §3.2.1). This test used to claim it was "a valid CBOR break marker" that parsed
+        and then failed the shape check — true of cbor2 5's leniency, false of the
+        standard, and caught when CI installed cbor2 6."""
+        with self.assertRaisesRegex(wire.WireError, "not CBOR"):
             wire.decode(b"\xff")
+
+    def test_parseable_cbor_that_is_not_a_frame_is_refused_on_shape(self):
+        """The other refusal path, with CBOR that really does parse. Neither guesses."""
+        with self.assertRaisesRegex(wire.WireError, "expected 7 fields"):
+            wire.decode(cbor2.dumps("not a frame"))
 
     def test_wrong_field_count(self):
         with self.assertRaisesRegex(wire.WireError, "expected 7 fields"):
