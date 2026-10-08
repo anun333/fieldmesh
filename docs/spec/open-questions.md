@@ -219,6 +219,35 @@ vocabulary addition is cheap, but it is only worth anything if a check actually 
 That makes this a §4.2 change as much as a §4.1 one, which is why it is a question rather
 than a patch.
 
+## Q23. A rate-of-change limit that works at any sampling interval
+
+**Status: blocks scoring against hourly data; affects every farm that samples slower
+than every 15 minutes.** Raised 2026-10-08 while building `tools/ismn_score.py`.
+
+§4.2's rate check allows a change of `max_rate_per_s × elapsed`. Harrow Bend's soil limit,
+0.00015/s, was derived from drip irrigation at 15-minute sampling — about 0.135 per step,
+which a real irrigation event (≈0.083) stays under. But the allowance grows with the gap.
+At ISMN's hourly sampling it is **0.54 m³/m³ in one step**, nearly the whole physical range,
+so a spike from 0.25 to 0.40 passes and the check can effectively never fire. A test now
+asserts exactly that.
+
+It is the `flat_n` trap reversed. `flat_n` was a count that meant different durations at
+different sample rates; this is a rate whose allowed step means different things at
+different gaps. What is physically bounded is not the rate but the **size of one jump**:
+an irrigation event adds about 0.08 however long you wait to look.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **Add `max_step`: a jump larger than any single legitimate event is implausible regardless of the gap; keep the rate for short gaps** | Bounded by physics, independent of sampling; catches the hourly spike | A long gap *can* legitimately hold more than one event — a 50 mm storm over six hours can raise soil water by more than one irrigation does — so the cap must grow with the gap past some point, or the check turns a storm into an alarm |
+| `max_step` that grows sub-linearly, e.g. capped at the infiltration a storm of the gap's length could deliver | Physically argued at every gap | Needs a rainfall bound per site, which is climate data the farm may not have |
+| Make the rate limit depend on the declared sample interval | One number per series, simple | Couples the threshold to sampling again — the exact mistake `flat_seconds` was introduced to undo |
+| Leave it; document that rate is for fast-sampled series | No change | Every hourly logger, and the whole of ISMN, gets a check that cannot fire while appearing to run |
+
+**Recommendation: `max_step` with a gap allowance** — a fixed cap for gaps up to an hour or
+two, growing with the gap beyond that, and the evidence saying which bound fired. It needs a
+measurement before a number: ISMN's own `D06` spikes, once the download is in, give the
+distribution of real one-step jumps flagged as implausible, which is the data to set it from.
+
 ## Q5. Binary encoding
 
 **Status: DECIDED 2026-10-07 — CBOR packed arrays with a CDDL schema.** It blocked
