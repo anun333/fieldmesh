@@ -69,6 +69,11 @@ MIN_AMPLITUDE_C = 0.10
 #: the peers themselves disagree — see `assess_siting`.
 DEFAULT_TOLERANCE_M = 0.08
 
+#: The tolerance when only two peers calibrate the line. Two points fix a line exactly,
+#: so there is no scatter to widen the tolerance by and no way to outvote a peer that is
+#: itself displaced; the margin has to come from somewhere else.
+TWO_PEER_TOLERANCE_M = 0.12
+
 CONSISTENT = "consistent"
 DISPLACED = "displaced"
 INDETERMINATE = "indeterminate"
@@ -285,7 +290,14 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
         peers.append((other_install.depth_m, other_fit))
 
     depths = {round(z, 3) for z, _ in peers}
-    if len(peers) < 3 or len(depths) < 2:
+    # Two peers at two depths is the minimum: they fix the depth-to-phase line, and the
+    # probe is read against it. The first version required three, which the simulator's
+    # twelve-probe farm always met and a real station never does: scored on ISMN's
+    # Tennessee profiles — one probe per depth, and only 5, 10 and 20 cm with a daily
+    # wave strong enough to read — every shallow probe had exactly two usable peers, and
+    # the check said "cannot tell" about 80% of the time. With two, the line is exact and
+    # cannot be robust, so the tolerance widens and the evidence says so.
+    if len(peers) < 2 or len(depths) < 2:
         return unknown("siting.too_few_peers",
                        {"peers": len(peers), "depths": len(depths)},
                        recorded_depth_m=recorded, fit=own, peers_used=len(peers))
@@ -316,6 +328,9 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
     # Robust scatter, so a displaced peer widens this by almost nothing.
     peer_scatter_m = rms_h / k
     tol = max(tolerance_m, 3.0 * peer_scatter_m)
+    robust = len(peers) >= 3
+    if not robust:
+        tol = max(tol, TWO_PEER_TOLERANCE_M)
     off_by = implied - recorded
 
     evidence = {
@@ -329,6 +344,10 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
         "surface_peak_hour_utc": round(h0 % 24.0, 2),
         "peers": len(peers),
         "peer_scatter_m": round(peer_scatter_m, 3),
+        # False when two peers fixed the line: then a displaced peer cannot be outvoted,
+        # and a flag here may mean "something in this profile moved" rather than "this
+        # probe moved".
+        "robust": robust,
         "tolerance_m": round(tol, 3),
         "window_h": window.total_seconds() / 3600.0,
     }

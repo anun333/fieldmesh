@@ -404,3 +404,84 @@ class TestNothingIsMutated(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestFrozenSoil(unittest.TestCase):
+    """A capacitance probe senses liquid water only, so frozen soil reads falsely dry."""
+
+    def setUp(self):
+        import datetime as _dt
+        import vocab as V
+        from ids import uuid7
+        from model import Calibration, Datastream, DatastreamKind
+        self.dt = _dt
+        self.log = L.Log()
+        sensor = uuid7()
+        self.moisture = fx.raw_datastream(sensor=sensor)
+        raw_t = fx.raw_datastream(sensor=sensor, unit="Cel",
+                                  observed_property=V.SOIL_TEMPERATURE,
+                                  expected_interval=3600.0)
+        self.temperature = Datastream(
+            id=uuid7(), thing=raw_t.thing, sensor=sensor,
+            observed_property=V.SOIL_TEMPERATURE, feature=raw_t.feature,
+            kind=DatastreamKind.DERIVED, derived_from=raw_t.id, unit="Cel",
+            expected_interval=3600.0)
+        self.cal = Calibration(id=uuid7(), sensor=sensor, datastream=raw_t.id,
+                               method="identity", valid_from=fx.at(-60 * 24))
+        for record in (self.moisture, raw_t, self.temperature, self.cal):
+            self.log.append_record(record)
+
+    def assess_at(self, soil_c, *, minutes_apart=10):
+        self.log.append_record(fx.observation(
+            self.temperature, result=soil_c, calibration=self.cal.id,
+            measured_at=fx.at(minutes_apart)))
+        obs = fx.observation(self.moisture, result=0.12, measured_at=fx.at(0))
+        self.log.append_record(obs)
+        state = P.state_from_log(self.log)
+        return C.assess(state, obs)
+
+    def test_moisture_read_in_frozen_soil_is_suspect(self):
+        assertion = self.assess_at(-1.5)
+        self.assertIn(QualityFlag.SUSPECT, assertion.flags)
+        self.assertIn("frozen", assertion.evidence["fired"])
+
+    def test_it_is_only_suspect_never_bad(self):
+        """The reading is a true measurement of liquid water — just not the water an
+        irrigation decision needs."""
+        self.assertEqual(self.assess_at(-1.5).flags, {QualityFlag.SUSPECT})
+
+    def test_soil_above_zero_is_not_flagged(self):
+        self.assertNotIn("frozen", self.assess_at(4.0).evidence["fired"])
+
+    def test_a_temperature_reading_hours_away_is_not_used(self):
+        """No guessing from a reading taken long before or after."""
+        self.assertNotIn("frozen",
+                         self.assess_at(-3.0, minutes_apart=240).evidence["fired"])
+
+    def test_without_a_temperature_channel_there_is_no_verdict(self):
+        """Never inferred from the season or the date."""
+        log = L.Log()
+        ds = fx.raw_datastream()
+        log.append_record(ds)
+        obs = fx.observation(ds, result=0.12)
+        log.append_record(obs)
+        assertion = C.assess(P.state_from_log(log), obs)
+        self.assertNotIn("frozen", assertion.evidence["fired"])
+
+    def test_the_finding_renders_in_spanish(self):
+        import i18n
+        message = self.assess_at(-1.5).evidence["messages"]["frozen"]
+        text = str(i18n.Translator("es").text(message["key"], **message["params"]))
+        self.assertIn("helado", text)
+
+
+class TestFrozenIsOnlyListedWhenItRan(unittest.TestCase):
+
+    def test_a_probe_without_temperature_does_not_claim_the_frozen_check_ran(self):
+        log = L.Log()
+        ds = fx.raw_datastream()
+        log.append_record(ds)
+        obs = fx.observation(ds, result=0.2)
+        log.append_record(obs)
+        a = C.assess(P.state_from_log(log), obs)
+        self.assertNotIn("frozen", a.evidence["checks_run"])

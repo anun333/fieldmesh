@@ -394,6 +394,9 @@ class State:
     #: Per datastream, observations kept in display order as they arrive, with their
     #: sort keys alongside: `datastream -> (keys, observations)`. See `ordered_upto`.
     _ordered: dict = field(default_factory=dict, repr=False)
+    #: Per datastream, `(measured_at, observation)` in time order — for "the reading
+    #: nearest this instant", which one check needs from a *different* series.
+    _by_time: dict = field(default_factory=dict, repr=False)
     _superseded_labels: set = field(default_factory=set, repr=False)
     _streams_by_sensor: dict = field(default_factory=dict, repr=False)
 
@@ -436,6 +439,25 @@ class State:
             index -= 1
         out.reverse()
         return out
+
+    def nearest(self, datastream_id: UUID, when: _dt.datetime, within_s: float):
+        """The live reading of a series closest to `when`, if one is within `within_s`.
+
+        A binary search, so asking it once per reading costs nothing a season can feel —
+        the reason it exists rather than a scan of the series.
+        """
+        times, rows = self._by_time.get(datastream_id, ([], []))
+        at = bisect_right(times, when)
+        best, best_gap = None, None
+        for index in (at - 2, at - 1, at, at + 1):
+            if 0 <= index < len(rows):
+                row = rows[index]
+                if row.id in self._superseded_obs:
+                    continue
+                gap = abs((row.measured_at - when).total_seconds())
+                if gap <= within_s and (best_gap is None or gap < best_gap):
+                    best, best_gap = row, gap
+        return best
 
     def is_superseded(self, observation_id: UUID) -> bool:
         """Whether some later observation replaces this one (§3.2), in constant time.
@@ -536,6 +558,14 @@ class State:
         getattr(self, attr).append(record)
         if attr == "observations":
             self._by_datastream.setdefault(record.datastream, []).append(record)
+            times, timed = self._by_time.setdefault(record.datastream, ([], []))
+            if not times or record.measured_at >= times[-1]:
+                times.append(record.measured_at)
+                timed.append(record)
+            else:
+                at = bisect_right(times, record.measured_at)
+                times.insert(at, record.measured_at)
+                timed.insert(at, record)
             keys, rows = self._ordered.setdefault(record.datastream, ([], []))
             key = _display_key(record)
             # Nearly always an append — readings mostly arrive in order — and a late

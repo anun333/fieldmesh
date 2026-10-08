@@ -46,9 +46,10 @@ from uuid import UUID
 
 import i18n
 import project as P
+import vocab
 from ids import uuid7
-from model import (Assertor, Datastream, Observation, QualityAssertion,
-                   QualityFlag, Threshold, derive_usable)
+from model import (Assertor, Datastream, DatastreamKind, Observation,
+                   QualityAssertion, QualityFlag, Threshold, derive_usable)
 
 SUITE = "foundation"
 SUITE_VERSION = "1"
@@ -73,6 +74,10 @@ DEFAULTS = {
     "max": None,
     "max_rate_per_s": None,  # no rate check unless configured
     "cross_tolerance": None,  # no cross-check unless configured
+    # A soil-moisture reading taken while the same probe's soil was below this is
+    # `suspect`: capacitance and impedance probes sense liquid water only, so frozen
+    # soil reads falsely dry. ISMN's D01 is the same rule. None switches it off.
+    "frozen_below_c": 0.0,
 }
 
 
@@ -95,6 +100,37 @@ class Finding:
 
 def _finding(flag: QualityFlag, check: str, key: str, **params) -> Finding:
     return Finding(flag, check, i18n.english(key, **params), key, params)
+
+
+def _frozen(state: P.State, obs: Observation, datastream: Datastream,
+            values: dict) -> tuple[bool, Finding | None]:
+    """§4.2: moisture read while the probe's own soil was frozen.
+
+    Needs the *same device's* soil temperature (§4.1: one TEROS-class body reports both),
+    read within the larger of an hour and the temperature series' own interval. No
+    temperature, no verdict — this never guesses that soil is frozen from the season.
+    Only `suspect`: the reading is a true measurement of liquid water, just not of the
+    water that matters for irrigation.
+
+    Returns `(ran, finding)`. `ran` is false when the device has no temperature channel,
+    so the evidence never lists a check as having run and stayed quiet when it could not
+    run at all — a test caught the first version doing exactly that.
+    """
+    limit = values.get("frozen_below_c")
+    if limit is None or datastream.observed_property != vocab.SOIL_WATER:
+        return False, None
+    for ds in state.datastreams_of_sensor(datastream.sensor):
+        if (ds.kind is DatastreamKind.DERIVED
+                and ds.observed_property == vocab.SOIL_TEMPERATURE):
+            within = max(3600.0, ds.expected_interval or 0.0)
+            reading = state.nearest(ds.id, obs.measured_at, within)
+            if reading is not None and _numeric(reading.result) \
+                    and reading.result < limit:
+                return True, _finding(QualityFlag.SUSPECT, "frozen",
+                                      "check.frozen.below",
+                                      temperature=reading.result, limit=limit)
+            return True, None
+    return False, None
 
 
 def thresholds_for(datastream: Datastream,
@@ -349,9 +385,13 @@ def assess(state: P.State, obs: Observation, *,
 
     findings = [f for f in (c(obs, series, values, peers) for c in checks)
                 if f is not None]
+    frozen_ran, frozen = _frozen(state, obs, datastream, values)
+    if frozen is not None:
+        findings.append(frozen)
     flags = frozenset(f.flag for f in findings)
     evidence = {
-        "checks_run": [c.__name__.removeprefix("check_") for c in checks],
+        "checks_run": [c.__name__.removeprefix("check_") for c in checks]
+                      + (["frozen"] if frozen_ran else []),
         "fired": {f.check: f.reason for f in findings},
         # What any language renders from, years later, from this same record.
         "messages": {f.check: {"key": f.key, "params": f.params}
