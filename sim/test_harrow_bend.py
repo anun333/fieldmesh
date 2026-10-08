@@ -376,10 +376,48 @@ class TestInterop(Matrix):
         self.assertIn("key parity", text)
 
     def test_a_full_export_round_trip_losing_nothing(self):
-        self.skipTest(
-            "§7.6's export in CSV, JSON and GeoJSON is not implemented. The codec "
-            "round-trips every record exactly (sdk/test_project.py), so the "
-            "encoding exists; the export surface does not.")
+        """§7.6 over a whole season, which is the only scale that proves anything.
+
+        *Farmer-owned* means being able to take the data and leave, so the bar is not
+        "an export exists" but "the export replays into the same farm". Exported, read
+        back, and compared on three levels: the events, the derived state, and the
+        state's own validity.
+        """
+        import shutil
+        import tempfile
+
+        import export as X
+        directory = tempfile.mkdtemp()
+        try:
+            manifest = X.export_log(self.log, directory, state=self.state,
+                                    labels=hb.labels(self.farm))
+            self.assertEqual(X.verify(directory), [])
+            self.assertEqual(manifest.events, len(self.log.events))
+
+            back = X.import_log(directory)
+            self.assertEqual([e.to_jsonable() for e in back.events],
+                             [e.to_jsonable() for e in self.log.events])
+
+            replayed = P.state_from_log(back)
+            self.assertEqual(len(replayed.observations),
+                             len(self.state.observations))
+            self.assertEqual(len(replayed.assertions), len(self.state.assertions))
+            self.assertEqual(replayed.validate(), [])
+            self.assertEqual(
+                {o.id for o in replayed.live_observations().values()},
+                {o.id for o in self.state.live_observations().values()})
+
+            # Every CSV is lossless, and the manifest says so because each cell was
+            # decoded back and compared, not because the format promises it.
+            for entry in manifest.files:
+                if entry.name.endswith(".csv") or entry.name == X.ARCHIVE:
+                    self.assertTrue(entry.lossless, entry.name)
+            # The GeoJSON is a view and must not claim otherwise.
+            geo = next(f for f in manifest.files if f.name == X.GEOJSON)
+            self.assertFalse(geo.lossless)
+            self.assertGreater(geo.rows, 0, "the season's features have geometry")
+        finally:
+            shutil.rmtree(directory, ignore_errors=True)
 
 
 class TestCommandsAndApps(Matrix):

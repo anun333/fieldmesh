@@ -97,7 +97,7 @@ The farm is complete when every row is live on it with meaningful data. Each row
 | | An offline edit conflict resolved by HLC where the wall clocks disagree | §7.4 |
 | | A grant issued, used, revoked — and the revocation not retracting what was already delivered | §7.6 |
 | | A module that went down, missed events, and replayed them from its cursor | §7.5 |
-| Interop | A full export round-trip losing nothing, raw and assertions included | §7.6 |
+| Interop | A full export round-trip losing nothing, raw and assertions included | §7.6 — **done**: [sdk/export.py](../sdk/export.py), `make export`. A season exports to a JSONL archive plus per-type CSV plus a GeoJSON view, verifies against a checksummed manifest, and replays into a byte-identical event list and a state that validates clean. Losslessness is measured per cell, not claimed |
 | | A SensorThings 1.1 endpoint validated against FROST-Server | §10 — **done**: documents accepted at full key parity ([notes/frost-validation.md](notes/frost-validation.md)), and served over HTTP from [server/](../server/) with `$filter`, `$expand`, `$orderby`, `$select`, `$top`/`$skip` and paging. **QGIS 3.44 reads it and maps it** — 56 datastreams, 5450 observations, 10 features with geometry ([notes/qgis-validation.md](notes/qgis-validation.md)) |
 | Apps | All three acceptance-test apps running against the farm, unchanged | §15 |
 | History | A full simulated season behind the trends: drift, weather, repairs | §9.2 |

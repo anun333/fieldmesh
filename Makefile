@@ -1,6 +1,6 @@
 # librefarm — layer zero
 .POSIX:
-.PHONY: help test demo world drill q5 q5-points power vocab serve season frost clean
+.PHONY: help test demo world drill q5 q5-points power vocab serve season export frost clean
 
 help:
 	@echo "test   run every test (sdk + tools + sim + server)"
@@ -13,6 +13,7 @@ help:
 	@echo "vocab  every observed-property term, its source and its unit"
 	@echo "serve  a SensorThings 1.1 endpoint over a simulated farm"
 	@echo "season how long a 180-day season takes to simulate"
+	@echo "export a season out in open formats, then verify it replays (§7.6)"
 	@echo "frost  stand up FROST-Server as a conformance oracle"
 	@echo "clean  remove __pycache__"
 
@@ -51,6 +52,9 @@ season:
 		f=hb.build(); t=time.perf_counter(); hb.season(f, days=$${DAYS:-180}); \
 		e=time.perf_counter()-t; print(f'{e:.1f}s for $${DAYS:-180} days '\
 		f'({e/$${DAYS:-180}:.2f}s/day, {len(f.state.observations)} observations)')"
+
+export:
+	@cd sim && python3 export_demo.py --days $${DAYS:-7}
 
 frost:
 	@echo "See docs/notes/frost-validation.md for the two-container recipe."
