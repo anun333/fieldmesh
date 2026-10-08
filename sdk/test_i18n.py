@@ -34,8 +34,12 @@ class TestTheEnglishSourceIsComplete(unittest.TestCase):
         for uri in V.TERMS:
             self.assertIn(f"term.{uri}", self.en)
 
-    def test_every_unit_the_vocabulary_uses_has_a_name(self):
-        for unit, _ in V.TERMS.values():
+    def test_every_unit_the_vocabulary_accepts_has_a_name(self):
+        """Not only each term's default unit — every unit the gate lets a datastream
+        be declared in, or a farm declaring kelvin sees the bare code."""
+        units = {u for accepted in V.ACCEPTED_UNITS.values() for u in accepted}
+        units |= {unit for unit, _ in V.TERMS.values()}
+        for unit in sorted(units):
             self.assertIn(f"unit.{unit}", self.en)
 
 

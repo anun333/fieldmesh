@@ -122,6 +122,69 @@ TERMS: dict[str, tuple[str, str]] = {
 }
 
 
+#: Units a datastream of each term may be declared in (UCUM). The first is the one
+#: `TERMS` names; the rest measure the same dimension. A soil probe reporting percent
+#: is fine; a soil probe declared in volts is the unit lie §3.4 forbids.
+ACCEPTED_UNITS: dict[str, frozenset] = {
+    SOIL_WATER: frozenset({"cm3/cm3", "m3/m3", "%", "1"}),
+    FIELD_CAPACITY: frozenset({"cm3/cm3", "m3/m3", "%", "1"}),
+    WILTING_POINT: frozenset({"cm3/cm3", "m3/m3", "%", "1"}),
+    AIR_TEMPERATURE: frozenset({"Cel", "K", "[degF]"}),
+    SOIL_TEMPERATURE: frozenset({"Cel", "K", "[degF]"}),
+    RELATIVE_HUMIDITY: frozenset({"%", "1"}),
+    LATITUDE: frozenset({"deg"}),
+    LONGITUDE: frozenset({"deg"}),
+    BATTERY_VOLTAGE: frozenset({"V", "mV"}),
+    RSSI: frozenset({"dB[mW]"}),
+    VESSEL_FILL_FRACTION: frozenset({"1", "%"}),
+}
+
+
+def check(observed_property: str, unit: str | None) -> list[str]:
+    """What is wrong with declaring a datastream of this term in this unit (§3.4).
+
+    **Offline on purpose.** §3.4 says a declared URI must resolve, but layer zero runs
+    on a gateway that may not see the internet for days, so it cannot fetch anything
+    at declaration time. The registry is what was verified: every term in `TERMS` was
+    fetched when it was added, and `vocab.py --resolve` re-checks them all when a
+    connection is available. A term outside the registry is refused here rather than
+    trusted, because an unregistered URI is exactly how the invented
+    `cf/soil_moisture_content` got in.
+    """
+    problems = []
+    if observed_property not in TERMS:
+        problems.append(
+            f"{observed_property} is not a registered term. Add it to vocab.TERMS "
+            f"with its source and unit, and check that it resolves "
+            f"(`python3 vocab.py --resolve`) — an unregistered URI is how an invented "
+            f"term got in before (§3.4)")
+        return problems
+    accepted = ACCEPTED_UNITS.get(observed_property, frozenset({TERMS[observed_property][0]}))
+    if unit is None:
+        problems.append(f"{observed_property} is a measured quantity and needs a unit; "
+                        f"accepted: {sorted(accepted)}")
+    elif unit not in accepted:
+        problems.append(f"unit {unit!r} is not a unit of {observed_property}; "
+                        f"accepted: {sorted(accepted)} — a declaration whose unit "
+                        f"disagrees with its term passes every syntactic check (§3.4)")
+    return problems
+
+
+def resolve(timeout: float = 20.0) -> dict[str, int | str]:
+    """Fetch every registered term. Needs a connection; never called by the gate."""
+    import urllib.request
+    out = {}
+    for uri in TERMS:
+        try:
+            request = urllib.request.Request(uri, method="GET",
+                                             headers={"User-Agent": "librefarm-vocab"})
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                out[uri] = response.status
+        except Exception as exc:              # noqa: BLE001 — reported per term
+            out[uri] = f"{type(exc).__name__}: {exc}"
+    return out
+
+
 def source_of(uri: str) -> str:
     """Which vocabulary a URI came from, or `"unknown"`.
 
@@ -141,6 +204,14 @@ def local_terms() -> list[str]:
 
 
 if __name__ == "__main__":
+    import sys
+    if "--resolve" in sys.argv:
+        failures = 0
+        for uri, status in resolve().items():
+            ok = status == 200
+            failures += not ok
+            print(f"{'ok ' if ok else 'BAD'} {status!s:<6} {uri}")
+        raise SystemExit(1 if failures else 0)
     width = max(len(u) for u in TERMS)
     for uri, (unit, src) in sorted(TERMS.items(), key=lambda kv: (kv[1][1], kv[0])):
         print(f"{src:<6} {uri:<{width}}  {unit}")

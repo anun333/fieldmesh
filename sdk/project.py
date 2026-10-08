@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from uuid import UUID
 
+import vocab
 from model import (Calibration, Datastream, DatastreamKind, Device,
                    Installation, Label, MaintenanceEvent, Observation,
                    QualityAssertion, Threshold, Usable)
@@ -723,6 +724,9 @@ class State:
                 obs.validate_against(ds)
             except ValueError as exc:
                 problems.append(f"observation {obs.id}: {exc}")
+        for ds in self.datastreams.values():
+            for problem in vocab.check(ds.observed_property, ds.unit):
+                problems.append(f"datastream {ds.id}: {problem}")
         for ds in self.datastreams.values():
             if ds.kind is DatastreamKind.DERIVED and ds.derived_from not in self.datastreams:
                 problems.append(f"datastream {ds.id} derives from unknown "

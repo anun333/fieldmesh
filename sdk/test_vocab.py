@@ -67,6 +67,45 @@ class TestTerms(unittest.TestCase):
         self.assertEqual(V.source_of("http://example.invalid/x"), "unknown")
 
 
+class TestTheGate(unittest.TestCase):
+    """§3.4 enforced at declaration, offline."""
+
+    def test_a_registered_term_in_an_accepted_unit_passes(self):
+        self.assertEqual(V.check(V.SOIL_WATER, "cm3/cm3"), [])
+        self.assertEqual(V.check(V.SOIL_WATER, "%"), [])
+        self.assertEqual(V.check(V.AIR_TEMPERATURE, "K"), [])
+
+    def test_the_invented_term_that_started_all_this_is_refused(self):
+        problems = V.check("http://vocab.example.org/cf/soil_moisture_content",
+                           "cm3/cm3")
+        self.assertTrue(problems)
+        self.assertIn("not a registered term", problems[0])
+
+    def test_a_unit_from_the_wrong_dimension_is_refused(self):
+        """Celsius under soil moisture — the unit lie a test of ours committed."""
+        problems = V.check(V.SOIL_WATER, "Cel")
+        self.assertTrue(problems)
+        self.assertIn("not a unit of", problems[0])
+
+    def test_a_measured_quantity_with_no_unit_is_refused(self):
+        self.assertTrue(V.check(V.BATTERY_VOLTAGE, None))
+
+    def test_every_registered_term_has_accepted_units_including_its_own(self):
+        for uri, (unit, _) in V.TERMS.items():
+            with self.subTest(term=uri):
+                self.assertIn(unit, V.ACCEPTED_UNITS.get(uri, frozenset({unit})))
+                self.assertIn(uri, V.ACCEPTED_UNITS)
+
+    def test_validate_reports_a_bad_declaration(self):
+        import fixtures as fx
+        import log as L
+        import project as P
+        log = L.Log()
+        log.append_record(fx.raw_datastream(unit="Cel"))
+        problems = P.state_from_log(log).validate()
+        self.assertTrue(any("not a unit of" in p for p in problems), problems)
+
+
 class TestNoPlaceholdersAnywhere(unittest.TestCase):
 
     def test_no_example_org_vocabulary_uris_survive_in_the_repository(self):

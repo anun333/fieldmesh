@@ -88,9 +88,13 @@
   "unit.%": "por ciento",
   "unit.1": "fracción",
   "unit.Cel": "grado Celsius",
+  "unit.K": "kelvin",
   "unit.V": "voltio",
+  "unit.[degF]": "grado Fahrenheit",
   "unit.cm3/cm3": "centímetro cúbico por centímetro cúbico",
   "unit.dB[mW]": "decibelio-milivatio",
-  "unit.deg": "grado"
+  "unit.deg": "grado",
+  "unit.m3/m3": "metro cúbico por metro cúbico",
+  "unit.mV": "milivoltio"
  }
 }

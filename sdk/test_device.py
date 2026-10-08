@@ -270,7 +270,12 @@ class TestMultiChannelCalibration(unittest.TestCase):
         self.Calibration = Calibration
         self.sensor = uuid7()
         self.moisture = fx.raw_datastream(sensor=self.sensor)
-        self.temperature = fx.raw_datastream(sensor=self.sensor, unit="Cel")
+        # Declared under the soil-temperature term. The first version of this test
+        # put a Celsius channel under the soil-moisture term, and the vocabulary gate
+        # caught it the moment it existed — the unit lie §3.4 forbids, in a test.
+        import vocab as V
+        self.temperature = fx.raw_datastream(sensor=self.sensor, unit="Cel",
+                                             observed_property=V.SOIL_TEMPERATURE)
         self.cal_m = Calibration(id=uuid7(), sensor=self.sensor,
                                  datastream=self.moisture.id, method="linear",
                                  valid_from=when(1), coefficients={"a": 0.001})

@@ -80,9 +80,13 @@
   "unit.%": "percent",
   "unit.1": "fraction",
   "unit.Cel": "degree Celsius",
+  "unit.K": "kelvin",
   "unit.V": "volt",
+  "unit.[degF]": "degree Fahrenheit",
   "unit.cm3/cm3": "cubic centimetre per cubic centimetre",
   "unit.dB[mW]": "decibel-milliwatt",
-  "unit.deg": "degree"
+  "unit.deg": "degree",
+  "unit.m3/m3": "cubic metre per cubic metre",
+  "unit.mV": "millivolt"
  }
 }

@@ -64,7 +64,7 @@ an artifact that does not exist yet. Copying them now would mean rewriting them.
 | `mesh_emulator.py` | Virtual nodes for the simulated farm | **Superseded rather than blocked.** Q5 was decided (CBOR packed arrays), and `sim/node.py` with `sim/link.py` already emit that wire format from simulated nodes, which is what this would have done. Its profile table was buildings-domain throughout. |
 | `meshtastic_bridge.py` | The gateway's first link driver | **Q6**, which link ships first, and real hardware (build step 7). Q5, the registry (§1) and batching (§5.2) — the old blockers — all exist now |
 | `modbus_collector.py`, `modbus_emulator.py` | The wired driver and its emulator | The driver manifest (§9.1) |
-| `test_metric_registry.py` | The gate that fails a producer emitting an unregistered name — the enforcement §3.4 needs | **Unblocked** — Q4b was decided and `vocab.py` is the registry. Not yet ported: today a datastream is refused only if its observed property is not a URI, not if the URI is unregistered or does not resolve |
+| `test_metric_registry.py` | The gate that fails a producer emitting an unregistered name — the enforcement §3.4 needs | **Not ported; reimplemented natively** as `vocab.check`, which `State.validate` runs on every datastream. Upstream's gate was a test over metric names; this one checks the term is registered *and* the unit is one of that term's, offline, with `vocab.py --resolve` re-fetching the registry when a connection exists |
 
 What remains upstream is waiting on Q6 and hardware for the Meshtastic driver, the
 driver manifest (§9.1) for the Modbus collector pair, and nothing at all for the
