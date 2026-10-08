@@ -25,6 +25,13 @@ record says it is, which the check cannot see.
 
 The expected-miss rows are there on purpose. A drill that only ran faults the check can
 catch would be a demonstration, not a measurement.
+
+**The lateral numbers are optimistic, and by how much is unknown.** The simulator keeps
+one moisture layer per bed, so a bed's shallow and deep probes respond to its irrigation
+identically and the matches come out near 1.0. Real soil lags and damps the wetting
+front with depth. `assess_lateral` was built for that — lag tolerance up to an hour, a
+margin before calling anything — but these numbers do not test it. A season of real
+probes, or a layered moisture model, would.
 """
 from __future__ import annotations
 
