@@ -45,3 +45,51 @@ class TestSitingDrill(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestNodePosition(unittest.TestCase):
+    """The paddock node keeps GPS time; its fix now checks where it stands."""
+
+    @classmethod
+    def setUpClass(cls):
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        os.pardir, "sdk"))
+        import harrow_bend as hb
+        import siting as S
+        cls.hb, cls.S = hb, S
+        cls.farm = hb.build()
+        hb.season(cls.farm, days=2, events=False)
+        cls.geo = hb.geometries(cls.farm)
+        cls.node = cls.farm.node_devices["paddock"].id
+
+    def test_nodes_are_devices_and_carry_their_own_battery(self):
+        """§4.3: battery and signal are the node's, not two invented sensors."""
+        state = self.farm.state
+        props = {ds.observed_property for ds in state.datastreams_of_sensor(self.node)}
+        import vocab as V
+        self.assertTrue({V.BATTERY_VOLTAGE, V.RSSI, V.LATITUDE,
+                         V.LONGITUDE} <= props)
+        self.assertEqual(state.label_for(self.node).name, "paddock node")
+
+    def test_only_the_gps_timed_node_reports_a_fix(self):
+        import vocab as V
+        for label, device in self.farm.node_devices.items():
+            props = {ds.observed_property
+                     for ds in self.farm.state.datastreams_of_sensor(device.id)}
+            self.assertEqual(V.LATITUDE in props, label == "paddock", label)
+
+    def test_in_place_it_is_consistent(self):
+        finding = self.S.assess_position(self.farm.state, self.node,
+                                         self.farm.world.when, self.geo)
+        self.assertEqual(finding.verdict, self.S.CONSISTENT, finding.reason)
+
+    def test_carried_to_another_bed_unlogged_it_is_displaced(self):
+        farm = self.hb.build()
+        self.hb.season(farm, days=1, events=False)
+        self.hb.displace_node(farm, "paddock", feature="bed6")
+        self.hb._run_segment(farm, self.hb.SeasonReport(days=1), 1.0)
+        finding = self.S.assess_position(farm.state, farm.node_devices["paddock"].id,
+                                         farm.world.when, self.hb.geometries(farm))
+        self.assertEqual(finding.verdict, self.S.DISPLACED)
+        self.assertGreater(finding.distance_m, 100)

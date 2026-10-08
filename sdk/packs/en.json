@@ -51,6 +51,12 @@
   "enum.Usable.bad": "bad",
   "enum.Usable.good": "good",
   "enum.Usable.questionable": "questionable",
+  "position.consistent": "the median of {fixes} fixes is {distance:.0f} m from the recorded feature, within {tolerance:.0f} m",
+  "position.displaced": "the median of {fixes} fixes is {distance:.0f} m from the recorded feature, beyond {tolerance:.0f} m, with no installation record of a move",
+  "position.no_geometry": "the recorded feature has no geometry to compare with",
+  "position.no_gnss": "the device reports no GNSS position",
+  "position.no_installation": "no recorded installation to check against",
+  "position.too_few_fixes": "only {fixes} position fixes in the window; at least four are needed",
   "siting.below_wave": "daily swing {amplitude:.3f} C is below {floor} C — the probe is deeper than the daily wave reaches, so depth cannot be read",
   "siting.consistent": "implied depth {implied:.2f} m agrees with the recorded {recorded:.2f} m",
   "siting.deeper": "the daily peak at {peak:05.2f} UTC implies {implied:.2f} m, {off:.2f} m deeper than the recorded {recorded:.2f} m, with no installation record of a move",
@@ -61,6 +67,8 @@
   "siting.too_few_peers": "{peers} usable peers at {depths} depth(s); calibrating the depth-to-phase line needs at least three at two depths",
   "siting.too_few_readings": "too few temperature readings in the window",
   "term.http://vocab.nerc.ac.uk/standard_name/air_temperature/": "air temperature",
+  "term.http://vocab.nerc.ac.uk/standard_name/latitude/": "latitude",
+  "term.http://vocab.nerc.ac.uk/standard_name/longitude/": "longitude",
   "term.http://vocab.nerc.ac.uk/standard_name/relative_humidity/": "relative humidity",
   "term.http://vocab.nerc.ac.uk/standard_name/soil_temperature/": "soil temperature",
   "term.http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil/": "volume fraction of condensed water in soil",
@@ -74,6 +82,7 @@
   "unit.Cel": "degree Celsius",
   "unit.V": "volt",
   "unit.cm3/cm3": "cubic centimetre per cubic centimetre",
-  "unit.dB[mW]": "decibel-milliwatt"
+  "unit.dB[mW]": "decibel-milliwatt",
+  "unit.deg": "degree"
  }
 }

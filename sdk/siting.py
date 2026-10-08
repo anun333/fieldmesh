@@ -342,3 +342,115 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
     return SitingFinding(device=device_id, at=at, verdict=DISPLACED,
                          reason=i18n.english(key, **params), key=key, params=params,
                          **common)
+
+
+# --------------------------------------------------------- position (GNSS)
+
+#: Larger than a consumer GNSS fix's scatter after averaging, smaller than the gap
+#: between two features worth telling apart.
+DEFAULT_POSITION_TOLERANCE_M = 20.0
+METRES_PER_DEGREE = 111_320.0
+DEFAULT_POSITION_WINDOW = _dt.timedelta(days=1)
+
+
+@dataclass(frozen=True, slots=True)
+class PositionFinding:
+    device: UUID
+    at: _dt.datetime
+    verdict: str
+    reason: str
+    distance_m: float | None = None
+    tolerance_m: float | None = None
+    fixes: int = 0
+    evidence: dict = field(default_factory=dict)
+    key: str | None = None
+    params: dict = field(default_factory=dict)
+
+    @property
+    def displaced(self) -> bool:
+        return self.verdict == DISPLACED
+
+
+def _point_of(geometry):
+    """A representative (lon, lat) for a GeoJSON geometry: the point, or the mean of
+    a polygon's outer ring."""
+    if not geometry:
+        return None
+    kind, coords = geometry.get("type"), geometry.get("coordinates")
+    if kind == "Point":
+        return float(coords[0]), float(coords[1])
+    if kind == "Polygon" and coords and coords[0]:
+        ring = coords[0]
+        return (sum(p[0] for p in ring) / len(ring), sum(p[1] for p in ring) / len(ring))
+    return None
+
+
+def _metres(lon1, lat1, lon2, lat2) -> float:
+    """Equirectangular distance — exact enough over a farm, and far simpler than a
+    great-circle formula that would add nothing at a scale of hundreds of metres."""
+    mean_lat = math.radians((lat1 + lat2) / 2.0)
+    dx = (lon2 - lon1) * math.cos(mean_lat) * METRES_PER_DEGREE
+    dy = (lat2 - lat1) * METRES_PER_DEGREE
+    return math.hypot(dx, dy)
+
+
+def assess_position(state: P.State, device_id: UUID, at: _dt.datetime,
+                    geometries: dict, *,
+                    window: _dt.timedelta = DEFAULT_POSITION_WINDOW,
+                    tolerance_m: float = DEFAULT_POSITION_TOLERANCE_M,
+                    ) -> PositionFinding:
+    """Is a node where its installation record says, by its own GNSS fixes?
+
+    Covers the blind spot the temperature check admits: a **lateral** move — a node
+    carried to another bed or paddock — leaves no thermal signature but moves the fix.
+    Medians rather than means, so one multipath-bounced fix does not move the answer.
+
+    `geometries` comes in as a parameter rather than from the log, on purpose: field
+    boundaries are site-private material (§10.1) and are not log records.
+    """
+    def unknown(key, params=None, **kw):
+        params = params or {}
+        return PositionFinding(device=device_id, at=at, verdict=INDETERMINATE,
+                               reason=i18n.english(key, **params), key=key,
+                               params=params, **kw)
+
+    streams = {ds.observed_property: ds
+               for ds in state.datastreams_of_sensor(device_id)
+               if ds.kind is DatastreamKind.DERIVED}
+    lat_ds, lon_ds = streams.get(V.LATITUDE), streams.get(V.LONGITUDE)
+    if lat_ds is None or lon_ds is None:
+        return unknown("position.no_gnss")
+    installed = state.installation_of(device_id, at)
+    if installed is None:
+        return unknown("position.no_installation")
+    expected = _point_of(geometries.get(installed.feature))
+    if expected is None:
+        return unknown("position.no_geometry")
+
+    since = at - window
+    lats = {o.measured_at: o.result for o in state.live_observations_of(lat_ds.id)
+            if since <= o.measured_at <= at}
+    lons = {o.measured_at: o.result for o in state.live_observations_of(lon_ds.id)
+            if since <= o.measured_at <= at}
+    paired = [(lons[t], lats[t]) for t in sorted(set(lats) & set(lons))]
+    if len(paired) < 4:
+        return unknown("position.too_few_fixes", {"fixes": len(paired)},
+                       fixes=len(paired))
+
+    lon = statistics.median(p[0] for p in paired)
+    lat = statistics.median(p[1] for p in paired)
+    distance = _metres(expected[0], expected[1], lon, lat)
+    spread = 1.4826 * statistics.median(_metres(lon, lat, p[0], p[1]) for p in paired)
+    tol = max(tolerance_m, 4.0 * spread / math.sqrt(len(paired)) + 2.0 * spread)
+    evidence = {"distance_m": round(distance, 1), "tolerance_m": round(tol, 1),
+                "fixes": len(paired), "fix_spread_m": round(spread, 1),
+                "median_fix": [round(lon, 7), round(lat, 7)],
+                "recorded_point": [round(expected[0], 7), round(expected[1], 7)],
+                "window_h": window.total_seconds() / 3600.0}
+    params = {"distance": distance, "tolerance": tol, "fixes": len(paired)}
+    verdict, key = ((CONSISTENT, "position.consistent") if distance <= tol
+                    else (DISPLACED, "position.displaced"))
+    return PositionFinding(device=device_id, at=at, verdict=verdict,
+                           reason=i18n.english(key, **params), distance_m=distance,
+                           tolerance_m=tol, fixes=len(paired), evidence=evidence,
+                           key=key, params=params)

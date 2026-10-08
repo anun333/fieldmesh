@@ -67,6 +67,13 @@ FIELD_CAPACITY = CF + "volume_fraction_of_condensed_water_in_soil_at_field_capac
 WILTING_POINT = CF + "volume_fraction_of_condensed_water_in_soil_at_wilting_point/"
 
 
+#: A node's own GNSS fix. CF names, canonical units degree_north and degree_east;
+#: UCUM writes both as `deg`. A node that keeps GPS time already has this fix and
+#: used to discard it.
+LATITUDE = CF + "latitude/"
+LONGITUDE = CF + "longitude/"
+
+
 # ------------------------------------------------- device health (§4.3), via ODM2
 
 #: Battery voltage. Not a CF name and never will be: CF covers the environment, not
@@ -107,6 +114,8 @@ TERMS: dict[str, tuple[str, str]] = {
     SOIL_TEMPERATURE: ("Cel", "CF"),
     FIELD_CAPACITY: ("cm3/cm3", "CF"),
     WILTING_POINT: ("cm3/cm3", "CF"),
+    LATITUDE: ("deg", "CF"),
+    LONGITUDE: ("deg", "CF"),
     BATTERY_VOLTAGE: ("V", "ODM2"),
     RSSI: ("dB[mW]", "ODM2"),
     VESSEL_FILL_FRACTION: ("1", "local"),

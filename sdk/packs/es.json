@@ -59,6 +59,12 @@
   "enum.Usable.bad": "mala",
   "enum.Usable.good": "buena",
   "enum.Usable.questionable": "dudosa",
+  "position.consistent": "la mediana de {fixes} posiciones está a {distance:.0f} m del elemento registrado, dentro de {tolerance:.0f} m",
+  "position.displaced": "la mediana de {fixes} posiciones está a {distance:.0f} m del elemento registrado, más allá de {tolerance:.0f} m, sin ningún registro de instalación que documente un traslado",
+  "position.no_geometry": "el elemento registrado no tiene geometría con la que comparar",
+  "position.no_gnss": "el dispositivo no informa una posición GNSS",
+  "position.no_installation": "no hay una instalación registrada con la que comparar",
+  "position.too_few_fixes": "solo hay {fixes} posiciones en la ventana; se necesitan al menos cuatro",
   "siting.below_wave": "la oscilación diaria de {amplitude:.3f} °C es menor que {floor} °C: la sonda está más profunda de lo que alcanza la onda diaria, así que no se puede leer su profundidad",
   "siting.consistent": "la profundidad inferida de {implied:.2f} m coincide con los {recorded:.2f} m registrados",
   "siting.deeper": "el máximo diario a las {peak:05.2f} UTC indica {implied:.2f} m, {off:.2f} m más profunda que los {recorded:.2f} m registrados, sin ningún registro de instalación que documente un traslado",
@@ -69,6 +75,8 @@
   "siting.too_few_peers": "{peers} sondas de referencia utilizables a {depths} profundidad(es); calibrar la relación entre profundidad y fase requiere al menos tres a dos profundidades",
   "siting.too_few_readings": "hay muy pocas lecturas de temperatura en la ventana",
   "term.http://vocab.nerc.ac.uk/standard_name/air_temperature/": "temperatura del aire",
+  "term.http://vocab.nerc.ac.uk/standard_name/latitude/": "latitud",
+  "term.http://vocab.nerc.ac.uk/standard_name/longitude/": "longitud",
   "term.http://vocab.nerc.ac.uk/standard_name/relative_humidity/": "humedad relativa",
   "term.http://vocab.nerc.ac.uk/standard_name/soil_temperature/": "temperatura del suelo",
   "term.http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil/": "contenido volumétrico de agua en el suelo",
@@ -82,6 +90,7 @@
   "unit.Cel": "grado Celsius",
   "unit.V": "voltio",
   "unit.cm3/cm3": "centímetro cúbico por centímetro cúbico",
-  "unit.dB[mW]": "decibelio-milivatio"
+  "unit.dB[mW]": "decibelio-milivatio",
+  "unit.deg": "grado"
  }
 }

@@ -197,3 +197,104 @@ class TestTheConfounder(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPosition(unittest.TestCase):
+    """GNSS fixes against the recorded feature — the lateral move temperature misses."""
+
+    def _farm(self, fix_at, *, fixes=12, scatter_m=2.5, geometry=True):
+        import random
+        rng = random.Random(7)
+        log = L.Log()
+        site, feature = uuid7(), uuid7()
+        node = Device(id=uuid7(), kind=DeviceKind.NODE, site=site)
+        log.append_record(node)
+        log.append_record(Installation(id=uuid7(), device=node.id, feature=feature,
+                                       installed_at=T0 - _dt.timedelta(days=9)))
+        streams = {}
+        for prop in (V.LATITUDE, V.LONGITUDE):
+            raw = Datastream(id=uuid7(), thing=uuid7(), sensor=node.id,
+                             observed_property=prop, feature=feature,
+                             kind=DatastreamKind.RAW, unit="deg")
+            derived = Datastream(id=uuid7(), thing=raw.thing, sensor=node.id,
+                                 observed_property=prop, feature=feature,
+                                 kind=DatastreamKind.DERIVED, derived_from=raw.id,
+                                 unit="deg")
+            cal = Calibration(id=uuid7(), sensor=node.id, datastream=raw.id,
+                              method="identity", valid_from=T0 - _dt.timedelta(days=9))
+            for record in (raw, derived, cal):
+                log.append_record(record)
+            streams[prop] = (derived, cal)
+        for hour in range(fixes):
+            when = T0 + _dt.timedelta(hours=hour)
+            for prop, axis in ((V.LONGITUDE, 0), (V.LATITUDE, 1)):
+                derived, cal = streams[prop]
+                value = fix_at[axis] + rng.gauss(0, scatter_m) / S.METRES_PER_DEGREE
+                log.append_record(fx.observation(derived, result=value,
+                                                 measured_at=when, calibration=cal.id,
+                                                 node=None, boot=None, seq=None))
+        state = P.state_from_log(log)
+        geometries = ({feature: {"type": "Point", "coordinates": [0.0, 0.0]}}
+                      if geometry else {})
+        return state, node.id, geometries, T0 + _dt.timedelta(hours=fixes)
+
+    def test_a_node_at_its_feature_is_consistent(self):
+        state, node, geo, at = self._farm((0.0, 0.0))
+        finding = S.assess_position(state, node, at, geo)
+        self.assertEqual(finding.verdict, S.CONSISTENT, finding.reason)
+        self.assertLess(finding.distance_m, 5)
+
+    def test_a_node_carried_a_hundred_metres_is_displaced(self):
+        state, node, geo, at = self._farm((100 / S.METRES_PER_DEGREE, 0.0))
+        finding = S.assess_position(state, node, at, geo)
+        self.assertEqual(finding.verdict, S.DISPLACED)
+        self.assertAlmostEqual(finding.distance_m, 100, delta=5)
+
+    def test_gps_scatter_alone_is_not_a_move(self):
+        """A node a few metres off centre, with ordinary scatter, must not be flagged:
+        GNSS cannot resolve it and should not pretend to."""
+        state, node, geo, at = self._farm((6 / S.METRES_PER_DEGREE, 0.0),
+                                          scatter_m=4.0)
+        self.assertEqual(S.assess_position(state, node, at, geo).verdict,
+                         S.CONSISTENT)
+
+    def test_one_wild_fix_does_not_move_the_answer(self):
+        """Medians, so a multipath bounce of a kilometre changes nothing.
+
+        The wild fix is injected on *both* axes at one instant. The first version of
+        this test put it on latitude only, so it had no longitude partner, was dropped
+        by the pairing step, and never reached the median it claimed to test.
+        """
+        state, node, geo, at = self._farm((0.0, 0.0), fixes=11)
+        when = T0 + _dt.timedelta(minutes=30)
+        for prop in (V.LATITUDE, V.LONGITUDE):
+            derived = next(ds for ds in state.datastreams.values()
+                           if ds.observed_property == prop
+                           and ds.kind is DatastreamKind.DERIVED)
+            cal = next(c for c in state.calibrations.values()
+                       if c.datastream == derived.derived_from)
+            state.add(fx.observation(derived, result=1000 / S.METRES_PER_DEGREE,
+                                     measured_at=when, calibration=cal.id,
+                                     node=None, boot=None, seq=None))
+        finding = S.assess_position(state, node, at, geo)
+        self.assertEqual(finding.fixes, 12, "the wild fix is in the sample")
+        self.assertEqual(finding.verdict, S.CONSISTENT)
+        self.assertLess(finding.distance_m, 5)
+
+    def test_without_geometry_it_says_so(self):
+        state, node, geo, at = self._farm((0.0, 0.0), geometry=False)
+        finding = S.assess_position(state, node, at, geo)
+        self.assertEqual(finding.verdict, S.INDETERMINATE)
+        self.assertEqual(finding.key, "position.no_geometry")
+
+    def test_too_few_fixes_is_indeterminate_not_consistent(self):
+        state, node, geo, at = self._farm((0.0, 0.0), fixes=2)
+        self.assertEqual(S.assess_position(state, node, at, geo).verdict,
+                         S.INDETERMINATE)
+
+    def test_the_finding_renders_in_spanish(self):
+        import i18n
+        state, node, geo, at = self._farm((100 / S.METRES_PER_DEGREE, 0.0))
+        finding = S.assess_position(state, node, at, geo)
+        text = str(i18n.Translator("es").text(finding.key, **finding.params))
+        self.assertIn("sin ningún registro", text)

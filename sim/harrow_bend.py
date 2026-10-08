@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import os
+import random
 import sys
 from dataclasses import dataclass, field
 
@@ -192,6 +193,11 @@ class Farm:
     series: dict = field(default_factory=dict)
     features: dict = field(default_factory=dict)
     site: object = None
+    #: §4.1 devices for the nodes themselves, by label — what battery, signal and a
+    #: GNSS fix are properties *of* (§4.3).
+    node_devices: dict = field(default_factory=dict)
+    #: Where each node physically stands, which may disagree with its record.
+    node_sitings: dict = field(default_factory=dict)
 
     def series_for(self, name: str) -> Series:
         return self.series[name]
@@ -265,6 +271,10 @@ def name_everything(farm) -> None:
     temperature, raw and derived — because it is one thing in the ground.
     """
     named = set()
+    for label, device in farm.node_devices.items():
+        _name(farm, device.id, f"{label} node",
+              description=f"the field node at {farm.node_sitings[label].feature}")
+        named.add(device.id)
     for name, series in farm.series.items():
         _name(farm, series.raw.id, f"{name} (raw)",
               description=f"{name}, as the node reported it, before calibration")
@@ -318,12 +328,13 @@ def geometries(farm) -> dict:
 
 def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
             interval, latency, read, channel, sensor_id=None, faults=(),
-            same_device_as: str | None = None):
+            same_device_as: str | None = None, device=None):
     """One point. With `same_device_as`, a second datastream on an existing device —
     a TEROS-12 reports moisture and temperature from one body, so they share one
     `Device`, one `Installation` and one physical siting."""
     sibling = farm.series[same_device_as] if same_device_as else None
-    sensor_id = sibling.device.id if sibling else (sensor_id or uuid7())
+    sensor_id = (sibling.device.id if sibling else
+                 device.id if device is not None else (sensor_id or uuid7()))
     thing = farm.features[feature]["thing"]
     raw = Datastream(id=uuid7(), thing=thing, sensor=sensor_id,
                      observed_property=prop, feature=farm.features[feature]["id"],
@@ -350,6 +361,10 @@ def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
     # the depth its name claims, from the day the season starts.
     if sibling is not None:
         device, install, siting = sibling.device, sibling.installation, sibling.siting
+    elif device is not None:
+        # A datastream of an already-registered device — a node's own battery.
+        install = farm.state.installation_of(device.id, farm.world.start)
+        siting = None
     else:
         device = Device(id=sensor_id, kind=DeviceKind.SENSOR, site=farm.site,
                         model=_MODELS.get(prop, "generic probe"),
@@ -498,24 +513,51 @@ def build(*, seed: int = 1, start: _dt.datetime = START,
             channels.append(nd.Channel(channel, series.raw.expected_interval,
                                        series.raw.max_latency, series.sensor,
                                        name=name))
-        # §4.3: battery and signal are ordinary datastreams on this node's thing.
-        for prop, unit, scale, decimals, thresholds, reader, label_suffix in (
-                (BATTERY, "V", 100.0, 2, BATTERY_THRESHOLDS,
-                 _battery_reader(label), "battery"),
-                (RSSI, "dB[mW]", 1.0, 0,
-                 {"min": -140.0, "max": 0.0, "flat_n": None,
-                  "flat_seconds": None}, _rssi_reader(label), "rssi")):
+        # §4.1/§4.3: the node is a device in its own right. Battery and signal are
+        # properties *of the node*, and used to be modelled as two separate "sensor"
+        # devices per node — a node's battery named as though it were a probe in the
+        # ground.
+        feature = (names[0].split("_")[0] if names[0].startswith("bed") else
+                   "paddock" if label == "paddock" else
+                   "plot" if label == "plot" else "hoop")
+        node_device = Device(
+            id=uuid7(), kind=DeviceKind.NODE, site=site,
+            model="field node", serial=f"{node_id:#010x}",
+            manufacturer="Harrow Bend Instruments", firmware="0.3.1",
+            driver="sim", driver_version="0.1",
+            capabilities={"dedup_volatile": False,
+                          "confirms_delivery": profile is lk.LORAWAN_CONFIRMED})
+        node_install = Installation(id=uuid7(), device=node_device.id,
+                                    feature=farm.features[feature]["id"],
+                                    installed_at=farm.world.start)
+        for record in (node_device, node_install):
+            farm.log.append_record(record)
+            farm.state.add(record)
+        farm.node_devices[label] = node_device
+        farm.node_sitings[label] = NodeSiting(feature=feature)
+
+        node_series = [
+            (BATTERY, "V", 100.0, 2, BATTERY_THRESHOLDS,
+             _battery_reader(label), "battery"),
+            (RSSI, "dB[mW]", 1.0, 0,
+             {"min": -140.0, "max": 0.0, "flat_n": None,
+              "flat_seconds": None}, _rssi_reader(label), "rssi")]
+        if clock is ClockQuality.GPS:
+            # The fix a GPS-timed node already computes, no longer thrown away.
+            for prop, axis in ((V.LATITUDE, 1), (V.LONGITUDE, 0)):
+                node_series.append(
+                    (prop, "deg", 1e6, 6, GPS_THRESHOLDS,
+                     _gps_reader(farm, label, axis, seed=node_id),
+                     "lat" if axis == 1 else "lon"))
+        for prop, unit, scale, decimals, thresholds, reader, label_suffix in node_series:
             name = f"{label}_{label_suffix}"
             channel = max(used) + 1
             used.add(channel)
-            series = _series(farm, name=name, feature=names[0].split("_")[0]
-                             if names[0].startswith("bed") else
-                             ("paddock" if label == "paddock" else
-                              "plot" if label == "plot" else "hoop"),
+            series = _series(farm, name=name, feature=feature,
                              prop=prop, unit=unit, scale=scale,
                              decimals=decimals, thresholds=thresholds,
                              interval=3600.0, latency=21600.0, channel=channel,
-                             read=reader)
+                             read=reader, device=node_device)
             registry.bind_point(node_id, channel, series.raw.id)
             channels.append(nd.Channel(channel, 3600.0, 21600.0, series.sensor,
                                        name=name))
@@ -528,6 +570,50 @@ def build(*, seed: int = 1, start: _dt.datetime = START,
     farm.gateway = G.Gateway(registry, log, state)
     name_everything(farm)
     return farm
+
+
+#: Consumer GNSS, averaged over a fix: about 2.5 m one-sigma horizontally.
+GPS_SIGMA_M = 2.5
+METRES_PER_DEGREE = 111_320.0
+GPS_THRESHOLDS = {"flat_n": None, "flat_seconds": None}
+
+
+@dataclass
+class NodeSiting:
+    """Where a node physically stands: a feature, and an offset from its centre."""
+
+    feature: str
+    east_m: float = 0.0
+    north_m: float = 0.0
+
+
+def _gps_reader(farm, label: str, axis: int, *, seed: int):
+    """A GNSS fix on one axis (0 longitude, 1 latitude), with realistic scatter.
+
+    Seeded per node and axis, so a season is deterministic. Reads the node's
+    *physical* siting, so a node moved without a record reports where it really is —
+    which is the disagreement the position check exists for.
+    """
+    rng = random.Random(seed * 2 + axis)
+
+    def read(truth):
+        siting = farm.node_sitings[label]
+        lon, lat = _LAYOUT.get(siting.feature, (0.0, 0.0))
+        offset = siting.north_m if axis == 1 else siting.east_m
+        base = (lat if axis == 1 else lon) + offset / METRES_PER_DEGREE
+        return base + rng.gauss(0.0, GPS_SIGMA_M) / METRES_PER_DEGREE
+    return read
+
+
+def displace_node(farm: Farm, label: str, *, feature: str | None = None,
+                  east_m: float = 0.0, north_m: float = 0.0) -> NodeSiting:
+    """Move a node **without recording it** — the lateral move a temperature check
+    cannot see, and a GNSS fix can."""
+    siting = farm.node_sitings[label]
+    if feature is not None:
+        siting.feature = feature
+    siting.east_m, siting.north_m = east_m, north_m
+    return siting
 
 
 def _battery_reader(label: str):
