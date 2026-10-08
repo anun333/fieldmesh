@@ -49,7 +49,9 @@ from uuid import UUID
 import i18n
 import project as P
 import vocab as V
-from model import DatastreamKind
+from ids import uuid7
+from model import (Assertor, DatastreamKind, QualityAssertion, QualityFlag,
+                   derive_usable)
 
 OMEGA = 2 * math.pi / 86400.0
 HOURS_PER_RADIAN = 24.0 / (2 * math.pi)
@@ -454,3 +456,83 @@ def assess_position(state: P.State, device_id: UUID, at: _dt.datetime,
                            reason=i18n.english(key, **params), distance_m=distance,
                            tolerance_m=tol, fixes=len(paired), evidence=evidence,
                            key=key, params=params)
+
+
+# ------------------------------------------------ findings into quality assertions
+
+SITING_CHECK = "siting"
+SITING_VERSION = "1"
+
+
+@dataclass(frozen=True, slots=True)
+class Flagging:
+    """What `suspect_assertions` would append, and what it declined to touch."""
+
+    assertions: tuple
+    already_flagged: int = 0
+    person_outranks: int = 0
+
+
+def suspect_assertions(state: P.State, finding, *, datastreams=None,
+                       asserted_at: _dt.datetime | None = None) -> Flagging:
+    """Turn a `displaced` finding into §3.3 assertions on the readings it casts doubt on.
+
+    A probe found at the wrong depth makes every reading it took in the window
+    questionable — moisture as well as temperature, because the moisture is attributed
+    to a depth it was not measured at. So by default every derived datastream of the
+    device is flagged; pass `datastreams` to choose others, such as the probes cabled to
+    a node whose position moved.
+
+    Three rules, each pinned by a test:
+
+    * **It adds to the reading's judgement rather than replacing it.** §3.3 has one live
+      assertion per reading carrying a set of flags, so this supersedes the current one
+      with its flags plus `suspect`, and carries the earlier evidence forward. A stuck
+      reading stays `bad`; it does not become merely `questionable` because siting spoke
+      last.
+    * **A person outranks it.** Where the live judgement is a person's, this declines
+      and counts it. Superseding a human override with a machine flag would erase the
+      override from the live view, which is exactly what precedence exists to prevent.
+    * **It is idempotent.** Assessments run daily over overlapping windows; a reading
+      already carrying a siting flag is left alone.
+
+    Pure: returns the assertions; the caller appends them to the log and state.
+    """
+    if not finding.displaced:
+        return Flagging(assertions=())
+    window_h = float(finding.evidence.get("window_h", 48.0))
+    since = finding.at - _dt.timedelta(hours=window_h)
+    if datastreams is None:
+        datastreams = [ds.id for ds in state.datastreams_of_sensor(finding.device)
+                       if ds.kind is DatastreamKind.DERIVED]
+    when = asserted_at or finding.at
+    out, already, outranked = [], 0, 0
+    for ds_id in datastreams:
+        for obs in state.live_observations_of(ds_id):
+            if not since <= obs.measured_at <= finding.at:
+                continue
+            current = state.live_assertion_for(obs.id)
+            if current is not None and current.assertor is Assertor.PERSON:
+                outranked += 1
+                continue
+            if current is not None and "siting" in current.evidence:
+                already += 1
+                continue
+            flags = frozenset(current.flags if current else ()) | {QualityFlag.SUSPECT}
+            evidence = dict(current.evidence) if current else {}
+            messages = dict(evidence.get("messages", {}))
+            messages["siting"] = {"key": finding.key, "params": dict(finding.params)}
+            evidence.update({"siting": dict(finding.evidence), "messages": messages,
+                             "siting_device": str(finding.device)})
+            note = finding.reason if current is None or not current.note \
+                else f"{current.note}; siting: {finding.reason}"
+            out.append(QualityAssertion(
+                id=uuid7(), observation=obs.id, flags=flags,
+                usable=derive_usable(flags), check=SITING_CHECK,
+                check_version=SITING_VERSION,
+                threshold_version=current.threshold_version if current else None,
+                asserted_at=when, assertor=Assertor.FOUNDATION,
+                supersedes=current.id if current else None,
+                note=note, evidence=evidence))
+    return Flagging(assertions=tuple(out), already_flagged=already,
+                    person_outranks=outranked)

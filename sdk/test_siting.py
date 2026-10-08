@@ -14,7 +14,7 @@ import siting as S
 import vocab as V
 from ids import uuid7
 from model import (Calibration, Datastream, DatastreamKind, Device, DeviceKind,
-                   Installation)
+                   Installation, QualityFlag)
 
 UTC = _dt.timezone.utc
 T0 = _dt.datetime(2026, 6, 10, tzinfo=UTC)
@@ -298,3 +298,86 @@ class TestPosition(unittest.TestCase):
         finding = S.assess_position(state, node, at, geo)
         text = str(i18n.Translator("es").text(finding.key, **finding.params))
         self.assertIn("sin ningún registro", text)
+
+
+class TestFindingsBecomeAssertions(unittest.TestCase):
+    """A displaced probe's readings become `suspect` — without erasing anything."""
+
+    def setUp(self):
+        self.farm = _Farm(STANDARD, physical={**STANDARD, "a20": 0.05})
+        self.state = self.farm.state
+        self.finding = self.farm.assess("a20")
+        self.assertEqual(self.finding.verdict, S.DISPLACED)
+        self.readings = [o for ds in self.state.datastreams_of_sensor(self.finding.device)
+                         if ds.kind is DatastreamKind.DERIVED
+                         for o in self.state.live_observations_of(ds.id)]
+
+    def apply(self, flagging):
+        for assertion in flagging.assertions:
+            self.farm.log.append_record(assertion)
+            self.state.add(assertion)
+
+    def test_every_reading_in_the_window_is_flagged_suspect(self):
+        flagging = S.suspect_assertions(self.state, self.finding)
+        self.assertEqual(len(flagging.assertions), len(self.readings))
+        self.apply(flagging)
+        for obs in self.readings:
+            live = self.state.live_assertion_for(obs.id)
+            self.assertIn(QualityFlag.SUSPECT, live.flags)
+            self.assertEqual(live.check, S.SITING_CHECK)
+
+    def test_a_consistent_finding_flags_nothing(self):
+        consistent = self.farm.assess("b20")
+        self.assertEqual(S.suspect_assertions(self.state, consistent).assertions, ())
+
+    def test_running_it_again_writes_nothing_new(self):
+        """Assessed daily over overlapping windows — must not stack."""
+        self.apply(S.suspect_assertions(self.state, self.finding))
+        again = S.suspect_assertions(self.state, self.finding)
+        self.assertEqual(again.assertions, ())
+        self.assertEqual(again.already_flagged, len(self.readings))
+
+    def test_an_earlier_stuck_flag_is_carried_and_the_reading_stays_bad(self):
+        """Adding siting must not soften a worse judgement already made."""
+        from model import QualityAssertion, QualityFlag, Usable
+        target = self.readings[5]
+        stuck = QualityAssertion(id=uuid7(), observation=target.id,
+                                 flags=frozenset({QualityFlag.STUCK}),
+                                 usable=Usable.BAD, check="foundation",
+                                 asserted_at=T0, evidence={"fired": {"flatline": "x"}})
+        self.farm.log.append_record(stuck)
+        self.state.add(stuck)
+        self.apply(S.suspect_assertions(self.state, self.finding))
+        live = self.state.live_assertion_for(target.id)
+        self.assertEqual(live.flags, {QualityFlag.STUCK, QualityFlag.SUSPECT})
+        self.assertIs(live.usable, Usable.BAD)
+        self.assertEqual(live.supersedes, stuck.id)
+        self.assertIn("fired", live.evidence, "earlier evidence is carried forward")
+
+    def test_a_person_outranks_the_siting_flag(self):
+        """A machine flag superseding a human override would erase the override from
+        the live view — exactly what §3.3's precedence exists to prevent."""
+        from model import Assertor, QualityAssertion, Usable
+        target = self.readings[3]
+        human = QualityAssertion(id=uuid7(), observation=target.id, flags=frozenset(),
+                                 usable=Usable.GOOD, check="override",
+                                 asserted_at=T0, assertor=Assertor.PERSON,
+                                 note="probe checked by hand; fine")
+        self.farm.log.append_record(human)
+        self.state.add(human)
+        flagging = S.suspect_assertions(self.state, self.finding)
+        self.assertEqual(flagging.person_outranks, 1)
+        self.assertNotIn(target.id, {a.observation for a in flagging.assertions})
+
+    def test_the_flag_renders_in_spanish_from_the_record(self):
+        import i18n
+        self.apply(S.suspect_assertions(self.state, self.finding))
+        live = self.state.live_assertion_for(self.readings[0].id)
+        message = live.evidence["messages"]["siting"]
+        text = str(i18n.Translator("es").text(message["key"], **message["params"]))
+        self.assertIn("menos profunda", text)
+
+    def test_the_log_still_validates(self):
+        self.apply(S.suspect_assertions(self.state, self.finding))
+        self.assertEqual(P.state_from_log(self.farm.log).validate(), [])
+

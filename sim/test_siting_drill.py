@@ -3,6 +3,7 @@
 """The siting drill as a regression test: scored, on the real farm, with the misses."""
 from __future__ import annotations
 
+import datetime as _dt
 import unittest
 
 import siting_drill as D
@@ -93,3 +94,35 @@ class TestNodePosition(unittest.TestCase):
                                          farm.world.when, self.hb.geometries(farm))
         self.assertEqual(finding.verdict, self.S.DISPLACED)
         self.assertGreater(finding.distance_m, 100)
+
+
+class TestDisplacedProbeReadingsAreFlagged(unittest.TestCase):
+    """End to end on the farm: an unlogged lift ends with the probe's moisture
+    readings — the ones an irrigation decision would use — marked suspect."""
+
+    def test_moisture_readings_from_a_lifted_probe_become_suspect(self):
+        import os, sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        os.pardir, "sdk"))
+        import harrow_bend as hb
+        import siting as S
+        from model import QualityFlag
+        farm = hb.build()
+        hb.season(farm, days=3, events=False)
+        hb.displace(farm, "bed4_shallow", depth_m=0.05)
+        hb._run_segment(farm, hb.SeasonReport(days=3), 3.0)
+        device = farm.series["bed4_shallow"].device.id
+        finding = S.assess_siting(farm.state, device, farm.world.when)
+        self.assertTrue(finding.displaced)
+        flagging = S.suspect_assertions(farm.state, finding)
+        for assertion in flagging.assertions:
+            farm.log.append_record(assertion)
+            farm.state.add(assertion)
+        moisture = farm.series["bed4_shallow"].derived.id
+        recent = [o for o in farm.state.live_observations_of(moisture)
+                  if o.measured_at >= finding.at - _dt.timedelta(hours=24)]
+        self.assertTrue(recent)
+        for obs in recent:
+            self.assertIn(QualityFlag.SUSPECT,
+                          farm.state.live_assertion_for(obs.id).flags)
+        self.assertEqual(farm.state.validate(), [])
