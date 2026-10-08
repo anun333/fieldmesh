@@ -38,7 +38,11 @@ Each question lists **all** options considered, not just the two in the original
 
 **A candidate list with sources is in [notes/pilot-candidates.md](../notes/pilot-candidates.md)**, weighted toward Middle Tennessee, with the funding route (Southern SARE on-farm grants, $15-20k precedents) and the national instrumented networks worth comparing against rather than installing on.
 
-**One criterion is missing from the list below: distance to the nearest public reference station.** The drills measured that a feature with a single sensor cannot detect drift, bias or noise at all, and drift is the commonest real failure. A SCAN or state-mesonet station near the pilot is a redundant sensor nobody has to buy or maintain, and it gives §4.2's cross-check something to compare against. It is not the same soil, so the tolerance has to be looser, but it converts "we cannot see drift" into "we can see gross drift for free".
+**One criterion is missing from the list below: distance to the nearest public reference station.** The drills measured that a feature with a single sensor cannot detect drift, bias or noise at all, and drift is the commonest real failure, so a free peer would be worth a great deal.
+
+Checked rather than assumed. The NRCS AWDB REST API serves SCAN data with no token — five soil depths, hourly, QC-flagged, since 2003 — but the three Tennessee stations are **75 to 160 km** from every candidate site, which is too far to stand in for a probe on the feature. At that range it is good for setting range thresholds from twenty-three years of regional evidence rather than from guesswork, and not for cross-check.
+
+What makes the criterion live is the **Tennessee Mesonet**: 95 stations, one per county, the same five depths, **five-minute cadence**, real-time and public, with half of them due operational by the end of 2026 — the same moment a pilot decision buys a 2027 season. Siting a pilot near one of those is worth real weight.
 
 **Selection criteria that matter more than the category:** an existing water or irrigation pain the farm already loses money to; genuinely poor connectivity, because that is the hard case the spec is built around; one person on site who will actually report a failure; willingness to run a full season; and tolerance for losing the data if it goes wrong.
 
