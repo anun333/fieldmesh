@@ -499,7 +499,7 @@ class TestInterop(Matrix):
         directory = tempfile.mkdtemp()
         try:
             manifest = X.export_log(self.log, directory, state=self.state,
-                                    labels=hb.labels(self.farm))
+                                    geometries=hb.geometries(self.farm))
             self.assertEqual(X.verify(directory), [])
             self.assertEqual(manifest.events, len(self.log.events))
 
@@ -562,26 +562,47 @@ if __name__ == "__main__":
 
 
 class TestLabelsAndGeometry(unittest.TestCase):
-    """The side table the SensorThings view is handed (§1 keeps names out of keys)."""
+    """§1 labels as log records, and geometry through its own channel."""
 
     @classmethod
     def setUpClass(cls):
         cls.farm = hb.build()
         hb.season(cls.farm, days=0.3)
-        cls.labels = hb.labels(cls.farm)
+        cls.state = cls.farm.state
+        cls.geometry = hb.geometries(cls.farm)
+
+    def name(self, entity, language="en"):
+        return self.state.label_for(entity, language).name
 
     def test_every_series_is_named_on_both_its_datastreams(self):
         for name, series in self.farm.series.items():
-            self.assertEqual(self.labels[series.derived.id]["name"], name)
-            self.assertEqual(self.labels[series.raw.id]["name"], f"{name} (raw)")
+            self.assertEqual(self.name(series.derived.id), name)
+            self.assertEqual(self.name(series.raw.id), f"{name} (raw)")
 
-    def test_raw_and_derived_are_never_given_the_same_label(self):
+    def test_raw_and_derived_are_never_given_the_same_name(self):
         """They are the pair whose confusion produced a 99.8% false-alarm rate, so a
         client showing them side by side must not be able to mistake one for the other.
         """
         for series in self.farm.series.values():
-            self.assertNotEqual(self.labels[series.raw.id]["name"],
-                                self.labels[series.derived.id]["name"])
+            self.assertNotEqual(self.name(series.raw.id),
+                                self.name(series.derived.id))
+
+    def test_a_probe_is_one_named_device_for_all_four_of_its_datastreams(self):
+        device = self.farm.series["bed1_shallow"].device.id
+        self.assertEqual(self.name(device), "bed1_shallow probe")
+        self.assertEqual(len(self.state.label_history(device)), 1)
+
+    def test_features_are_named_in_spanish_too(self):
+        """Layer 4 must be bilingual (§11)."""
+        bed1 = self.farm.features["bed1"]["id"]
+        self.assertEqual(self.name(bed1, "es"), "cama 1")
+        self.assertEqual(self.name(bed1, "es-MX"), "cama 1",
+                         "a regional variant finds the primary language")
+
+    def test_a_missing_translation_falls_back_and_says_so(self):
+        series = self.farm.series["bed1_shallow"].derived.id
+        label = self.state.label_for(series, "es")
+        self.assertEqual(label.language, "en")
 
     def test_every_feature_has_geometry(self):
         """A GIS client drops a row with no geometry silently, so a gap here is
@@ -589,24 +610,23 @@ class TestLabelsAndGeometry(unittest.TestCase):
         for name, feature in self.farm.features.items():
             if feature.get("id") is None:
                 continue
-            geom = self.labels[feature["id"]].get("feature")
+            geom = self.geometry.get(feature["id"])
             self.assertIsNotNone(geom, name)
             self.assertEqual(geom["type"], "Point")
-            self.assertEqual(len(geom["coordinates"]), 2)
 
     def test_no_two_features_share_a_point(self):
-        """They all sat on null island until this test existed, which makes a map of
-        six beds into one dot."""
-        points = [tuple(v["feature"]["coordinates"])
-                  for v in self.labels.values() if "feature" in v]
+        """They all sat on null island until this test existed."""
+        points = [tuple(g["coordinates"]) for g in self.geometry.values()]
         self.assertEqual(len(points), len(set(points)))
 
     def test_the_farm_stays_on_the_prime_meridian(self):
-        """The constellation's convention: nothing here may be mistaken for a real
-        place, so the whole farm stays within a few hundred metres of 0,0."""
-        for v in self.labels.values():
-            if "feature" not in v:
-                continue
-            lon, lat = v["feature"]["coordinates"]
+        for geom in self.geometry.values():
+            lon, lat = geom["coordinates"]
             self.assertLess(abs(lon), 0.01)
             self.assertLess(abs(lat), 0.01)
+
+    def test_geometry_is_not_in_the_log(self):
+        """§10.1: field boundaries are site-private material."""
+        import json
+        for event in self.farm.log.events:
+            self.assertNotIn('"Point"', json.dumps(event.payload))

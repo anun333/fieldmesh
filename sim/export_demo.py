@@ -39,7 +39,7 @@ def main(argv=None) -> int:
 
     started = _dt.datetime.now()
     manifest = X.export_log(farm.log, directory, state=farm.state,
-                            labels=hb.labels(farm))
+                            geometries=hb.geometries(farm))
     elapsed = (_dt.datetime.now() - started).total_seconds()
 
     print(f"{args.days:g} simulated days, {manifest.events} events -> {directory}")

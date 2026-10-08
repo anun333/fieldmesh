@@ -317,6 +317,34 @@ def _uuid(text: str, where: str) -> UUID:
         raise HttpError(404, f"not an entity id: {text}", where) from exc
 
 
+def preferred_language(header: str | None, default: str = "en") -> str:
+    """The highest-weighted tag from an `Accept-Language` header.
+
+    `es-MX,es;q=0.9,en;q=0.8` gives `es-MX`. A malformed weight counts as zero rather
+    than failing the request — a browser's language preference is a hint, and a
+    service that 400s on a hint is being unhelpful about something the client cannot
+    easily fix.
+    """
+    if not header:
+        return default
+    best, best_q = default, -1.0
+    for part in header.split(","):
+        tag, _, params = part.strip().partition(";")
+        tag = tag.strip()
+        if not tag or tag == "*":
+            continue
+        q = 1.0
+        params = params.strip()
+        if params.startswith("q="):
+            try:
+                q = float(params[2:])
+            except ValueError:
+                q = 0.0
+        if q > best_q:
+            best, best_q = tag, q
+    return best
+
+
 class App:
     """Routes requests onto a `sensorthings.Service`."""
 
@@ -324,11 +352,42 @@ class App:
         self.service = service
         self.state = service.state
         self.base_path = service.dialect.base_path
+        self._by_language: dict[str, ST.Service] = {service.language: service}
+
+    def _service_for(self, language: str) -> ST.Service:
+        """A view of the same state that names things in `language` (§1, §11)."""
+        if language not in self._by_language:
+            base = self.service
+            self._by_language[language] = ST.Service(
+                base.state, base.base_url, dialect=base.dialect, labels=base.labels,
+                interval_times=base.interval_times, language=language,
+                geometries=base.geometries)
+        return self._by_language[language]
 
     # ------------------------------------------------------------- entry point
 
-    def handle(self, method: str, path: str, query: str = ""):
-        """Serve one request. Never raises — every failure becomes a response."""
+    def handle(self, method: str, path: str, query: str = "",
+               headers: dict | None = None):
+        """Serve one request. Never raises — every failure becomes a response.
+
+        `Accept-Language` chooses the language entity names are given in (layer 4 is
+        bilingual, §11); a name that has no translation falls back, and says so in
+        `properties.nameLanguage`.
+        """
+        headers = {k.lower(): v for k, v in (headers or {}).items()}
+        language = preferred_language(headers.get("accept-language"),
+                                      self.service.language)
+        # Swapping the view for the length of one request is safe only because the
+        # server is single-threaded by design (serve.py). A threaded server would
+        # need the language threaded through the call instead.
+        previous = self.service
+        self.service = self._service_for(language)
+        try:
+            return self._handle(method, path, query)
+        finally:
+            self.service = previous
+
+    def _handle(self, method: str, path: str, query: str):
         try:
             if method in _MUTATING:
                 raise HttpError(

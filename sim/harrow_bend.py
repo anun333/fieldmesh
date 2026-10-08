@@ -50,8 +50,8 @@ import project as P  # noqa: E402
 from ids import uuid7  # noqa: E402
 from model import (Assertor, Calibration, ClockQuality,  # noqa: E402
                    Datastream, DatastreamKind, Device, DeviceKind,
-                   Installation, MaintenanceAction, MaintenanceEvent,
-                   Observation, Threshold, Usable)
+                   Installation, Label, MaintenanceAction,
+                   MaintenanceEvent, Observation, Threshold, Usable)
 from registry import NodeBinding, Registry  # noqa: E402
 
 START = _dt.datetime(2026, 6, 1, 0, 0, tzinfo=ph.UTC)
@@ -234,41 +234,86 @@ def _geometry(name: str) -> dict:
     return {"type": "Point", "coordinates": [round(lon, 7), round(lat, 7)]}
 
 
-def labels(farm) -> dict:
-    """Human names for the farm's entities, keyed by id, for `sensorthings.Service`.
+#: Spanish names for the features, because layer 4 must be bilingual (§11) and a
+#: label registry that has only ever held English has never exercised its fallback.
+_SPANISH = {
+    "bed1": "cama 1", "bed2": "cama 2", "bed3": "cama 3", "bed4": "cama 4",
+    "bed5": "cama 5", "bed6": "cama 6", "paddock": "potrero",
+    "plot": "parcela de ensayo", "hoop": "invernadero",
+    "bed4_sample": "muestra de la cama 4",
+}
 
-    §1 keeps names out of the keys, which is right — a name is editable and an identity
-    is not — but it leaves a GIS client rendering a legend of bare UUIDs, which is
-    unusable for the one job a map has. The registry that will serve this for a real
-    farm is still an open design question; this is the simulator answering it for
-    itself, from names it already knows.
 
-    Raw and derived series are labelled distinctly on purpose. They are the pair whose
+def _name(farm, entity, name: str, *, description: str | None = None,
+          language: str = "en") -> None:
+    label = Label(id=uuid7(), entity=entity, name=name, language=language,
+                  description=description, set_at=farm.world.start)
+    farm.log.append_record(label)
+    farm.state.add(label)
+
+
+def name_everything(farm) -> None:
+    """Write a §1 `Label` for every entity the farm has, into the log.
+
+    These were a simulator side table until the label registry existed; now they are
+    ordinary records, exported, replayed and renameable like anything else.
+
+    Raw and derived series are named distinctly on purpose. They are the pair whose
     confusion produced a 99.8% false-alarm rate (§4.2), so a client that shows them
-    side by side should not be able to mistake one for the other either.
+    side by side should not be able to mistake one for the other either. A probe's
+    device is named once even though it feeds four datastreams — moisture and
+    temperature, raw and derived — because it is one thing in the ground.
     """
-    out: dict = {}
+    named = set()
     for name, series in farm.series.items():
-        out[series.raw.id] = {
-            "name": f"{name} (raw)",
-            "description": f"{name}, as the node reported it, before calibration"}
-        out[series.derived.id] = {
-            "name": name,
-            "description": f"{name}, calibrated to physical units"}
-        out[series.raw.sensor] = {
-            "name": f"{name} sensor",
-            "description": f"the sensor behind {name}",
-            "metadata": f"simulated sensor for {name}"}
+        _name(farm, series.raw.id, f"{name} (raw)",
+              description=f"{name}, as the node reported it, before calibration")
+        _name(farm, series.derived.id, name,
+              description=f"{name}, calibrated to physical units")
+        device = series.raw.sensor
+        if device not in named:
+            probe = name.removesuffix("_temp")
+            _name(farm, device, f"{probe} probe" if series.siting else f"{name} sensor",
+                  description=f"the sensor behind {probe}")
+            named.add(device)
     for name, feature in farm.features.items():
         if feature.get("id") is not None:
-            out[feature["id"]] = {"name": name,
-                                  "description": f"{name} at Harrow Bend",
-                                  "feature": _geometry(name)}
+            _name(farm, feature["id"], name, description=f"{name} at Harrow Bend")
+            if name in _SPANISH:
+                _name(farm, feature["id"], _SPANISH[name], language="es",
+                      description=f"{_SPANISH[name]} en Harrow Bend")
         if feature.get("thing") is not None:
-            out[feature["thing"]] = {
-                "name": f"{name} (thing)",
-                "description": f"the thing observed at {name}"}
-    return out
+            _name(farm, feature["thing"], f"{name} station",
+                  description=f"the monitoring station at {name}")
+            if name in _SPANISH:
+                _name(farm, feature["thing"], f"estación {_SPANISH[name]}",
+                      language="es")
+
+
+def rename(farm, entity, name: str, *, language: str = "en", by=None,
+           at=None) -> Label:
+    """Rename an entity (§1): a new label superseding the current one, never an edit."""
+    current = farm.state.label_for(entity, language, fallback=())
+    label = Label(id=uuid7(), entity=entity, name=name, language=language,
+                  description=current.description if current else None,
+                  set_at=at or farm.world.when, set_by=by,
+                  supersedes=current.id if current else None)
+    farm.log.append_record(label)
+    farm.state.add(label)
+    return label
+
+
+def geometries(farm) -> dict:
+    """GeoJSON for every feature, for the SensorThings view and the GeoJSON export.
+
+    Not log records, and on purpose (§10.1): a real farm's boundaries belong in
+    site-private storage. Harrow Bend is fictional and sits on the prime meridian, so
+    its geometry can live in the repository.
+    """
+    return {feature["id"]: _geometry(name)
+            for name, feature in farm.features.items()
+            if feature.get("id") is not None}
+
 
 
 def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
@@ -481,6 +526,7 @@ def build(*, seed: int = 1, start: _dt.datetime = START,
         farm.links[label] = lk.Link(profile, seed=seed + node_id % 97)
 
     farm.gateway = G.Gateway(registry, log, state)
+    name_everything(farm)
     return farm
 
 

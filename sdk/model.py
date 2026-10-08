@@ -31,6 +31,7 @@ spec actually uses.
 from __future__ import annotations
 
 import datetime as _dt
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from uuid import UUID
@@ -214,6 +215,59 @@ class Datastream:
             raise ValueError("expected_interval must be positive")
         if self.max_latency is not None and self.max_latency <= 0:
             raise ValueError("max_latency must be positive")
+
+
+#: A BCP 47 tag, loosely: a primary language subtag and optional subtags.
+_LANGUAGE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
+
+
+@dataclass(frozen=True, slots=True)
+class Label:
+    """§1. A human name for an entity — separate from its identity, and editable.
+
+    "Labels are not keys" is the whole of what v0.1 said, and it left the label with
+    nowhere to live: a simulator helper handed names to the SensorThings view as a side
+    table, and a real farm had no way to name anything at all. QGIS showed what that
+    costs — a legend of bare UUIDs is unusable for the one job a map has.
+
+    **A rename appends; it does not overwrite.** A label superseding another keeps the
+    old one in history, because names appear in places that outlive them: a certifier's
+    report from last spring says "north bed", and the question "which entity was that?"
+    must still have an answer after the bed is renamed. `State.entities_named` answers
+    it.
+
+    **One label per entity per language.** Layer 4 must be bilingual (§11), so
+    `language` is a BCP 47 tag and an entity can carry an English and a Spanish name
+    side by side. A missing translation falls back, and the caller is told which
+    language it actually got rather than being handed English while asking for Spanish.
+    """
+
+    id: UUID
+    entity: UUID
+    name: str
+    set_at: _dt.datetime
+    language: str = "en"
+    description: str | None = None
+    set_by: UUID | None = None
+    supersedes: UUID | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.entity, "entity")
+        _opt_uuid7(self.set_by, "set_by")
+        _opt_uuid7(self.supersedes, "supersedes")
+        _utc(self.set_at, "set_at")
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("a label needs a name — an empty one is not a name (§1)")
+        if self.name != self.name.strip():
+            raise ValueError("a label's name must not carry leading or trailing "
+                             "whitespace; 'north bed ' and 'north bed' would be two "
+                             "names for one thing")
+        if not _LANGUAGE.match(self.language or ""):
+            raise ValueError(f"language must be a BCP 47 tag such as 'en' or "
+                             f"'es-MX', got {self.language!r}")
+        if self.supersedes == self.id:
+            raise ValueError("a label cannot supersede itself")
 
 
 @dataclass(frozen=True, slots=True)

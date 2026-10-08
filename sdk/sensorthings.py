@@ -161,22 +161,32 @@ class SensorThings20Draft(Dialect):
 class Service:
     """A read-only SensorThings view over derived state (§7.1).
 
-    `labels` maps an entity id to `{"name": ..., "description": ...}`. §1 keeps
-    human names out of the keys, and layer zero has no label registry yet, so
-    anything unlabelled falls back to its id — legible, stable, and obviously a
-    placeholder rather than an invented name.
+    Names come from §1 `Label` records in the log, in `language`, falling back as
+    `State.label_for` does. Anything unlabelled falls back to its id — legible,
+    stable, and obviously a placeholder rather than an invented name. Where a fallback
+    language supplied the name, `properties.nameLanguage` says so, so a client can
+    mark the gap instead of passing English off as the Spanish it asked for.
+
+    `labels` is an explicit override, `{id: {"name": ..., "description": ...}}`, which
+    wins over the log. `geometries` maps a feature of interest to its GeoJSON — kept
+    out of the log on purpose (§10.1: field boundaries are site-private material).
     """
 
-    __slots__ = ("state", "base_url", "dialect", "labels", "interval_times")
+    __slots__ = ("state", "base_url", "dialect", "labels", "interval_times",
+                 "language", "geometries")
 
     def __init__(self, state: P.State, base_url: str = "http://localhost:8080",
                  *, dialect: type[Dialect] = SensorThings11,
                  labels: dict | None = None,
-                 interval_times: bool = False):
+                 interval_times: bool = False,
+                 language: str = "en",
+                 geometries: dict | None = None):
         self.state = state
         self.base_url = base_url.rstrip("/")
         self.dialect = dialect
         self.labels = labels or {}
+        self.language = language
+        self.geometries = geometries or {}
         #: When true, `phenomenonTime` is emitted as the §2 uncertainty window
         #: rather than an instant. Standards-native honesty — a client sees the
         #: bound directly — but many clients assume an instant, so it is opt-in.
@@ -190,8 +200,30 @@ class Service:
     def _link(self, entity_set: str, ident: UUID) -> str:
         return f"{self._root()}/{entity_set}({ident})"
 
-    def _label(self, ident: UUID, field: str, fallback: str) -> str:
-        return self.labels.get(ident, {}).get(field) or fallback
+    def _label(self, ident, field: str, fallback: str) -> str:
+        explicit = self.labels.get(ident, {}).get(field)
+        if explicit:
+            return explicit
+        if field in ("name", "description") and isinstance(ident, UUID):
+            found = self.state.label_for(ident, self.language)
+            if found is not None:
+                value = found.name if field == "name" else found.description
+                if value:
+                    return value
+        return fallback
+
+    def _name_language(self, ident) -> str | None:
+        """The language the displayed name is actually in, when a Label supplied it."""
+        if ident in self.labels or not isinstance(ident, UUID):
+            return None
+        found = self.state.label_for(ident, self.language)
+        return found.language if found is not None else None
+
+    def _with_language(self, properties: dict, ident) -> dict:
+        language = self._name_language(ident)
+        if language is not None:
+            properties["nameLanguage"] = language
+        return properties
 
     def _control(self, entity_set: str, ident: UUID) -> dict:
         d = self.dialect
@@ -225,7 +257,7 @@ class Service:
         doc["name"] = self._label(ident, "name", str(ident))
         doc["description"] = self._label(ident, "description",
                                          "A thing layer zero observes")
-        doc["properties"] = {}
+        doc["properties"] = self._with_language({}, ident)
         # **No `Locations` link.** 1.1 makes Thing.Locations 0..*, and layer zero has
         # no Location record: geometry here belongs to a feature of interest — a bed, a
         # paddock, a trough — not to the Thing that happens to observe it. Advertising
@@ -277,6 +309,7 @@ class Service:
                 "firmware": device.firmware,
                 "registered": True,
             }
+            self._with_language(doc["properties"], ident)
         else:
             doc["metadata"] = self._label(ident, "metadata", str(ident))
             # §8.1: an unregistered device is heard but not trusted, and a client
@@ -325,7 +358,11 @@ class Service:
         doc["description"] = self._label(ident, "description",
                                          "A field, bed, tank or animal")
         doc["encodingType"] = "application/geo+json"
-        doc["feature"] = self.labels.get(ident, {}).get("feature")
+        # The geometries channel first; a `feature` inside an explicit labels override
+        # is still honoured, which is how it travelled before it had its own channel.
+        doc["feature"] = (self.geometries.get(ident)
+                          or self.labels.get(ident, {}).get("feature"))
+        doc["properties"] = self._with_language({}, ident)
         return doc
 
     def unit_of_measurement(self, ds: Datastream) -> dict | None:
@@ -362,14 +399,14 @@ class Service:
         # a null. FROST-Server omits it too. Observation.resultTime is "One
         # (mandatory)" and nullable, so that one is emitted as null.
 
-        doc["properties"] = {
+        doc["properties"] = self._with_language({
             "kind": kind,
             "derived_from": str(ds.derived_from) if ds.derived_from else None,
             "expected_interval_s": ds.expected_interval,
             "max_latency_s": ds.max_latency,
             "thresholds": dict(ds.thresholds),
             "health": self._health(ds).value,
-        }
+        }, ds.id)
         doc.update(self._navs("Datastreams", ds.id, "Thing", "Sensor",
                               "ObservedProperty", "Observations"))
         return doc

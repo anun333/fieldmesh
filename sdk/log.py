@@ -46,6 +46,7 @@ from ids import uuid7
 RECORD_KINDS = {
     "Datastream": "datastream",
     "Device": "device",
+    "Label": "label",
     "Installation": "installation",
     "MaintenanceEvent": "maintenance",
     "Calibration": "calibration",

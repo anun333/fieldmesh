@@ -24,7 +24,7 @@ from enum import Enum
 from uuid import UUID
 
 from model import (Assertor, Calibration, ClockQuality, Datastream,
-                   DatastreamKind, Device, DeviceKind, Installation,
+                   DatastreamKind, Device, DeviceKind, Installation, Label,
                    MaintenanceAction, MaintenanceEvent, Observation,
                    QualityAssertion, QualityFlag, Threshold, Usable)
 
@@ -88,6 +88,16 @@ _CONVERTERS = {
         "max_latency": (_same, _same),
         "thresholds": (_same, _same),
         "buffer_policy": (_same, _same),
+    },
+    Label: {
+        "id": (_enc_uuid, _dec_uuid),
+        "entity": (_enc_uuid, _dec_uuid),
+        "name": (_same, _same),
+        "set_at": (_enc_time, _dec_time),
+        "language": (_same, _same),
+        "description": (_same, _same),
+        "set_by": (_enc_uuid, _dec_uuid),
+        "supersedes": (_enc_uuid, _dec_uuid),
     },
     Device: {
         "id": (_enc_uuid, _dec_uuid),

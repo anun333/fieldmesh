@@ -37,7 +37,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _respond(self):
         parts = urlparse(self.path)
-        status, headers, body = self.app.handle(self.command, parts.path, parts.query)
+        status, headers, body = self.app.handle(self.command, parts.path, parts.query,
+                                                dict(self.headers.items()))
         self.send_response(status)
         for key, value in headers.items():
             self.send_header(key, value)
@@ -92,7 +93,7 @@ def main(argv=None) -> int:
     farm = build_state(args.days, args.seed)
     base = f"http://{args.host}:{args.port}"
     import harrow_bend as hb
-    app = A.make_app(farm.state, base, labels=hb.labels(farm))
+    app = A.make_app(farm.state, base, geometries=hb.geometries(farm))
 
     streams = len(farm.state.datastreams)
     rows = len(farm.state.observations)

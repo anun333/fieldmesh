@@ -384,3 +384,44 @@ class TestUriKeyedObservedProperties(_Case):
         self.assertEqual(
             self.get("/v1.1/ObservedProperties('http%3A%2F%2Fnope.invalid%2Fx')")[0],
             404)
+
+
+class TestAcceptLanguage(unittest.TestCase):
+    """Layer 4 is bilingual (§11); the API is where that first becomes real."""
+
+    def setUp(self):
+        from ids import uuid7
+        from model import Label
+        self.ds, self.state = _farm(rows=2)
+        log = L.Log()
+        for record in [self.ds]:
+            log.append_record(record)
+        for name, language in (("bed 1", "en"), ("cama 1", "es")):
+            log.append_record(Label(id=uuid7(), entity=self.ds.feature, name=name,
+                                    language=language, set_at=F.at(0)))
+        self.app = A.make_app(P.state_from_log(log))
+
+    def feature(self, header=None):
+        headers = {"Accept-Language": header} if header else None
+        _, _, body = self.app.handle("GET", "/v1.1/FeaturesOfInterest", "", headers)
+        return json.loads(body)["value"][0]
+
+    def test_english_by_default(self):
+        self.assertEqual(self.feature()["name"], "bed 1")
+
+    def test_spanish_when_asked(self):
+        doc = self.feature("es-MX,es;q=0.9,en;q=0.8")
+        self.assertEqual(doc["name"], "cama 1")
+        self.assertEqual(doc["properties"]["nameLanguage"], "es")
+
+    def test_the_highest_weight_wins_not_the_first_listed(self):
+        self.assertEqual(self.feature("en;q=0.2,es;q=0.9")["name"], "cama 1")
+
+    def test_a_malformed_weight_is_a_hint_ignored_not_an_error(self):
+        status, _, _ = self.app.handle("GET", "/v1.1/FeaturesOfInterest", "",
+                                       {"Accept-Language": "es;q=banana,en"})
+        self.assertEqual(status, 200)
+
+    def test_one_request_in_spanish_does_not_leak_into_the_next(self):
+        self.feature("es")
+        self.assertEqual(self.feature()["name"], "bed 1")

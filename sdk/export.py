@@ -326,7 +326,8 @@ def read_csv_records(directory: str, kind: str) -> list:
 
 # --------------------------------------------------------------------- geojson
 
-def write_geojson(state: P.State, path: str, *, labels: dict | None = None) -> ExportedFile:
+def write_geojson(state: P.State, path: str, *, geometries: dict | None = None,
+                  labels: dict | None = None, language: str = "en") -> ExportedFile:
     """Features of interest as a GeoJSON FeatureCollection — **a view, not the archive.**
 
     Lossy on purpose and marked so in the manifest. One feature per feature of interest
@@ -339,6 +340,15 @@ def write_geojson(state: P.State, path: str, *, labels: dict | None = None) -> E
     bed becomes invisible rather than noticeable.
     """
     labels = labels or {}
+    geometries = geometries or {}
+
+    def name_of(ident, fallback):
+        explicit = labels.get(ident, {}).get("name")
+        if explicit:
+            return explicit
+        found = state.label_for(ident, language)
+        return found.name if found is not None else fallback
+
     features = []
     skipped = 0
     by_feature: dict[object, list] = {}
@@ -348,7 +358,7 @@ def write_geojson(state: P.State, path: str, *, labels: dict | None = None) -> E
 
     for ident, streams in sorted(by_feature.items(), key=lambda kv: str(kv[0])):
         label = labels.get(ident, {})
-        geometry = label.get("feature")
+        geometry = geometries.get(ident) or label.get("feature")
         if geometry is None:
             skipped += 1
             continue
@@ -358,7 +368,7 @@ def write_geojson(state: P.State, path: str, *, labels: dict | None = None) -> E
             last = rows[-1] if rows else None
             series.append({
                 "datastream": str(ds.id),
-                "name": labels.get(ds.id, {}).get("name", str(ds.id)),
+                "name": name_of(ds.id, str(ds.id)),
                 "kind": ds.kind.value,
                 "unit": ds.unit,
                 "observed_property": ds.observed_property,
@@ -374,8 +384,10 @@ def write_geojson(state: P.State, path: str, *, labels: dict | None = None) -> E
             "id": str(ident),
             "geometry": geometry,
             "properties": {
-                "name": label.get("name", str(ident)),
-                "description": label.get("description"),
+                "name": name_of(ident, str(ident)),
+                "description": (label.get("description")
+                                or getattr(state.label_for(ident, language),
+                                           "description", None)),
                 "datastreams": len(streams),
                 "series": series,
             },
@@ -397,8 +409,8 @@ def write_geojson(state: P.State, path: str, *, labels: dict | None = None) -> E
 # ------------------------------------------------------------------ the export
 
 def export_log(log: Log, directory: str, *, state: P.State | None = None,
-               labels: dict | None = None, geojson: bool = True,
-               compress: bool = False) -> Manifest:
+               labels: dict | None = None, geometries: dict | None = None,
+               geojson: bool = True, compress: bool = False) -> Manifest:
     """Write the whole export into `directory` and return its manifest."""
     os.makedirs(directory, exist_ok=True)
     name = ARCHIVE + ".gz" if compress else ARCHIVE
@@ -412,7 +424,7 @@ def export_log(log: Log, directory: str, *, state: P.State | None = None,
         if state is None:
             state = P.state_from_log(log)
         files.append(write_geojson(state, os.path.join(directory, GEOJSON),
-                                   labels=labels))
+                                   labels=labels, geometries=geometries))
 
     manifest = Manifest(
         exported_at=_dt.datetime.now(tz=_dt.timezone.utc),

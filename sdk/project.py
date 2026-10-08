@@ -36,7 +36,7 @@ from enum import Enum
 from uuid import UUID
 
 from model import (Calibration, Datastream, DatastreamKind, Device,
-                   Installation, MaintenanceEvent, Observation,
+                   Installation, Label, MaintenanceEvent, Observation,
                    QualityAssertion, Threshold, Usable)
 
 STALENESS_FACTOR = 3.0   # §4.2: "no reading for 3x the expected interval"
@@ -376,6 +376,7 @@ class State:
     devices: dict = field(default_factory=dict)
     installations: dict = field(default_factory=dict)
     maintenance: list = field(default_factory=list)
+    labels: list = field(default_factory=list)
     calibrations: dict = field(default_factory=dict)
     thresholds: dict = field(default_factory=dict)
     observations: list = field(default_factory=list)
@@ -387,6 +388,8 @@ class State:
     _superseded_assertions: set = field(default_factory=set, repr=False)
     _peer_streams: dict = field(default_factory=dict, repr=False)
     _maintenance_by_device: dict = field(default_factory=dict, repr=False)
+    _labels_by_entity: dict = field(default_factory=dict, repr=False)
+    _superseded_labels: set = field(default_factory=set, repr=False)
     _streams_by_sensor: dict = field(default_factory=dict, repr=False)
 
     def observations_of(self, datastream_id: UUID) -> list:
@@ -509,6 +512,10 @@ class State:
                 self._superseded_assertions.add(record.supersedes)
         elif attr == "maintenance":
             self._maintenance_by_device.setdefault(record.device, []).append(record)
+        elif attr == "labels":
+            self._labels_by_entity.setdefault(record.entity, []).append(record)
+            if record.supersedes is not None:
+                self._superseded_labels.add(record.supersedes)
 
     def comparable_datastreams(self, datastream_id: UUID) -> list:
         """Datastreams whose readings may be cross-checked against this one's (§4.2).
@@ -541,6 +548,61 @@ class State:
                  and ds.feature == own.feature]
         self._peer_streams[datastream_id] = peers
         return peers
+
+    # ------------------------------------------------------------- labels (§1)
+
+    def label_for(self, entity: UUID, language: str = "en", *,
+                  fallback: tuple[str, ...] = ("en",)):
+        """The current name for an entity in `language`, or a fallback, or None.
+
+        Returns the `Label` itself, so the caller can see `label.language` and know
+        whether it got what it asked for. A UI asked for Spanish and silently handed
+        English cannot mark the gap for a translator; one that can see the fallback can.
+
+        A primary tag matches its regional variants in both directions — a request for
+        `es` finds an `es-MX` name, and one for `es-MX` falls back to plain `es` —
+        because a farm that labelled in Mexican Spanish should not appear untranslated
+        to a Spanish-speaking visitor.
+        """
+        live = [label for label in self._labels_by_entity.get(entity, [])
+                if label.id not in self._superseded_labels]
+        if not live:
+            return None
+        for wanted in (language, *fallback):
+            primary = wanted.split("-")[0]
+            exact = [label for label in live if label.language == wanted]
+            near = [label for label in live
+                    if label.language.split("-")[0] == primary]
+            for pool in (exact, near):
+                if pool:
+                    return max(pool, key=lambda label: (label.set_at, label.id.int))
+        return None
+
+    def label_as_of(self, entity: UUID, when: _dt.datetime, language: str = "en"):
+        """What an entity was called at an instant — for reading an old report."""
+        candidates = [label for label in self._labels_by_entity.get(entity, [])
+                      if label.set_at <= when
+                      and label.language.split("-")[0] == language.split("-")[0]]
+        if not candidates:
+            return None
+        return max(candidates, key=lambda label: (label.set_at, label.id.int))
+
+    def label_history(self, entity: UUID) -> list:
+        """Every name an entity has had, oldest first, superseded ones included."""
+        return sorted(self._labels_by_entity.get(entity, []),
+                      key=lambda label: (label.set_at, label.id.int))
+
+    def entities_named(self, name: str) -> list:
+        """Every entity that has *ever* carried this name, in any language.
+
+        The reason renames append rather than overwrite. A certifier's report from last
+        spring says "north bed"; the bed has since become "tomato house"; this still
+        finds it. Case and surrounding space are ignored, because the report was typed
+        by a person.
+        """
+        wanted = name.strip().casefold()
+        return sorted({label.entity for label in self.labels
+                       if label.name.casefold() == wanted}, key=lambda u: u.int)
 
     def datastreams_of_sensor(self, device_id: UUID) -> list:
         """Every datastream this device feeds (§4.1).
@@ -689,6 +751,18 @@ class State:
                     problems.append(
                         f"installations {earlier.id} and {later.id} overlap for "
                         f"device {device} (§4.1)")
+        superseded = {label.id: label for label in self.labels}
+        for label in self.labels:
+            if label.supersedes is None:
+                continue
+            old = superseded.get(label.supersedes)
+            if old is None:
+                problems.append(f"label {label.id} supersedes unknown label "
+                                f"{label.supersedes}")
+            elif old.entity != label.entity:
+                problems.append(f"label {label.id} supersedes a label for a "
+                                f"different entity — a rename cannot move a name "
+                                f"from one thing to another (§1)")
         for event in self.maintenance:
             if event.device not in self.devices:
                 problems.append(f"maintenance event {event.id} references unknown "
@@ -699,6 +773,7 @@ class State:
 _DISPATCH = {
     Datastream: ("datastreams", True),
     Device: ("devices", True),
+    Label: ("labels", False),
     Installation: ("installations", True),
     MaintenanceEvent: ("maintenance", False),
     Calibration: ("calibrations", True),
