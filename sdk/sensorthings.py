@@ -44,6 +44,7 @@ import json
 from urllib.parse import quote as _url_quote
 from uuid import UUID
 
+import i18n
 import project as P
 from model import Datastream, Observation, QualityAssertion
 
@@ -341,7 +342,13 @@ class Service:
         doc = {self.dialect.id_key: uri,
                self.dialect.self_key:
                    f"{self._root()}/ObservedProperties('{_quote(uri)}')"}
-        doc["name"] = self._label(uri, "name", humanise_term(uri))
+        # A pack's name for the term in the requested language, then the term itself
+        # made legible. A label override still wins over both.
+        termed = i18n.Translator(self.language).term(uri)
+        doc["name"] = self._label(uri, "name",
+                                  termed.text if termed else humanise_term(uri))
+        if termed is not None:
+            doc["properties"] = {"nameLanguage": termed.language}
         doc["definition"] = uri
         doc["description"] = self._label(uri, "description", uri)
         # 1.1 Table 9 gives ObservedProperty a Datastreams navigation link. It was
@@ -371,8 +378,12 @@ class Service:
         properties SHALL then be null."""
         if ds.unit is None:
             return {"name": None, "symbol": None, "definition": None}
+        # `symbol` stays the UCUM code in every language — it is data, and a client
+        # converting units needs the code. Only the human `name` is localised.
+        named = i18n.Translator(self.language).unit(ds.unit)
         return {
-            "name": self._label(ds.id, "unit_name", ds.unit),
+            "name": self._label(ds.id, "unit_name",
+                                named.text if named else ds.unit),
             "symbol": ds.unit,
             "definition": UCUM_DEFINITION,
         }

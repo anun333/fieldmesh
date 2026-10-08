@@ -1,6 +1,6 @@
 # librefarm — layer zero
 .POSIX:
-.PHONY: help test demo world drill siting q5 q5-points power vocab serve season export frost clean
+.PHONY: help test demo world drill siting q5 q5-points power vocab packs serve season export frost clean
 
 help:
 	@echo "test   run every test (sdk + tools + sim + server)"
@@ -12,6 +12,7 @@ help:
 	@echo "q5-points  what each encoding costs at realistic sample/transmit rates"
 	@echo "power  where a node's battery goes, per datastream"
 	@echo "vocab  every observed-property term, its source and its unit"
+	@echo "packs  language packs: coverage, soundness (docs/LANGUAGE_PACKS.md)"
 	@echo "serve  a SensorThings 1.1 endpoint over a simulated farm"
 	@echo "season how long a 180-day season takes to simulate"
 	@echo "export a season out in open formats, then verify it replays (§7.6)"
@@ -47,6 +48,9 @@ power:
 
 vocab:
 	@cd sdk && python3 vocab.py
+
+packs:
+	@cd tools && python3 packs.py
 
 serve:
 	@cd server && python3 serve.py --days $${DAYS:-2}

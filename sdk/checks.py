@@ -41,9 +41,10 @@ arrived.
 from __future__ import annotations
 
 import datetime as _dt
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
+import i18n
 import project as P
 from ids import uuid7
 from model import (Assertor, Datastream, Observation, QualityAssertion,
@@ -77,11 +78,23 @@ DEFAULTS = {
 
 @dataclass(frozen=True, slots=True)
 class Finding:
-    """One check's verdict on one observation."""
+    """One check's verdict on one observation.
+
+    `key` and `params` are what the log keeps for any language to render later; `reason`
+    is the English rendering, kept because a person reading a raw log deserves a
+    sentence. Both come from the same template in `packs/en.json`, so they cannot
+    drift apart.
+    """
 
     flag: QualityFlag
     check: str
     reason: str
+    key: str | None = None
+    params: dict = field(default_factory=dict)
+
+
+def _finding(flag: QualityFlag, check: str, key: str, **params) -> Finding:
+    return Finding(flag, check, i18n.english(key, **params), key, params)
 
 
 def thresholds_for(datastream: Datastream,
@@ -106,11 +119,11 @@ def check_range(obs: Observation, series, values, peers) -> Finding | None:
     if not _numeric(obs.result) or (lo is None and hi is None):
         return None
     if lo is not None and obs.result < lo:
-        return Finding(QualityFlag.OUT_OF_RANGE, "range",
-                       f"{obs.result} below min {lo}")
+        return _finding(QualityFlag.OUT_OF_RANGE, "range", "check.range.below",
+                        value=obs.result, min=lo)
     if hi is not None and obs.result > hi:
-        return Finding(QualityFlag.OUT_OF_RANGE, "range",
-                       f"{obs.result} above max {hi}")
+        return _finding(QualityFlag.OUT_OF_RANGE, "range", "check.range.above",
+                        value=obs.result, max=hi)
     return None
 
 
@@ -153,15 +166,18 @@ def check_flatline(obs: Observation, series, values, peers) -> Finding | None:
     if seconds_limit is None and n_limit is None:
         return None
 
-    at_least = "at least " if truncated else ""
-    detail = (f"{run + 1} readings of {obs.result} unchanged over "
-              f"{at_least}{span:.0f}s")
+    # Four keys rather than one sentence assembled from parts: "at least" and the
+    # count-only caveat sit in different places in different languages, so a
+    # translator needs whole sentences to work with.
     if seconds_limit is not None:
-        detail += f" (limit {seconds_limit:.0f}s)"
+        key = "check.flatline.stuck_floor" if truncated else "check.flatline.stuck"
+        limit = seconds_limit
     else:
-        detail += f" (limit {n_limit} samples; no flat_seconds set, so this "
-        detail += "threshold moves with the sample rate)"
-    return Finding(QualityFlag.STUCK, "flatline", detail)
+        key = ("check.flatline.stuck_count_floor" if truncated
+               else "check.flatline.stuck_count")
+        limit = n_limit
+    return _finding(QualityFlag.STUCK, "flatline", key, count=run + 1,
+                    value=obs.result, span=span, limit=limit)
 
 
 def check_rate(obs: Observation, series, values, peers) -> Finding | None:
@@ -182,8 +198,8 @@ def check_rate(obs: Observation, series, values, peers) -> Finding | None:
         return None
     rate = abs(obs.result - previous.result) / seconds
     if rate > limit:
-        return Finding(QualityFlag.RATE_EXCEEDED, "rate",
-                       f"{rate:.6g}/s over {seconds:.0f}s exceeds {limit:.6g}/s")
+        return _finding(QualityFlag.RATE_EXCEEDED, "rate", "check.rate.exceeded",
+                        rate=rate, seconds=seconds, limit=limit)
     return None
 
 
@@ -202,10 +218,9 @@ def check_cross(obs: Observation, series, values, peers) -> Finding | None:
         if not _numeric(peer_obs.result):
             continue
         if abs(obs.result - peer_obs.result) > tolerance:
-            return Finding(QualityFlag.SUSPECT, "cross",
-                           f"differs from a redundant sensor by "
-                           f"{abs(obs.result - peer_obs.result):.6g} "
-                           f"(tolerance {tolerance:.6g})")
+            return _finding(QualityFlag.SUSPECT, "cross", "check.cross.disagrees",
+                            difference=abs(obs.result - peer_obs.result),
+                            tolerance=tolerance)
     return None
 
 
@@ -335,6 +350,9 @@ def assess(state: P.State, obs: Observation, *,
     evidence = {
         "checks_run": [c.__name__.removeprefix("check_") for c in checks],
         "fired": {f.check: f.reason for f in findings},
+        # What any language renders from, years later, from this same record.
+        "messages": {f.check: {"key": f.key, "params": f.params}
+                     for f in findings if f.key},
         "thresholds": {k: v for k, v in values.items() if v is not None},
     }
     return QualityAssertion(

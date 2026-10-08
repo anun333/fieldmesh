@@ -46,6 +46,7 @@ import statistics
 from dataclasses import dataclass, field
 from uuid import UUID
 
+import i18n
 import project as P
 import vocab as V
 from model import DatastreamKind
@@ -153,6 +154,9 @@ class SitingFinding:
     fit: DiurnalFit | None = None
     peers_used: int = 0
     evidence: dict = field(default_factory=dict)
+    #: The message key and parameters `reason` was rendered from, for any language.
+    key: str | None = None
+    params: dict = field(default_factory=dict)
 
     @property
     def displaced(self) -> bool:
@@ -234,27 +238,27 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
     honest result for a probe below the reach of the daily wave, or one with too few
     peers to calibrate against — and never a silent `consistent`.
     """
-    def unknown(reason, **kw):
+    def unknown(key, params=None, **kw):
+        params = params or {}
         return SitingFinding(device=device_id, at=at, verdict=INDETERMINATE,
-                             reason=reason, **kw)
+                             reason=i18n.english(key, **params), key=key,
+                             params=params, **kw)
 
     stream = _temperature_stream(state, device_id, prop)
     if stream is None:
-        return unknown("the device reports no soil temperature")
+        return unknown("siting.no_channel")
     installed = state.installation_of(device_id, at)
     if installed is None or installed.depth_m is None:
-        return unknown("no recorded installation depth to check against")
+        return unknown("siting.no_depth")
     recorded = installed.depth_m
 
     own = _window_fit(state, stream.id, at, window)
     if own is None:
-        return unknown("too few temperature readings in the window",
-                       recorded_depth_m=recorded)
+        return unknown("siting.too_few_readings", recorded_depth_m=recorded)
     if own.amplitude < min_amplitude_c:
-        return unknown(
-            f"daily swing {own.amplitude:.3f} C is below {min_amplitude_c} C — the "
-            f"probe is deeper than the daily wave reaches, so depth cannot be read",
-            recorded_depth_m=recorded, fit=own)
+        return unknown("siting.below_wave",
+                       {"amplitude": own.amplitude, "floor": min_amplitude_c},
+                       recorded_depth_m=recorded, fit=own)
 
     # --- calibrate on the peers ---------------------------------------------
     peers = []
@@ -274,10 +278,9 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
 
     depths = {round(z, 3) for z, _ in peers}
     if len(peers) < 3 or len(depths) < 2:
-        return unknown(
-            f"{len(peers)} usable peers at {len(depths)} depth(s); calibrating "
-            f"the depth-to-phase line needs at least three at two depths",
-            recorded_depth_m=recorded, fit=own, peers_used=len(peers))
+        return unknown("siting.too_few_peers",
+                       {"peers": len(peers), "depths": len(depths)},
+                       recorded_depth_m=recorded, fit=own, peers_used=len(peers))
 
     shallowest = min(z for z, _ in peers)
     reference = statistics.median(f.peak_hour for z, f in peers
@@ -286,8 +289,7 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
     hours = [_unwrap(f.peak_hour, reference, earliest=7.0) for _, f in peers]
     phase_line = _line(zs, hours)
     if phase_line is None or phase_line[1] <= 0:
-        return unknown("the peers show no lag with depth, so the day's wave cannot "
-                       "be calibrated", recorded_depth_m=recorded, fit=own,
+        return unknown("siting.no_lag", recorded_depth_m=recorded, fit=own,
                        peers_used=len(peers))
     h0, k, rms_h = phase_line
     damping = HOURS_PER_RADIAN / k
@@ -327,13 +329,16 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
                   tolerance_m=tol, fit=own, peers_used=len(peers),
                   evidence=evidence)
     if abs(off_by) <= tol:
+        params = {"implied": implied, "recorded": recorded}
         return SitingFinding(device=device_id, at=at, verdict=CONSISTENT,
-                             reason=f"implied depth {implied:.2f} m agrees with the "
-                                    f"recorded {recorded:.2f} m", **common)
-    direction = "shallower" if off_by < 0 else "deeper"
-    return SitingFinding(
-        device=device_id, at=at, verdict=DISPLACED,
-        reason=(f"the daily peak at {own.peak_hour:05.2f} UTC implies "
-                f"{implied:.2f} m, {abs(off_by):.2f} m {direction} than the recorded "
-                f"{recorded:.2f} m, with no installation record of a move"),
-        **common)
+                             reason=i18n.english("siting.consistent", **params),
+                             key="siting.consistent", params=params, **common)
+    # Two keys rather than a "shallower"/"deeper" word dropped into one sentence: in
+    # many languages the comparative is not a word that slots in, and in some it
+    # changes the grammar around it.
+    key = "siting.shallower" if off_by < 0 else "siting.deeper"
+    params = {"peak": own.peak_hour, "implied": implied, "off": abs(off_by),
+              "recorded": recorded}
+    return SitingFinding(device=device_id, at=at, verdict=DISPLACED,
+                         reason=i18n.english(key, **params), key=key, params=params,
+                         **common)
