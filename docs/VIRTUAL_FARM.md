@@ -83,7 +83,7 @@ The farm is complete when every row is live on it with meaningful data. Each row
 | | A reading carrying two flags at once | §3.3 flag-set |
 | | A person's override outranking a machine assertion, with the original still visible | §3.3 precedence |
 | | A threshold retuned mid-season, with historical assertions unchanged and traceable to the old version | §3.3 |
-| Devices | A soil probe drifting across a season; a battery dying; a sensor moved and reinstalled with dates | §4.1 |
+| Devices | A soil probe drifting across a season; a battery dying; a sensor moved and reinstalled with dates | §4.1 — **done**: 28 devices registered with declared §8 capabilities, each with an `Installation` carrying feature, depth and dates. `bed6_shallow` is lifted mid-season and reinstalled deeper in bed2, which is the event that makes the siting history non-trivial — before it every installation was open and nothing exercised closing one. "Where was this probe, and how deep, when it took that reading" now has exactly one answer per instant, and an unclosed installation is reported as an overlap |
 | | A stale datastream whose last good reading is *not* flagged | §4.2 staleness-is-not-a-flag |
 | | Battery and RSSI as ordinary datastreams with their own thresholds | §4.3 |
 | Transport | A node in a three-day outage draining its backlog against a duty cycle | §5.3 |

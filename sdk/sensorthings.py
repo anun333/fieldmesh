@@ -40,6 +40,7 @@ throw away the distinction a certifier cares about.
 from __future__ import annotations
 
 import datetime as _dt
+import json
 from urllib.parse import quote as _url_quote
 from uuid import UUID
 
@@ -235,13 +236,52 @@ class Service:
         return doc
 
     def sensor(self, ident: UUID) -> dict:
+        """A Sensor, enriched from its §4.1 `Device` record when one exists.
+
+        `Datastream.sensor` was a bare UUID with no record behind it until §4.1 was
+        built, so this could only ever repeat the id back. With a device registered it
+        serves the hardware a person recognises — make, model, serial, firmware — and
+        `metadata` becomes the driver manifest rather than a placeholder.
+
+        Still falls back cleanly, because a datastream may name a sensor nobody has
+        registered: §8.1's "heard but not trusted" is a real state, and refusing to
+        serve the entity would hide it rather than show it.
+        """
         doc = self._control("Sensors", ident)
-        doc["name"] = self._label(ident, "name", str(ident))
-        doc["description"] = self._label(ident, "description", "A sensor")
-        # 1.1 requires both; a driver manifest (§9.1) will supply something
-        # better than this placeholder when it exists.
-        doc["encodingType"] = "application/pdf"
-        doc["metadata"] = self._label(ident, "metadata", str(ident))
+        device = self.state.devices.get(ident)
+        fallback = str(ident)
+        described = "A sensor"
+        if device is not None:
+            parts = [p for p in (device.manufacturer, device.model) if p]
+            if parts:
+                fallback = " ".join(parts)
+            described = f"{device.kind.value} {fallback}"
+            if device.serial:
+                described += f", serial {device.serial}"
+        doc["name"] = self._label(ident, "name", fallback)
+        doc["description"] = self._label(ident, "description", described)
+        # 1.1 requires both. With a device record, `metadata` carries what §9.1's
+        # driver manifest declares, which is what a client would actually want.
+        doc["encodingType"] = ("application/json" if device is not None
+                               else "application/pdf")
+        if device is not None:
+            manifest = dict(device.capabilities)
+            manifest.update(device.provenance())
+            doc["metadata"] = json.dumps(manifest, sort_keys=True) if manifest \
+                else str(ident)
+            doc["properties"] = {
+                "kind": device.kind.value,
+                "model": device.model,
+                "serial": device.serial,
+                "manufacturer": device.manufacturer,
+                "firmware": device.firmware,
+                "registered": True,
+            }
+        else:
+            doc["metadata"] = self._label(ident, "metadata", str(ident))
+            # §8.1: an unregistered device is heard but not trusted, and a client
+            # deserves to know which it is looking at.
+            doc["properties"] = {"registered": False}
         doc.update(self._navs("Sensors", ident, "Datastreams"))
         return doc
 

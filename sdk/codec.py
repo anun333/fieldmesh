@@ -24,8 +24,9 @@ from enum import Enum
 from uuid import UUID
 
 from model import (Assertor, Calibration, ClockQuality, Datastream,
-                   DatastreamKind, Observation, QualityAssertion, QualityFlag,
-                   Threshold, Usable)
+                   DatastreamKind, Device, DeviceKind, Installation,
+                   MaintenanceAction, MaintenanceEvent, Observation,
+                   QualityAssertion, QualityFlag, Threshold, Usable)
 
 TYPE_KEY = "_t"
 
@@ -87,6 +88,38 @@ _CONVERTERS = {
         "max_latency": (_same, _same),
         "thresholds": (_same, _same),
         "buffer_policy": (_same, _same),
+    },
+    Device: {
+        "id": (_enc_uuid, _dec_uuid),
+        "kind": (_enc_enum, _dec_enum(DeviceKind)),
+        "site": (_enc_uuid, _dec_uuid),
+        "model": (_same, _same),
+        "serial": (_same, _same),
+        "manufacturer": (_same, _same),
+        "firmware": (_same, _same),
+        "driver": (_same, _same),
+        "driver_version": (_same, _same),
+        "capabilities": (_same, _same),
+        "note": (_same, _same),
+    },
+    Installation: {
+        "id": (_enc_uuid, _dec_uuid),
+        "device": (_enc_uuid, _dec_uuid),
+        "feature": (_enc_uuid, _dec_uuid),
+        "installed_at": (_enc_time, _dec_time),
+        "removed_at": (_enc_time, _dec_time),
+        "depth_m": (_same, _same),
+        "orientation_deg": (_same, _same),
+        "installed_by": (_enc_uuid, _dec_uuid),
+        "note": (_same, _same),
+    },
+    MaintenanceEvent: {
+        "id": (_enc_uuid, _dec_uuid),
+        "device": (_enc_uuid, _dec_uuid),
+        "at": (_enc_time, _dec_time),
+        "action": (_enc_enum, _dec_enum(MaintenanceAction)),
+        "performed_by": (_enc_uuid, _dec_uuid),
+        "note": (_same, _same),
     },
     Calibration: {
         "id": (_enc_uuid, _dec_uuid),

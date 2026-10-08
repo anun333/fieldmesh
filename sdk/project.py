@@ -35,14 +35,55 @@ from dataclasses import dataclass, field
 from enum import Enum
 from uuid import UUID
 
-from model import (Calibration, Datastream, DatastreamKind,
-                   Observation, QualityAssertion, Threshold, Usable)
+from model import (Calibration, Datastream, DatastreamKind, Device,
+                   Installation, MaintenanceEvent, Observation,
+                   QualityAssertion, Threshold, Usable)
 
 STALENESS_FACTOR = 3.0   # §4.2: "no reading for 3x the expected interval"
 
 
 class ProjectionError(Exception):
     """A spec invariant the log's contents violate."""
+
+
+@dataclass(frozen=True, slots=True)
+class DeviceView:
+    """§4.1 assembled: the durable records plus what the readings say.
+
+    Frozen and not a log record. Nothing writes this; `State.device_view` derives it,
+    and it goes stale the moment another reading arrives — which is correct, because
+    "last seen" is a fact about the world and not a field anybody should be able to
+    edit.
+    """
+
+    device: Device
+    installation: Installation | None
+    installations: tuple
+    datastreams: tuple
+    last_seen: _dt.datetime | None
+    last_measured_at: _dt.datetime | None
+    boot: int | None
+    maintenance: tuple
+    calibrations: tuple
+
+    @property
+    def feature(self):
+        """Where it is now, or None if it is not installed anywhere."""
+        return self.installation.feature if self.installation else None
+
+    @property
+    def depth_m(self):
+        return self.installation.depth_m if self.installation else None
+
+    def last_action(self, action):
+        """When this device was last cleaned, moved, replaced or recalibrated.
+
+        The question a certifier asks, and the reason `action` is an enum rather than
+        prose — "when was this probe last cleaned" cannot be answered by grepping
+        notes.
+        """
+        matching = [m for m in self.maintenance if m.action is action]
+        return matching[-1].at if matching else None
 
 
 class Health(str, Enum):
@@ -311,6 +352,9 @@ class State:
     """
 
     datastreams: dict = field(default_factory=dict)
+    devices: dict = field(default_factory=dict)
+    installations: dict = field(default_factory=dict)
+    maintenance: list = field(default_factory=list)
     calibrations: dict = field(default_factory=dict)
     thresholds: dict = field(default_factory=dict)
     observations: list = field(default_factory=list)
@@ -321,6 +365,8 @@ class State:
     _by_observation: dict = field(default_factory=dict, repr=False)
     _superseded_assertions: set = field(default_factory=set, repr=False)
     _peer_streams: dict = field(default_factory=dict, repr=False)
+    _maintenance_by_device: dict = field(default_factory=dict, repr=False)
+    _streams_by_sensor: dict = field(default_factory=dict, repr=False)
 
     def observations_of(self, datastream_id: UUID) -> list:
         """Every observation on one series, in insertion order."""
@@ -425,6 +471,7 @@ class State:
                 # times, which is what makes clearing the whole cache the right
                 # trade rather than a careful partial invalidation.
                 self._peer_streams.clear()
+                self._streams_by_sensor.clear()
             return
         getattr(self, attr).append(record)
         if attr == "observations":
@@ -437,6 +484,8 @@ class State:
             self._by_observation.setdefault(record.observation, []).append(record)
             if record.supersedes is not None:
                 self._superseded_assertions.add(record.supersedes)
+        elif attr == "maintenance":
+            self._maintenance_by_device.setdefault(record.device, []).append(record)
 
     def comparable_datastreams(self, datastream_id: UUID) -> list:
         """Datastreams whose readings may be cross-checked against this one's (§4.2).
@@ -469,6 +518,97 @@ class State:
                  and ds.feature == own.feature]
         self._peer_streams[datastream_id] = peers
         return peers
+
+    def datastreams_of_sensor(self, device_id: UUID) -> list:
+        """Every datastream this device feeds (§4.1).
+
+        `Datastream.sensor` is the link, and it was a bare UUID with no record behind
+        it until §4.1 existed — which is why a probe could be moved between beds with
+        nothing recording that it had happened.
+
+        Cached and cleared whenever a datastream changes, rather than maintained
+        incrementally in `add`. The incremental version is where the bug lives: a
+        datastream is keyed by id and last-write-wins, so re-appending one appends to
+        the index a second time and the device appears to feed it twice.
+        """
+        if not self._streams_by_sensor:
+            for ds in self.datastreams.values():
+                self._streams_by_sensor.setdefault(ds.sensor, []).append(ds)
+        return self._streams_by_sensor.get(device_id, [])
+
+    def installation_of(self, device_id: UUID, when: _dt.datetime):
+        """Where a device was at an instant (§4.1), or None.
+
+        By `when`, for the same reason §3.2 selects calibration by `measured_at`: "how
+        deep was this probe when it took that reading" is unanswerable from a field
+        that gets overwritten on every move. Half-open intervals, so a move does not
+        produce an instant that two installations both claim.
+        """
+        # `covers` validates the instant is UTC-aware, so there is no check here —
+        # one validator, not two that could disagree.
+        found = [i for i in self.installations.values()
+                 if i.device == device_id and i.covers(when)]
+        if not found:
+            return None
+        if len(found) > 1:
+            raise ProjectionError(
+                f"device {device_id} has {len(found)} overlapping installations at "
+                f"{when.isoformat()} (§4.1)")
+        return found[0]
+
+    def installations_of(self, device_id: UUID) -> list:
+        """Every installation of a device, oldest first — the siting history."""
+        return sorted((i for i in self.installations.values()
+                       if i.device == device_id),
+                      key=lambda i: (i.installed_at, i.id.int))
+
+    def maintenance_of(self, device_id: UUID) -> list:
+        """The maintenance log for a device, oldest first (§4.1)."""
+        return sorted(self._maintenance_by_device.get(device_id, []),
+                      key=lambda m: (m.at, m.id.int))
+
+    def calibrations_of(self, device_id: UUID) -> list:
+        """A device's calibration history, oldest first (§4.1)."""
+        return sorted((c for c in self.calibrations.values()
+                       if c.sensor == device_id),
+                      key=lambda c: (c.valid_from, c.id.int))
+
+    def device_view(self, device_id: UUID, *, now: _dt.datetime | None = None):
+        """§4.1's device record as the spec describes it — **derived, not stored.**
+
+        Read literally, §4.1 says a device record holds "last seen, and the current
+        boot counter". A record in an append-only log cannot hold *current* anything
+        without being mutated, so those two come from the readings instead: they are
+        observations about the device, not claims the device makes about itself. The
+        durable half lives in `Device`, `Installation` and `MaintenanceEvent`; this
+        assembles the view a person actually wants to look at.
+        """
+        device = self.devices.get(device_id)
+        if device is None:
+            raise KeyError(f"no device {device_id}")
+        streams = self.datastreams_of_sensor(device_id)
+        last = None
+        for ds in streams:
+            rows = self._by_datastream.get(ds.id, [])
+            if rows and (last is None or rows[-1].received_at > last.received_at):
+                last = rows[-1]
+        # Falls back to the wall clock when the device has never reported, so a
+        # device that is installed but silent still shows *where it is* rather than
+        # appearing to be nowhere. "No readings" and "not installed" are different
+        # facts and a view that conflated them would hide a dead sensor in a bed.
+        at = now or (last.received_at if last
+                     else _dt.datetime.now(tz=_dt.timezone.utc))
+        return DeviceView(
+            device=device,
+            installation=(self.installation_of(device_id, at) if at else None),
+            installations=tuple(self.installations_of(device_id)),
+            datastreams=tuple(sorted(streams, key=lambda d: d.id.int)),
+            last_seen=last.received_at if last else None,
+            last_measured_at=last.measured_at if last else None,
+            boot=last.boot if last else None,
+            maintenance=tuple(self.maintenance_of(device_id)),
+            calibrations=tuple(self.calibrations_of(device_id)),
+        )
 
     def derived_of(self, raw_datastream_id: UUID):
         """The derived datastream computed from this raw one, if there is one (§3.2)."""
@@ -507,11 +647,35 @@ class State:
             for a, b in overlapping_calibrations(self.calibrations.values(), sensor):
                 problems.append(f"calibrations {a.id} and {b.id} overlap for "
                                 f"sensor {sensor}")
+        # §4.1. Two installations covering one instant is the failure that makes
+        # "how deep was this probe then" unanswerable, which is the whole reason the
+        # record carries dates. Checked here rather than in `Installation.__post_init__`
+        # because it needs every installation of the device, not one of them.
+        by_device: dict = {}
+        for installation in self.installations.values():
+            if installation.device not in self.devices:
+                problems.append(f"installation {installation.id} references unknown "
+                                f"device {installation.device}")
+            by_device.setdefault(installation.device, []).append(installation)
+        for device, installations in by_device.items():
+            ordered = sorted(installations, key=lambda i: (i.installed_at, i.id.int))
+            for earlier, later in zip(ordered, ordered[1:]):
+                if earlier.removed_at is None or later.installed_at < earlier.removed_at:
+                    problems.append(
+                        f"installations {earlier.id} and {later.id} overlap for "
+                        f"device {device} (§4.1)")
+        for event in self.maintenance:
+            if event.device not in self.devices:
+                problems.append(f"maintenance event {event.id} references unknown "
+                                f"device {event.device}")
         return problems
 
 
 _DISPATCH = {
     Datastream: ("datastreams", True),
+    Device: ("devices", True),
+    Installation: ("installations", True),
+    MaintenanceEvent: ("maintenance", False),
     Calibration: ("calibrations", True),
     Threshold: ("thresholds", True),
     Observation: ("observations", False),

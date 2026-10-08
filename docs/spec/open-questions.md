@@ -187,6 +187,38 @@ datastream declares must be consistent with the values it carries. Harrow Bend a
 `sdk/fixtures.py` both need changing, which is why this is recorded rather than quietly
 fixed — it changes the canonical farm.
 
+## Q22. Does the maintenance vocabulary need a battery replacement?
+
+**Status: blocks nothing; a small gap in §4.1 with a real consequence.** Raised 2026-10-08
+by implementing §4.1's maintenance log.
+
+§4.1 names four actions — cleaned, moved, replaced, recalibrated — and
+[sdk/model.py](../../sdk/model.py)'s `MaintenanceAction` implements exactly those, because
+a vocabulary that grows by whoever needs a word next is how a log becomes unqueryable.
+Which immediately showed that one is missing.
+
+**A battery replacement is a real field event on every node this project targets, and none
+of the four covers it.** It is not `replaced` — the device was not replaced, its cell was.
+The consequence is specific rather than tidy-minded: §4.3 makes battery voltage a
+datastream, so a battery change produces a **step discontinuity** in a series that §4.2's
+rate-of-change check is watching. Without a maintenance event to explain it, that step is
+either a false alarm or, worse, a true alarm nobody can account for a season later. The
+same argument covers a solar panel cleaned or a desiccant pack changed.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **Add `serviced` as a fifth action, with the detail in `note`** | One new term covers batteries, panels, desiccant and anything else routine; keeps the vocabulary small; the note carries what a human needs | "Serviced" is vague enough that it may absorb events that deserve their own term, which is how the vocabulary rots anyway |
+| Add `battery_replaced` specifically | Exactly the event that interacts with §4.2 and §4.3; a rate check could consult it directly | Invites one term per consumable, and the list never closes |
+| Leave the four and use `note` on `replaced` | No spec change | `replaced` then means two different things, and the queryability the enumeration exists for is lost for both |
+| Let the vocabulary be open (free strings) | Never blocks a farmer | The failure §3.4 rejects for observed properties, re-made here. Two farms would spell the same action differently and neither could query the other's log |
+| Treat it as a `Device` replacement — new device, new id | Honest if the whole node was swapped | Wrong for a cell change: the probe, its calibration and its siting history all continue, and forking the identity would break them |
+
+**Recommendation: add `serviced`, and have §4.2's rate check consult the maintenance log
+before flagging a step on a device datastream.** The second half is the point — the
+vocabulary addition is cheap, but it is only worth anything if a check actually reads it.
+That makes this a §4.2 change as much as a §4.1 one, which is why it is a question rather
+than a patch.
+
 ## Q5. Binary encoding
 
 **Status: DECIDED 2026-10-07 — CBOR packed arrays with a CDDL schema.** It blocked

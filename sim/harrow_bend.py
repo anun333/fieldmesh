@@ -49,7 +49,9 @@ import log as L  # noqa: E402
 import project as P  # noqa: E402
 from ids import uuid7  # noqa: E402
 from model import (Assertor, Calibration, ClockQuality,  # noqa: E402
-                   Datastream, DatastreamKind, Observation, Threshold, Usable)
+                   Datastream, DatastreamKind, Device, DeviceKind,
+                   Installation, MaintenanceAction, MaintenanceEvent,
+                   Observation, Threshold, Usable)
 from registry import NodeBinding, Registry  # noqa: E402
 
 START = _dt.datetime(2026, 6, 1, 0, 0, tzinfo=ph.UTC)
@@ -66,6 +68,20 @@ AIR_TEMP = V.AIR_TEMPERATURE
 HUMIDITY = V.RELATIVE_HUMIDITY
 BATTERY = V.BATTERY_VOLTAGE
 RSSI = V.RSSI
+
+#: Hardware a person would recognise, per measurand. Fictional, like the farm.
+_MODELS = {
+    V.SOIL_WATER: "TEROS-12",
+    V.VESSEL_FILL_FRACTION: "float-level TL-1",
+    V.AIR_TEMPERATURE: "SHT-35",
+    V.RELATIVE_HUMIDITY: "SHT-35",
+    V.BATTERY_VOLTAGE: "onboard ADC",
+    V.RSSI: "onboard radio",
+}
+
+#: Install depth from the series' suffix (§4.1), positive downwards. A series with
+#: no depth in its name is not in the ground, and gets None rather than a guess.
+_DEPTHS = {"shallow": 0.20, "deep": 0.40}
 
 #: Soil thresholds, each derived from something physical rather than picked.
 #:
@@ -125,6 +141,8 @@ class Series:
     threshold: Threshold
     sensor: F.Sensor
     channel: int
+    device: object = None            # §4.1 Device
+    installation: object = None      # §4.1 Installation, the open one
 
 
 @dataclass
@@ -242,8 +260,28 @@ def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
     for record in (raw, derived, cal, th):
         farm.log.append_record(record)
         farm.state.add(record)
+    # §4.1. The device record behind `Datastream.sensor`, which was a bare UUID with
+    # nothing behind it until §4.1 was built — so a probe could be moved between beds
+    # with nothing recording that it had happened. Installed where its feature is, at
+    # the depth its name claims, from the day the season starts.
+    device = Device(id=sensor_id, kind=DeviceKind.SENSOR, site=farm.site,
+                    model=_MODELS.get(prop, "generic probe"),
+                    serial=f"SN-{sensor_id.hex[:8]}",
+                    manufacturer="Harrow Bend Instruments",
+                    firmware="1.4.2", driver="librefarm.sim", driver_version="0",
+                    capabilities={"dedup_volatile": False,
+                                  "confirms_delivery": True})
+    install = Installation(id=uuid7(), device=sensor_id,
+                           feature=farm.features[feature]["id"],
+                           installed_at=farm.world.start,
+                           depth_m=_DEPTHS.get(name.rsplit("_", 1)[-1]))
+    for record in (device, install):
+        farm.log.append_record(record)
+        farm.state.add(record)
+
     series = Series(name=name, raw=raw, derived=derived, calibration=cal,
-                    threshold=th, channel=channel,
+                    threshold=th, channel=channel, device=device,
+                    installation=install,
                     sensor=F.Sensor(read, scale=scale, faults=list(faults),
                                     name=name))
     farm.series[name] = series
@@ -482,6 +520,53 @@ def recalibrate(farm: Farm, series_name: str, at: _dt.datetime, *,
     return fresh, superseded
 
 
+def relocate(farm: Farm, series_name: str, *, to: str, at: _dt.datetime,
+             depth_m: float | None = None, by=None):
+    """Move a sensor to another feature, closing its old installation (§4.1).
+
+    The two halves both matter. Appending the new installation is the easy part;
+    **closing the old one** is what keeps "where was this probe in April" answerable,
+    and forgetting it leaves two installations covering July, which `State.validate`
+    reports as an overlap. A siting question with two answers is worse than one with
+    none, because nothing looks wrong.
+
+    Closing is a re-append of the same installation id with `removed_at` set — the
+    same last-write-wins-by-id pattern recalibration uses for a closed calibration.
+    """
+    series = farm.series[series_name]
+    old = series.installation
+    closed = Installation(id=old.id, device=old.device, feature=old.feature,
+                          installed_at=old.installed_at, removed_at=at,
+                          depth_m=old.depth_m,
+                          orientation_deg=old.orientation_deg,
+                          installed_by=old.installed_by, note=old.note)
+    fresh = Installation(id=uuid7(), device=old.device,
+                         feature=farm.features[to]["id"], installed_at=at,
+                         depth_m=depth_m if depth_m is not None else old.depth_m,
+                         installed_by=by)
+    moved = MaintenanceEvent(
+        id=uuid7(), device=old.device, at=at, action=MaintenanceAction.MOVED,
+        performed_by=by,
+        note=f"{series_name} moved to {to}"
+             + (f", depth {depth_m} m" if depth_m is not None else ""))
+    for record in (closed, fresh, moved):
+        farm.log.append_record(record)
+        farm.state.add(record)
+    series.installation = fresh
+    return fresh
+
+
+def service(farm: Farm, series_name: str, *, at: _dt.datetime,
+            action: MaintenanceAction, by=None, note: str | None = None):
+    """Log a maintenance action against a series' device (§4.1)."""
+    series = farm.series[series_name]
+    event = MaintenanceEvent(id=uuid7(), device=series.device.id, at=at,
+                             action=action, performed_by=by, note=note)
+    farm.log.append_record(event)
+    farm.state.add(event)
+    return event
+
+
 def retune(farm: Farm, series_name: str, **values) -> Threshold:
     """Retune a threshold and re-assess under it (§3.3).
 
@@ -618,6 +703,17 @@ def season(farm: Farm, *, days: float = 21.0, events: bool = True,
                                                   value=0.244,
                                                   sample_feature=sample))
             report.record(mid, "a correction appended as a compensating event")
+
+        # §4.1: a probe lifted out of bed6 and reinstalled deeper in bed2, and a
+        # silted trough sensor cleaned. The move is the one event that makes the
+        # siting history non-trivial — before it, every installation was open and
+        # nothing exercised closing one.
+        hands = uuid7()
+        relocate(farm, "bed6_shallow", to="bed2", at=mid, depth_m=0.30, by=hands)
+        report.record(mid, "bed6_shallow moved to bed2 and reinstalled at 0.30 m")
+        service(farm, "trough_south", at=mid, action=MaintenanceAction.CLEANED,
+                by=hands, note="silt on the float")
+        report.record(mid, "trough_south cleaned")
 
     return report
 

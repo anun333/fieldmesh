@@ -84,6 +84,36 @@ class Assertor(str, Enum):
     PERSON = "person"
 
 
+class DeviceKind(str, Enum):
+    """§4.1, §8.1. What a registered thing physically is.
+
+    `SENSOR` is the kind `Datastream.sensor` points at. That field was a bare UUID
+    with no record behind it until §4.1 was built, which is why a probe could be
+    moved between beds with nothing recording that it had happened.
+    """
+
+    NODE = "node"
+    SENSOR = "sensor"
+    GATEWAY = "gateway"
+
+
+class MaintenanceAction(str, Enum):
+    """§4.1's maintenance log, with exactly the four actions the spec names.
+
+    Closed on purpose. A vocabulary that grows by whoever needs a word next is how
+    a log becomes unqueryable, so a missing action is a **spec** change rather than
+    a code change — and there is at least one missing. A battery replacement on a
+    solar or primary-cell node is a real field event that explains a step
+    discontinuity in the §4.3 battery datastream, and none of these four covers it.
+    Recorded as Q22 rather than quietly added here.
+    """
+
+    CLEANED = "cleaned"
+    MOVED = "moved"
+    REPLACED = "replaced"
+    RECALIBRATED = "recalibrated"
+
+
 #: §3.3 precedence: a person outranks the foundation.
 ASSERTOR_PRECEDENCE: dict[Assertor, int] = {Assertor.FOUNDATION: 0, Assertor.PERSON: 1}
 
@@ -184,6 +214,151 @@ class Datastream:
             raise ValueError("expected_interval must be positive")
         if self.max_latency is not None and self.max_latency <= 0:
             raise ValueError("max_latency must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class Device:
+    """§4.1 and §8.1. A registered physical device: the durable half.
+
+    **§4.1 describes a view, not a record.** Read literally it says a device record
+    holds "last seen, and the current boot counter" — and a record in an append-only
+    log cannot hold *current* anything without being mutated, which §3.2 forbids for
+    exactly the reasons that apply here. So §4.1 decomposes into three records and a
+    projection:
+
+    * this `Device` — identity, hardware, firmware and declared capabilities;
+    * `Installation` — where it is, how deep, facing where, from when until when;
+    * `MaintenanceEvent` — what was done to it and by whom;
+    * and `project.device_view`, which derives last seen and the current boot counter
+      from the readings themselves, because those are observations about the device
+      rather than claims it makes about itself.
+
+    `capabilities` is the §8 driver manifest as declared. It is an open dict like
+    `thresholds`, because the manifest is the driver's vocabulary and not ours, but
+    the three capabilities layer zero actually branches on get named accessors — an
+    undeclared capability must read as **unknown**, never as a convenient default.
+    `§6.3` turns on precisely this: a node that cannot persist its dedup table across
+    a reboot has to say so.
+    """
+
+    id: UUID
+    kind: DeviceKind
+    site: UUID
+    model: str | None = None
+    serial: str | None = None
+    manufacturer: str | None = None
+    firmware: str | None = None
+    driver: str | None = None
+    driver_version: str | None = None
+    capabilities: dict = field(default_factory=dict)
+    note: str | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.site, "site")
+        if not isinstance(self.kind, DeviceKind):
+            raise TypeError("kind must be a DeviceKind")
+
+    @property
+    def dedup_volatile(self) -> bool | None:
+        """§6.3. `None` means the driver never said, which is not the same as `False`."""
+        return self.capabilities.get("dedup_volatile")
+
+    @property
+    def confirms_delivery(self) -> bool | None:
+        """§5.4. Whether the link tells the node its frame arrived."""
+        return self.capabilities.get("confirms_delivery")
+
+    @property
+    def safe_states(self) -> dict:
+        """§8's declared safe states, empty when undeclared."""
+        value = self.capabilities.get("safe_states")
+        return value if isinstance(value, dict) else {}
+
+    def provenance(self) -> dict:
+        """What §3.2 wants stamped on a reading so a derivation is reproducible."""
+        out = {}
+        for key in ("firmware", "driver", "driver_version"):
+            value = getattr(self, key)
+            if value:
+                out[key] = value
+        return out
+
+
+@dataclass(frozen=True, slots=True)
+class Installation:
+    """§4.1. Where a device is, with dates. Closed by re-appending with `removed_at`.
+
+    The same shape as `Calibration` and for the same reason: a question like "how deep
+    was this probe when it took that reading" is unanswerable without knowing what was
+    in force *then*, and a field that is overwritten on every move cannot answer it at
+    all. `removed_at = None` means still installed.
+
+    `depth_m` is positive downwards from the surface, because every soil reference does
+    it that way and a sign convention nobody states is a sign convention somebody gets
+    wrong. `orientation_deg` is a compass azimuth; both are numbers rather than prose
+    so that a wrong one can be caught.
+    """
+
+    id: UUID
+    device: UUID
+    feature: UUID
+    installed_at: _dt.datetime
+    removed_at: _dt.datetime | None = None
+    depth_m: float | None = None
+    orientation_deg: float | None = None
+    installed_by: UUID | None = None
+    note: str | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.device, "device")
+        _uuid7(self.feature, "feature")
+        _opt_uuid7(self.installed_by, "installed_by")
+        _utc(self.installed_at, "installed_at")
+        if self.removed_at is not None:
+            _utc(self.removed_at, "removed_at")
+            if self.removed_at <= self.installed_at:
+                raise ValueError("removed_at must be after installed_at")
+        if self.depth_m is not None and self.depth_m < 0:
+            raise ValueError(
+                "depth_m is positive downwards from the surface (§4.1); a sensor "
+                "above ground is an orientation, not a negative depth")
+        if self.orientation_deg is not None and not 0 <= self.orientation_deg < 360:
+            raise ValueError("orientation_deg is a compass azimuth in [0, 360)")
+
+    def covers(self, when: _dt.datetime) -> bool:
+        """Half-open [installed_at, removed_at), so two installations never both
+        apply to one instant."""
+        _utc(when, "when")
+        if when < self.installed_at:
+            return False
+        return self.removed_at is None or when < self.removed_at
+
+
+@dataclass(frozen=True, slots=True)
+class MaintenanceEvent:
+    """§4.1's maintenance log. Accumulates, like an observation — never replaced.
+
+    `note` is where the human detail goes, but the `action` is what makes the log
+    queryable: "when was this probe last cleaned" is a question a certifier asks, and
+    it cannot be answered by grepping prose.
+    """
+
+    id: UUID
+    device: UUID
+    at: _dt.datetime
+    action: MaintenanceAction
+    performed_by: UUID | None = None
+    note: str | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.device, "device")
+        _opt_uuid7(self.performed_by, "performed_by")
+        _utc(self.at, "at")
+        if not isinstance(self.action, MaintenanceAction):
+            raise TypeError("action must be a MaintenanceAction")
 
 
 @dataclass(frozen=True, slots=True)

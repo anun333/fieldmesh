@@ -45,6 +45,9 @@ from ids import uuid7
 #: not police vocabulary — but these are what `records()` knows how to decode.
 RECORD_KINDS = {
     "Datastream": "datastream",
+    "Device": "device",
+    "Installation": "installation",
+    "MaintenanceEvent": "maintenance",
     "Calibration": "calibration",
     "Observation": "observation",
     "Threshold": "threshold",

@@ -25,7 +25,8 @@ import harrow_bend as hb
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "sdk"))
 import project as P  # noqa: E402
-from model import Assertor, DatastreamKind, QualityFlag  # noqa: E402
+from model import (Assertor, DatastreamKind,  # noqa: E402
+                   MaintenanceAction, QualityFlag)
 
 DAYS = 12.0
 
@@ -244,11 +245,63 @@ class TestDevices(Matrix):
             self.assertNotIn("stale", {f.value for f in last.flags})
 
     def test_a_sensor_moved_and_reinstalled_with_dates(self):
-        self.skipTest(
-            "§4.1 describes a device record holding install location, depth and "
-            "orientation with dates, a maintenance log and declared capabilities. "
-            "There is no Device type in sdk/model.py, so there is nothing to move "
-            "or reinstall. That is a spec-versus-code gap, not a farm gap.")
+        """§4.1, with the question that makes dates necessary.
+
+        A probe is lifted out of bed6 and reinstalled deeper in bed2 mid-season. The
+        test is not that the move was logged — it is that **"where was this probe,
+        and how deep, when it took that reading" has one answer per instant.** A
+        record that overwrote its location on every move could not answer it at all,
+        and two open installations would answer it twice.
+        """
+        series = self.farm.series["bed6_shallow"]
+        device_id = series.device.id
+        features = {v["id"]: k for k, v in self.farm.features.items()
+                    if v.get("id")}
+
+        history = self.state.installations_of(device_id)
+        self.assertEqual(len(history), 2, "one move means two installations")
+        first, second = history
+        self.assertIsNotNone(first.removed_at,
+                             "the old installation must be closed, or both cover July")
+        self.assertEqual(first.removed_at, second.installed_at)
+
+        early = self.farm.world.start + _dt.timedelta(days=1)
+        late = second.installed_at + _dt.timedelta(days=1)
+        before = self.state.installation_of(device_id, early)
+        after = self.state.installation_of(device_id, late)
+        self.assertEqual(features[before.feature], "bed6")
+        self.assertEqual(features[after.feature], "bed2")
+        self.assertGreater(after.depth_m, before.depth_m,
+                           "it was reinstalled deeper, and the depth is per-siting")
+
+        # The move itself is in the maintenance log, with a person attached.
+        view = self.state.device_view(device_id)
+        self.assertEqual(view.last_action(MaintenanceAction.MOVED),
+                         second.installed_at)
+        moved = [m for m in view.maintenance if m.action is MaintenanceAction.MOVED]
+        self.assertTrue(all(m.performed_by is not None for m in moved))
+
+        # And the device record carries what §4.1 asks of it.
+        self.assertIsNotNone(view.device.model)
+        self.assertIsNotNone(view.device.firmware)
+        self.assertIs(view.device.dedup_volatile, False,
+                      "§6.3 needs this declared, and silence is not a declaration")
+        self.assertIsNotNone(view.last_seen, "last seen comes from the readings")
+        self.assertIsNotNone(view.boot)
+
+    def test_a_cleaning_is_answerable_from_the_maintenance_log(self):
+        """"When was this last cleaned" is a certifier's question, and the reason
+        `action` is an enum rather than prose."""
+        device_id = self.farm.series["trough_south"].device.id
+        view = self.state.device_view(device_id)
+        self.assertIsNotNone(view.last_action(MaintenanceAction.CLEANED))
+
+    def test_every_datastream_names_a_registered_device(self):
+        """§8.1 — a datastream whose sensor nobody registered is heard but not
+        trusted, and the canonical farm should have none of those."""
+        unregistered = {ds.sensor for ds in self.state.datastreams.values()
+                        if ds.sensor not in self.state.devices}
+        self.assertEqual(unregistered, set())
 
 
 class TestTransport(Matrix):
