@@ -313,11 +313,29 @@ texture at each probe's own depth, the 99.9th-percentile dwell on good readings:
 (An earlier version grouped by the global HWSD database, which turned out to misclassify
 Tennessee and Mississippi soils at field scale; this replaces it.)
 
+**Climate changes it for sand.** The same measurement over 210 SCAN stations, by Köppen
+main class — temperate (C, 113 stations) reproduces the table above; cold (D, 34) is close
+to it; dry (B, 63) is not:
+
+| depth | dry: sandy | loamy | clayey | temperate: sandy | loamy | clayey |
+| --- | --- | --- | --- | --- | --- | --- |
+| top 20 cm | 14 h | 7 h | 8 h | 11 h | 11 h | 19 h |
+| 51 cm | 32 h | 25 h | 28 h | 23 h | 21 h | 31 h |
+| 1 m | **71 h** | 34 h | 45 h | 27 h | 38 h | 58 h |
+
+Dry sandy soil goes days without changing, so in a dry climate deep sand dwells longest —
+the reverse of the temperate ordering. A default from texture alone would put a flatline
+at 44 hours on a dry sandy 1 m probe whose healthy dwell is 71.
+[tools/soil_survey.py](../../tools/soil_survey.py) now takes the climate class, and
+without one uses the longest dwell any climate showed, so an unknown climate errs towards
+quiet. Cells measured on fewer than ten probes — cold-climate clay, and cold sand at
+51 cm — take the temperate value.
+
 **Recommendation, revised: learn each series' threshold from its own history** — several
 times its observed 99.9th-percentile dwell — as the primary mechanism, because it absorbs
 depth, texture, climate and sensor resolution together. Until a series has a season of
-history, use a default from depth *and* texture looked up in the soil survey at the probe's
-location — [tools/soil_survey.py](../../tools/soil_survey.py) does this for any US point —
+history, use a default from depth, texture *and* climate looked up in the soil survey at
+the probe's location — [tools/soil_survey.py](../../tools/soil_survey.py) does this for any US point —
 so a new probe starts from its own soil rather than from one number for all of them. Where
 no survey exists, fall back to the clay column, so a new probe errs towards quiet rather
 than towards a flood of false `stuck` flags. The
@@ -325,6 +343,40 @@ default doubles as the floor and cap on what a series may learn, so a probe stuc
 day it was installed cannot teach itself that stuck is normal. And note what the 351-hour
 maximum at Tennessee's 1 m cannot tell us — healthy soil, or a stuck sensor ISMN did not
 flag — which is why every number here is a 99.9th percentile, not a maximum.
+
+## Q25. When a two-peer siting check fires, which probe moved?
+
+**Status: affects how a real alarm is reported.** Raised 2026-10-08, when the siting check
+found a real unlogged depth change in ISMN's data and attributed it to the wrong probe
+(see [notes/siting-real-soil.md](../notes/siting-real-soil.md)).
+
+A real station is one profile with one probe per depth, and only the top three carry a
+readable daily wave. Each is judged against a line through the other two. Three probes and
+a two-parameter line leave exactly one degree of freedom, so *any* single probe's
+displacement fits the readings equally well: the phase alone cannot say which one moved.
+And a peer's error is amplified in a probe extrapolated beyond it. At McAllister Farm, a
+replacement 10 cm probe sat about 4 cm shallower than its predecessor; its own offset was
+within tolerance, while the 20 cm probe, extrapolated from a 5–10 cm line squeezed into
+3 cm of real depth, was called displaced by 10–15 cm.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **Report the profile, not the probe**, when the fit is not robust: "something in this profile moved; probes involved: …" | True, and what `robust: false` already means; costs nothing | Leaves a farmer to dig up three probes to find one |
+| **Blame the probe whose own records changed when the alarm began** — a logged replacement, a maintenance visit, a gap in its readings | Exactly right at both stations where it happened: at McAllister and Allen Farms the 10 cm probe had an 18-month gap and a new sensor logged days before the profile changed | Only helps when the move coincided with a record; the unlogged cultivator strike has none |
+| **Fit phase and amplitude together.** Both depend on depth through the *same* damping depth, so each single-probe hypothesis predicts both; with two signals the system is overdetermined and the true culprit should fit best | Uses physics already in the check; needs no extra hardware | The amplitude was too noisy to place probes at one of the three Tennessee stations, where the 51 cm swing is 0.04 °C. Unmeasured as a discriminator |
+| **Install a fourth shallow probe** (15 or 30 cm) so the fit is robust and a displaced peer is outvoted | The only option that makes the check robust rather than better-explained | Hardware and labour on every profile |
+| Prefer the smallest displacement that explains the readings | Right at McAllister, where the culprit's offset was the smallest | Not right in general: a displaced outer probe shows the largest offset of the three |
+
+**Recommendation:** report the profile and name the probe whose records changed at the
+onset, where there is one — both cheap, and both would have been right here. Measure the
+joint phase-and-amplitude fit before trusting it. For a farm installing new profiles,
+recommend a fourth shallow probe as the robust answer. Two observations that need
+deciding together with this: a peer installed a few centimetres from its record biases
+the others' implied depths for as long as it stays, which limits a two-peer profile to
+calling moves a little over 10 cm; and a replacement is exactly when a depth error is most
+likely — both Tennessee replacements in 2023 went in 2–4 cm from their predecessors — so a
+maintenance-record convention that asks for the measured depth at every replacement would
+remove the cause rather than detect it.
 
 ## Q5. Binary encoding
 
@@ -618,6 +670,11 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | **Done 2026-10-07** — posted as a comment on [#174](https://github.com/opengeospatial/sensorthings/issues/174#issuecomment-6050541663); see [notes/q18-ogc-issue-draft.md](../notes/q18-ogc-issue-draft.md) |
 | Q19 | Should an assertion's `evidence` object be normative, and what shape? | Blocks third parties |
 | Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | Blocks v0 node firmware |
+| Q21 | What unit does a *raw* datastream declare? | Blocks v0 |
+| Q22 | Does the maintenance vocabulary need a battery replacement? | Blocks nothing |
+| Q23 | A rate-of-change limit that works at any sampling interval | Blocks scoring hourly data |
+| Q24 | Flatline thresholds that know the probe's depth, soil and climate | False alarms on deep probes today |
+| Q25 | When a two-peer siting check fires, which probe moved? | Affects how a real alarm is reported |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and

@@ -35,7 +35,10 @@ class _Farm:
     """A handful of probes reporting synthetic soil temperature, hourly for 2 days."""
 
     def __init__(self, recorded: dict, physical: dict | None = None,
-                 damping: dict | None = None):
+                 damping: dict | None = None, hours: int = 49,
+                 episode: dict | None = None):
+        """`episode` = {name: (from_hour, to_hour, depth)}: where a probe physically
+        was for a while, with no record of it — an unlogged move, or a bad day."""
         self.log = L.Log()
         self.ids = {}
         physical = physical or recorded
@@ -57,16 +60,19 @@ class _Farm:
                                    depth_m=depth)
             for record in (device, raw, derived, cal, install):
                 self.log.append_record(record)
-            for hour in range(49):
+            for hour in range(hours):
                 when = T0 + _dt.timedelta(hours=hour)
-                value = _temperature(physical[name], when,
-                                     damping.get(name, D))
+                z = physical[name]
+                if episode and name in episode and \
+                        episode[name][0] <= hour < episode[name][1]:
+                    z = episode[name][2]
+                value = _temperature(z, when, damping.get(name, D))
                 self.log.append_record(fx.observation(
                     derived, result=value, measured_at=when, calibration=cal.id,
                     node=None, boot=None, seq=None))
             self.ids[name] = device.id
         self.state = P.state_from_log(self.log)
-        self.at = T0 + _dt.timedelta(hours=48)
+        self.at = T0 + _dt.timedelta(hours=hours - 1)
 
     def assess(self, name):
         return S.assess_siting(self.state, self.ids[name], self.at)
@@ -193,10 +199,6 @@ class TestTheConfounder(unittest.TestCase):
         finding = farm.assess("a20")
         self.assertGreater(finding.implied_depth_m, 0.20)
         self.assertEqual(finding.verdict, S.CONSISTENT)
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestPosition(unittest.TestCase):
@@ -472,3 +474,69 @@ class TestLateral(unittest.TestCase):
         finding = self.assess("a2")
         text = str(i18n.Translator("es").text(finding.key, **finding.params))
         self.assertIn("sin ningún registro", text)
+
+
+class TestPersistence(unittest.TestCase):
+    """`displaced` only when most of a week's daily assessments agree.
+
+    Eight days of hourly readings, so seven daily 48-hour windows end at the last one.
+    Day 0 is the latest window, ending at `at`; hour 0 is eight days before that."""
+
+    HOURS = 24 * 8 + 1
+
+    def farm(self, **kw):
+        return _Farm(STANDARD, hours=self.HOURS, **kw)
+
+    def persistent(self, farm, name="a20"):
+        return S.assess_siting_persistent(farm.state, farm.ids[name], farm.at)
+
+    def test_a_probe_where_its_record_says_stays_consistent(self):
+        finding = self.persistent(self.farm())
+        self.assertEqual(finding.verdict, S.CONSISTENT, finding.reason)
+        self.assertEqual(finding.evidence["persistence"]["displaced_days"], 0)
+        self.assertEqual(finding.evidence["persistence"]["decided_days"], 7)
+
+    def test_a_move_held_all_week_is_displaced(self):
+        farm = self.farm(physical={**STANDARD, "a20": 0.05})
+        finding = self.persistent(farm)
+        self.assertEqual(finding.verdict, S.DISPLACED)
+        self.assertEqual(finding.evidence["persistence"]["displaced_days"], 7)
+        self.assertAlmostEqual(finding.implied_depth_m, 0.05, delta=0.02)
+        self.assertEqual(finding.at, farm.at)
+
+    def test_a_fresh_move_is_unconfirmed_not_consistent(self):
+        """Moved two days ago: today's window sees it, the week does not yet. Saying
+        `consistent` here would be false; `displaced` would be premature."""
+        farm = self.farm(episode={"a20": (self.HOURS - 49, self.HOURS, 0.05)})
+        self.assertEqual(farm.assess("a20").verdict, S.DISPLACED)
+        finding = self.persistent(farm)
+        self.assertEqual(finding.verdict, S.INDETERMINATE)
+        self.assertEqual(finding.key, "siting.unconfirmed")
+        self.assertLess(finding.evidence["persistence"]["displaced_days"], 5)
+        self.assertIn("of the last 7 days", finding.reason)
+
+    def test_a_bad_day_midweek_raises_nothing(self):
+        farm = self.farm(episode={"a20": (72, 96, 0.05)})
+        finding = self.persistent(farm)
+        self.assertEqual(finding.verdict, S.CONSISTENT, finding.reason)
+        self.assertLess(finding.evidence["persistence"]["displaced_days"], 5)
+
+    def test_a_persistent_finding_flags_the_whole_span(self):
+        """Readings from the first displaced day on are in doubt, not just the last
+        two days of them."""
+        farm = self.farm(physical={**STANDARD, "a20": 0.05})
+        finding = self.persistent(farm)
+        self.assertEqual(finding.evidence["window_h"], 48.0 + 6 * 24)
+        flagged = S.suspect_assertions(farm.state, finding).assertions
+        self.assertEqual(len(flagged), self.HOURS)
+
+    def test_the_message_reads_in_every_shipped_language(self):
+        import i18n
+        farm = self.farm(episode={"a20": (self.HOURS - 49, self.HOURS, 0.05)})
+        finding = self.persistent(farm)
+        text = str(i18n.Translator("es").text(finding.key, **finding.params))
+        self.assertIn("de los últimos 7 días", text)
+
+
+if __name__ == "__main__":
+    unittest.main()

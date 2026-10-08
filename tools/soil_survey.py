@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A starting range for a probe, from the USDA soil survey at its location and depth.
 
-    python3 soil_survey.py 35.06445 -86.59137 --depths 0.05,0.2,0.5,1.0
+    python3 soil_survey.py 35.06445 -86.59137 --depths 0.05,0.2,0.5,1.0 --climate C
 
 Asks Soil Data Access — the public query service behind the USDA NRCS soil survey
 (SSURGO), mapped county by county at field scale — for the dominant soil at a point, and
@@ -15,14 +15,14 @@ default gets wrong:
   of ISMN's above-saturation flags, against 74% for a generic 0.46, while flagging 0.02%
   of the readings ISMN rates good — outside one probe where map and ISMN agree something
   is wrong (docs/notes/ismn-scoring.md);
-* **a flatline duration**, from the measured dwell for the soil's texture at that depth:
-  the 99.9th-percentile run of one identical value on healthy readings across 1,720
-  probes at 87 humid-subtropical SCAN stations, grouped by the soil survey at each probe's
-  own depth.
+* **a flatline duration**, from the measured dwell for the soil's texture at that depth
+  and the climate: the 99.9th-percentile run of one identical value on healthy readings
+  at 210 SCAN stations in dry, temperate and cold climates, grouped by the soil survey at
+  each probe's own depth.
 
 **These are starting values, not answers.** A soil-survey figure is representative of a
-map unit, not measured at the probe, and the climate behind the dwell table is one class
-(Köppen Cfa). Open questions Q24 and Q23 recommend learning each series' own thresholds
+map unit, not measured at the probe, and the dwell table is from United States stations
+with one family of sensor. Open questions Q24 and Q23 recommend learning each series' own thresholds
 once it has a season of history; this is the default it starts from.
 
 Field capacity and wilting point come back too, because vocab.py already names them as
@@ -54,13 +54,30 @@ QUERY = """SELECT TOP 40 mu.muname, c.compname, c.comppct_r, ch.hzdept_r, ch.hzd
 RANGE_MARGIN = 0.02
 
 #: Measured: 99.9th-percentile hours of one identical value on readings ISMN rates good,
-#: by soil-survey texture at the probe's depth. 1,720 probes, 87 SCAN stations, Köppen
-#: Cfa. See docs/notes/ismn-scoring.md.
-DWELL_P999_H = {
-    ("sandy", "top"): 9, ("loamy", "top"): 11, ("clayey", "top"): 19,
-    ("sandy", "mid"): 15, ("loamy", "mid"): 22, ("clayey", "mid"): 32,
-    ("sandy", "deep"): 22, ("loamy", "deep"): 40, ("clayey", "deep"): 64,
+#: by Köppen main climate class and the soil-survey texture at the probe's own depth —
+#: 210 SCAN stations, 63 dry (B), 113 temperate (C), 34 cold (D). See
+#: docs/notes/ismn-scoring.md. Climate matters most for sand: dry sandy soil goes days
+#: without changing, so at 1 m its dwell is 71 h against 27 h in a temperate climate.
+_MEASURED_DWELL_H = {
+    #       sandy        loamy        clayey     (top ≤ 21 cm, mid ≤ 60 cm, deep)
+    "B": {"top": (14, 7, 8),    "mid": (32, 25, 28), "deep": (71, 34, 45)},
+    "C": {"top": (11, 11, 19),  "mid": (23, 21, 31), "deep": (27, 38, 58)},
+    "D": {"top": (10, 12, None), "mid": (None, 24, None), "deep": (16, 38, None)},
 }
+#: Cells measured on fewer than ten probes (cold clayey everywhere, cold sandy at mid
+#: depth) are left out above and take the temperate value.
+_TEXTURES = ("sandy", "loamy", "clayey")
+DWELL_P999_H = {
+    climate: {(kind, b): (row[b][i] if row[b][i] is not None
+                          else _MEASURED_DWELL_H["C"][b][i])
+              for b in ("top", "mid", "deep") for i, kind in enumerate(_TEXTURES)}
+    for climate, row in _MEASURED_DWELL_H.items()
+}
+#: Climate unknown: the longest dwell any climate showed, so a new probe errs towards a
+#: late `stuck` rather than a flood of false ones — the same reasoning Q24 gives for
+#: falling back to the clay column where there is no survey.
+DWELL_P999_H[None] = {key: max(DWELL_P999_H[c][key] for c in "BCD")
+                      for key in DWELL_P999_H["C"]}
 #: How far above the healthy 99.9th percentile a flatline waits. A judgement, stated:
 #: twice the dwell keeps the false-alarm rate well under one in a thousand runs while a
 #: probe in a bucket is still caught within a day or three.
@@ -121,13 +138,18 @@ def band(depth_m: float) -> str:
     return "top" if depth_m <= 0.21 else "mid" if depth_m <= 0.6 else "deep"
 
 
-def proposed_limits(soil: dict, depth_m: float) -> dict | None:
-    """Starting thresholds for a probe at `depth_m`, with where each came from."""
+def proposed_limits(soil: dict, depth_m: float, climate: str | None = None) -> dict | None:
+    """Starting thresholds for a probe at `depth_m`, with where each came from.
+
+    `climate` is the Köppen main class letter — "B" dry, "C" temperate, "D" cold — or
+    None when unknown, which takes the most cautious flatline. Tropical (A) and polar (E)
+    have no SCAN data behind them and are treated as unknown."""
     h = horizon_at(soil, depth_m)
     if h is None:
         return None
     kind = texture(h)
-    dwell = DWELL_P999_H[(kind, band(depth_m))]
+    table = DWELL_P999_H.get(climate[:1].upper() if climate else None, DWELL_P999_H[None])
+    dwell = table[(kind, band(depth_m))]
     return {
         "depth_m": depth_m,
         "horizon_cm": (h["top_cm"], h["bottom_cm"]),
@@ -138,7 +160,9 @@ def proposed_limits(soil: dict, depth_m: float) -> dict | None:
         "field_capacity": h["field_capacity"],
         "wilting_point": h["wilting_point"],
         "source": {"map_unit": soil["map_unit"], "component": soil["component"],
-                   "survey": "USDA NRCS SSURGO via Soil Data Access"},
+                   "survey": "USDA NRCS SSURGO via Soil Data Access",
+                   "dwell_climate": (climate[:1].upper() if climate and
+                                     climate[:1].upper() in "BCD" else "unknown")},
     }
 
 
@@ -148,6 +172,9 @@ def main(argv=None) -> int:
     ap.add_argument("lat", type=float)
     ap.add_argument("lon", type=float)
     ap.add_argument("--depths", default="0.05,0.1,0.2,0.5,1.0")
+    ap.add_argument("--climate", choices=("B", "C", "D"),
+                    help="Köppen main class: B dry, C temperate, D cold. Omitted, the "
+                         "flatline takes the longest dwell any climate showed.")
     args = ap.parse_args(argv)
     soil = query(args.lat, args.lon)
     if not soil["horizons"]:
@@ -159,7 +186,7 @@ def main(argv=None) -> int:
     print(f"  {'depth':>6} {'horizon':>10} {'texture':>8} {'range max':>10} "
           f"{'flatline':>9} {'FC':>6} {'WP':>6}")
     for depth in (float(d) for d in args.depths.split(",")):
-        limits = proposed_limits(soil, depth)
+        limits = proposed_limits(soil, depth, args.climate)
         if limits is None:
             print(f"  {depth:>5.2f}m  no horizon at this depth (bedrock, or below the "
                   f"described profile)")
@@ -168,6 +195,9 @@ def main(argv=None) -> int:
         print(f"  {depth:>5.2f}m {top:>4.0f}-{bottom:<4.0f}cm {limits['texture']:>8} "
               f"{limits['max'] or '-':>10} {limits['flat_seconds'] / 3600:>8.0f}h "
               f"{limits['field_capacity'] or '-':>6} {limits['wilting_point'] or '-':>6}")
+    if args.climate is None:
+        print("\nNo --climate given: flatlines use the longest dwell measured in any "
+              "climate, which errs towards quiet.")
     print("\nStarting values from a map unit, not measurements at the probe. Refine from "
           "the series' own history (open-questions Q23, Q24).")
     return 0

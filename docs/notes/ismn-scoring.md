@@ -158,6 +158,24 @@ sandy and loamy soil near the surface and wrong almost everywhere else. Q24 now 
 threshold learned from each series' own history, starting from this table looked up by the
 soil survey; `tools/soil_survey.py` does the lookup.
 
+**And climate, for sand.** The same measurement over every SCAN station with a climate
+class and a soil-survey horizon at the probe's depth — 210 stations, by Köppen main class:
+
+| depth | dry (B): sandy | loamy | clayey | temperate (C): sandy | loamy | clayey | cold (D): sandy | loamy |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| top 20 cm | 14 h (126) | 7 h (410) | 8 h (31) | 11 h (214) | 11 h (799) | 19 h (202) | 10 h (35) | 12 h (154) |
+| 51 cm | 32 h (37) | 25 h (126) | 28 h (17) | 23 h (44) | 21 h (207) | 31 h (160) | 17 h (8) | 24 h (68) |
+| 1 m | **71 h** (38) | 34 h (103) | 45 h (28) | 27 h (42) | 38 h (202) | 58 h (128) | 16 h (13) | 38 h (59) |
+
+63 dry, 113 temperate and 34 cold stations; probe counts in brackets; cold-climate clay
+had five probes or fewer per cell and is left out. Cells under ten probes take the
+temperate value in the tool. Temperate reproduces the Cfa table above and cold is
+close to it. Dry climates reverse the ordering for sand: dry sandy soil sits unchanged
+for days, so at 1 m it dwells longest of all. `tools/soil_survey.py` now takes the climate
+class (`--climate B|C|D`); without one it uses the longest dwell any climate showed, so an
+unknown climate errs towards quiet. 144 probes had no soil-survey horizon at their depth
+and are not counted.
+
 *An earlier version of this table was wrong twice.* It grouped stations by HWSD texture,
 which misclassifies at field scale — it calls Tennessee's silt loams loam and Starkville,
 Mississippi, 55% clay where the survey finds a sandy loam over 28%-clay loam. And a first
@@ -180,8 +198,9 @@ step cap near 0.17 per hour kept only as a backstop.
 
 ## Caveats
 
-- **One region, one sensor make.** Three Tennessee stations, all Stevens Hydraprobes. The
-  Q24 depth curve is one soil's; a sandy soil drains faster and a clay slower.
+- **One region, one sensor make, for the agreement figures.** The scoring is three
+  Tennessee stations, all Stevens Hydraprobes. The dwell tables reach further — 210 United
+  States stations across three climate classes — but are still one network's sensors.
 - **ISMN's flags are not ground truth.** They are another automated system's judgement, with
   its own thresholds and its own soil database.
 - **Our thresholds were Harrow Bend's**, chosen for a fictional farm before any of this data

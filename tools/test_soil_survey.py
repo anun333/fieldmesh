@@ -47,11 +47,33 @@ class TestSoilSurvey(unittest.TestCase):
         self.assertEqual(limits["source"]["component"], "Dickson")
 
     def test_a_deep_clayey_horizon_gets_a_longer_flatline(self):
-        """1.2 m here is 43.5% clay: the measured dwell is 64 h, so 128 h with the
-        stated factor of two — not the 18 h that misfired at depth."""
-        limits = S.proposed_limits(self.soil, 1.2)
+        """1.2 m here is 43.5% clay: in a temperate climate the measured dwell is 58 h,
+        so 116 h with the stated factor of two — not the 18 h that misfired at depth."""
+        limits = S.proposed_limits(self.soil, 1.2, "C")
         self.assertEqual(limits["texture"], "clayey")
-        self.assertEqual(limits["flat_seconds"], 128 * 3600)
+        self.assertEqual(limits["flat_seconds"], 116 * 3600)
+        self.assertEqual(limits["source"]["dwell_climate"], "C")
+
+    def test_an_unknown_climate_takes_the_longest_measured_dwell(self):
+        for depth, kind_band in ((0.05, ("loamy", "top")), (1.2, ("clayey", "deep"))):
+            longest = max(S.DWELL_P999_H[c][kind_band] for c in "BCD")
+            for climate in (None, "A", "E"):
+                limits = S.proposed_limits(self.soil, depth, climate)
+                self.assertEqual(limits["flat_seconds"],
+                                 int(longest * S.DWELL_FACTOR * 3600), (depth, climate))
+                self.assertEqual(limits["source"]["dwell_climate"], "unknown")
+
+    def test_dry_sand_dwells_longest_at_depth(self):
+        """Measured, and the reason climate is a key at all: in a dry climate deep sand
+        changes least, the reverse of the temperate ordering."""
+        dry, temperate = S.DWELL_P999_H["B"], S.DWELL_P999_H["C"]
+        self.assertGreater(dry[("sandy", "deep")], dry[("clayey", "deep")])
+        self.assertLess(temperate[("sandy", "deep")], temperate[("clayey", "deep")])
+
+    def test_a_thinly_measured_cell_takes_the_temperate_value(self):
+        self.assertEqual(S.DWELL_P999_H["D"][("clayey", "deep")],
+                         S.DWELL_P999_H["C"][("clayey", "deep")])
+        self.assertEqual(S.DWELL_P999_H["D"][("loamy", "deep")], 38)
 
     def test_below_the_described_profile_there_is_no_proposal(self):
         """183-208 cm has no properties; no guess is offered."""

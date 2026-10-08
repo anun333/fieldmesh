@@ -19,11 +19,16 @@ because snow and overcast winter days weaken the daily wave the check reads.
     cd /tmp && python3 -I ~/dev/librefarm/tools/ismn_siting.py \\
         ~/Downloads/ISMN_archive_20261008.zip --stations AllenFarms,EastviewFarm,McAllisterFarm
 
+`--persistence` instead assesses every day and scores the k-of-n rules that
+`siting.assess_siting_persistent` applies — false-alarm episodes per probe-year, and how
+often each move is caught.
+
 Only readings ISMN rates good are used. The archive is untrusted data, read in place.
 """
 from __future__ import annotations
 
 import argparse
+import bisect
 import collections
 import datetime as _dt
 import os
@@ -81,6 +86,22 @@ def load_station(archive: str, station_folder: str) -> dict:
     return out
 
 
+def windower(depths: dict):
+    """`window(depth, at)` -> the readings in the WINDOW ending at `at`, by bisection.
+
+    The first version filtered every reading of a 23-year record for every window,
+    which is quadratic in the record: weekly windows took minutes, daily ones would
+    have taken hours."""
+    index = {d: (sorted(series), series) for d, series in depths.items()}
+
+    def window(depth: float, at: _dt.datetime) -> dict:
+        times, series = index[depth]
+        lo = bisect.bisect_left(times, at - WINDOW)
+        hi = bisect.bisect_right(times, at)
+        return {t: series[t] for t in times[lo:hi]}
+    return window
+
+
 def build_state(probes: dict, at: _dt.datetime):
     """A one-window farm: probes = {name: (recorded depth, {time: temperature})}."""
     log = L.Log()
@@ -127,9 +148,9 @@ def run(archive: str, stations: list[str], every_days: int = 7):
         times = sorted(set().union(*(depths[d].keys() for d in shallow)))
         start = times[0].replace(hour=0, minute=0) + _dt.timedelta(days=3)
         at = start
+        slice_ = windower(depths)
         while at <= times[-1]:
-            window = {d: {t: v for t, v in depths[d].items() if at - WINDOW <= t <= at}
-                      for d in shallow}
+            window = {d: slice_(d, at) for d in shallow}
             if sum(1 for d in shallow if len(window[d]) >= 40) >= 4:
                 sea = season(at)
                 state, ids = build_state({f"p{d}": (d, window[d]) for d in shallow}, at)
@@ -159,13 +180,120 @@ def run(archive: str, stations: list[str], every_days: int = 7):
     return control, control_error, moved, moved_implied
 
 
+#: The persistence scenarios: (recorded depth, depth the readings came from).
+DAILY = {"control 0.05": (0.05, 0.05), "control 0.10": (0.10, 0.10),
+         "control 0.20": (0.20, 0.20), "lifted 15 cm": (0.20, 0.05),
+         "pushed 10 cm": (0.10, 0.20), "lifted 10 cm": (0.20, 0.10)}
+RULES = [(1, 1), (2, 3), (3, 5), (4, 7), (5, 7)]
+
+
+def daily_verdicts(archive: str, station: str) -> dict:
+    """scenario -> [(date, verdict, implied depth)], one 48 h window ending each midnight
+    where all four of 5, 10, 20 and 51 cm have readings."""
+    depths = load_station(archive, station)
+    shallow = [d for d in (0.05, 0.10, 0.20, 0.51) if d in depths]
+    rows = collections.defaultdict(list)
+    if len(shallow) < 4:
+        return rows
+    window_of = windower(depths)
+    times = sorted(depths[0.05])
+    at = times[0].replace(hour=0, minute=0) + _dt.timedelta(days=3)
+    while at <= times[-1]:
+        window = {d: window_of(d, at) for d in shallow}
+        if all(len(window[d]) >= 40 for d in shallow):
+            for name, (recorded, actual) in DAILY.items():
+                probes = {f"p{d}": (d, window[d]) for d in shallow if d != recorded}
+                probes["x"] = (recorded, window[actual])
+                state, ids = build_state(probes, at)
+                f = S.assess_siting(state, ids["x"], at)
+                rows[name].append((at.date(), f.verdict, f.implied_depth_m))
+        at += _dt.timedelta(days=1)
+    return rows
+
+
+def k_of_n(rows: list, k: int, n: int) -> list:
+    """[(date, alarm or None)]: displaced on at least k of the last n consecutive days,
+    as `siting.assess_siting_persistent` decides. None where fewer than k could decide."""
+    by_day = {d: v for d, v, _ in rows}
+    out = []
+    for day, _, _ in rows:
+        last = [by_day.get(day - _dt.timedelta(days=i)) for i in range(n)]
+        if any(v is None for v in last):
+            continue                       # a gap in the record: not n consecutive days
+        decided = [v for v in last if v != S.INDETERMINATE]
+        out.append((day, None if len(decided) < k
+                    else sum(v == S.DISPLACED for v in decided) >= k))
+    return out
+
+
+def episodes(decisions: list) -> int:
+    """Alarm episodes: runs of consecutive alarmed days. What a farmer would be told."""
+    count, inside, prev = 0, False, None
+    for day, alarm in decisions:
+        if prev is not None and (day - prev).days > 1:
+            inside = False
+        prev = day
+        if alarm is None:
+            continue
+        if alarm and not inside:
+            count += 1
+        inside = bool(alarm)
+    return count
+
+
+def persistence(archive: str, stations: list[str], exclude: dict) -> None:
+    """False-alarm episodes per probe-year on undisturbed profiles, and how often moves
+    are caught, for each k-of-n rule. `exclude` = {station: date} drops that station's
+    windows from that date on — a period with a known displaced probe."""
+    per_station = {s: daily_verdicts(archive, s) for s in stations}
+    for s, cut in exclude.items():
+        if s in per_station:
+            per_station[s] = {k: [r for r in v if r[0] < cut]
+                              for k, v in per_station[s].items()}
+    controls = [k for k in DAILY if k.startswith("control")]
+    moves = [k for k in DAILY if not k.startswith("control")]
+    print("False `displaced` episodes per probe-year, correctly placed probes; and the "
+          "share of decided days a move is caught")
+    print(f"  {'rule':<8}{'all':>7}" + "".join(f"{c[-4:]:>7}" for c in controls)
+          + "".join(f"{m:>14}" for m in moves))
+    for k, n in RULES:
+        total_e = total_y = 0
+        cells = []
+        for c in controls:
+            e = y = 0
+            for rows in per_station.values():
+                e += episodes(k_of_n(rows[c], k, n))
+                y += len(rows[c]) / 365.25
+            cells.append(f"{e / y:>7.2f}" if y else f"{'-':>7}")
+            total_e += e
+            total_y += y
+        caught = []
+        for m in moves:
+            got = [a for rows in per_station.values()
+                   for _, a in k_of_n(rows[m], k, n) if a is not None]
+            caught.append(f"{sum(got) / len(got):>14.0%}" if got else f"{'-':>14}")
+        print(f"  {f'{k} of {n}':<8}{total_e / max(total_y, 1e-9):>7.2f}" + "".join(cells)
+              + "".join(caught))
+    print(f"\n  {total_y / len(controls):.0f} station-years, three control probes each")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("archive")
     ap.add_argument("--stations", default="AllenFarms,EastviewFarm,McAllisterFarm")
     ap.add_argument("--every-days", type=int, default=7)
+    ap.add_argument("--persistence", action="store_true",
+                    help="daily windows, scored under each k-of-n persistence rule")
+    ap.add_argument("--exclude", default="",
+                    help="STATION:YYYY-MM-DD,... drop a station's windows from that date "
+                         "(a period with a known displaced probe)")
     args = ap.parse_args(argv)
+    if args.persistence:
+        exclude = {s: _dt.date.fromisoformat(d) for s, d in
+                   (item.split(":") for item in args.exclude.split(",") if item)}
+        persistence(args.archive, args.stations.split(","), exclude)
+        return 0
     control, error, moved, implied = run(args.archive, args.stations.split(","),
                                          args.every_days)
 

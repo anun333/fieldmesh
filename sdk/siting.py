@@ -43,7 +43,7 @@ from __future__ import annotations
 import datetime as _dt
 import math
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from uuid import UUID
 
 import i18n
@@ -73,6 +73,15 @@ DEFAULT_TOLERANCE_M = 0.08
 #: so there is no scatter to widen the tolerance by and no way to outvote a peer that is
 #: itself displaced; the margin has to come from somewhere else.
 TWO_PEER_TOLERANCE_M = 0.12
+
+#: How many daily assessments `assess_siting_persistent` looks back over, and how many
+#: of them must say `displaced`. Measured on ISMN's three Tennessee profiles, 169
+#: probe-years with no move: one window at a time, a correctly placed probe raised 3.9
+#: false episodes a year; 2 of 3 days, 0.76; 3 of 5, 0.29; 5 of 7, 0.04 — while a probe
+#: lifted 15 cm was still caught on every day the check could decide. Siting is not
+#: urgent, so the week this costs is cheap. See docs/notes/siting-real-soil.md.
+PERSIST_DAYS = 7
+PERSIST_REQUIRED = 5
 
 CONSISTENT = "consistent"
 DISPLACED = "displaced"
@@ -369,6 +378,50 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
     return SitingFinding(device=device_id, at=at, verdict=DISPLACED,
                          reason=i18n.english(key, **params), key=key, params=params,
                          **common)
+
+
+def assess_siting_persistent(state: P.State, device_id: UUID, at: _dt.datetime, *,
+                             days: int = PERSIST_DAYS, required: int = PERSIST_REQUIRED,
+                             **kwargs) -> SitingFinding:
+    """`assess_siting` once a day for the last `days` days; `displaced` only if at least
+    `required` of them said so. This is the one to act on.
+
+    A single window is too noisy to flag a reading on. The depth it implies is good —
+    median error 1.6–3.6 cm in the root zone on real soil — but an overcast spell, a
+    rain front or a layered soil sends one window astray two to four times in a hundred,
+    and assessed daily that is a false `displaced` per probe per month or so. A real move
+    is permanent and shows up every day; noise rarely does.
+
+    * `displaced` — persistent. The finding is the latest displaced day's, with
+      `evidence["persistence"]` saying how many days agreed, and `window_h` covering the
+      whole span, so `suspect_assertions` flags every reading the move casts doubt on.
+    * `consistent` — today's window agrees, and too few days disagreed.
+    * `indeterminate` — today cannot tell, or today says `displaced` but not yet often
+      enough (`siting.unconfirmed`). Never a quiet `consistent` for that.
+
+    `kwargs` go to each `assess_siting` call. Each day's own window still never reaches
+    back past a logged installation, so a recorded move starts the count afresh.
+    """
+    daily = [assess_siting(state, device_id, at - _dt.timedelta(days=i), **kwargs)
+             for i in range(days)]                                   # newest first
+    displaced = [f for f in daily if f.verdict == DISPLACED]
+    decided = sum(1 for f in daily if f.verdict != INDETERMINATE)
+    persistence = {"days": days, "required": required, "displaced_days": len(displaced),
+                   "decided_days": decided}
+    today = daily[0]
+    if len(displaced) >= required:
+        latest = displaced[0]
+        window_h = float(latest.evidence.get("window_h", DEFAULT_WINDOW.total_seconds()
+                                             / 3600.0))
+        span_h = window_h + (at - displaced[-1].at).total_seconds() / 3600.0
+        evidence = dict(latest.evidence, persistence=persistence, window_h=span_h)
+        return replace(latest, at=at, evidence=evidence)
+    if today.verdict == DISPLACED:
+        params = {"days": len(displaced), "of": days, "required": required}
+        return replace(today, verdict=INDETERMINATE, key="siting.unconfirmed",
+                       params=params, reason=i18n.english("siting.unconfirmed", **params),
+                       evidence=dict(today.evidence, persistence=persistence))
+    return replace(today, evidence=dict(today.evidence, persistence=persistence))
 
 
 # --------------------------------------------------------- position (GNSS)
