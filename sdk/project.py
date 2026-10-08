@@ -31,6 +31,7 @@ not; across nodes, observations whose uncertainty intervals overlap are genuinel
 from __future__ import annotations
 
 import datetime as _dt
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from enum import Enum
 from uuid import UUID
@@ -390,6 +391,9 @@ class State:
     _peer_streams: dict = field(default_factory=dict, repr=False)
     _maintenance_by_device: dict = field(default_factory=dict, repr=False)
     _labels_by_entity: dict = field(default_factory=dict, repr=False)
+    #: Per datastream, observations kept in display order as they arrive, with their
+    #: sort keys alongside: `datastream -> (keys, observations)`. See `ordered_upto`.
+    _ordered: dict = field(default_factory=dict, repr=False)
     _superseded_labels: set = field(default_factory=set, repr=False)
     _streams_by_sensor: dict = field(default_factory=dict, repr=False)
 
@@ -403,6 +407,35 @@ class State:
         Scanning the series for every arriving reading made ingest quadratic.
         """
         return measured_at in self._times_by_datastream.get(datastream_id, ())
+
+    def ordered_upto(self, datastream_id: UUID, observation, limit: int | None):
+        """Up to `limit` live readings ending at `observation`, in display order.
+
+        What a health check needs: this reading and the ones before it. The version
+        this replaces took the last `limit` readings *inserted*, sorted them, and
+        searched the result for the reading — so every check paid for a sort, sixty
+        million sort-key calls in a simulated seven weeks. It also judged a reading
+        that arrived days late, after an outage, by whatever happened to have been
+        inserted recently rather than by the readings truly before it. A window ending
+        at the reading's own position gives it its real history, which is the offline
+        case again.
+        """
+        keys, rows = self._ordered.get(datastream_id, ([], []))
+        key = _display_key(observation)
+        at = bisect_right(keys, key) - 1
+        while at >= 0 and rows[at].id != observation.id:
+            at -= 1
+        if at < 0:
+            return []
+        out = []
+        index = at
+        while index >= 0 and (limit is None or len(out) < limit):
+            row = rows[index]
+            if row.id not in self._superseded_obs:
+                out.append(row)
+            index -= 1
+        out.reverse()
+        return out
 
     def is_superseded(self, observation_id: UUID) -> bool:
         """Whether some later observation replaces this one (§3.2), in constant time.
@@ -503,6 +536,17 @@ class State:
         getattr(self, attr).append(record)
         if attr == "observations":
             self._by_datastream.setdefault(record.datastream, []).append(record)
+            keys, rows = self._ordered.setdefault(record.datastream, ([], []))
+            key = _display_key(record)
+            # Nearly always an append — readings mostly arrive in order — and a late
+            # one is a binary search plus one memmove, not a re-sort of the series.
+            if not keys or key >= keys[-1]:
+                keys.append(key)
+                rows.append(record)
+            else:
+                at = bisect_right(keys, key)
+                keys.insert(at, key)
+                rows.insert(at, record)
             self._times_by_datastream.setdefault(
                 record.datastream, set()).add(record.measured_at)
             if record.supersedes is not None:

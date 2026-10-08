@@ -394,3 +394,67 @@ class TestStateFromLog(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestOrderedWindow(unittest.TestCase):
+    """A check sees a reading's real predecessors, even when it arrives days late."""
+
+    def setUp(self):
+        import checks as C
+        self.C = C
+        self.ds = fx.raw_datastream(thresholds={"max_rate_per_s": 0.0001})
+        self.log = L.Log()
+        self.log.append_record(self.ds)
+        # Two hours at 0.20, then three days of later readings that arrive *first* —
+        # what a fresh-first drain does after an outage: newest readings out, then the
+        # backlog. Three days is more than the checks' lookback of 112 readings, which
+        # is what makes the difference; with one day the old code still coped.
+        for i in range(8):
+            self.log.append_record(fx.observation(
+                self.ds, result=0.20, measured_at=fx.at(15 * i), node="n1",
+                boot=0, seq=i))
+        for i in range(8, 8 + 288):
+            self.log.append_record(fx.observation(
+                self.ds, result=0.30, measured_at=fx.at(15 * i), node="n1",
+                boot=0, seq=i))
+        # Then, after an outage, a buffered reading from the morning drains: a spike
+        # to 0.45 just after the 0.20 run. Its true predecessor is 0.20, 7.5 min earlier.
+        self.late = fx.observation(self.ds, result=0.45,
+                                   measured_at=fx.at(15 * 7 + 7.5), node="n1",
+                                   boot=0, seq=7)
+        self.log.append_record(self.late)
+        self.state = P.state_from_log(self.log)
+
+    def test_the_window_ends_at_the_reading_and_holds_its_real_history(self):
+        window = self.state.ordered_upto(self.ds.id, self.late, 5)
+        self.assertEqual(window[-1].id, self.late.id)
+        self.assertEqual([o.result for o in window[:-1]], [0.20] * 4)
+
+    def test_a_late_spike_is_judged_against_its_true_predecessor(self):
+        """Measured against the previous commit, not asserted: the old way took the last
+        112 readings *inserted* — all of them measured after the spike — sorted them,
+        and found the spike first in the list with no predecessor, so the rate check had
+        nothing to compare and fired nothing. The window ending at the spike's own
+        position finds the 0.20 reading 7.5 minutes before it."""
+        assertion = self.C.assess(self.state, self.late)
+        self.assertIn("rate", assertion.evidence["fired"])
+
+    def test_superseded_rows_are_left_out_of_the_window(self):
+        derived = fx.derived_datastream(raw=self.ds)
+        cal = fx.calibration(sensor=self.ds.sensor)
+        log = L.Log()
+        for record in (self.ds, derived, cal):
+            log.append_record(record)
+        first = fx.observation(derived, result=0.2, measured_at=fx.at(0),
+                               calibration=cal.id)
+        log.append_record(first)
+        replaced = fx.observation(derived, result=0.21, measured_at=fx.at(0),
+                                  calibration=cal.id, supersedes=first.id)
+        later = fx.observation(derived, result=0.22, measured_at=fx.at(15),
+                               calibration=cal.id)
+        for record in (replaced, later):
+            log.append_record(record)
+        state = P.state_from_log(log)
+        window = state.ordered_upto(derived.id, later, 10)
+        self.assertNotIn(first.id, {o.id for o in window})
+        self.assertIn(replaced.id, {o.id for o in window})

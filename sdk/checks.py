@@ -282,6 +282,9 @@ def _upto(series, obs):
     the same comparison with none of the dispatch.
     """
     target = obs.id.int
+    # The common case: `State.ordered_upto` hands over a window that *ends* at `obs`.
+    if series and series[-1].id.int == target:
+        return series[-2::-1]
     for position, row in enumerate(series):
         if row.id.int == target:
             return series[position - 1::-1] if position else []
@@ -341,7 +344,7 @@ def assess(state: P.State, obs: Observation, *,
     """
     datastream = state.datastreams[obs.datastream]
     values = thresholds_for(datastream, threshold)
-    series = _series(state, obs.datastream, limit=_lookback(datastream, values))
+    series = state.ordered_upto(obs.datastream, obs, _lookback(datastream, values))
     peers = _peers(state, obs)
 
     findings = [f for f in (c(obs, series, values, peers) for c in checks)
