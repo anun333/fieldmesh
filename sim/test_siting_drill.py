@@ -43,6 +43,22 @@ class TestSitingDrill(unittest.TestCase):
         before that fix, this exact move would have been flagged correctly."""
         self.assertEqual(self.events["bed6_shallow"].flagged, 0)
 
+    def test_a_logged_move_is_not_flagged_by_the_lateral_check_either(self):
+        """The false alarm the drill found: a window reaching back past a recorded move
+        judged the new record by readings from the old bed. Both checks now clip to the
+        current installation."""
+        self.assertEqual(self.events["bed6_shallow"].lateral_flagged, 0)
+
+    def test_the_lateral_check_catches_the_move_the_depth_check_cannot(self):
+        """The blind spot, covered — by a different signal, which is the point."""
+        swap = self.events["bed3_deep"]
+        self.assertEqual(swap.flagged, 0, "the depth check is blind to it")
+        self.assertGreater(swap.lateral_flagged, 0)
+        self.assertLessEqual(swap.lateral_first_day, 2)
+
+    def test_no_lateral_false_alarms_on_clean_probes(self):
+        self.assertEqual(self.result["clean"].lateral_flagged, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

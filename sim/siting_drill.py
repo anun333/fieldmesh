@@ -10,8 +10,8 @@ five probes:
 | ------------ | --------------------------------------- | ----------- |
 | bed4_shallow | lifted 0.20 -> 0.05 m, **not logged**   | caught      |
 | bed2_shallow | pushed 0.20 -> 0.36 m, **not logged**   | caught      |
-| bed5_shallow | nudged 0.20 -> 0.27 m, **not logged**   | at the edge of resolution |
-| bed3_deep    | moved to bed5, same depth, **not logged** | **not** caught — the blind spot |
+| bed5_shallow | nudged 0.20 -> 0.27 m, **not logged**   | missed — below the 8 cm tolerance |
+| bed3_deep    | moved to bed5, same depth, **not logged** | depth check blind; the lateral check catches it |
 | bed6_shallow | moved to bed1 at 0.30 m, **logged**     | **not** flagged — the control |
 
 Every soil probe is assessed at the start of every day from day 3, when the daily wave
@@ -64,6 +64,10 @@ class Tally:
     indeterminate: int = 0
     first_flag_day: float | None = None
     implied: list = field(default_factory=list)
+    #: The same device-days judged by the lateral (moisture) check.
+    lateral_flagged: int = 0
+    lateral_indeterminate: int = 0
+    lateral_first_day: float | None = None
 
     def rate(self) -> float:
         return self.flagged / self.assessed if self.assessed else 0.0
@@ -132,6 +136,13 @@ def run(*, days: float = 10.0, seed: int = 1, disturbed: bool = True) -> dict:
                     tally.first_flag_day = day - DISTURB_ON_DAY
             if finding.implied_depth_m is not None and tally is not clean:
                 tally.implied.append(round(finding.implied_depth_m, 3))
+            lateral = S.assess_lateral(farm.state, farm.series[name].device.id, at)
+            if lateral.verdict == S.INDETERMINATE:
+                tally.lateral_indeterminate += 1
+            if lateral.displaced:
+                tally.lateral_flagged += 1
+                if tally.lateral_first_day is None and day >= DISTURB_ON_DAY:
+                    tally.lateral_first_day = day - DISTURB_ON_DAY
         hb._run_segment(farm, hb.SeasonReport(days=1.0), 1.0)
         day += 1
     return {"clean": clean, "events": tallies}
@@ -149,22 +160,27 @@ def main(argv=None) -> int:
 
     print(f"siting drill, {args.days:g} days, seed {args.seed}; disturbed on day "
           f"{DISTURB_ON_DAY}, assessed daily from day {SPIN_UP_DAYS}\n")
-    print(f"control farm   {control.assessed} device-days, "
-          f"{control.flagged} false alarms ({control.rate():.1%}), "
-          f"{control.indeterminate} indeterminate")
+    print(f"control farm   {control.assessed} device-days: depth check "
+          f"{control.flagged} false alarms, lateral check "
+          f"{control.lateral_flagged} false alarms")
     dclean = disturbed["clean"]
-    print(f"disturbed farm {dclean.assessed} clean device-days, "
-          f"{dclean.flagged} false alarms ({dclean.rate():.1%})\n")
-    print(f"  {'probe':<13} {'event':<44} {'flagged':>8} {'latency':>9}  implied depths")
+    print(f"disturbed farm {dclean.assessed} clean device-days: depth "
+          f"{dclean.flagged}, lateral {dclean.lateral_flagged} false alarms "
+          f"({dclean.lateral_indeterminate} lateral indeterminate)\n")
+    print(f"  {'probe':<13} {'event':<42} {'depth':>7} {'lateral':>8}")
     for name, event, kind in EVENTS:
         tally = disturbed["events"].get(name)
         if tally is None:
             continue
-        latency = (f"{tally.first_flag_day:g} d" if tally.first_flag_day is not None
-                   else "never")
-        implied = " ".join(f"{z:.2f}" for z in tally.implied[-4:])
-        print(f"  {name:<13} {event:<44} {tally.flagged:>3}/{tally.assessed:<4} "
-              f"{latency:>9}  {implied}")
+        def cell(flagged, first):
+            when = f"{first:g}d" if first is not None else "never"
+            return f"{flagged}/{tally.assessed} {when}"
+        print(f"  {name:<13} {event:<42} "
+              f"{cell(tally.flagged, tally.first_flag_day):>9} "
+              f"{cell(tally.lateral_flagged, tally.lateral_first_day):>10}")
+    print("\n  Each check sees what the other cannot: depth leaves a thermal signature"
+          "\n  and no irrigation one; a change of bed leaves an irrigation signature"
+          "\n  and no thermal one.")
     return 0
 
 

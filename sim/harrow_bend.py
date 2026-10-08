@@ -405,6 +405,14 @@ def build(*, seed: int = 1, start: _dt.datetime = START,
                          stock_count=14)]
     world = ph.World(start=start, climate=ph.Climate(seed=seed), beds=beds,
                      troughs=troughs)
+    # Drip timers, one per bed, each starting at its own hour and alternating days.
+    # Ordinary for a market garden; and the reason a probe's moisture record says which
+    # bed it is in — shared rain wets every bed together, but each bed's own timer wets
+    # only that bed, at a time no other bed shares. The plot is left on rain alone.
+    world.irrigation = [
+        ph.IrrigationRule(bed=f"bed{k}", millimetres=10.0, start_hour=4.0 + 2 * (k - 1),
+                          every_days=2, offset_days=(k - 1) % 2)
+        for k in range(1, 7)]
 
     log = L.Log()
     state = P.State()

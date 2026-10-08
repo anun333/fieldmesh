@@ -254,7 +254,12 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
         return unknown("siting.no_depth")
     recorded = installed.depth_m
 
-    own = _window_fit(state, stream.id, at, window)
+    # Never judge the current installation by readings taken under the previous one.
+    # Right after a logged move, a window reaching back past the move holds readings
+    # from the old siting, which correctly disagree with the new record — the drill
+    # caught exactly that as a false alarm on a properly recorded move.
+    own_window = min(window, at - installed.installed_at)
+    own = _window_fit(state, stream.id, at, own_window)
     if own is None:
         return unknown("siting.too_few_readings", recorded_depth_m=recorded)
     if own.amplitude < min_amplitude_c:
@@ -273,7 +278,8 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
         other_install = state.installation_of(other_id, at)
         if other_install is None or other_install.depth_m is None:
             continue
-        other_fit = _window_fit(state, other_stream.id, at, window)
+        other_fit = _window_fit(state, other_stream.id, at,
+                                min(window, at - other_install.installed_at))
         if other_fit is None or other_fit.amplitude < min_amplitude_c:
             continue
         peers.append((other_install.depth_m, other_fit))
@@ -536,3 +542,197 @@ def suspect_assertions(state: P.State, finding, *, datastreams=None,
                 note=note, evidence=evidence))
     return Flagging(assertions=tuple(out), already_flagged=already,
                     person_outranks=outranked)
+
+
+# --------------------------------------------- lateral siting, from moisture
+
+DEFAULT_LATERAL_WINDOW = _dt.timedelta(days=3)
+#: How far ahead the best-matching bed must be before a move is called. Rain wets every
+#: bed at once and makes all of them match; only each bed's own irrigation separates
+#: them, so a close call is a rainy window, not evidence.
+LATERAL_MARGIN = 0.25
+LATERAL_MIN_MATCH = 0.6
+
+
+@dataclass(frozen=True, slots=True)
+class LateralFinding:
+    device: UUID
+    at: _dt.datetime
+    verdict: str
+    reason: str
+    recorded_feature: UUID | None = None
+    best_feature: UUID | None = None
+    recorded_match: float | None = None
+    best_match: float | None = None
+    evidence: dict = field(default_factory=dict)
+    key: str | None = None
+    params: dict = field(default_factory=dict)
+
+    @property
+    def displaced(self) -> bool:
+        return self.verdict == DISPLACED
+
+
+def _wetting(state, datastream_id, since, until, bin_s, valid_from=None):
+    """Positive moisture increments on a fixed grid of `bin_s` seconds.
+
+    Only increases, because wetting is the signature: drying is everywhere at once and
+    at the same pace, so it says nothing about *where* a probe is. A bin with no reading
+    breaks the chain rather than inventing a step across the gap.
+    """
+    origin = since.timestamp()
+    bins: dict[int, float] = {}
+    floor = max(since, valid_from) if valid_from is not None else since
+    for obs in state.live_observations_of(datastream_id):
+        if not floor <= obs.measured_at <= until or not isinstance(
+                obs.result, (int, float)):
+            continue
+        bins[int((obs.measured_at.timestamp() - origin) // bin_s)] = float(obs.result)
+    size = int((until.timestamp() - origin) // bin_s) + 1
+    out = [0.0] * size
+    for index in range(1, size):
+        if index in bins and index - 1 in bins:
+            out[index] = max(0.0, bins[index] - bins[index - 1])
+    return out
+
+
+def _correlation(a, b):
+    n = len(a)
+    if n < 3:
+        return 0.0
+    ma, mb = sum(a) / n, sum(b) / n
+    va = sum((x - ma) ** 2 for x in a)
+    vb = sum((y - mb) ** 2 for y in b)
+    if va == 0 or vb == 0:
+        return 0.0
+    return sum((x - ma) * (y - mb) for x, y in zip(a, b)) / math.sqrt(va * vb)
+
+
+def _best_lagged(a, b, max_lag):
+    """The best correlation over lags in either direction — a deep probe answers its
+    bed's irrigation later than a shallow one, so lockstep is too strict a test."""
+    best = -1.0
+    for lag in range(-max_lag, max_lag + 1):
+        if lag >= 0:
+            x, y = a[lag:], b[:len(b) - lag]
+        else:
+            x, y = a[:lag], b[-lag:]
+        best = max(best, _correlation(x, y))
+    return best
+
+
+def assess_lateral(state: P.State, device_id: UUID, at: _dt.datetime, *,
+                   window: _dt.timedelta = DEFAULT_LATERAL_WINDOW,
+                   bin_s: float = 900.0, max_lag_bins: int = 4,
+                   margin: float = LATERAL_MARGIN,
+                   min_match: float = LATERAL_MIN_MATCH,
+                   prop: str = V.SOIL_WATER) -> LateralFinding:
+    """Is a probe in the bed its record names, judged by whose irrigation it answers?
+
+    The complement of `assess_siting`: depth leaves a thermal signature and bed does
+    not, while bed leaves an irrigation signature and depth barely does. Each probe's
+    wetting events are correlated with every other probe's, grouped by recorded
+    feature; a probe that moves with another bed's timers rather than its own is
+    displaced.
+
+    Honest about its limits: it needs a peer at the recorded feature, it sees nothing
+    in a window where only rain fell, and a bed irrigated on the same timer as another
+    is indistinguishable from it.
+    """
+    def unknown(key, params=None, **kw):
+        params = params or {}
+        return LateralFinding(device=device_id, at=at, verdict=INDETERMINATE,
+                              reason=i18n.english(key, **params), key=key,
+                              params=params, **kw)
+
+    def moisture_stream(device):
+        for ds in state.datastreams_of_sensor(device):
+            if ds.kind is DatastreamKind.DERIVED and ds.observed_property == prop:
+                return ds
+        return None
+
+    own_ds = moisture_stream(device_id)
+    if own_ds is None:
+        return unknown("lateral.no_moisture")
+    installed = state.installation_of(device_id, at)
+    if installed is None:
+        return unknown("lateral.no_installation")
+    since = at - window
+    # Readings from before this installation belong to a different siting; see the
+    # same clip in `assess_siting` for the false alarm that forced it.
+    own = _wetting(state, own_ds.id, since, at, bin_s,
+                   valid_from=installed.installed_at)
+    events = sum(1 for x in own if x > 0)
+    if events < 2:
+        return unknown("lateral.too_few_events", {"events": events},
+                       recorded_feature=installed.feature)
+
+    by_feature: dict[UUID, float] = {}
+    for other in state.devices:
+        if other == device_id:
+            continue
+        other_ds = moisture_stream(other)
+        other_install = state.installation_of(other, at)
+        if other_ds is None or other_install is None:
+            continue
+        score = _best_lagged(own, _wetting(state, other_ds.id, since, at, bin_s,
+                                           valid_from=other_install.installed_at),
+                             max_lag_bins)
+        feature = other_install.feature
+        by_feature[feature] = max(by_feature.get(feature, -1.0), score)
+
+    if installed.feature not in by_feature:
+        return unknown("lateral.no_peer", recorded_feature=installed.feature)
+
+    recorded_match = by_feature[installed.feature]
+    best_feature = max(by_feature, key=by_feature.get)
+    best_match = by_feature[best_feature]
+
+    def name(feature):
+        label = state.label_for(feature)
+        return label.name if label is not None else str(feature)
+
+    ranked = sorted(by_feature.items(), key=lambda kv: -kv[1])[:4]
+    evidence = {"recorded_feature": str(installed.feature),
+                "best_feature": str(best_feature),
+                "recorded_match": round(recorded_match, 3),
+                "best_match": round(best_match, 3),
+                "matches": {name(f): round(s, 3) for f, s in ranked},
+                "wetting_events": events, "margin": margin,
+                "window_h": window.total_seconds() / 3600.0}
+    common = dict(recorded_feature=installed.feature, best_feature=best_feature,
+                  recorded_match=recorded_match, best_match=best_match,
+                  evidence=evidence)
+    if (best_feature != installed.feature and best_match >= min_match
+            and best_match - recorded_match >= margin):
+        params = {"best": name(best_feature), "best_match": best_match,
+                  "recorded": name(installed.feature),
+                  "recorded_match": recorded_match}
+        return LateralFinding(device=device_id, at=at, verdict=DISPLACED,
+                              reason=i18n.english("lateral.displaced", **params),
+                              key="lateral.displaced", params=params, **common)
+    others = [s for f, s in by_feature.items() if f != installed.feature]
+    runner_up = max(others) if others else -1.0
+    if recorded_match >= min_match and recorded_match - runner_up < margin:
+        # The recorded bed matches — but so does another, about as well. That is what
+        # a window of rain looks like: every bed wets together, so every bed matches,
+        # and a probe moved out of its bed would still "match" the bed it left. A
+        # confirmation earned by the weather is not a confirmation.
+        params = {"recorded": name(installed.feature), "recorded_match": recorded_match,
+                  "runner_up_match": runner_up}
+        return LateralFinding(device=device_id, at=at, verdict=INDETERMINATE,
+                              reason=i18n.english("lateral.undiscriminating", **params),
+                              key="lateral.undiscriminating", params=params, **common)
+    if recorded_match < min_match:
+        # Nothing at the recorded feature moves with this probe, and nothing elsewhere
+        # does convincingly either. That is an absence of evidence, not evidence of
+        # being in place — typically because its only bed-mate is the one that moved.
+        # The first version called this `consistent` with a match of -0.03.
+        params = {"recorded": name(installed.feature), "recorded_match": recorded_match}
+        return LateralFinding(device=device_id, at=at, verdict=INDETERMINATE,
+                              reason=i18n.english("lateral.unconfirmed", **params),
+                              key="lateral.unconfirmed", params=params, **common)
+    params = {"recorded": name(installed.feature), "recorded_match": recorded_match}
+    return LateralFinding(device=device_id, at=at, verdict=CONSISTENT,
+                          reason=i18n.english("lateral.consistent", **params),
+                          key="lateral.consistent", params=params, **common)

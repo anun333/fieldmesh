@@ -325,6 +325,38 @@ class Trough:
         return self.level_l
 
 
+# ------------------------------------------------------------------ irrigation
+
+@dataclass(frozen=True, slots=True)
+class IrrigationRule:
+    """A drip timer: `millimetres` into `bed`, spread over `duration_h` from
+    `start_hour` UTC, every `every_days` days starting on day `offset_days`.
+
+    Spread rather than dumped, because the §4.2 rate threshold was derived from drip —
+    25 mm across a 300 mm root zone over roughly a quarter of an hour — and a timer that
+    delivered a whole event in one five-minute tick would be a physically impossible
+    jump that the rate check is right to flag. A farm's own timers, not librefarm
+    commands: §6 is deferred, and most farms irrigate on timers anyway.
+    """
+
+    bed: str
+    millimetres: float
+    start_hour: float
+    duration_h: float = 1.0
+    every_days: int = 2
+    offset_days: int = 0
+
+    def mm_this_step(self, when: _dt.datetime, start: _dt.datetime) -> float:
+        day = (when.date() - start.date()).days
+        if day < self.offset_days or (day - self.offset_days) % self.every_days:
+            return 0.0
+        hour = when.hour + when.minute / 60.0
+        if not self.start_hour <= hour < self.start_hour + self.duration_h:
+            return 0.0
+        steps = self.duration_h * 3600.0 / STEP.total_seconds()
+        return self.millimetres / steps
+
+
 # ------------------------------------------------------------------- the world
 
 @dataclass(frozen=True, slots=True)
@@ -362,7 +394,8 @@ class World:
     meaningful.
     """
 
-    __slots__ = ("climate", "beds", "troughs", "when", "start", "_pending_mm")
+    __slots__ = ("climate", "beds", "troughs", "when", "start", "_pending_mm",
+                 "irrigation")
 
     def __init__(self, *, start: _dt.datetime, climate: Climate | None = None,
                  beds=(), troughs=()):
@@ -374,6 +407,9 @@ class World:
         self.beds = {b.name: b for b in beds}
         self.troughs = {t.name: t for t in troughs}
         self._pending_mm: dict[str, float] = {}
+        #: Drip timers. Empty by default, so a world built without them behaves
+        #: exactly as before.
+        self.irrigation: list[IrrigationRule] = []
 
     def irrigate(self, bed: str, millimetres: float) -> None:
         """Apply water to a bed on the next tick."""
@@ -391,6 +427,10 @@ class World:
         gain = 0.0 if weather.raining else SOLAR_SURFACE_GAIN_C * daylight
         surface_c = weather.air_temp_c + gain
         deep_c = self.climate._seasonal_temp(self.when)
+        for rule in self.irrigation:
+            mm = rule.mm_this_step(self.when, self.start)
+            if mm:
+                self._pending_mm[rule.bed] = self._pending_mm.get(rule.bed, 0.0) + mm
         for name, bed in self.beds.items():
             bed.step(weather, irrigation_mm=self._pending_mm.pop(name, 0.0))
             bed.step_heat(surface_c, deep_c)

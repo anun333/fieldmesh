@@ -381,3 +381,94 @@ class TestFindingsBecomeAssertions(unittest.TestCase):
         self.apply(S.suspect_assertions(self.state, self.finding))
         self.assertEqual(P.state_from_log(self.farm.log).validate(), [])
 
+
+
+class TestLateral(unittest.TestCase):
+    """Which bed's irrigation a probe answers to — synthetic, so every number is known."""
+
+    def _farm(self, physical_bed: dict, *, rain_only=False, lag_bins=None):
+        """Six probes in three beds; each bed watered at its own hour on alternate
+        days. `physical_bed` says where each probe really is; records say where it was
+        put."""
+        lag_bins = lag_bins or {}
+        recorded = {"a1": "A", "a2": "A", "b1": "B", "b2": "B", "c1": "C", "c2": "C"}
+        hours = {"A": 4, "B": 9, "C": 15}
+        features = {name: uuid7() for name in "ABC"}
+        log = L.Log()
+        site = uuid7()
+        self.ids = {}
+        for probe, bed in recorded.items():
+            device = Device(id=uuid7(), kind=DeviceKind.SENSOR, site=site)
+            raw = Datastream(id=uuid7(), thing=uuid7(), sensor=device.id,
+                             observed_property=V.SOIL_WATER, feature=features[bed],
+                             kind=DatastreamKind.RAW, unit="cm3/cm3")
+            derived = Datastream(id=uuid7(), thing=raw.thing, sensor=device.id,
+                                 observed_property=V.SOIL_WATER,
+                                 feature=features[bed], kind=DatastreamKind.DERIVED,
+                                 derived_from=raw.id, unit="cm3/cm3")
+            cal = Calibration(id=uuid7(), sensor=device.id, datastream=raw.id,
+                              method="identity", valid_from=T0 - _dt.timedelta(days=9))
+            install = Installation(id=uuid7(), device=device.id,
+                                   feature=features[bed],
+                                   installed_at=T0 - _dt.timedelta(days=9))
+            for record in (device, raw, derived, cal, install):
+                log.append_record(record)
+            theta, really = 0.25, physical_bed.get(probe, bed)
+            lag = lag_bins.get(probe, 0)
+            for step in range(3 * 96):
+                when = T0 + _dt.timedelta(minutes=15 * step)
+                theta -= 0.0004                          # drying, everywhere alike
+                water_at = when - _dt.timedelta(minutes=15 * lag)
+                if (not rain_only and water_at.day % 2 == 0
+                        and water_at.hour == hours[really] and water_at.minute == 0):
+                    theta += 0.03
+                if when.minute == 0 and (
+                        (when.day == T0.day + 1 and when.hour == 20)
+                        or (when.day == T0.day + 2 and when.hour == 8)):
+                    theta += 0.02                        # two showers, on every bed
+                log.append_record(fx.observation(
+                    derived, result=round(theta, 4), measured_at=when,
+                    calibration=cal.id, node=None, boot=None, seq=None))
+            self.ids[probe] = device.id
+        self.state = P.state_from_log(log)
+        self.at = T0 + _dt.timedelta(days=3)
+
+    def assess(self, probe):
+        return S.assess_lateral(self.state, self.ids[probe], self.at)
+
+    def test_a_probe_in_its_recorded_bed_is_consistent(self):
+        self._farm({})
+        self.assertEqual(self.assess("a1").verdict, S.CONSISTENT)
+
+    def test_a_probe_moved_to_another_bed_is_displaced(self):
+        self._farm({"a2": "C"})
+        finding = self.assess("a2")
+        self.assertEqual(finding.verdict, S.DISPLACED, finding.reason)
+
+    def test_the_bed_mate_left_behind_is_unconfirmed_not_consistent(self):
+        """Its only peer is the one that moved. -0.03 is an absence of evidence, and
+        the first version called it consistent."""
+        self._farm({"a2": "C"})
+        self.assertEqual(self.assess("a1").verdict, S.INDETERMINATE)
+
+    def test_a_deep_probe_that_lags_its_bed_is_still_consistent(self):
+        """A deep probe answers irrigation later; lockstep would be too strict."""
+        self._farm({}, lag_bins={"a2": 3})
+        self.assertEqual(self.assess("a2").verdict, S.CONSISTENT)
+
+    def test_a_rain_only_window_cannot_tell_beds_apart(self):
+        """Rain wets every bed at once, so it identifies none of them — and a probe
+        that has really moved must not be *confirmed* by it. With two showers there
+        are enough events to reach the comparison, which the first version of this
+        test never did: one shower stopped it at "too few events"."""
+        self._farm({"a2": "C"}, rain_only=True)
+        finding = self.assess("a2")
+        self.assertEqual(finding.verdict, S.INDETERMINATE, finding.reason)
+        self.assertEqual(finding.key, "lateral.undiscriminating")
+
+    def test_the_finding_renders_in_spanish(self):
+        import i18n
+        self._farm({"a2": "C"})
+        finding = self.assess("a2")
+        text = str(i18n.Translator("es").text(finding.key, **finding.params))
+        self.assertIn("sin ningún registro", text)
