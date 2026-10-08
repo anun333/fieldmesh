@@ -90,8 +90,8 @@ at or above it, and every good reading below. The flagged readings run from 0.42
 and cluster in wet winters. HWSD gives these stations about 50% sand and 25% clay — closer to
 a loam than the silt loam a first draft of this note assumed, and a loam's porosity runs
 lower, roughly 0.43–0.47. So readings near 0.49 are high even for this soil, and a sensor
-calibration error is as plausible as a database one: the Hydraprobe's factory calibration is
-known to drift in some soils. Our 0.46 limit catches those above 0.46. Neither number knows
+calibration error is as plausible as a database one: probes of this kind ship with a generic
+factory calibration whose accuracy depends on the soil. Our 0.46 limit catches those above 0.46. Neither number knows
 this soil, and this data cannot settle which of the three — database, sensor or our limit — is
 wrong.
 
