@@ -49,6 +49,21 @@ class PersistenceRuleTest(unittest.TestCase):
         rows = self.rows(["displaced"] * 4) + self.rows(["displaced"] * 4, dt.date(2020, 1, 6))
         self.assertEqual(T.k_of_n(rows, 5, 7), [])
 
+    def test_weekly_steps(self):
+        week = dt.timedelta(days=7)
+        rows = [(dt.date(2020, 1, 1) + i * week, "displaced", None) for i in range(4)]
+        self.assertEqual(T.k_of_n(rows, 3, 4, week), [(dt.date(2020, 1, 22), True)])
+        self.assertEqual(T.k_of_n(rows, 3, 4), [], "read as days, these are not consecutive")
+
+    def test_time_to_alarm_counts_from_the_move(self):
+        """Every window displaced: under 3 of 4 weekly two-week windows, the first alarm
+        is at the third window wholly after the move — five weeks on."""
+        week = dt.timedelta(days=7)
+        rows = [(dt.date(2020, 1, 1) + i * week, "displaced", None) for i in range(70)]
+        waits = T.time_to_alarm(rows, 3, 4, dt.timedelta(days=14), week)
+        self.assertTrue(waits)
+        self.assertEqual(set(waits), {35})
+
     def test_an_episode_is_a_run_of_alarmed_days(self):
         day = dt.date(2020, 1, 1)
         alarms = [True, True, None, True, False, True, True]

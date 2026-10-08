@@ -80,8 +80,25 @@ TWO_PEER_TOLERANCE_M = 0.12
 #: false episodes a year; 2 of 3 days, 0.76; 3 of 5, 0.29; 5 of 7, 0.04 — while a probe
 #: lifted 15 cm was still caught on every day the check could decide. Siting is not
 #: urgent, so the week this costs is cheap. See docs/notes/siting-real-soil.md.
-PERSIST_DAYS = 7
+PERSIST_COUNT = 7
 PERSIST_REQUIRED = 5
+PERSIST_EVERY = _dt.timedelta(days=1)
+
+#: The weekly assessment, `assess_siting_weekly`. Over two days only the top three
+#: depths carry a wave above MIN_AMPLITUDE_C, so a real station's probe has two peers,
+#: none to outvote a displaced one, and a 12 cm tolerance. Over fourteen days the fit
+#: resolves a far smaller wave, and the 51 cm probe every such station already has
+#: becomes a third peer: the fit is robust and the tolerance 8 cm. Measured on the same
+#: profiles with no known disturbance, 3 of the last 4 weeks raised 0.04 false episodes
+#: per probe-year — as few as the daily assessment — and called about four in five 10 cm
+#: moves within six months (median five to nine weeks), which the daily assessment almost
+#: never does; and McAllister Farm's real 2023 change stopped being blamed on the wrong
+#: probe.
+WEEKLY_WINDOW = _dt.timedelta(days=14)
+WEEKLY_PEER_AMPLITUDE_C = 0.03
+WEEKLY_COUNT = 4
+WEEKLY_REQUIRED = 3
+WEEKLY_EVERY = _dt.timedelta(days=7)
 
 CONSISTENT = "consistent"
 DISPLACED = "displaced"
@@ -247,8 +264,13 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
                   window: _dt.timedelta = DEFAULT_WINDOW,
                   tolerance_m: float = DEFAULT_TOLERANCE_M,
                   min_amplitude_c: float = MIN_AMPLITUDE_C,
+                  min_peer_amplitude_c: float | None = None,
                   prop: str = V.SOIL_TEMPERATURE) -> SitingFinding:
     """Judge whether `device_id` sits at its recorded depth, as of `at`.
+
+    `min_peer_amplitude_c` lets a peer calibrate with a weaker wave than the probe being
+    judged needs — over a long window, a deep probe's small swing still fixes a point on
+    the line. None means the same floor for both.
 
     Always returns a finding. `indeterminate` is a real answer with a reason — the
     honest result for a probe below the reach of the daily wave, or one with too few
@@ -294,7 +316,8 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
             continue
         other_fit = _window_fit(state, other_stream.id, at,
                                 min(window, at - other_install.installed_at))
-        if other_fit is None or other_fit.amplitude < min_amplitude_c:
+        peer_floor = min_amplitude_c if min_peer_amplitude_c is None else min_peer_amplitude_c
+        if other_fit is None or other_fit.amplitude < peer_floor:
             continue
         peers.append((other_install.depth_m, other_fit))
 
@@ -381,10 +404,12 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
 
 
 def assess_siting_persistent(state: P.State, device_id: UUID, at: _dt.datetime, *,
-                             days: int = PERSIST_DAYS, required: int = PERSIST_REQUIRED,
+                             count: int = PERSIST_COUNT, required: int = PERSIST_REQUIRED,
+                             every: _dt.timedelta = PERSIST_EVERY,
                              **kwargs) -> SitingFinding:
-    """`assess_siting` once a day for the last `days` days; `displaced` only if at least
-    `required` of them said so. This is the one to act on.
+    """`assess_siting` at `at` and every `every` before it, `count` times in all;
+    `displaced` only if at least `required` of them said so. With the defaults, once a day
+    for a week. This, or `assess_siting_weekly`, is the one to act on.
 
     A single window is too noisy to flag a reading on. The depth it implies is good —
     median error 1.6–3.6 cm in the root zone on real soil — but an overcast spell, a
@@ -392,23 +417,24 @@ def assess_siting_persistent(state: P.State, device_id: UUID, at: _dt.datetime, 
     and assessed daily that is a false `displaced` per probe per month or so. A real move
     is permanent and shows up every day; noise rarely does.
 
-    * `displaced` — persistent. The finding is the latest displaced day's, with
-      `evidence["persistence"]` saying how many days agreed, and `window_h` covering the
+    * `displaced` — persistent. The finding is the latest displaced assessment's, with
+      `evidence["persistence"]` saying how many agreed, and `window_h` covering the
       whole span, so `suspect_assertions` flags every reading the move casts doubt on.
-    * `consistent` — today's window agrees, and too few days disagreed.
-    * `indeterminate` — today cannot tell, or today says `displaced` but not yet often
+    * `consistent` — the latest window agrees, and too few disagreed.
+    * `indeterminate` — the latest cannot tell, or says `displaced` but not yet often
       enough (`siting.unconfirmed`). Never a quiet `consistent` for that.
 
-    `kwargs` go to each `assess_siting` call. Each day's own window still never reaches
-    back past a logged installation, so a recorded move starts the count afresh.
+    `kwargs` go to each `assess_siting` call. Each window still never reaches back past
+    a logged installation, so a recorded move starts the count afresh.
     """
-    daily = [assess_siting(state, device_id, at - _dt.timedelta(days=i), **kwargs)
-             for i in range(days)]                                   # newest first
-    displaced = [f for f in daily if f.verdict == DISPLACED]
-    decided = sum(1 for f in daily if f.verdict != INDETERMINATE)
-    persistence = {"days": days, "required": required, "displaced_days": len(displaced),
-                   "decided_days": decided}
-    today = daily[0]
+    runs = [assess_siting(state, device_id, at - i * every, **kwargs)
+            for i in range(count)]                                   # newest first
+    displaced = [f for f in runs if f.verdict == DISPLACED]
+    decided = sum(1 for f in runs if f.verdict != INDETERMINATE)
+    persistence = {"count": count, "required": required,
+                   "every_h": every.total_seconds() / 3600.0,
+                   "displaced": len(displaced), "decided": decided}
+    today = runs[0]
     if len(displaced) >= required:
         latest = displaced[0]
         window_h = float(latest.evidence.get("window_h", DEFAULT_WINDOW.total_seconds()
@@ -417,11 +443,28 @@ def assess_siting_persistent(state: P.State, device_id: UUID, at: _dt.datetime, 
         evidence = dict(latest.evidence, persistence=persistence, window_h=span_h)
         return replace(latest, at=at, evidence=evidence)
     if today.verdict == DISPLACED:
-        params = {"days": len(displaced), "of": days, "required": required}
+        params = {"days": len(displaced), "of": count, "required": required}
         return replace(today, verdict=INDETERMINATE, key="siting.unconfirmed",
                        params=params, reason=i18n.english("siting.unconfirmed", **params),
                        evidence=dict(today.evidence, persistence=persistence))
     return replace(today, evidence=dict(today.evidence, persistence=persistence))
+
+
+def assess_siting_weekly(state: P.State, device_id: UUID, at: _dt.datetime,
+                         **kwargs) -> SitingFinding:
+    """Two-week windows, once a week for four weeks; `displaced` on three of them.
+
+    The slower complement to the daily `assess_siting_persistent`, not a replacement:
+    the daily one calls a 15 cm move within about a week, this one within about five.
+    What this one adds is a deeper peer. On a real station, where only the top three
+    depths carry a two-day wave, the 51 cm probe joins over two weeks — so the fit is
+    robust, a displaced peer is outvoted rather than blamed on its neighbour, and the
+    tolerance tightens from 12 cm to 8, which brings 10 cm moves within reach.
+    """
+    options = dict(count=WEEKLY_COUNT, required=WEEKLY_REQUIRED, every=WEEKLY_EVERY,
+                   window=WEEKLY_WINDOW, min_peer_amplitude_c=WEEKLY_PEER_AMPLITUDE_C)
+    options.update(kwargs)
+    return assess_siting_persistent(state, device_id, at, **options)
 
 
 # --------------------------------------------------------- position (GNSS)

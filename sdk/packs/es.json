@@ -83,7 +83,7 @@
   "siting.shallower": "el máximo diario a las {peak:05.2f} UTC indica {implied:.2f} m, {off:.2f} m menos profunda que los {recorded:.2f} m registrados, sin ningún registro de instalación que documente un traslado",
   "siting.too_few_peers": "{peers} sondas de referencia utilizables a {depths} profundidad(es); calibrar la relación entre profundidad y fase requiere al menos dos a dos profundidades",
   "siting.too_few_readings": "hay muy pocas lecturas de temperatura en la ventana",
-  "siting.unconfirmed": "desplazada en {days} de los últimos {of} días; se considera un traslado a partir de {required}",
+  "siting.unconfirmed": "desplazada en {days} de las últimas {of} comprobaciones; se considera un traslado a partir de {required}",
   "term.http://vocab.nerc.ac.uk/standard_name/air_temperature/": "temperatura del aire",
   "term.http://vocab.nerc.ac.uk/standard_name/latitude/": "latitud",
   "term.http://vocab.nerc.ac.uk/standard_name/longitude/": "longitud",

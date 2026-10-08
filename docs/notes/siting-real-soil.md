@@ -97,7 +97,7 @@ next section:
 
 | rule | false episodes per probe-year | 5 cm | 10 cm | 20 cm | 15 cm lift caught |
 | --- | --- | --- | --- | --- | --- |
-| one window | 3.86 | 5.94 | 1.49 | 4.15 | 100% |
+| one window | 3.87 | 5.94 | 1.49 | 4.17 | 100% |
 | 2 of last 3 days | 0.76 | 1.28 | 0.20 | 0.82 | 100% |
 | 3 of last 5 days | 0.29 | 0.59 | 0.00 | 0.28 | 100% |
 | 4 of last 7 days | 0.15 | 0.37 | 0.00 | 0.09 | 100% |
@@ -105,8 +105,9 @@ next section:
 
 "Caught" is the share of days on which the check could decide. **Five of the last seven**
 takes false alarms from about four a year per probe to one in 25 probe-years, and still
-catches a 15 cm lift on every day it can see one. It costs about a week before a move is
-called, which siting can afford: a probe at the wrong depth misleads slowly, and the
+catches a 15 cm lift on every day it can see one. It costs about a week — from any start
+date, a 15 cm move is called after a median of 8 days, and always within 8 weeks — which
+siting can afford: a probe at the wrong depth misleads slowly, and the
 finding flags every reading from the first displaced day, not just the last two.
 
 **Adopted** as `siting.assess_siting_persistent`, the function to act on. It returns
@@ -173,7 +174,7 @@ from it. With two peers there is nothing to outvote, which is what the finding's
 `robust: false` was written to say: *something in this profile moved*. Under 5 of 7 the
 profile first alarmed on 2023-04-08, once spring brought the wave back, and on 8% of days
 after. Which probe moved, and how to tell, is now
-[open question Q25](../spec/open-questions.md).
+[open question Q25](../spec/open-questions.md), and largely answered in the next section.
 
 The same arithmetic explains the bias before the gap: a 10 cm probe actually at 12 cm is
 why McAllister's 5 cm probe read as 0–2 cm for a decade.
@@ -199,12 +200,68 @@ Both replacements went in at a different depth from the probe before. A replacem
 exactly when a depth error is most likely, and the record at both stations kept the old
 depth.
 
+## A deeper peer, over two weeks
+
+The fix for a two-peer profile turned out to be already in the ground. Over two days only
+5, 10 and 20 cm carry a wave above the check's 0.10 °C floor. Over fourteen days a fit
+resolves a far smaller one, and the 51 cm probe every one of these stations has — its swing
+0.04–0.10 °C — becomes a third peer. Three peers make the fit robust, so one displaced
+peer is outvoted instead of blamed on its neighbour, and the tolerance tightens from 12 cm
+to 8.
+
+**Adopted** as `siting.assess_siting_weekly`: two-week windows, once a week, `displaced`
+on 3 of the last 4. A peer needs a swing of 0.03 °C; the probe being judged still needs
+0.10. Measured through the SDK, on profiles with no known disturbance:
+
+| schedule | false episodes per probe-year | 15 cm move called | 10 cm move called within six months |
+| --- | --- | --- | --- |
+| daily, 5 of 7 | 0.04 | median 8 days; always within 8 weeks | 7–8% |
+| weekly, 3 of 4 | 0.04 | median 5 weeks; always within 8 weeks | **78–83%**, median 5–9 weeks |
+
+Counting Allen Farms after its 2023 visit as undisturbed, the weekly figure is 0.07 — see
+below. The two are complements: the daily check catches a big move in a week, the weekly
+one catches a 10 cm move the daily one almost never does, and attributes it.
+
+**McAllister Farm, through the SDK.** The 20 cm probe's implied depth, by year:
+
+| | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2023 | 2024 | 2025 | 2026 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| daily, two peers | 16 | 16 | 16 | 16 | 16 | 17 | 16 | **29** | **24** | **25** | **28** cm |
+| weekly, three peers | 21 | 21 | 21 | 21 | 20 | 20 | 20 | 20 | 20 | 20 | 20 cm |
+
+Daily, the 20 cm probe was called displaced in 26% of windows after 2023; weekly, in 1%.
+The 10 cm probe, weekly, reads 12–13 cm through 2021 and 8 cm from 2023 — the change now
+sits on the probe that changed, at a size, 2 cm from its record, below what either
+schedule calls.
+
+**Allen Farms may have a second disturbance.** Weekly, its 20 cm probe reads 20–23 cm
+through 2021 and 26–27 cm from 2023, and is called displaced in 28% of windows after the
+visit. Its sensor was not replaced. The daily figures fit "both the 10 cm probe (13 → 11
+cm) and the 20 cm probe (20 → about 25 cm) changed at the 2023 visit" better than the
+10 cm probe alone, which predicted 17.5 cm for the 20 cm probe where 18–23 was observed.
+Digging to reach one probe can disturb its neighbour. That is a hypothesis, not a finding.
+
+**Naming the culprit is harder than not blaming the wrong one.** With four probes, the
+probe whose omission lets the other three line up best is the obvious candidate. On
+constructed moves it is right 78–100% of the time for 10 cm or more, and 57–62% for 5 cm.
+It cannot resolve the real 2–4 cm shifts. And with nothing moved, it still names someone —
+at Eastview usually the 51 cm probe, which sits in a different soil horizon from the
+others — so it may only speak when the profile as a whole fails to line up.
+
+**Phase and amplitude together do not help, by the physics.** In uniform soil the log of
+the daily swing and the lag of its peak are both straight lines in depth with the same
+damping depth, so they are two noisy readings of one number per probe: any single-culprit
+explanation still fits exactly. Measured, amplitude named the culprit about as often as
+phase. What the pair does catch is a clock offset, which moves the phase and not the
+swing.
+
 ## Caveats
 
 - **One region, one sensor make.** Three Tennessee stations, Stevens Hydraprobes, humid
   subtropical climate. Snow cover and long overcast spells weaken the wave further north.
-- **One profile per station.** A farm with probes at more depths, or several profiles,
-  would give the robust (three-peer) fit and its tighter 8 cm tolerance.
+- **One profile per station.** Over two days a real station has two usable peers per
+  probe; over two weeks, three. A farm with more probes per profile gets the robust fit
+  even daily.
 - **The moves are constructed.** Real moves happen once, not in every window; what is
   measured is how often a window would notice one already made. The one real event,
   McAllister's 10 cm replacement, is inferred from the readings: no record says where
@@ -224,7 +281,11 @@ python3 -I ~/dev/librefarm/tools/ismn_siting.py ~/Downloads/ISMN_archive_2026100
     --stations AllenFarms,EastviewFarm,McAllisterFarm                 # weekly windows
 python3 -I ~/dev/librefarm/tools/ismn_siting.py ~/Downloads/ISMN_archive_20261008.zip \
     --persistence --exclude McAllisterFarm:2023-01-17                  # daily, k-of-n
+python3 -I ~/dev/librefarm/tools/ismn_siting.py ~/Downloads/ISMN_archive_20261008.zip \
+    --persistence --weekly \
+    --exclude McAllisterFarm:2023-01-17,AllenFarms:2023-01-20         # weekly, k-of-n
 ```
 
-Run from a neutral directory with `-I`, because the archive is downloaded data. The daily
-run takes about twelve minutes a station.
+Run from a neutral directory with `-I`, because the archive is downloaded data. Each
+persistence run takes about twelve minutes a station. The culprit-naming measurement was
+a scratch analysis on the same windows and is not in the tool.

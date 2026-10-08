@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import math
+import random
 import unittest
 
 import fixtures as fx
@@ -23,12 +24,15 @@ SURFACE_PEAK_H = 15.5
 SURFACE_SWING = 5.0
 
 
-def _temperature(z: float, when: _dt.datetime, damping: float = D) -> float:
-    """The analytic periodic solution of the heat equation, which the check inverts."""
+def _temperature(z: float, when: _dt.datetime, damping: float = D,
+                 noise: float = 0.0) -> float:
+    """The analytic periodic solution of the heat equation, which the check inverts.
+    `noise` is added before rounding to the sensor's 0.1 C, as a real sensor's own noise
+    dithers a wave smaller than one step into something a long fit can read."""
     hours = when.timestamp() / 3600.0
     lag = z / damping
     phase = 2 * math.pi * (hours - SURFACE_PEAK_H) / 24.0 - lag
-    return round(18.0 + SURFACE_SWING * math.exp(-z / damping) * math.cos(phase), 1)
+    return round(18.0 + SURFACE_SWING * math.exp(-z / damping) * math.cos(phase) + noise, 1)
 
 
 class _Farm:
@@ -36,7 +40,7 @@ class _Farm:
 
     def __init__(self, recorded: dict, physical: dict | None = None,
                  damping: dict | None = None, hours: int = 49,
-                 episode: dict | None = None):
+                 episode: dict | None = None, noise_c: float = 0.0):
         """`episode` = {name: (from_hour, to_hour, depth)}: where a probe physically
         was for a while, with no record of it — an unlogged move, or a bad day."""
         self.log = L.Log()
@@ -44,6 +48,7 @@ class _Farm:
         physical = physical or recorded
         damping = damping or {}
         site, feature = uuid7(), uuid7()
+        rng = random.Random(7)
         for name, depth in recorded.items():
             device = Device(id=uuid7(), kind=DeviceKind.SENSOR, site=site)
             raw = Datastream(id=uuid7(), thing=uuid7(), sensor=device.id,
@@ -66,7 +71,8 @@ class _Farm:
                 if episode and name in episode and \
                         episode[name][0] <= hour < episode[name][1]:
                     z = episode[name][2]
-                value = _temperature(z, when, damping.get(name, D))
+                value = _temperature(z, when, damping.get(name, D),
+                                     rng.gauss(0.0, noise_c) if noise_c else 0.0)
                 self.log.append_record(fx.observation(
                     derived, result=value, measured_at=when, calibration=cal.id,
                     node=None, boot=None, seq=None))
@@ -493,14 +499,14 @@ class TestPersistence(unittest.TestCase):
     def test_a_probe_where_its_record_says_stays_consistent(self):
         finding = self.persistent(self.farm())
         self.assertEqual(finding.verdict, S.CONSISTENT, finding.reason)
-        self.assertEqual(finding.evidence["persistence"]["displaced_days"], 0)
-        self.assertEqual(finding.evidence["persistence"]["decided_days"], 7)
+        self.assertEqual(finding.evidence["persistence"]["displaced"], 0)
+        self.assertEqual(finding.evidence["persistence"]["decided"], 7)
 
     def test_a_move_held_all_week_is_displaced(self):
         farm = self.farm(physical={**STANDARD, "a20": 0.05})
         finding = self.persistent(farm)
         self.assertEqual(finding.verdict, S.DISPLACED)
-        self.assertEqual(finding.evidence["persistence"]["displaced_days"], 7)
+        self.assertEqual(finding.evidence["persistence"]["displaced"], 7)
         self.assertAlmostEqual(finding.implied_depth_m, 0.05, delta=0.02)
         self.assertEqual(finding.at, farm.at)
 
@@ -512,14 +518,14 @@ class TestPersistence(unittest.TestCase):
         finding = self.persistent(farm)
         self.assertEqual(finding.verdict, S.INDETERMINATE)
         self.assertEqual(finding.key, "siting.unconfirmed")
-        self.assertLess(finding.evidence["persistence"]["displaced_days"], 5)
-        self.assertIn("of the last 7 days", finding.reason)
+        self.assertLess(finding.evidence["persistence"]["displaced"], 5)
+        self.assertIn("of the last 7 checks", finding.reason)
 
     def test_a_bad_day_midweek_raises_nothing(self):
         farm = self.farm(episode={"a20": (72, 96, 0.05)})
         finding = self.persistent(farm)
         self.assertEqual(finding.verdict, S.CONSISTENT, finding.reason)
-        self.assertLess(finding.evidence["persistence"]["displaced_days"], 5)
+        self.assertLess(finding.evidence["persistence"]["displaced"], 5)
 
     def test_a_persistent_finding_flags_the_whole_span(self):
         """Readings from the first displaced day on are in doubt, not just the last
@@ -535,7 +541,51 @@ class TestPersistence(unittest.TestCase):
         farm = self.farm(episode={"a20": (self.HOURS - 49, self.HOURS, 0.05)})
         finding = self.persistent(farm)
         text = str(i18n.Translator("es").text(finding.key, **finding.params))
-        self.assertIn("de los últimos 7 días", text)
+        self.assertIn("de las últimas 7 comprobaciones", text)
+
+
+class TestWeekly(unittest.TestCase):
+    """A real station's profile: one probe at each of 5, 10 and 20 cm, and one at 55 cm
+    whose wave is too small to read over two days. Five weeks of hourly readings with a
+    sensor's noise, so the weekly assessment has four two-week windows."""
+
+    PROFILE = {"p05": 0.05, "p10": 0.10, "p20": 0.20, "p55": 0.55}
+    HOURS = 24 * 35 + 1
+
+    def farm(self, physical):
+        return _Farm(self.PROFILE, physical={**self.PROFILE, **physical},
+                     hours=self.HOURS, noise_c=0.05)
+
+    def test_over_two_days_the_deep_probe_is_not_a_peer(self):
+        farm = self.farm({})
+        daily = farm.assess("p20")
+        self.assertEqual(daily.peers_used, 2)
+        self.assertFalse(daily.evidence["robust"])
+        weekly = S.assess_siting_weekly(farm.state, farm.ids["p20"], farm.at)
+        self.assertEqual(weekly.peers_used, 3)
+        self.assertTrue(weekly.evidence["robust"])
+        self.assertEqual(weekly.verdict, S.CONSISTENT, weekly.reason)
+
+    def test_a_moved_neighbour_is_not_blamed_on_the_probe_extrapolated_from_it(self):
+        """McAllister Farm, 2023: the 10 cm probe went in 4 cm shallow. Read daily
+        against the 5 and 10 cm probes, the 20 cm probe looks far too deep and is called
+        displaced, every day. Weekly, the 55 cm probe outvotes the moved one."""
+        farm = self.farm({"p10": 0.06})
+        daily = S.assess_siting_persistent(farm.state, farm.ids["p20"], farm.at)
+        self.assertEqual(daily.verdict, S.DISPLACED)
+        weekly = S.assess_siting_weekly(farm.state, farm.ids["p20"], farm.at)
+        self.assertEqual(weekly.verdict, S.CONSISTENT, weekly.reason)
+        self.assertAlmostEqual(weekly.implied_depth_m, 0.20, delta=0.03)
+
+    def test_a_10_cm_push_is_called_weekly_and_not_daily(self):
+        farm = self.farm({"p20": 0.30})
+        daily = S.assess_siting_persistent(farm.state, farm.ids["p20"], farm.at)
+        self.assertEqual(daily.verdict, S.CONSISTENT, "10 cm is inside the 12 cm two-peer tolerance")
+        weekly = S.assess_siting_weekly(farm.state, farm.ids["p20"], farm.at)
+        self.assertEqual(weekly.verdict, S.DISPLACED, weekly.reason)
+        self.assertAlmostEqual(weekly.implied_depth_m, 0.30, delta=0.03)
+        self.assertEqual(weekly.evidence["persistence"]["count"], 4)
+        self.assertEqual(weekly.evidence["window_h"], 14 * 24 + 3 * 7 * 24)
 
 
 if __name__ == "__main__":

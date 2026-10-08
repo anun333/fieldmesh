@@ -346,37 +346,38 @@ flag — which is why every number here is a 99.9th percentile, not a maximum.
 
 ## Q25. When a two-peer siting check fires, which probe moved?
 
-**Status: affects how a real alarm is reported.** Raised 2026-10-08, when the siting check
-found a real unlogged depth change in ISMN's data and attributed it to the wrong probe
-(see [notes/siting-real-soil.md](../notes/siting-real-soil.md)).
+**Status: partly answered by measurement; how a non-robust alarm is reported is still
+open.** Raised 2026-10-08, when the siting check found a real unlogged depth change in
+ISMN's data and attributed it to the wrong probe (see
+[notes/siting-real-soil.md](../notes/siting-real-soil.md)).
 
-A real station is one profile with one probe per depth, and only the top three carry a
-readable daily wave. Each is judged against a line through the other two. Three probes and
-a two-parameter line leave exactly one degree of freedom, so *any* single probe's
-displacement fits the readings equally well: the phase alone cannot say which one moved.
-And a peer's error is amplified in a probe extrapolated beyond it. At McAllister Farm, a
-replacement 10 cm probe sat about 4 cm shallower than its predecessor; its own offset was
-within tolerance, while the 20 cm probe, extrapolated from a 5–10 cm line squeezed into
-3 cm of real depth, was called displaced by 10–15 cm.
+A real station is one profile with one probe per depth, and over two days only the top
+three carry a readable daily wave. Each is judged against a line through the other two.
+Three probes and a two-parameter line leave exactly one degree of freedom, so *any* single
+probe's displacement fits the readings equally well. And a peer's error is amplified in a
+probe extrapolated beyond it. At McAllister Farm, a replacement 10 cm probe sat about 4 cm
+shallower than its predecessor; its own offset was within tolerance, while the 20 cm
+probe, extrapolated from a 5–10 cm line squeezed into 3 cm of real depth, was called
+displaced by 10–15 cm.
 
 | Option | For | Against |
 | --- | --- | --- |
+| **A deeper peer over a longer window** — two-week windows, in which the 51 cm probe every such station already has carries a readable wave, so the fit has three peers | **Measured, and adopted as `assess_siting_weekly`.** McAllister's 20 cm probe stops being blamed — it reads 20 cm in every year after 2023 — and the robust 8 cm tolerance brings 10 cm moves within reach: about four in five called within six months, at 0.04 false episodes per probe-year, as few as the daily check | Slower: a 15 cm move is called in about five weeks rather than one, so it complements the daily check rather than replacing it. Still cannot resolve the real 2–4 cm shifts |
 | **Report the profile, not the probe**, when the fit is not robust: "something in this profile moved; probes involved: …" | True, and what `robust: false` already means; costs nothing | Leaves a farmer to dig up three probes to find one |
 | **Blame the probe whose own records changed when the alarm began** — a logged replacement, a maintenance visit, a gap in its readings | Exactly right at both stations where it happened: at McAllister and Allen Farms the 10 cm probe had an 18-month gap and a new sensor logged days before the profile changed | Only helps when the move coincided with a record; the unlogged cultivator strike has none |
-| **Fit phase and amplitude together.** Both depend on depth through the *same* damping depth, so each single-probe hypothesis predicts both; with two signals the system is overdetermined and the true culprit should fit best | Uses physics already in the check; needs no extra hardware | The amplitude was too noisy to place probes at one of the three Tennessee stations, where the 51 cm swing is 0.04 °C. Unmeasured as a discriminator |
-| **Install a fourth shallow probe** (15 or 30 cm) so the fit is robust and a displaced peer is outvoted | The only option that makes the check robust rather than better-explained | Hardware and labour on every profile |
-| Prefer the smallest displacement that explains the readings | Right at McAllister, where the culprit's offset was the smallest | Not right in general: a displaced outer probe shows the largest offset of the three |
+| **Name the probe whose omission lets the rest line up best**, with four probes | Right 78–100% of the time for constructed moves of 10 cm or more (a scratch measurement, not yet in the tool) | 57–62% for 5 cm, and no use for the real 2–4 cm shifts. With nothing moved it still "names" someone — usually the deep probe, which sits in a different soil horizon — so it must only speak when the profile as a whole misfits |
+| ~~Fit phase and amplitude together~~ | — | **Does not discriminate, by the physics.** In uniform soil both log-amplitude and phase are straight-line functions of depth with the same damping depth, so they are two noisy readings of one number per probe: every single-culprit hypothesis still fits exactly. Measured, amplitude named the culprit about as often as phase. What the pair *does* catch is a clock offset, which shifts phase and not amplitude |
+| **Install a fourth shallow probe** (15 or 30 cm) | A robust fit even over two days | Hardware and labour on every profile — and a station's existing 51 cm probe already does most of this over two weeks |
 
-**Recommendation:** report the profile and name the probe whose records changed at the
-onset, where there is one — both cheap, and both would have been right here. Measure the
-joint phase-and-amplitude fit before trusting it. For a farm installing new profiles,
-recommend a fourth shallow probe as the robust answer. Two observations that need
-deciding together with this: a peer installed a few centimetres from its record biases
-the others' implied depths for as long as it stays, which limits a two-peer profile to
-calling moves a little over 10 cm; and a replacement is exactly when a depth error is most
-likely — both Tennessee replacements in 2023 went in 2–4 cm from their predecessors — so a
-maintenance-record convention that asks for the measured depth at every replacement would
-remove the cause rather than detect it.
+**Recommendation:** run both schedules — daily for the large, fast move, weekly for the
+smaller one and for attribution. When only the daily check fires and its fit is not
+robust, report the profile and name the probe whose records changed at the onset, where
+there is one, rather than the probe the arithmetic points at. Two observations that need
+deciding together with this: a peer installed a few centimetres from its record biases the
+others' implied depths for as long as it stays; and a replacement is exactly when a depth
+error is most likely — both Tennessee replacements in 2023 went in 2–4 cm from their
+predecessors — so a maintenance-record convention that asks for the *measured* depth at
+every replacement would remove the cause rather than detect it.
 
 ## Q5. Binary encoding
 
@@ -674,7 +675,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q22 | Does the maintenance vocabulary need a battery replacement? | Blocks nothing |
 | Q23 | A rate-of-change limit that works at any sampling interval | Blocks scoring hourly data |
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | False alarms on deep probes today |
-| Q25 | When a two-peer siting check fires, which probe moved? | Affects how a real alarm is reported |
+| Q25 | When a two-peer siting check fires, which probe moved? | Partly measured; reporting open |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
