@@ -249,11 +249,28 @@ def order_observations(observations) -> list:
     §2 says overlapping-uncertainty pairs are not. Ask `concurrent()` when it
     matters; this exists so two implementations print the same list.
     """
-    return sorted(
-        observations,
-        key=lambda o: (o.node or "", o.node_order or (-1, -1),
-                       o.measured_at, o.id.int),
-    )
+    return sorted(observations, key=_display_key)
+
+
+def _display_key(o):
+    """The sort key for `order_observations`.
+
+    A named function rather than an inline lambda because this is the second-hottest
+    thing in a season — 5.7 million calls in one simulated week, 3.0 s of 31 s — and
+    the cost is building the tuple, not comparing it: four attribute fetches, an
+    `or`, and the `node_order` property, per observation per sort. Naming it makes
+    that visible in a profile instead of showing up as `<lambda>`.
+
+    `o.node` is a **string** (§1 — a node is named, not keyed by UUID), so `""` for a
+    missing one is the correct neutral value and sorts it first. An earlier attempt at
+    this optimisation keyed on `node.int`, which is right for a `UUID` and an
+    `AttributeError` for a name; the tests caught it immediately. `o.id.int` is a
+    genuine `UUID` and does want `.int`, because that skips `UUID.__lt__`.
+    """
+    return (o.node or "",
+            o.node_order or (-1, -1),
+            o.measured_at,
+            o.id.int)
 
 
 # ---------------------------------------------------------------- staleness
@@ -303,6 +320,7 @@ class State:
     _superseded_obs: set = field(default_factory=set, repr=False)
     _by_observation: dict = field(default_factory=dict, repr=False)
     _superseded_assertions: set = field(default_factory=set, repr=False)
+    _peer_streams: dict = field(default_factory=dict, repr=False)
 
     def observations_of(self, datastream_id: UUID) -> list:
         """Every observation on one series, in insertion order."""
@@ -314,6 +332,18 @@ class State:
         Scanning the series for every arriving reading made ingest quadratic.
         """
         return measured_at in self._times_by_datastream.get(datastream_id, ())
+
+    def is_superseded(self, observation_id: UUID) -> bool:
+        """Whether some later observation replaces this one (§3.2), in constant time.
+
+        Public because the alternative was being written out by hand elsewhere as
+        `any(o.supersedes == target for o in state.observations)` — correct, O(n) per
+        question, and therefore O(n^2) across a recalibration that asks it about every
+        row. One simulated fortnight spent **11 s of 34 s** inside that one generator,
+        with 59 million UUID comparisons, re-deriving a set the projection had already
+        built. An index nobody can reach is not an index.
+        """
+        return observation_id in self._superseded_obs
 
     def assertions_about(self, observation_id: UUID) -> list:
         return self._by_observation.get(observation_id, [])
@@ -388,6 +418,13 @@ class State:
         attr, keyed = slot
         if keyed:
             getattr(self, attr)[record.id] = record
+            if attr == "datastreams":
+                # A new or changed datastream can change who is comparable to whom,
+                # so the cache below cannot outlive it. Datastreams arrive a few
+                # dozen times in a season and observations hundreds of thousands of
+                # times, which is what makes clearing the whole cache the right
+                # trade rather than a careful partial invalidation.
+                self._peer_streams.clear()
             return
         getattr(self, attr).append(record)
         if attr == "observations":
@@ -400,6 +437,38 @@ class State:
             self._by_observation.setdefault(record.observation, []).append(record)
             if record.supersedes is not None:
                 self._superseded_assertions.add(record.supersedes)
+
+    def comparable_datastreams(self, datastream_id: UUID) -> list:
+        """Datastreams whose readings may be cross-checked against this one's (§4.2).
+
+        Comparable means: a different datastream, a *different sensor*, and the same
+        observed property, kind, unit and feature. Every one of those is load-bearing,
+        and `kind` and `unit` most of all — a raw series carries whatever the node sent
+        (`280`) and a derived series carries physical units (`0.280`), so comparing
+        across them is a unit error that makes two healthy probes look like they
+        violently disagree. Measured before that guard existed: a **99.8% false-alarm
+        rate** on a farm with nothing wrong with it.
+
+        Cached, because the answer depends only on the datastreams. Recomputing it per
+        assessment meant scanning every datastream on the farm for every reading, with
+        several `UUID` comparisons each — 2.5 s of a 31 s simulated week. The cache is
+        cleared wholesale whenever a datastream is added or replaced, in `add`.
+        """
+        cached = self._peer_streams.get(datastream_id)
+        if cached is not None:
+            return cached
+        own = self.datastreams.get(datastream_id)
+        if own is None:
+            return []
+        peers = [ds for ds in self.datastreams.values()
+                 if ds.id != own.id
+                 and ds.sensor != own.sensor
+                 and ds.observed_property == own.observed_property
+                 and ds.kind is own.kind
+                 and ds.unit == own.unit
+                 and ds.feature == own.feature]
+        self._peer_streams[datastream_id] = peers
+        return peers
 
     def derived_of(self, raw_datastream_id: UUID):
         """The derived datastream computed from this raw one, if there is one (§3.2)."""

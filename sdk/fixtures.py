@@ -34,7 +34,7 @@ def at(minutes: float = 0, *, base: _dt.datetime = T0) -> _dt.datetime:
 
 def raw_datastream(*, thing=None, sensor=None, feature=None,
                    expected_interval=300.0, max_latency=3600.0,
-                   **kw) -> Datastream:
+                   unit: str | None = "cm3/cm3", **kw) -> Datastream:
     return Datastream(
         id=uuid7(),
         thing=thing or uuid7(),
@@ -42,7 +42,7 @@ def raw_datastream(*, thing=None, sensor=None, feature=None,
         observed_property=SOIL_MOISTURE,
         feature=feature or uuid7(),
         kind=DatastreamKind.RAW,
-        unit="cm3/cm3",
+        unit=unit,
         expected_interval=expected_interval,
         max_latency=max_latency,
         **kw,

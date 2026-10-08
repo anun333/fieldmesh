@@ -412,3 +412,54 @@ class TestHistory(Matrix):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestLabelsAndGeometry(unittest.TestCase):
+    """The side table the SensorThings view is handed (§1 keeps names out of keys)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.farm = hb.build()
+        hb.season(cls.farm, days=0.3)
+        cls.labels = hb.labels(cls.farm)
+
+    def test_every_series_is_named_on_both_its_datastreams(self):
+        for name, series in self.farm.series.items():
+            self.assertEqual(self.labels[series.derived.id]["name"], name)
+            self.assertEqual(self.labels[series.raw.id]["name"], f"{name} (raw)")
+
+    def test_raw_and_derived_are_never_given_the_same_label(self):
+        """They are the pair whose confusion produced a 99.8% false-alarm rate, so a
+        client showing them side by side must not be able to mistake one for the other.
+        """
+        for series in self.farm.series.values():
+            self.assertNotEqual(self.labels[series.raw.id]["name"],
+                                self.labels[series.derived.id]["name"])
+
+    def test_every_feature_has_geometry(self):
+        """A GIS client drops a row with no geometry silently, so a gap here is
+        invisible rather than noisy."""
+        for name, feature in self.farm.features.items():
+            if feature.get("id") is None:
+                continue
+            geom = self.labels[feature["id"]].get("feature")
+            self.assertIsNotNone(geom, name)
+            self.assertEqual(geom["type"], "Point")
+            self.assertEqual(len(geom["coordinates"]), 2)
+
+    def test_no_two_features_share_a_point(self):
+        """They all sat on null island until this test existed, which makes a map of
+        six beds into one dot."""
+        points = [tuple(v["feature"]["coordinates"])
+                  for v in self.labels.values() if "feature" in v]
+        self.assertEqual(len(points), len(set(points)))
+
+    def test_the_farm_stays_on_the_prime_meridian(self):
+        """The constellation's convention: nothing here may be mistaken for a real
+        place, so the whole farm stays within a few hundred metres of 0,0."""
+        for v in self.labels.values():
+            if "feature" not in v:
+                continue
+            lon, lat = v["feature"]["coordinates"]
+            self.assertLess(abs(lon), 0.01)
+            self.assertLess(abs(lat), 0.01)

@@ -82,6 +82,17 @@ A GIS client — QGIS's SensorThings provider is the obvious one — has not yet
 these documents. That needs the HTTP layer with `$filter`, `$expand`, `$top` and
 paging; the documents being right is necessary and not sufficient.
 
+## Three more questions put to the oracle, 2026-10-07
+
+Asked while validating the HTTP layer in [server/](../../server/) against two real
+clients — see [qgis-validation.md](qgis-validation.md) for the full account.
+
+| Question | FROST's answer | What it settled |
+| --- | --- | --- |
+| Does `$top=2` suppress `@iot.nextLink`? | **No.** Two rows *plus* `?$top=2&$skip=2`. With `$count=true`, the count is the unfiltered total and the nextLink carries `$count` forward | Our paging matches the reference implementation exactly. A change to suppress the nextLink on an explicit `$top` was drafted on a reading of OData and **not made**, because the oracle outranks the reading |
+| Is `unitOfMeasurement` required when `observationType` is `OM_CountObservation`? | **Yes.** With a unit: 201. Without: **400** | Our count-with-a-unit document was a semantic defect, not a protocol violation — and a raw datastream declaring a null unit could not be mirrored into FROST, which constrains [Q21](../spec/open-questions.md) |
+| Can a Thing be deep-inserted with Datastreams and Observations and no Location? | **No.** `No FeatureOfInterest provided, and none can be generated.` | FROST generates features of interest from Thing Locations; layer zero derives them from the datastream's declared feature (§3.1). A different and deliberate choice, but anyone mirroring into FROST will meet it |
+
 ## Reproducing
 
 ```sh

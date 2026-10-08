@@ -354,10 +354,36 @@ class Node:
                           resend=False)
 
     def _oldest_resend(self):
-        """The earliest-sent frame still awaiting acknowledgement, as a group."""
+        """The earliest-sent frame still awaiting acknowledgement, as a group.
+
+        One pass to group, then a lookup per sequence number — not a scan of the
+        buffer per sequence number. The nested version was correct and was **the
+        single most expensive thing in a simulated season**: 7.4 s of a 31 s week,
+        more than the whole projection layer, because its cost is the product of two
+        quantities that both grow during an outage. The buffer fills to
+        `policy.buffer_max` while nothing is getting through, and `_sent_order`
+        lengthens with every frame sent and unacknowledged, so exactly when a node is
+        working hardest the scan is at its worst. That is the wrong shape for a
+        reliability path: the code should not slow down in the conditions it exists
+        to survive.
+
+        Grouped fresh each call rather than kept as an index, deliberately.
+        `_held` is mutated in a dozen places — eviction from either end, cumulative
+        acknowledgement, hole abandonment, reboot — and an index that disagreed with
+        the buffer would produce a resend of a frame the node no longer has, which is
+        far worse than a slow scan. One pass over the buffer is O(held); the version
+        it replaces was O(held x sent_order).
+        """
+        if not self._sent_order:
+            return None
+        groups: dict[int, list] = {}
+        for h in self._held:
+            if h.awaiting_resend and h.seq is not None:
+                groups.setdefault(h.seq, []).append(h)
+        if not groups:
+            return None
         for seq in self._sent_order:
-            group = [h for h in self._held
-                     if h.seq == seq and h.awaiting_resend]
+            group = groups.get(seq)
             if group:
                 return group
         return None

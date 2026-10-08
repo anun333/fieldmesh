@@ -40,6 +40,7 @@ throw away the distinction a certifier cares about.
 from __future__ import annotations
 
 import datetime as _dt
+from urllib.parse import quote as _url_quote
 from uuid import UUID
 
 import project as P
@@ -72,6 +73,44 @@ def observation_type(result) -> str:
         if py_type is not bool and isinstance(result, py_type):
             return uri
     return ANY_OBSERVATION
+
+
+def humanise_term(uri: str) -> str:
+    """A legible name for a vocabulary URI: the last path segment, unpunctuated.
+
+    `.../volume_fraction_of_condensed_water_in_soil/` becomes
+    "volume fraction of condensed water in soil". A camelCase ODM2 term such as
+    `batteryVoltage` becomes "battery voltage". Only a fallback — a label registry
+    entry always wins — but it is the fallback a GIS legend actually shows.
+    """
+    tail = uri.rstrip("/").rsplit("/", 1)[-1]
+    if not tail:
+        return uri
+    spaced = tail.replace("_", " ")
+    out = []
+    for i, ch in enumerate(spaced):
+        # A camelCase hump becomes a word break, and the capital that marked it is
+        # lowered — it was punctuation, not emphasis. Two exceptions, both because the
+        # capital is part of the word rather than a separator: a run of capitals is
+        # left alone (RSSI), and so is a lone trailing capital, which is what makes
+        # `pH` survive as `pH` instead of becoming `p h`. Soil pH is a measurand this
+        # project will certainly meet, so getting it wrong was not academic.
+        if (ch.isupper() and i and spaced[i - 1].islower()
+                and i < len(spaced) - 1):
+            out.append(" ")
+            out.append(ch.lower())
+            continue
+        out.append(ch)
+    return "".join(out).strip()
+
+
+def _quote(text: str) -> str:
+    """Percent-encode an entity id for use inside `Set('...')`.
+
+    `safe=""` on purpose: the slashes in a vocabulary URI are exactly what must not
+    survive into the path, or the router splits the id into path segments.
+    """
+    return _url_quote(text, safe="")
 
 
 def iso(when: _dt.datetime) -> str:
@@ -186,7 +225,13 @@ class Service:
         doc["description"] = self._label(ident, "description",
                                          "A thing layer zero observes")
         doc["properties"] = {}
-        doc.update(self._navs("Things", ident, "Datastreams", "Locations"))
+        # **No `Locations` link.** 1.1 makes Thing.Locations 0..*, and layer zero has
+        # no Location record: geometry here belongs to a feature of interest — a bed, a
+        # paddock, a trough — not to the Thing that happens to observe it. Advertising
+        # the link anyway is what this used to do, and a walk of every emitted link
+        # found it answering 404 to itself. A link you cannot answer is worse than one
+        # you never offered, because the client only learns after following it.
+        doc.update(self._navs("Things", ident, "Datastreams"))
         return doc
 
     def sensor(self, ident: UUID) -> dict:
@@ -202,12 +247,36 @@ class Service:
 
     def observed_property(self, uri: str) -> dict:
         """§3.4 observed properties are vocabulary URIs, so the URI *is* the
-        identity — there is no separate UUID to mint."""
+        identity — there is no separate UUID to mint.
+
+        Two things here were found by loading Harrow Bend in QGIS 3.44 and looking at
+        the legend:
+
+        * **The id is percent-encoded in the self link.** A vocabulary URI contains
+          `/` and `:`, so an unencoded one inside `ObservedProperties('...')` made a
+          path the router split in the wrong places — we advertised a link and then
+          answered 404 to it. A service whose own self links do not resolve is worse
+          than one that omits them, because a client has no way to know.
+        * **The displayed name is derived with the trailing slash stripped first.**
+          Both vocabulary servers want the trailing slash (the slashless form
+          redirects, and a redirect is a different identifier to a dumb client), and
+          the old fallback took everything after the last `/` — which for
+          `.../air_temperature/` is the empty string. Every observed property in QGIS
+          showed a blank name. Nothing was wrong with the URI; the name derivation had
+          simply never seen one that ended in a slash.
+        """
         doc = {self.dialect.id_key: uri,
-               self.dialect.self_key: f"{self._root()}/ObservedProperties('{uri}')"}
-        doc["name"] = self._label(uri, "name", uri.rsplit("/", 1)[-1])
+               self.dialect.self_key:
+                   f"{self._root()}/ObservedProperties('{_quote(uri)}')"}
+        doc["name"] = self._label(uri, "name", humanise_term(uri))
         doc["definition"] = uri
         doc["description"] = self._label(uri, "description", uri)
+        # 1.1 Table 9 gives ObservedProperty a Datastreams navigation link. It was
+        # simply missing, which a client cannot work around: there is no other way to
+        # ask "which series measure this property?" without listing every datastream
+        # and filtering client-side.
+        doc[f"Datastreams{self.dialect.nav_suffix}"] = (
+            f"{self._root()}/ObservedProperties('{_quote(uri)}')/Datastreams")
         return doc
 
     def feature_of_interest(self, ident: UUID) -> dict:
@@ -375,14 +444,41 @@ class Service:
         return iso(lo) if lo == hi else f"{iso(lo)}/{iso(hi)}"
 
     def _datastream_observation_type(self, ds: Datastream) -> str:
-        for obs in self.state.observations:
-            if obs.datastream == ds.id:
-                return observation_type(obs.result)
+        """1.1 Table 10's `observationType`, from the **declaration** not a sample.
+
+        Derived from `ds.unit`, because that is the durable fact. The version this
+        replaces read the Python type of the first result it could find, and a GIS
+        client pointed at Harrow Bend showed what that costs: a raw soil-moisture
+        series carries scaled integers, so `280` typed the whole datastream as
+        `OM_CountObservation` — a *count* — while the same document declared a unit of
+        `cm3/cm3`. A count has no unit, so the two halves of one document contradicted
+        each other, and a consumer that honours `observationType` would be entitled to
+        refuse to average or interpolate a continuous measurement.
+
+        A declared unit means a measured quantity; that is what a unit is for. Only
+        when there is no unit does the value's own type decide, and then it decides
+        something real — a boolean is a truth observation, a bare integer a count, a
+        string a category.
+
+        (The scaled-integer raw series raises a separate and larger question about
+        what unit a raw datastream should declare at all. See open-questions Q21; it
+        is not this method's to answer.)
+        """
+        if ds.unit:
+            return _OBSERVATION_TYPES[float]
+        rows = self.state.observations_of(ds.id)
+        if rows:
+            return observation_type(rows[0].result)
         return ANY_OBSERVATION
 
     def _health(self, ds: Datastream) -> P.Health:
-        stamps = [o.measured_at for o in self.state.observations
-                  if o.datastream == ds.id]
+        """Staleness for one datastream, from the per-datastream index.
+
+        The scan this replaces walked every observation in the log, for every
+        datastream, on every `/Datastreams` request — the same quadratic shape §7.2
+        forbids, hidden in a serialiser rather than in the projection.
+        """
+        stamps = self.state._times_by_datastream.get(ds.id)
         now = max(stamps) if stamps else None
         return P.datastream_health(ds, now, now) if now else P.Health.UNKNOWN
 

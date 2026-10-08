@@ -147,6 +147,46 @@ precisely the case w3id is designed for. Do it when the repository goes public, 
 redirect to a 404 helps nobody. Until then the single `LOCAL` constant in
 [sdk/vocab.py](../../sdk/vocab.py) is the whole migration surface.
 
+## Q21. What unit does a *raw* datastream declare?
+
+**Status: blocks v0 — it is a §3.1 data-model question, not an implementation detail.**
+Raised 2026-10-07 by pointing a third-party SensorThings client at the HTTP service and
+looking at what it made of Harrow Bend.
+
+The farm's raw soil-moisture datastreams declare `unit = cm3/cm3` and carry values like
+`280`. The calibration then applies `a = 1/1000`, giving `0.280 cm3/cm3` on the derived
+series. So the raw datastream declares a unit **it is not in**: it is in thousandths of
+cm3/cm3, and the declaration says otherwise. This is the same class of error as the
+`soil_moisture_content` placeholder that Q4 caught — a plausible-looking declaration
+that no check could falsify — and it is the same raw-versus-derived confusion that
+produced the 99.8% false-alarm rate in §4.2. Three findings, one root.
+
+It surfaced through `observationType`. Serving the type inferred from a sample's Python
+type made a scaled-integer raw series an `OM_CountObservation` *with* a unit, which is
+self-contradictory — a count has no unit. That particular bug is fixed (the type now
+follows the declaration), but the fix only moved the question: if a unit decides that
+something is a measurement, the raw series' unit had better be true.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **Raw declares no unit (`null`)** | Honest: before calibration the number has no physical meaning, and §3.4 already allows a null unit for a quantity that has none. Keeps the scale factor where it belongs, in the calibration, which is the thing allowed to change | FROST-Server **rejects a Datastream with no `unitOfMeasurement`** — measured 2026-10-07, 400 — so a raw series could not be mirrored into the reference implementation. `observationType` also falls back to the value's type, and a scaled integer is not really a count either |
+| Raw declares the scaled unit, e.g. `10*-3.cm3/cm3` | UCUM expresses it exactly, so the calibration becomes a pure unit conversion and the declaration is checkable | **The scale is a calibration property.** A recalibration that changes the scale would have to change the datastream's unit, and §3.1 declares the unit once and never changes it. This option is only safe if scale is frozen for the life of the series, which is a stronger promise than calibration makes |
+| Raw declares the physical unit and a separate `raw_scale` field | Minimal change; the relationship is explicit and machine-readable | Invents a field the standard has nowhere to put, so it survives only in `properties` and no other implementation will honour it. Also still false: the declared unit is not the unit of the values |
+| No raw datastream at all — calibrate at ingest | The question disappears, and so does a whole class of confusion | Destroys §3.2's reason for existing: the raw series is the record that lets a wrong calibration be corrected without losing data. Not an option |
+| Raw declares a dimensionless `1` | True of an ADC count; parses as UCUM; satisfies FROST | Loses the information that these are thousandths of something, so nobody can reconstruct physical values from the raw series alone |
+
+**Recommendation: `1`, with the scale recorded in the calibration where it already
+lives.** It is the only option that is true of the values, parses as UCUM, keeps the
+scale in the record that is allowed to change, and does not fail against the reference
+implementation. `null` is more honest still, but a model that cannot round-trip through
+FROST loses the conformance oracle this project has been checking itself against, and
+that is too high a price for a shade of precision.
+
+Whichever is chosen, §3.4's new clause applies and makes this falsifiable: the unit a
+datastream declares must be consistent with the values it carries. Harrow Bend and
+`sdk/fixtures.py` both need changing, which is why this is recorded rather than quietly
+fixed — it changes the canonical farm.
+
 ## Q5. Binary encoding
 
 **Status: DECIDED 2026-10-07 — CBOR packed arrays with a CDDL schema.** It blocked

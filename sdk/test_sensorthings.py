@@ -215,14 +215,43 @@ class TestUnitsAndTypes(unittest.TestCase):
         """In Python a bool *is* an int, so order of checks matters."""
         self.assertTrue(st.observation_type(False).endswith("OM_TruthObservation"))
 
-    def test_datastream_observation_type_follows_its_observations(self):
+    def test_a_declared_unit_makes_it_a_measurement_whatever_the_values_look_like(self):
+        """The defect a GIS client found in Harrow Bend.
+
+        A raw soil-moisture series carries scaled integers — `280` for 0.280 cm3/cm3 —
+        and typing the datastream from the first value it could find made the whole
+        series an `OM_CountObservation` while the same document declared a unit of
+        `cm3/cm3`. A count has no unit, so one document asserted two incompatible
+        things, and a consumer honouring `observationType` would be within its rights
+        to refuse to average or interpolate a continuous measurement.
+
+        A unit is the declaration that something is a measured quantity, so it decides.
+        """
         ds = fx.raw_datastream()
+        obs = fx.observation(ds, result=280)
+        doc = st.Service(_state(ds, obs)).datastream(ds)
+        self.assertTrue(doc["observationType"].endswith("OM_Measurement"),
+                        doc["observationType"])
+        self.assertIsNotNone(doc["unitOfMeasurement"])
+
+    def test_a_declared_unit_is_enough_before_any_reading_arrives(self):
+        """A type that needs data to be known is useless to a client building a
+        legend against an empty series, and the declaration already settles it."""
+        ds = fx.raw_datastream()
+        doc = st.Service(_state(ds)).datastream(ds)
+        self.assertTrue(doc["observationType"].endswith("OM_Measurement"))
+
+    def test_without_a_unit_the_values_decide(self):
+        """§3.4 lets a datastream with no meaningful unit declare none. That is the
+        case where the value's own type is the only evidence there is."""
+        ds = fx.raw_datastream(unit=None)
         obs = fx.observation(ds, result=True)
         doc = st.Service(_state(ds, obs)).datastream(ds)
-        self.assertTrue(doc["observationType"].endswith("OM_TruthObservation"))
+        self.assertTrue(doc["observationType"].endswith("OM_TruthObservation"),
+                        doc["observationType"])
 
-    def test_an_empty_datastream_falls_back_to_om_observation(self):
-        ds = fx.raw_datastream()
+    def test_an_empty_unitless_datastream_falls_back_to_om_observation(self):
+        ds = fx.raw_datastream(unit=None)
         doc = st.Service(_state(ds)).datastream(ds)
         self.assertTrue(doc["observationType"].endswith("OM_Observation"))
 
@@ -396,3 +425,80 @@ class TestDialectSeam(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestVocabularyUriPresentation(unittest.TestCase):
+    """Found by loading Harrow Bend in QGIS 3.44 and reading the legend."""
+
+    def test_a_trailing_slash_does_not_erase_the_name(self):
+        """The defect: both vocabulary servers want the trailing slash, and the name
+        was derived as 'everything after the last slash' — which is the empty string.
+        Every observed property in the GIS legend was blank."""
+        uri = "http://vocab.nerc.ac.uk/standard_name/air_temperature/"
+        self.assertEqual(st.humanise_term(uri), "air temperature")
+
+    def test_camel_case_becomes_words(self):
+        self.assertEqual(
+            st.humanise_term("http://vocabulary.odm2.org/variablename/batteryVoltage/"),
+            "battery voltage")
+
+    def test_a_lone_trailing_capital_survives(self):
+        """`pH` must not become `p h`. Soil pH is a measurand this will meet."""
+        self.assertEqual(st.humanise_term("http://x/pH/"), "pH")
+
+    def test_a_run_of_capitals_survives(self):
+        self.assertEqual(st.humanise_term("http://x/RSSI/"), "RSSI")
+
+    def test_a_label_registry_entry_still_wins(self):
+        ds = fx.raw_datastream()
+        svc = st.Service(_state(ds),
+                         labels={ds.observed_property: {"name": "soil water"}})
+        self.assertEqual(svc.observed_property(ds.observed_property)["name"],
+                         "soil water")
+
+    def test_the_self_link_percent_encodes_the_uri(self):
+        """Unencoded, the id's own slashes become path separators and the service
+        answers 404 to a link it emitted itself."""
+        ds = fx.raw_datastream()
+        doc = st.Service(_state(ds)).observed_property(ds.observed_property)
+        self.assertNotIn("//vocab", doc["@iot.selfLink"].split("ObservedProperties")[1])
+        self.assertIn("%2F", doc["@iot.selfLink"])
+
+    def test_observed_property_offers_a_datastreams_link(self):
+        ds = fx.raw_datastream()
+        doc = st.Service(_state(ds)).observed_property(ds.observed_property)
+        self.assertIn("Datastreams@iot.navigationLink", doc)
+
+
+class TestFeatureGeometry(unittest.TestCase):
+    """Geometry reaches the view as a side table, never as a log record.
+
+    A real farm's field boundaries live in a gitignored `.site/` directory — they are
+    the farmer's, and §3 has no record type for them. The label table is the same
+    channel human names use, for the same reason.
+    """
+
+    def test_a_feature_with_no_geometry_serves_null_rather_than_omitting_it(self):
+        ds = fx.raw_datastream()
+        doc = st.Service(_state(ds)).feature_of_interest(ds.feature)
+        self.assertIsNone(doc["feature"])
+        self.assertEqual(doc["encodingType"], "application/geo+json")
+
+    def test_geometry_from_the_label_table_is_served_as_geojson(self):
+        ds = fx.raw_datastream()
+        point = {"type": "Point", "coordinates": [0.0001, 0.0]}
+        svc = st.Service(_state(ds), labels={ds.feature: {"name": "bed2",
+                                                          "feature": point}})
+        doc = svc.feature_of_interest(ds.feature)
+        self.assertEqual(doc["feature"], point)
+        self.assertEqual(doc["name"], "bed2")
+
+
+class TestThingHasNoLocationsLink(unittest.TestCase):
+
+    def test_things_do_not_advertise_a_locations_link(self):
+        """We serve no Locations, and a link that answers 404 is worse than none."""
+        ds = fx.raw_datastream()
+        doc = st.Service(_state(ds)).thing(ds.thing)
+        self.assertNotIn("Locations@iot.navigationLink", doc)
+        self.assertIn("Datastreams@iot.navigationLink", doc)

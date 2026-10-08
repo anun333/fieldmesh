@@ -146,6 +146,80 @@ class Farm:
         return self.series[name]
 
 
+#: Where each feature sits, as GeoJSON, in metres-ish degrees off null island.
+#:
+#: Geometry is **not** a log record and deliberately has no place in §3. A real farm's
+#: field boundaries are exactly the material docs/VIRTUAL_FARM.md keeps in a gitignored
+#: `.site/` directory — a farmer's boundaries, wells and contacts are theirs, and a
+#: public repository is the wrong home for them. So geometry reaches the SensorThings
+#: view the same way names do: as a side table the service is handed, not as something
+#: the append-only log carries.
+#:
+#: Harrow Bend is fictional and anchored on the prime meridian, so its geometry *can*
+#: live in the repository. That is the privilege of a farm that does not exist.
+#:
+#: The offsets exist because a GIS client loaded this farm as six layers stacked on one
+#: point until they did. Roughly 11 m per 0.0001 degree, so the beds sit in a row about
+#: 50 m long, which is a plausible market garden.
+_LAYOUT = {
+    "bed1": (0.0000, 0.0000), "bed2": (0.0001, 0.0000),
+    "bed3": (0.0002, 0.0000), "bed4": (0.0003, 0.0000),
+    "bed5": (0.0004, 0.0000), "bed6": (0.0005, 0.0000),
+    "plot": (0.0002, 0.0003),
+    "paddock": (-0.0006, -0.0004),
+    "hoop": (0.0006, 0.0002),
+    "bed4_sample": (0.0003, -0.0001),
+}
+
+
+def _geometry(name: str) -> dict:
+    """A point for a named feature, or null island if the farm grew one we forgot.
+
+    Returning the anchor rather than `None` for an unknown feature is deliberate: a
+    missing geometry makes a GIS layer silently drop the row, and a row at 0,0 is
+    visibly wrong instead. Being obviously wrong beats being quietly absent.
+    """
+    lon, lat = _LAYOUT.get(name, (0.0, 0.0))
+    return {"type": "Point", "coordinates": [round(lon, 7), round(lat, 7)]}
+
+
+def labels(farm) -> dict:
+    """Human names for the farm's entities, keyed by id, for `sensorthings.Service`.
+
+    §1 keeps names out of the keys, which is right — a name is editable and an identity
+    is not — but it leaves a GIS client rendering a legend of bare UUIDs, which is
+    unusable for the one job a map has. The registry that will serve this for a real
+    farm is still an open design question; this is the simulator answering it for
+    itself, from names it already knows.
+
+    Raw and derived series are labelled distinctly on purpose. They are the pair whose
+    confusion produced a 99.8% false-alarm rate (§4.2), so a client that shows them
+    side by side should not be able to mistake one for the other either.
+    """
+    out: dict = {}
+    for name, series in farm.series.items():
+        out[series.raw.id] = {
+            "name": f"{name} (raw)",
+            "description": f"{name}, as the node reported it, before calibration"}
+        out[series.derived.id] = {
+            "name": name,
+            "description": f"{name}, calibrated to physical units"}
+        out[series.raw.sensor] = {
+            "name": f"{name} sensor",
+            "description": f"the sensor behind {name}",
+            "metadata": f"simulated sensor for {name}"}
+    for name, feature in farm.features.items():
+        if feature.get("id") is not None:
+            out[feature["id"]] = {"name": name,
+                                  "description": f"{name} at Harrow Bend",
+                                  "feature": _geometry(name)}
+        if feature.get("thing") is not None:
+            out[feature["thing"]] = {
+                "name": f"{name} (thing)",
+                "description": f"the thing observed at {name}"}
+    return out
+
+
 def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
             interval, latency, read, channel, sensor_id=None, faults=()):
     sensor_id = sensor_id or uuid7()
@@ -374,13 +448,19 @@ def recalibrate(farm: Farm, series_name: str, at: _dt.datetime, *,
         farm.state.add(record)
     series.calibration = fresh
 
-    raw_by_time = {o.measured_at: o for o in farm.state.observations
-                   if o.datastream == series.raw.id}
+    # Both lookups go through the projection's indexes rather than scanning the log.
+    # The version this replaces asked "has this row been superseded?" by scanning every
+    # observation for every candidate row, which is quadratic in season length and was
+    # the single largest cost in a simulated fortnight — 11 s of 34 s, 59 million UUID
+    # comparisons, rebuilding a set `State` already maintains. A recalibration is
+    # exactly when a season is longest, so this is the worst possible place for it.
+    raw_by_time = {o.measured_at: o
+                   for o in farm.state.observations_of(series.raw.id)}
     superseded = 0
-    for old_obs in list(farm.state.observations):
-        if old_obs.datastream != series.derived.id or old_obs.measured_at < at:
+    for old_obs in list(farm.state.observations_of(series.derived.id)):
+        if old_obs.measured_at < at:
             continue
-        if any(o.supersedes == old_obs.id for o in farm.state.observations):
+        if farm.state.is_superseded(old_obs.id):
             continue
         source = raw_by_time.get(old_obs.measured_at)
         if source is None:

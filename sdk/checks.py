@@ -258,10 +258,17 @@ def _upto(series, obs):
     `__eq__`, which compares every field of every candidate — including the
     provenance dict — and at season scale that was the single most expensive thing
     in ingest. An id comparison answers the same question.
+
+    The ids are compared **as integers**. `UUID.__eq__` is pure Python — an
+    `isinstance` call, an attribute fetch, then an integer compare — and this scan
+    runs it once per row per assessment. Together with the same pattern in
+    `State.comparable_datastreams`, profiling one simulated week attributed **15
+    million `UUID.__eq__` calls** and 3.4 s of 31 s to UUID equality alone. `.int` is
+    the same comparison with none of the dispatch.
     """
-    target = obs.id
+    target = obs.id.int
     for position, row in enumerate(series):
-        if row.id == target:
+        if row.id.int == target:
             return series[position - 1::-1] if position else []
     return []
 
@@ -285,16 +292,12 @@ def _peers(state: P.State, obs: Observation, window_s: float = 900.0):
     own = state.datastreams.get(obs.datastream)
     if own is None:
         return []
-    # Find the comparable *datastreams* first — there are a handful of those, and
-    # thousands of observations. Filtering every observation in the log for every
-    # assessment is what made this quadratic.
-    peer_streams = [ds for ds in state.datastreams.values()
-                    if ds.id != own.id
-                    and ds.sensor != own.sensor
-                    and ds.observed_property == own.observed_property
-                    and ds.kind is own.kind
-                    and ds.unit == own.unit
-                    and ds.feature == own.feature]
+    # Ask the *datastreams* first — there are a handful of those, and thousands of
+    # observations. Filtering every observation in the log for every assessment is
+    # what made this quadratic. The predicate itself lives on the state, where it is
+    # cached: recomputing it here meant scanning every datastream on the farm, with
+    # several UUID comparisons each, once per reading.
+    peer_streams = state.comparable_datastreams(own.id)
     if not peer_streams:
         return []
     mine = obs.effective_feature(own)
