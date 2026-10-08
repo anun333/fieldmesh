@@ -248,6 +248,45 @@ two, growing with the gap beyond that, and the evidence saying which bound fired
 measurement before a number: ISMN's own `D06` spikes, once the download is in, give the
 distribution of real one-step jumps flagged as implausible, which is the data to set it from.
 
+## Q24. Flatline thresholds that know how deep the probe is
+
+**Status: causes false alarms on every deep probe today.** Raised 2026-10-08 by scoring
+§4.2 against 2.8 million real readings from the three Tennessee SCAN stations in ISMN
+(see [notes/ismn-scoring.md](../notes/ismn-scoring.md)).
+
+§4.2 already says a flatline threshold must exceed the *quantisation dwell* — how long a
+healthy probe legitimately repeats one value. Harrow Bend's 18 hours was set from a
+shallow probe's overnight dwell (about 8 h). Real data says the dwell grows with depth,
+because water moves more slowly the deeper you go. These are the longest runs of one
+identical value among readings **ISMN itself rates good**:
+
+| depth | 99.9th percentile | longest | share of runs ≥ 18 h |
+| --- | --- | --- | --- |
+| 5 cm | 7 h | 105 h | 0.00% |
+| 10 cm | 8 h | 103 h | 0.00% |
+| 20 cm | 9 h | 29 h | 0.01% |
+| 51 cm | 21 h | 157 h | 0.15% |
+| 1.02 m | 63 h | 351 h | 0.51% |
+
+So 18 hours is right for the top 20 cm and wrong below it. Across the whole Tennessee
+record our checks raised `stuck` on 33,369 readings ISMN calls good, and almost all of
+them are on the deep probes. The dwell grows roughly exponentially with depth — an e-folding
+of about 0.44 m between 5 cm and 1 m — the same physics that damps the daily temperature
+wave the siting check reads.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **A depth-scaled default from the installation record** (§4.1 now has `depth_m`), fitted to the table above | Physically argued; works from the first day; uses a record that exists for exactly this kind of reason | One soil's numbers; a sandy soil drains faster and a clay slower, so the curve is a default, not a law |
+| A per-series threshold learned from the series' own history — e.g. several times its observed 99.9th-percentile dwell — once a season is in | Adapts to soil, sensor resolution and depth at once | Needs history first; a probe stuck from installation would learn "stuck" as normal, so it needs a floor and a cap from the depth default anyway |
+| Flatline off below some depth | Simple; no false alarms | A deep probe that really dies is then invisible to the one check that sees it |
+| One threshold for everything, set long enough for 1 m | No false alarms | At 5 cm it would wait two weeks to notice a probe in a bucket |
+
+**Recommendation: both of the first two, in that order** — the depth-scaled default from the
+installation record from day one, refined per series once it has a season of its own history,
+with the depth default as floor and cap. And note what the 351-hour maximum cannot tell us:
+whether it was healthy soil or a stuck sensor ISMN did not flag. The default should sit
+above the 99.9th percentile, not the maximum.
+
 ## Q5. Binary encoding
 
 **Status: DECIDED 2026-10-07 — CBOR packed arrays with a CDDL schema.** It blocked

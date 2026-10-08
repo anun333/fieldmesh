@@ -116,7 +116,7 @@ simulator is not a season.
 
 ## What to do about it
 
-1. **A scoring run against ISMN.** `tools/ismn_score.py`, the ag counterpart of the
+1. **A scoring run against ISMN.** *Done 2026-10-08 — see [ismn-scoring.md](ismn-scoring.md): 2.8 million Tennessee readings, the checks quiet in the root zone, and two real defects found (Q23, Q24).* `tools/ismn_score.py`, the ag counterpart of the
    HVAC fault-detection scoring in `campus_twin`: load an ISMN download, map its flags
    into §3.3's, run `sdk/checks.py` over the real series, and report precision, recall,
    false-alarm rate on `G` rows, and per-episode detection. Skips cleanly when the
@@ -132,7 +132,7 @@ simulator is not a season.
 
 ## Caveats
 
-- ISMN was not downloaded: `ismn.earth` refused the connection from here, so the flag
+- ~~ISMN was not downloaded~~ *(resolved 2026-10-08: downloaded, and the flag vocabulary verified against the archive — it matched)*. Originally: `ismn.earth` refused the connection from here, so the flag
   semantics above come from the HESS paper and the ISMN documentation rather than from
   the data. **Verify the flag vocabulary against an actual download before building the
   scorer**, and check how many `C` and `D` rows the Tennessee SCAN stations actually

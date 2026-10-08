@@ -232,6 +232,7 @@ def main(argv=None) -> int:
     box = tuple(float(x) for x in args.box.split(",")) if args.box else None
 
     total = Score()
+    by_depth: dict[float, Score] = {}
     chosen = list(sensors(args.archive, network=args.network, box=box,
                           max_depth=args.max_depth))[:args.limit]
     print(f"{len(chosen)} sensors\n")
@@ -241,6 +242,11 @@ def main(argv=None) -> int:
         total.by_family.update(score.by_family)
         total.caught.update(score.caught)
         total.ours_on_good.update(score.ours_on_good)
+        depth = by_depth.setdefault(round(sensor.depth_to, 2), Score())
+        depth.readings += score.readings
+        depth.by_family.update(score.by_family)
+        depth.caught.update(score.caught)
+        depth.ours_on_good.update(score.ours_on_good)
         print(f"  {sensor.station:<18} {sensor.depth_to:5.3f} m  "
               f"{score.readings:>7} readings  "
               + "  ".join(f"{fam} {score.caught.get(fam, 0)}/{n}"
@@ -258,6 +264,16 @@ def main(argv=None) -> int:
           + (", ".join(f"{k} {v}" for k, v in total.ours_on_good.most_common())
              or "nothing"))
     print("  Agreement, not accuracy: where we differ, either could be right.")
+    print(f"\n  By depth — what we raise on readings ISMN calls good:")
+    print(f"  {'depth':>7}{'good':>10}{'stuck':>9}{'range':>9}{'rate':>7}{'share':>8}")
+    for depth in sorted(by_depth):
+        s = by_depth[depth]
+        good = s.by_family.get("good", 0)
+        stuck = s.ours_on_good.get("stuck", 0)
+        rng = s.ours_on_good.get("out_of_range", 0)
+        rate = s.ours_on_good.get("rate_exceeded", 0)
+        share = (stuck + rng + rate) / good if good else 0.0
+        print(f"  {depth:>6.2f}m{good:>10}{stuck:>9}{rng:>9}{rate:>7}{share:>8.2%}")
     return 0
 
 
