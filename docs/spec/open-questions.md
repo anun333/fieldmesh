@@ -36,6 +36,10 @@ Each question lists **all** options considered, not just the two in the original
 | Co-op or community garden | Several users, natural multi-site and sharing test | Diffuse ownership; nobody to call when a node dies |
 | Your own test bed only | Full control, fast iteration | Does not satisfy "one full growing season of field data" in any honest sense |
 
+**A candidate list with sources is in [notes/pilot-candidates.md](../notes/pilot-candidates.md)**, weighted toward Middle Tennessee, with the funding route (Southern SARE on-farm grants, $15-20k precedents) and the national instrumented networks worth comparing against rather than installing on.
+
+**One criterion is missing from the list below: distance to the nearest public reference station.** The drills measured that a feature with a single sensor cannot detect drift, bias or noise at all, and drift is the commonest real failure. A SCAN or state-mesonet station near the pilot is a redundant sensor nobody has to buy or maintain, and it gives §4.2's cross-check something to compare against. It is not the same soil, so the tolerance has to be looser, but it converts "we cannot see drift" into "we can see gross drift for free".
+
 **Selection criteria that matter more than the category:** an existing water or irrigation pain the farm already loses money to; genuinely poor connectivity, because that is the hard case the spec is built around; one person on site who will actually report a failure; willingness to run a full season; and tolerance for losing the data if it goes wrong.
 
 **Recommendation:** two sites, not one — an extension or university plot for discipline and credibility, plus one working diversified farm for the failures the plot will never produce. Pick the second for connectivity that is actually bad. The crop or livestock choice determines Q12, so decide them together.
