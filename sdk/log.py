@@ -107,7 +107,8 @@ class Log:
     append is durable before the call returns.
     """
 
-    __slots__ = ("_events", "_ids", "_path", "_hlc", "_skipped")
+    __slots__ = ("_events", "_ids", "_path", "_hlc", "_skipped", "_arrivals",
+                 "_listeners", "_listener_errors")
 
     def __init__(self, path: str | os.PathLike | None = None, *, hlc: Hlc | None = None):
         self._events: list[Event] = []
@@ -115,6 +116,11 @@ class Log:
         self._path = os.fspath(path) if path is not None else None
         self._hlc = hlc or Hlc()
         self._skipped: list[str] = []
+        #: Events in the order this replica *learned* them, which is not HLC order.
+        #: See `arrivals_since` for why the difference is the whole of §7.5.
+        self._arrivals: list[Event] = []
+        self._listeners: list = []
+        self._listener_errors: list[str] = []
         if self._path and os.path.exists(self._path):
             self._replay()
 
@@ -129,6 +135,58 @@ class Log:
     def skipped_lines(self) -> tuple[str, ...]:
         """Lines that would not parse on replay — reported, never silently lost."""
         return tuple(self._skipped)
+
+    @property
+    def arrival_count(self) -> int:
+        """How many events this replica has learned, ever. A cursor is an offset into
+        this count."""
+        return len(self._arrivals)
+
+    def arrivals_since(self, offset: int) -> tuple[Event, ...]:
+        """Events this replica learned after the first `offset`, in arrival order.
+
+        **Arrival order, not HLC order — and that difference is §7.5.** `receive`
+        takes events from other replicas and inserts them by HLC stamp, so an event
+        written offline yesterday and synced today lands in the *middle* of history.
+        A subscriber whose cursor is a position in HLC order, or the last stamp it
+        saw, is already past that point and never sees the event: a silent miss,
+        which is exactly the failure §7.5 exists to forbid, and it happens only in the
+        offline case — the one that matters most and is tested least.
+
+        Arrival order only ever grows at the end, so an offset into it cannot be
+        overtaken. It is also already durable: `_commit` appends to the file in
+        arrival order and only the in-memory list is sorted by stamp, so replaying the
+        file reconstructs this sequence exactly.
+        """
+        if offset < 0:
+            raise ValueError("offset must not be negative")
+        return tuple(self._arrivals[offset:])
+
+    def arrival_at(self, offset: int) -> Event:
+        """The event at an arrival offset, for checking a cursor's anchor."""
+        return self._arrivals[offset]
+
+    def on_commit(self, listener):
+        """Call `listener(event)` after every commit. Returns an unsubscribe function.
+
+        **A wakeup, not a delivery guarantee.** "Nothing above layer zero polls"
+        (§7.5) needs something to wake a subscriber, but a subscriber that is down
+        when the wakeup fires misses it — so the guarantee comes from the cursor and
+        this only saves it a poll. A listener that raises does not undo the commit,
+        which has already been made durable; the error is recorded in
+        `listener_errors` rather than swallowed, because a broken subscriber should be
+        visible.
+        """
+        self._listeners.append(listener)
+
+        def unsubscribe():
+            if listener in self._listeners:
+                self._listeners.remove(listener)
+        return unsubscribe
+
+    @property
+    def listener_errors(self) -> tuple[str, ...]:
+        return tuple(self._listener_errors)
 
     def __len__(self) -> int:
         return len(self._events)
@@ -229,10 +287,18 @@ class Log:
         else:
             self._events.append(event)
         self._ids.add(event.id)
+        self._arrivals.append(event)
         if self._path:
             with open(self._path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event.to_jsonable(), separators=(",", ":")) + "\n")
                 f.flush()
+        # Wake subscribers only after the event is durable, so a subscriber that
+        # reacts immediately can never see an event the log would lose in a crash.
+        for listener in tuple(self._listeners):
+            try:
+                listener(event)
+            except Exception as exc:          # noqa: BLE001 — recorded, not hidden
+                self._listener_errors.append(f"{event.id}: {exc!r}")
         return event
 
     def _replay(self) -> None:
@@ -251,6 +317,7 @@ class Log:
                 if event.id in self._ids:
                     continue
                 self._events.append(event)
+                self._arrivals.append(event)      # file order *is* arrival order
                 self._ids.add(event.id)
                 self._hlc.update(event.stamp)
         self._events.sort(key=self._order)

@@ -508,7 +508,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q15 | Time-series downsampling and retention defaults — what is kept at full resolution, for how long, and does a farmer ever lose raw data to a retention policy? If *Honest data* means anything, raw retention is probably forever | Blocks v0 |
 | Q16 | Default grant scope: does a new grant include observations that arrive after it was made? Safer default is no, but it makes research sharing tedious | Blocks the pilot |
 | Q17 | Crypto-shredding key management for erasure (§7.3): per-subject keys, where they live, and what happens to a backup taken before the shred | Blocks the pilot |
-| Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | Now |
+| Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | **Done 2026-10-07** — posted as a comment on [#174](https://github.com/opengeospatial/sensorthings/issues/174#issuecomment-6050541663); see [notes/q18-ogc-issue-draft.md](../notes/q18-ogc-issue-draft.md) |
 | Q19 | Should an assertion's `evidence` object be normative, and what shape? | Blocks third parties |
 | Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | Blocks v0 node firmware |
 

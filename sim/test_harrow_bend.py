@@ -25,8 +25,9 @@ import harrow_bend as hb
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "sdk"))
 import project as P  # noqa: E402
-from model import (Assertor, DatastreamKind,  # noqa: E402
-                   MaintenanceAction, QualityFlag)
+from model import (Assertor, ClockQuality,  # noqa: E402
+                   DatastreamKind, MaintenanceAction, Observation,
+                   QualityFlag)
 
 DAYS = 12.0
 
@@ -401,9 +402,64 @@ class TestStorage(Matrix):
             "semantics are Q16, and the erasure mechanism Q17.")
 
     def test_a_module_replayed_missed_events_from_its_cursor(self):
-        self.skipTest(
-            "§7.5's subscription API with a durable cursor is not implemented. "
-            "Nothing structural blocks it; it is simply unbuilt.")
+        """§7.5 on the farm: a module goes down partway, the farm keeps writing — and
+        an offline edit syncs late, landing in the middle of HLC order — then the
+        module comes back and receives exactly what it missed. Nothing twice that it
+        had acknowledged, and nothing lost, including the one a stamp-based cursor
+        would have skipped.
+        """
+        import codec
+        import subscribe as S
+        from hlc import Stamp
+        from ids import uuid7
+        from log import Event
+
+        # A copy, not the shared season. Every matrix test reads one log built once in
+        # setUpClass, and the first version of this test received the offline edit
+        # into it — so the §7.1 replay test, running afterwards, found one observation
+        # more in the log than in the state and failed for a reason that had nothing
+        # to do with replay.
+        from log import Log
+        log = Log()
+        for event in self.log.events:
+            log.receive(event)
+        halfway = log.arrival_count // 2
+        store = S.MemoryCursorStore()
+        sub = S.Subscription(log, "irrigation_controller", store,
+                             kinds={"observation"})
+
+        # Up for the first half of the season, then the module dies.
+        first = sub.poll(halfway)
+        sub.ack(first)
+        seen = {e.id for e in first.events}
+
+        # While it is down an edit made offline yesterday finally syncs. Its stamp is
+        # older than the module's position, so it lands *behind* it in HLC order.
+        series = self.farm.series["bed1_shallow"]
+        earliest = log.events[0].stamp
+        offline = Event(
+            id=uuid7(), stamp=Stamp(earliest.wall_ms + 1, 0), kind="observation",
+            payload=codec.dump(Observation(
+                id=uuid7(), datastream=series.raw.id,
+                measured_at=self.farm.world.start + _dt.timedelta(minutes=7),
+                measured_at_uncertainty=60.0,
+                received_at=self.farm.world.start + _dt.timedelta(days=1),
+                result=301, clock_quality=ClockQuality.NONE)),
+            recorded_at=self.farm.world.start)
+        log.receive(offline)
+        self.assertLess([e.id for e in log.events].index(offline.id), halfway,
+                        "the offline edit is behind the module in HLC order")
+
+        # The module comes back.
+        rest = []
+        sub.deliver(rest.append)
+        rest_ids = {e.id for e in rest}
+        self.assertIn(offline.id, rest_ids, "the late offline edit is delivered")
+        self.assertEqual(seen & rest_ids, set(), "nothing acknowledged comes twice")
+        self.assertEqual(sub.lag(), 0)
+
+        every = {e.id for e in log.arrivals_since(0) if e.kind == "observation"}
+        self.assertEqual(seen | rest_ids, every, "and nothing at all is lost")
 
 
 class TestInterop(Matrix):
