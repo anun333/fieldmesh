@@ -16,8 +16,9 @@ outright.
 
 ## Try it
 
-Standard library only, tested on Python 3.12. Nothing to install (on Windows, the
-`zoneinfo` module also wants the `tzdata` package).
+Tested on Python 3.12. **One dependency**, `cbor2`, for the CBOR wire format
+(`pip install -r requirements.txt`, or `python3-cbor2` on Debian and Ubuntu); everything
+else is the standard library. On Windows the `zoneinfo` module also wants `tzdata`.
 
 ```sh
 make test       # every test, about a minute

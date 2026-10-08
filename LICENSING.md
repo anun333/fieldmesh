@@ -41,6 +41,12 @@ afterwards needs every contributor's agreement. There is no CLA. Contributions a
 taken under the license of the directory they land in, and a contributor keeps their
 copyright.
 
+## Dependencies
+
+One third-party library: **`cbor2`**, MIT-licensed, for the CBOR wire format (Q5). MIT
+combines with Apache-2.0 and with AGPL-3.0 without condition beyond keeping its notice,
+and nothing here bundles it — it is installed, not vendored. See `requirements.txt`.
+
 ## Inherited code
 
 Some files in `sdk/` derive from `campus_twin`, by the same author, dual-licensed

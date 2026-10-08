@@ -1,0 +1,5 @@
+# The one third-party dependency. Everything else is the Python standard library.
+#
+# cbor2 (MIT) encodes and decodes the CBOR wire format decided in open-questions Q5
+# (sdk/wire.py). On Debian and Ubuntu it is also packaged as python3-cbor2.
+cbor2>=5.4

@@ -1,7 +1,8 @@
 # `sdk/` — layer zero as code
 
 Build-order step 1 from [docs/VIRTUAL_FARM.md](../docs/VIRTUAL_FARM.md): the data
-model and the log, with no devices at all. Stdlib only, Apache-2.0.
+model and the log, with no devices at all. Apache-2.0. One dependency, `cbor2`, for the CBOR wire format in `wire.py`; everything
+else is the standard library.
 
 ```sh
 cd sdk

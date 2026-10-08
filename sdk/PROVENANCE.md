@@ -38,7 +38,7 @@ Apache-2.0 option of their upstream dual licence and say so in their SPDX line.
 | `modbus_rtu.py` | `open-bas/connectors/modbus_rtu.py` | Verbatim logic — CRC-16/MODBUS, frame building, reply parsing, `RtuSource`, `RtuResponder`. Docstring retargeted: the equipment examples are farm equipment, and the read-only rationale is **reversed in meaning** (see below). |
 | `test_spool.py` | — | New. Written here; no counterpart upstream. |
 | `csv_import.py` | `open-bas/connectors/csv_replay.py` | **Retargeted, and two defaults reversed.** Writes `Observation`s on declared raw datastreams instead of POSTing campus-twin/v1 batches. Upstream read every timestamp as UTC; here a timezone must be declared, because a spreadsheet's `14:00` is local and the UTC assumption shifts every reading invisibly — and the autumn hour that occurs twice and the spring hour that never occurs are reported, not guessed. Upstream applied a scale and offset on import; here that is refused, because it would store a value the file never contained with no record of the change (§3.2). Adds required `uncertainty_s` (§2), idempotent re-import, and per-row provenance with the file's SHA-256. |
-| `mqtt_bridge.py` | `open-bas/connectors/mqtt_bridge.py` | **Profile parsers kept; everything they feed rewritten.** Bindings point at raw datastreams and remain the allowlist, with unbound devices reported by id. Scale, offset and invert removed for the same §3.2 reason; ON/OFF becomes a boolean, not `1.0`. **Fixes an upstream bug**: Tasmota's `Time` has no offset, and upstream's `fromisoformat(...).timestamp()` read it in the *host machine's* zone, so one message got different timestamps on different machines — here a naive stamp needs the binding's `timezone` or is stamped on arrival and counted. Link health (RSSI, SNR, battery, LQI) is bindable like any point (§4.3) rather than auto-emitted. The ESPresense profile is removed: it exists to see people's phones. No `paho-mqtt`: the live path is `mosquitto_sub -F '%j'` on stdin, keeping `sdk/` stdlib-only. |
+| `mqtt_bridge.py` | `open-bas/connectors/mqtt_bridge.py` | **Profile parsers kept; everything they feed rewritten.** Bindings point at raw datastreams and remain the allowlist, with unbound devices reported by id. Scale, offset and invert removed for the same §3.2 reason; ON/OFF becomes a boolean, not `1.0`. **Fixes an upstream bug**: Tasmota's `Time` has no offset, and upstream's `fromisoformat(...).timestamp()` read it in the *host machine's* zone, so one message got different timestamps on different machines — here a naive stamp needs the binding's `timezone` or is stamped on arrival and counted. Link health (RSSI, SNR, battery, LQI) is bindable like any point (§4.3) rather than auto-emitted. The ESPresense profile is removed: it exists to see people's phones. No `paho-mqtt`: the live path is `mosquitto_sub -F '%j'` on stdin, so no MQTT library is needed. |
 | `mqtt_emulator.py` | `open-bas/connectors/mqtt_emulator.py` | Same shape; devices moved from a plant room to a farm (hoop-house ESPHome node, Tasmota pump plug, Shelly well-pump relay, Zigbee tank-leak and soil sensors, a Home Assistant rain gauge, a ChirpStack field probe using a common LoRaWAN soil probe's published decoder field names). Presence-tracking messages removed. |
 | `test_csv_import.py`, `test_mqtt_bridge.py` | — | New. The upstream tests were never relicensed and assert campus-twin/v1 shapes, so these were written here. |
 
@@ -72,7 +72,10 @@ vocabulary gate, which is simply unported.
 
 ## Dependencies
 
-Everything in `sdk/` is **stdlib only**, which is why these two could move first. Upstream's
+Everything in `sdk/` is the standard library **except `wire.py`, which needs `cbor2`** (MIT)
+for the CBOR wire format decided in Q5. Earlier versions of this file said stdlib only;
+the first CI run, on a machine without the Ubuntu package that had been hiding it,
+showed otherwise. The two files ported first were stdlib-only, which is why they moved first. Upstream's
 optional extras (`paho-mqtt` for the live MQTT path, `bacpypes3` for BACnet) are not
 required by anything in `sdk/`.
 

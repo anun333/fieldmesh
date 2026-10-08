@@ -29,7 +29,7 @@ are the same; what they feed is not, and four rules changed on the way:
 ESPresense, upstream's BLE room-presence profile, is gone: it exists to see people's
 phones walk past, and a farm deployment has no business doing that.
 
-No MQTT library is required — the SDK is stdlib-only. Feed it JSON lines on stdin from
+No MQTT library is required. Feed it JSON lines on stdin from
 the emulator, or from a real broker with the Mosquitto client:
 
     python3 mqtt_emulator.py | python3 mqtt_bridge.py --bindings b.json --dry-run
