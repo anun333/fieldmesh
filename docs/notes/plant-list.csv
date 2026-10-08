@@ -1,0 +1,340 @@
+# SPDX-License-Identifier: CC-BY-4.0
+category,common_name,scientific_name,family,cycle,habit
+cereal,Maize (corn),Zea mays,Poaceae,annual,grass
+cereal,Bread wheat,Triticum aestivum,Poaceae,annual,grass
+cereal,Durum wheat,Triticum turgidum subsp. durum,Poaceae,annual,grass
+cereal,Emmer wheat,Triticum turgidum subsp. dicoccum,Poaceae,annual,grass
+cereal,Spelt,Triticum aestivum subsp. spelta,Poaceae,annual,grass
+cereal,Rice,Oryza sativa,Poaceae,annual,grass
+cereal,African rice,Oryza glaberrima,Poaceae,annual,grass
+cereal,Barley,Hordeum vulgare,Poaceae,annual,grass
+cereal,Oats,Avena sativa,Poaceae,annual,grass
+cereal,Rye,Secale cereale,Poaceae,annual,grass
+cereal,Triticale,× Triticosecale,Poaceae,annual,grass
+cereal,Sorghum,Sorghum bicolor,Poaceae,annual,grass
+cereal,Pearl millet,Cenchrus americanus,Poaceae,annual,grass
+cereal,Finger millet,Eleusine coracana,Poaceae,annual,grass
+cereal,Foxtail millet,Setaria italica,Poaceae,annual,grass
+cereal,Proso millet,Panicum miliaceum,Poaceae,annual,grass
+cereal,Teff,Eragrostis tef,Poaceae,annual,grass
+cereal,Fonio,Digitaria exilis,Poaceae,annual,grass
+cereal,Wild rice,Zizania palustris,Poaceae,annual,grass
+cereal,Job's tears,Coix lacryma-jobi,Poaceae,annual,grass
+pseudocereal,Buckwheat,Fagopyrum esculentum,Polygonaceae,annual,herb
+pseudocereal,Quinoa,Chenopodium quinoa,Amaranthaceae,annual,herb
+pseudocereal,Grain amaranth,Amaranthus cruentus,Amaranthaceae,annual,herb
+pulse,Soybean,Glycine max,Fabaceae,annual,herb
+pulse,Common bean,Phaseolus vulgaris,Fabaceae,annual,herb
+pulse,Lima bean,Phaseolus lunatus,Fabaceae,annual,vine
+pulse,Runner bean,Phaseolus coccineus,Fabaceae,perennial grown as annual,vine
+pulse,Tepary bean,Phaseolus acutifolius,Fabaceae,annual,herb
+pulse,Cowpea,Vigna unguiculata,Fabaceae,annual,herb
+pulse,Mung bean,Vigna radiata,Fabaceae,annual,herb
+pulse,Adzuki bean,Vigna angularis,Fabaceae,annual,herb
+pulse,Black gram,Vigna mungo,Fabaceae,annual,herb
+pulse,Moth bean,Vigna aconitifolia,Fabaceae,annual,herb
+pulse,Bambara groundnut,Vigna subterranea,Fabaceae,annual,herb
+pulse,Chickpea,Cicer arietinum,Fabaceae,annual,herb
+pulse,Lentil,Lens culinaris,Fabaceae,annual,herb
+pulse,Pea,Pisum sativum,Fabaceae,annual,vine
+pulse,Faba bean,Vicia faba,Fabaceae,annual,herb
+pulse,Pigeon pea,Cajanus cajan,Fabaceae,short-lived perennial,shrub
+pulse,Peanut,Arachis hypogaea,Fabaceae,annual,herb
+pulse,White lupin,Lupinus albus,Fabaceae,annual,herb
+pulse,Grass pea,Lathyrus sativus,Fabaceae,annual,herb
+pulse,Lablab (hyacinth bean),Lablab purpureus,Fabaceae,short-lived perennial,vine
+pulse,Winged bean,Psophocarpus tetragonolobus,Fabaceae,perennial grown as annual,vine
+pulse,Horse gram,Macrotyloma uniflorum,Fabaceae,annual,herb
+pulse,Guar,Cyamopsis tetragonoloba,Fabaceae,annual,herb
+root/tuber,Potato,Solanum tuberosum,Solanaceae,perennial grown as annual,herb
+root/tuber,Sweet potato,Ipomoea batatas,Convolvulaceae,perennial grown as annual,vine
+root/tuber,Cassava,Manihot esculenta,Euphorbiaceae,perennial grown as annual,shrub
+root/tuber,White yam,Dioscorea rotundata,Dioscoreaceae,perennial grown as annual,vine
+root/tuber,Water yam,Dioscorea alata,Dioscoreaceae,perennial grown as annual,vine
+root/tuber,Taro,Colocasia esculenta,Araceae,perennial grown as annual,herb
+root/tuber,Tannia (cocoyam),Xanthosoma sagittifolium,Araceae,perennial grown as annual,herb
+root/tuber,Enset,Ensete ventricosum,Musaceae,perennial,herb
+root/tuber,Yacón,Smallanthus sonchifolius,Asteraceae,perennial grown as annual,herb
+root/tuber,Oca,Oxalis tuberosa,Oxalidaceae,perennial grown as annual,herb
+root/tuber,Ulluco,Ullucus tuberosus,Basellaceae,perennial grown as annual,herb
+root/tuber,Mashua,Tropaeolum tuberosum,Tropaeolaceae,perennial grown as annual,vine
+root/tuber,Jerusalem artichoke,Helianthus tuberosus,Asteraceae,perennial,herb
+root/tuber,Arrowroot,Maranta arundinacea,Marantaceae,perennial,herb
+root/tuber,Jícama,Pachyrhizus erosus,Fabaceae,perennial grown as annual,vine
+vegetable,Tomato,Solanum lycopersicum,Solanaceae,perennial grown as annual,herb
+vegetable,Eggplant,Solanum melongena,Solanaceae,perennial grown as annual,herb
+vegetable,African eggplant,Solanum aethiopicum,Solanaceae,annual,herb
+vegetable,Bell and chili pepper,Capsicum annuum,Solanaceae,perennial grown as annual,herb
+vegetable,Tabasco-type chili,Capsicum frutescens,Solanaceae,perennial grown as annual,herb
+vegetable,Habanero-type chili,Capsicum chinense,Solanaceae,perennial grown as annual,herb
+vegetable,Tomatillo,Physalis philadelphica,Solanaceae,annual,herb
+vegetable,Cucumber,Cucumis sativus,Cucurbitaceae,annual,vine
+vegetable,Melon,Cucumis melo,Cucurbitaceae,annual,vine
+vegetable,Watermelon,Citrullus lanatus,Cucurbitaceae,annual,vine
+vegetable,"Summer squash, zucchini, pumpkin",Cucurbita pepo,Cucurbitaceae,annual,vine
+vegetable,Winter squash,Cucurbita maxima,Cucurbitaceae,annual,vine
+vegetable,Butternut squash,Cucurbita moschata,Cucurbitaceae,annual,vine
+vegetable,Bottle gourd,Lagenaria siceraria,Cucurbitaceae,annual,vine
+vegetable,Bitter gourd,Momordica charantia,Cucurbitaceae,annual,vine
+vegetable,Luffa,Luffa aegyptiaca,Cucurbitaceae,annual,vine
+vegetable,Chayote,Sechium edule,Cucurbitaceae,perennial,vine
+vegetable,Wax gourd,Benincasa hispida,Cucurbitaceae,annual,vine
+vegetable,Cabbage,Brassica oleracea var. capitata,Brassicaceae,biennial grown as annual,herb
+vegetable,Kale and collards,Brassica oleracea var. viridis,Brassicaceae,biennial grown as annual,herb
+vegetable,Broccoli,Brassica oleracea var. italica,Brassicaceae,annual,herb
+vegetable,Cauliflower,Brassica oleracea var. botrytis,Brassicaceae,annual,herb
+vegetable,Brussels sprouts,Brassica oleracea var. gemmifera,Brassicaceae,biennial grown as annual,herb
+vegetable,Kohlrabi,Brassica oleracea var. gongylodes,Brassicaceae,biennial grown as annual,herb
+vegetable,Chinese cabbage,Brassica rapa subsp. pekinensis,Brassicaceae,annual,herb
+vegetable,Bok choy,Brassica rapa subsp. chinensis,Brassicaceae,annual,herb
+vegetable,Turnip,Brassica rapa subsp. rapa,Brassicaceae,biennial grown as annual,herb
+vegetable,Rutabaga,Brassica napus var. napobrassica,Brassicaceae,biennial grown as annual,herb
+vegetable,Mustard greens,Brassica juncea,Brassicaceae,annual,herb
+vegetable,Radish,Raphanus sativus,Brassicaceae,annual,herb
+vegetable,Arugula,Eruca vesicaria,Brassicaceae,annual,herb
+vegetable,Watercress,Nasturtium officinale,Brassicaceae,perennial,herb
+vegetable,Horseradish,Armoracia rusticana,Brassicaceae,perennial,herb
+vegetable,Onion,Allium cepa,Amaryllidaceae,biennial grown as annual,herb
+vegetable,Shallot,Allium cepa var. aggregatum,Amaryllidaceae,perennial grown as annual,herb
+vegetable,Garlic,Allium sativum,Amaryllidaceae,perennial grown as annual,herb
+vegetable,Leek,Allium ampeloprasum,Amaryllidaceae,biennial grown as annual,herb
+vegetable,Welsh onion,Allium fistulosum,Amaryllidaceae,perennial,herb
+vegetable,Carrot,Daucus carota subsp. sativus,Apiaceae,biennial grown as annual,herb
+vegetable,Parsnip,Pastinaca sativa,Apiaceae,biennial grown as annual,herb
+vegetable,Celery,Apium graveolens var. dulce,Apiaceae,biennial grown as annual,herb
+vegetable,Celeriac,Apium graveolens var. rapaceum,Apiaceae,biennial grown as annual,herb
+vegetable,Beet,Beta vulgaris subsp. vulgaris,Amaranthaceae,biennial grown as annual,herb
+vegetable,Swiss chard,Beta vulgaris subsp. vulgaris (Cicla group),Amaranthaceae,biennial grown as annual,herb
+vegetable,Spinach,Spinacia oleracea,Amaranthaceae,annual,herb
+vegetable,Vegetable amaranth,Amaranthus tricolor,Amaranthaceae,annual,herb
+vegetable,Lettuce,Lactuca sativa,Asteraceae,annual,herb
+vegetable,Endive,Cichorium endivia,Asteraceae,annual,herb
+vegetable,Chicory and radicchio,Cichorium intybus,Asteraceae,perennial,herb
+vegetable,Globe artichoke,Cynara cardunculus var. scolymus,Asteraceae,perennial,herb
+vegetable,Okra,Abelmoschus esculentus,Malvaceae,annual,herb
+vegetable,Jute mallow,Corchorus olitorius,Malvaceae,annual,herb
+vegetable,Roselle,Hibiscus sabdariffa,Malvaceae,annual,shrub
+vegetable,Asparagus,Asparagus officinalis,Asparagaceae,perennial,herb
+vegetable,Rhubarb,Rheum rhabarbarum,Polygonaceae,perennial,herb
+vegetable,New Zealand spinach,Tetragonia tetragonioides,Aizoaceae,annual,herb
+vegetable,Malabar spinach,Basella alba,Basellaceae,perennial grown as annual,vine
+vegetable,Water spinach,Ipomoea aquatica,Convolvulaceae,perennial,vine
+vegetable,Moringa,Moringa oleifera,Moringaceae,perennial,tree
+oilseed,Sunflower,Helianthus annuus,Asteraceae,annual,herb
+oilseed,Rapeseed (canola),Brassica napus,Brassicaceae,annual,herb
+oilseed,Sesame,Sesamum indicum,Pedaliaceae,annual,herb
+oilseed,Flax (linseed),Linum usitatissimum,Linaceae,annual,herb
+oilseed,Safflower,Carthamus tinctorius,Asteraceae,annual,herb
+oilseed,Camelina,Camelina sativa,Brassicaceae,annual,herb
+oilseed,Niger seed,Guizotia abyssinica,Asteraceae,annual,herb
+oilseed,Castor,Ricinus communis,Euphorbiaceae,perennial grown as annual,shrub
+oilseed,Hemp,Cannabis sativa,Cannabaceae,annual,herb
+oilseed,Oil palm,Elaeis guineensis,Arecaceae,perennial,palm
+oilseed,Coconut,Cocos nucifera,Arecaceae,perennial,palm
+oilseed,Olive,Olea europaea,Oleaceae,perennial,tree
+oilseed,Shea,Vitellaria paradoxa,Sapotaceae,perennial,tree
+sugar/starch,Sugarcane,Saccharum officinarum,Poaceae,perennial,grass
+sugar/starch,Sugar beet,Beta vulgaris subsp. vulgaris (Altissima group),Amaranthaceae,biennial grown as annual,herb
+sugar/starch,Stevia,Stevia rebaudiana,Asteraceae,perennial,herb
+sugar/starch,Sago palm,Metroxylon sagu,Arecaceae,perennial,palm
+sugar/starch,Sugar maple,Acer saccharum,Sapindaceae,perennial,tree
+fiber,Cotton,Gossypium hirsutum,Malvaceae,perennial grown as annual,shrub
+fiber,Jute,Corchorus capsularis,Malvaceae,annual,herb
+fiber,Kenaf,Hibiscus cannabinus,Malvaceae,annual,herb
+fiber,Sisal,Agave sisalana,Asparagaceae,perennial,succulent
+fiber,Ramie,Boehmeria nivea,Urticaceae,perennial,shrub
+fiber,Abacá,Musa textilis,Musaceae,perennial,herb
+beverage/stimulant,Arabica coffee,Coffea arabica,Rubiaceae,perennial,shrub
+beverage/stimulant,Robusta coffee,Coffea canephora,Rubiaceae,perennial,shrub
+beverage/stimulant,Tea,Camellia sinensis,Theaceae,perennial,shrub
+beverage/stimulant,Cacao,Theobroma cacao,Malvaceae,perennial,tree
+beverage/stimulant,Yerba mate,Ilex paraguariensis,Aquifoliaceae,perennial,tree
+beverage/stimulant,Kola nut,Cola nitida,Malvaceae,perennial,tree
+beverage/stimulant,Guaraná,Paullinia cupana,Sapindaceae,perennial,vine
+beverage/stimulant,Hops,Humulus lupulus,Cannabaceae,perennial,vine
+beverage/stimulant,Tobacco,Nicotiana tabacum,Solanaceae,annual,herb
+spice/herb,Black pepper,Piper nigrum,Piperaceae,perennial,vine
+spice/herb,Ginger,Zingiber officinale,Zingiberaceae,perennial,herb
+spice/herb,Turmeric,Curcuma longa,Zingiberaceae,perennial,herb
+spice/herb,Cardamom,Elettaria cardamomum,Zingiberaceae,perennial,herb
+spice/herb,Vanilla,Vanilla planifolia,Orchidaceae,perennial,vine
+spice/herb,Cinnamon,Cinnamomum verum,Lauraceae,perennial,tree
+spice/herb,Clove,Syzygium aromaticum,Myrtaceae,perennial,tree
+spice/herb,Nutmeg,Myristica fragrans,Myristicaceae,perennial,tree
+spice/herb,Allspice,Pimenta dioica,Myrtaceae,perennial,tree
+spice/herb,Annatto,Bixa orellana,Bixaceae,perennial,shrub
+spice/herb,Saffron,Crocus sativus,Iridaceae,perennial,herb
+spice/herb,Cumin,Cuminum cyminum,Apiaceae,annual,herb
+spice/herb,Coriander (cilantro),Coriandrum sativum,Apiaceae,annual,herb
+spice/herb,Dill,Anethum graveolens,Apiaceae,annual,herb
+spice/herb,Fennel,Foeniculum vulgare,Apiaceae,perennial,herb
+spice/herb,Parsley,Petroselinum crispum,Apiaceae,biennial,herb
+spice/herb,Anise,Pimpinella anisum,Apiaceae,annual,herb
+spice/herb,Caraway,Carum carvi,Apiaceae,biennial,herb
+spice/herb,Fenugreek,Trigonella foenum-graecum,Fabaceae,annual,herb
+spice/herb,White mustard,Sinapis alba,Brassicaceae,annual,herb
+spice/herb,Basil,Ocimum basilicum,Lamiaceae,annual,herb
+spice/herb,Holy basil,Ocimum tenuiflorum,Lamiaceae,perennial,herb
+spice/herb,Peppermint,Mentha × piperita,Lamiaceae,perennial,herb
+spice/herb,Spearmint,Mentha spicata,Lamiaceae,perennial,herb
+spice/herb,Oregano,Origanum vulgare,Lamiaceae,perennial,herb
+spice/herb,Thyme,Thymus vulgaris,Lamiaceae,perennial,subshrub
+spice/herb,Rosemary,Salvia rosmarinus,Lamiaceae,perennial,shrub
+spice/herb,Sage,Salvia officinalis,Lamiaceae,perennial,subshrub
+spice/herb,Lavender,Lavandula angustifolia,Lamiaceae,perennial,subshrub
+spice/herb,Tarragon,Artemisia dracunculus,Asteraceae,perennial,herb
+spice/herb,Chamomile,Matricaria chamomilla,Asteraceae,annual,herb
+spice/herb,Chives,Allium schoenoprasum,Amaryllidaceae,perennial,herb
+spice/herb,Garlic chives,Allium tuberosum,Amaryllidaceae,perennial,herb
+spice/herb,Lemongrass,Cymbopogon citratus,Poaceae,perennial,grass
+temperate fruit,Apple,Malus domestica,Rosaceae,perennial,tree
+temperate fruit,Pear,Pyrus communis,Rosaceae,perennial,tree
+temperate fruit,Asian pear,Pyrus pyrifolia,Rosaceae,perennial,tree
+temperate fruit,Peach and nectarine,Prunus persica,Rosaceae,perennial,tree
+temperate fruit,European plum,Prunus domestica,Rosaceae,perennial,tree
+temperate fruit,Japanese plum,Prunus salicina,Rosaceae,perennial,tree
+temperate fruit,Apricot,Prunus armeniaca,Rosaceae,perennial,tree
+temperate fruit,Sweet cherry,Prunus avium,Rosaceae,perennial,tree
+temperate fruit,Sour cherry,Prunus cerasus,Rosaceae,perennial,tree
+temperate fruit,Quince,Cydonia oblonga,Rosaceae,perennial,tree
+temperate fruit,Asian persimmon,Diospyros kaki,Ebenaceae,perennial,tree
+temperate fruit,American persimmon,Diospyros virginiana,Ebenaceae,perennial,tree
+temperate fruit,Pawpaw,Asimina triloba,Annonaceae,perennial,tree
+temperate fruit,Fig,Ficus carica,Moraceae,perennial,tree
+temperate fruit,Pomegranate,Punica granatum,Lythraceae,perennial,shrub
+temperate fruit,White mulberry,Morus alba,Moraceae,perennial,tree
+temperate fruit,Jujube,Ziziphus jujuba,Rhamnaceae,perennial,tree
+berry/vine fruit,Grape,Vitis vinifera,Vitaceae,perennial,vine
+berry/vine fruit,Muscadine grape,Vitis rotundifolia,Vitaceae,perennial,vine
+berry/vine fruit,Strawberry,Fragaria × ananassa,Rosaceae,perennial,herb
+berry/vine fruit,Highbush blueberry,Vaccinium corymbosum,Ericaceae,perennial,shrub
+berry/vine fruit,Rabbiteye blueberry,Vaccinium virgatum,Ericaceae,perennial,shrub
+berry/vine fruit,Cranberry,Vaccinium macrocarpon,Ericaceae,perennial,subshrub
+berry/vine fruit,Red raspberry,Rubus idaeus,Rosaceae,perennial,shrub
+berry/vine fruit,Blackberry,Rubus subg. Rubus,Rosaceae,perennial,shrub
+berry/vine fruit,Black currant,Ribes nigrum,Grossulariaceae,perennial,shrub
+berry/vine fruit,Gooseberry,Ribes uva-crispa,Grossulariaceae,perennial,shrub
+berry/vine fruit,American elderberry,Sambucus canadensis,Viburnaceae,perennial,shrub
+berry/vine fruit,Haskap (honeyberry),Lonicera caerulea,Caprifoliaceae,perennial,shrub
+berry/vine fruit,Black chokeberry (aronia),Aronia melanocarpa,Rosaceae,perennial,shrub
+berry/vine fruit,Saskatoon (serviceberry),Amelanchier alnifolia,Rosaceae,perennial,shrub
+berry/vine fruit,Kiwifruit,Actinidia deliciosa,Actinidiaceae,perennial,vine
+berry/vine fruit,Hardy kiwi,Actinidia arguta,Actinidiaceae,perennial,vine
+berry/vine fruit,Goji,Lycium barbarum,Solanaceae,perennial,shrub
+berry/vine fruit,Sea buckthorn,Hippophae rhamnoides,Elaeagnaceae,perennial,shrub
+berry/vine fruit,Passion fruit,Passiflora edulis,Passifloraceae,perennial,vine
+berry/vine fruit,Dragon fruit,Selenicereus undatus,Cactaceae,perennial,succulent vine
+tropical/subtropical fruit,Sweet orange,Citrus × sinensis,Rutaceae,perennial,tree
+tropical/subtropical fruit,Mandarin,Citrus reticulata,Rutaceae,perennial,tree
+tropical/subtropical fruit,Lemon,Citrus × limon,Rutaceae,perennial,tree
+tropical/subtropical fruit,Lime,Citrus × aurantiifolia,Rutaceae,perennial,tree
+tropical/subtropical fruit,Grapefruit,Citrus × paradisi,Rutaceae,perennial,tree
+tropical/subtropical fruit,Dessert banana,Musa acuminata,Musaceae,perennial,herb
+tropical/subtropical fruit,Plantain,Musa × paradisiaca,Musaceae,perennial,herb
+tropical/subtropical fruit,Mango,Mangifera indica,Anacardiaceae,perennial,tree
+tropical/subtropical fruit,Papaya,Carica papaya,Caricaceae,perennial,tree
+tropical/subtropical fruit,Pineapple,Ananas comosus,Bromeliaceae,perennial,herb
+tropical/subtropical fruit,Avocado,Persea americana,Lauraceae,perennial,tree
+tropical/subtropical fruit,Guava,Psidium guajava,Myrtaceae,perennial,tree
+tropical/subtropical fruit,Feijoa,Acca sellowiana,Myrtaceae,perennial,shrub
+tropical/subtropical fruit,Lychee,Litchi chinensis,Sapindaceae,perennial,tree
+tropical/subtropical fruit,Longan,Dimocarpus longan,Sapindaceae,perennial,tree
+tropical/subtropical fruit,Rambutan,Nephelium lappaceum,Sapindaceae,perennial,tree
+tropical/subtropical fruit,Jackfruit,Artocarpus heterophyllus,Moraceae,perennial,tree
+tropical/subtropical fruit,Breadfruit,Artocarpus altilis,Moraceae,perennial,tree
+tropical/subtropical fruit,Durian,Durio zibethinus,Malvaceae,perennial,tree
+tropical/subtropical fruit,Mangosteen,Garcinia mangostana,Clusiaceae,perennial,tree
+tropical/subtropical fruit,Date palm,Phoenix dactylifera,Arecaceae,perennial,palm
+tropical/subtropical fruit,Prickly pear,Opuntia ficus-indica,Cactaceae,perennial,succulent
+tropical/subtropical fruit,Soursop,Annona muricata,Annonaceae,perennial,tree
+tropical/subtropical fruit,Cherimoya,Annona cherimola,Annonaceae,perennial,tree
+tropical/subtropical fruit,Starfruit,Averrhoa carambola,Oxalidaceae,perennial,tree
+tropical/subtropical fruit,Tamarind,Tamarindus indica,Fabaceae,perennial,tree
+tropical/subtropical fruit,Loquat,Eriobotrya japonica,Rosaceae,perennial,tree
+tropical/subtropical fruit,Acerola,Malpighia emarginata,Malpighiaceae,perennial,shrub
+tropical/subtropical fruit,Sapodilla,Manilkara zapota,Sapotaceae,perennial,tree
+tropical/subtropical fruit,Baobab,Adansonia digitata,Malvaceae,perennial,tree
+tropical/subtropical fruit,Açaí,Euterpe oleracea,Arecaceae,perennial,palm
+tropical/subtropical fruit,Peach palm,Bactris gasipaes,Arecaceae,perennial,palm
+nut,Almond,Prunus dulcis,Rosaceae,perennial,tree
+nut,English walnut,Juglans regia,Juglandaceae,perennial,tree
+nut,Black walnut,Juglans nigra,Juglandaceae,perennial,tree
+nut,Pecan,Carya illinoinensis,Juglandaceae,perennial,tree
+nut,Hazelnut,Corylus avellana,Betulaceae,perennial,shrub
+nut,American hazelnut,Corylus americana,Betulaceae,perennial,shrub
+nut,Chinese chestnut,Castanea mollissima,Fagaceae,perennial,tree
+nut,Pistachio,Pistacia vera,Anacardiaceae,perennial,tree
+nut,Cashew,Anacardium occidentale,Anacardiaceae,perennial,tree
+nut,Macadamia,Macadamia integrifolia,Proteaceae,perennial,tree
+nut,Brazil nut,Bertholletia excelsa,Lecythidaceae,perennial,tree
+nut,Stone pine (pine nut),Pinus pinea,Pinaceae,perennial,tree
+nut,Carob,Ceratonia siliqua,Fabaceae,perennial,tree
+forage/cover legume,Alfalfa,Medicago sativa,Fabaceae,perennial,herb
+forage/cover legume,Red clover,Trifolium pratense,Fabaceae,short-lived perennial,herb
+forage/cover legume,White clover,Trifolium repens,Fabaceae,perennial,herb
+forage/cover legume,Crimson clover,Trifolium incarnatum,Fabaceae,annual,herb
+forage/cover legume,Hairy vetch,Vicia villosa,Fabaceae,annual,vine
+forage/cover legume,Common vetch,Vicia sativa,Fabaceae,annual,vine
+forage/cover legume,Yellow sweet clover,Melilotus officinalis,Fabaceae,biennial,herb
+forage/cover legume,Birdsfoot trefoil,Lotus corniculatus,Fabaceae,perennial,herb
+forage/cover legume,Sainfoin,Onobrychis viciifolia,Fabaceae,perennial,herb
+forage/cover legume,Sunn hemp,Crotalaria juncea,Fabaceae,annual,herb
+forage/cover legume,Velvet bean,Mucuna pruriens,Fabaceae,annual,vine
+forage/cover legume,Partridge pea,Chamaecrista fasciculata,Fabaceae,annual,herb
+forage/cover other,Phacelia,Phacelia tanacetifolia,Hydrophyllaceae,annual,herb
+forage/cover other,Oilseed radish (tillage radish),Raphanus sativus var. oleiformis,Brassicaceae,annual,herb
+forage/cover other,Sudangrass,Sorghum × drummondii,Poaceae,annual,grass
+forage/cover other,Annual ryegrass,Lolium multiflorum,Poaceae,annual,grass
+forage grass,Tall fescue,Schedonorus arundinaceus,Poaceae,perennial,grass
+forage grass,Perennial ryegrass,Lolium perenne,Poaceae,perennial,grass
+forage grass,Orchardgrass,Dactylis glomerata,Poaceae,perennial,grass
+forage grass,Timothy,Phleum pratense,Poaceae,perennial,grass
+forage grass,Kentucky bluegrass,Poa pratensis,Poaceae,perennial,grass
+forage grass,Bermudagrass,Cynodon dactylon,Poaceae,perennial,grass
+forage grass,Bahiagrass,Paspalum notatum,Poaceae,perennial,grass
+forage grass,Switchgrass,Panicum virgatum,Poaceae,perennial,grass
+forage grass,Big bluestem,Andropogon gerardii,Poaceae,perennial,grass
+forage grass,Indiangrass,Sorghastrum nutans,Poaceae,perennial,grass
+forage grass,Little bluestem,Schizachyrium scoparium,Poaceae,perennial,grass
+forage grass,Eastern gamagrass,Tripsacum dactyloides,Poaceae,perennial,grass
+forage grass,Napier grass,Cenchrus purpureus,Poaceae,perennial,grass
+forage grass,Guinea grass,Megathyrsus maximus,Poaceae,perennial,grass
+forage grass,Signal grass,Urochloa decumbens,Poaceae,perennial,grass
+forage grass,Rhodes grass,Chloris gayana,Poaceae,perennial,grass
+forage grass,Buffelgrass,Cenchrus ciliaris,Poaceae,perennial,grass
+forage grass,Vetiver,Chrysopogon zizanioides,Poaceae,perennial,grass
+agroforestry/tree,Leucaena,Leucaena leucocephala,Fabaceae,perennial,tree
+agroforestry/tree,Gliricidia,Gliricidia sepium,Fabaceae,perennial,tree
+agroforestry/tree,Apple-ring acacia,Faidherbia albida,Fabaceae,perennial,tree
+agroforestry/tree,Calliandra,Calliandra calothyrsus,Fabaceae,perennial,shrub
+agroforestry/tree,Sesbania,Sesbania sesban,Fabaceae,perennial,shrub
+agroforestry/tree,Black locust,Robinia pseudoacacia,Fabaceae,perennial,tree
+agroforestry/tree,Honey locust,Gleditsia triacanthos,Fabaceae,perennial,tree
+agroforestry/tree,Neem,Azadirachta indica,Meliaceae,perennial,tree
+agroforestry/tree,Teak,Tectona grandis,Lamiaceae,perennial,tree
+agroforestry/tree,Rubber,Hevea brasiliensis,Euphorbiaceae,perennial,tree
+agroforestry/tree,Moso bamboo,Phyllostachys edulis,Poaceae,perennial,grass
+agroforestry/tree,Basket willow,Salix viminalis,Salicaceae,perennial,shrub
+agroforestry/tree,Eastern cottonwood,Populus deltoides,Salicaceae,perennial,tree
+agroforestry/tree,Loblolly pine,Pinus taeda,Pinaceae,perennial,tree
+agroforestry/tree,Rose gum,Eucalyptus grandis,Myrtaceae,perennial,tree
+pollinator/beneficial,Purple coneflower,Echinacea purpurea,Asteraceae,perennial,herb
+pollinator/beneficial,Black-eyed Susan,Rudbeckia hirta,Asteraceae,short-lived perennial,herb
+pollinator/beneficial,Common milkweed,Asclepias syriaca,Apocynaceae,perennial,herb
+pollinator/beneficial,Butterfly milkweed,Asclepias tuberosa,Apocynaceae,perennial,herb
+pollinator/beneficial,Wild bergamot,Monarda fistulosa,Lamiaceae,perennial,herb
+pollinator/beneficial,Lanceleaf coreopsis,Coreopsis lanceolata,Asteraceae,perennial,herb
+pollinator/beneficial,Canada goldenrod,Solidago canadensis,Asteraceae,perennial,herb
+pollinator/beneficial,New England aster,Symphyotrichum novae-angliae,Asteraceae,perennial,herb
+pollinator/beneficial,Yarrow,Achillea millefolium,Asteraceae,perennial,herb
+pollinator/beneficial,Borage,Borago officinalis,Boraginaceae,annual,herb
+pollinator/beneficial,Comfrey,Symphytum officinale,Boraginaceae,perennial,herb
+pollinator/beneficial,Calendula,Calendula officinalis,Asteraceae,annual,herb
+pollinator/beneficial,French marigold,Tagetes patula,Asteraceae,annual,herb
+pollinator/beneficial,Nasturtium,Tropaeolum majus,Tropaeolaceae,annual,herb
+pollinator/beneficial,Cosmos,Cosmos bipinnatus,Asteraceae,annual,herb
+pollinator/beneficial,Zinnia,Zinnia elegans,Asteraceae,annual,herb
+medicinal/other,Aloe vera,Aloe vera,Asphodelaceae,perennial,succulent
+medicinal/other,American ginseng,Panax quinquefolius,Araliaceae,perennial,herb
+medicinal/other,Pyrethrum,Tanacetum cinerariifolium,Asteraceae,perennial,herb
+medicinal/other,True indigo,Indigofera tinctoria,Fabaceae,perennial,shrub
