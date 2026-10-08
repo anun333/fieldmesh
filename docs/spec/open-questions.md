@@ -258,14 +258,41 @@ on sand, which is more than half of ISMN's jumps. And readings flagged as spikes
 not the jump. **A step-size cap cannot reproduce it** at any false-alarm rate a farmer would
 accept.
 
-**Recommendation, revised: detect the shape, and keep a cap only as a backstop.** What tells a
-spike from rain is not the size of the rise but that it *comes back*: a rain rise holds and
-then drains over hours to days, while a spike returns within one or two samples. A
-spike check that looks for an excursion and return within a short window is
-sampling-interval-independent by construction, which is the property the current check
-lacks. Keep a `max_step` near the good 99.99th percentile (about 0.17 per hour) only to catch
-jumps no soil can make. The simulator's `Spike` fault is already this shape, which is why
-the 15-minute check caught it.
+**Measured: the shape works, and ISMN's spike flag is the wrong yardstick.** Candidate
+detectors on every SCAN probe in the top 21 cm — 1,797 probes, 11,520 probe-years — in
+[notes/spikes-and-jumps.md](../notes/spikes-and-jumps.md):
+
+| detector | ISMN negative jumps caught | flags on readings ISMN rates good, per probe-year | probes never flagged | at 3-hourly sampling |
+| --- | --- | --- | --- | --- |
+| **spike: out by ≥ 0.05 and back within one sample** | 21% | 0.46 | 77% | 0.34 |
+| **fall faster than 0.05 per hour** | 61% | 1.21 | 56% | 0.16 |
+| rise faster than 0.17 per hour | 5% (12% of positive jumps) | 0.40 | 55% | 0.00 — blind |
+| the rate check today | 0 of 1,849 in Tennessee | — | — | — |
+
+Three findings decide it. ISMN's D06 "spike" sits on steps with a median of 0.005 — it is a
+relative test firing on noise in dry soil — so agreement with it is not a goal. The shape
+check's flags on readings ISMN rates good concentrate on a few probes (85% from the worst
+5%), and those are plainly broken: Spickard's three probes flipping between two levels
+hour by hour, Goshute swinging 0.3, a dead sensor at Orchard Range reading 0.000, and
+McAllister Farm's new 2026 digital probe. On the median probe it never fires, and at
+coarser sampling it fires less, not more. And soil empties more slowly than it fills —
+healthy falls reach 0.032 at the 99.9th percentile against 0.073 for rises — so a cap on
+falls catches most of ISMN's negative jumps where a cap on rises cannot tell a fault from
+rain.
+
+**Recommendation, measured:** for soil water, replace `max_rate_per_s` with
+
+1. a **shape spike** check at 0.05 m³/m³ raising `rate_exceeded` — judged one reading late,
+   because it needs the reading after: when reading *n + 1* arrives, an assertion on
+   reading *n* is appended, the pattern the siting check already uses;
+2. a **cap on falls** of 0.05 m³/m³ per hour, scaling with the gap up to three hours,
+   raising `suspect`, because a wetting front draining at 5 cm can legitimately exceed it;
+3. **no rise cap** from rate; a per-step backstop is optional, and its behaviour at coarse
+   sampling is unmeasured.
+
+Keep `max_rate_per_s` itself for measurands where a rate really is the physics. Open
+beside this: whether thresholds relative to a probe's own range beat absolute ones in very
+sandy or very clayey soil.
 
 ## Q24. Flatline thresholds that know how deep the probe is
 
@@ -673,7 +700,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | Blocks v0 node firmware |
 | Q21 | What unit does a *raw* datastream declare? | Blocks v0 |
 | Q22 | Does the maintenance vocabulary need a battery replacement? | Blocks nothing |
-| Q23 | A rate-of-change limit that works at any sampling interval | Blocks scoring hourly data |
+| Q23 | A rate-of-change limit that works at any sampling interval | Measured; recommendation awaits a decision |
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | False alarms on deep probes today |
 | Q25 | When a two-peer siting check fires, which probe moved? | Partly measured; reporting open |
 

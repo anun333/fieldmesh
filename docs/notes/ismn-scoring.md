@@ -193,8 +193,11 @@ table replaces both.
 Healthy soil can rise 0.17 in an hour after heavy rain on sand, and ISMN's spike flags sit
 mostly on small steps, because its detector marks the region around an excursion rather than
 the jump. No step-size threshold separates these. Q23 was revised to recommend detecting the
-*shape* — an excursion that returns within a sample or two, which rain does not do — with a
-step cap near 0.17 per hour kept only as a backstop.
+*shape* — an excursion that returns within a sample or two, which rain does not do. That
+has since been measured on every SCAN probe in the top 21 cm, in
+[spikes-and-jumps.md](spikes-and-jumps.md): the shape check is quiet on healthy probes and
+finds broken sensors ISMN rates good, a cap on *falls* catches most of ISMN's negative
+jumps, and a cap on rises turned out not to be worth keeping.
 
 ## Caveats
 
