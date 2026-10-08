@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# Every test, on every push and pull request. Standard library only, so there is
+# nothing to install — which is also why this file is short.
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Every test (sdk, tools, sim, server)
+        run: make test
+      - name: Language packs are complete and sound
+        run: make packs
