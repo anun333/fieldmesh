@@ -79,6 +79,21 @@ class JudgeTest(unittest.TestCase):
         j = T.judge(plant(), chars(**{"pH, Minimum": "4.5", "pH, Maximum": "5.5"}), SITE)
         self.assertIn("sulfur", j["fixable"][0])
 
+    def test_a_plant_listed_invasive_in_the_sites_state_is_refused(self):
+        """Paulownia: on the list as timber, and invasive in neighbouring states."""
+        site = {**SITE, "soil": {**SITE["soil"], "state": "NC"}}
+        j = T.judge(plant(category="timber", cycle="perennial"), chars(us_listed_states="AL;CT;NC;WI"), site)
+        self.assertEqual(j["verdict"], "do not plant (invasive here)")
+        site = {**SITE, "soil": {**SITE["soil"], "state": "TN"}}
+        j = T.judge(plant(category="timber", cycle="perennial"), chars(us_listed_states="AL;CT;NC;WI"), site)
+        self.assertEqual(j["verdict"], "suits, with cautions")
+        self.assertIn("4 US state(s)", j["caution"][0])
+
+    def test_a_federal_listing_is_refused_in_any_state(self):
+        site = {**SITE, "soil": {**SITE["soil"], "state": "TN"}}
+        j = T.judge(plant(), chars(us_listed_states="United States"), site)
+        self.assertEqual(j["verdict"], "do not plant (invasive here)")
+
     def test_invasives_are_refused_first(self):
         j = T.judge(plant(category="invasive: do not plant (US)"), chars(), SITE)
         self.assertEqual(j["verdict"], "do not plant (invasive)")

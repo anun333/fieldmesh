@@ -549,43 +549,36 @@ def load(code: str, cache: str) -> tuple:
             parse_cul(fetch(base + ".CUL", cache)))
 
 
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("lat", type=float)
-    ap.add_argument("lon", type=float)
-    ap.add_argument("--cache", required=True)
-    ap.add_argument("--out", required=True, help="per crop: the best cultivar's season at this site")
-    ap.add_argument("--params", help="also write the crops' DSSAT parameters here")
-    ap.add_argument("--windows", action="store_true",
-                    help="also sweep sowing dates through the year for each crop's windows")
-    args = ap.parse_args(argv)
-    days = site_profile.days_of(site_profile.fetch_power(args.lat, args.lon, 1991, 2020,
-                                                         os.path.join(args.cache, "power")))
+def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
+                days: list | None = None) -> tuple[list, list]:
+    """Every modelled crop's season at a site -> (season rows, parameter rows)."""
+    if days is None:
+        days = site_profile.days_of(site_profile.fetch_power(lat, lon, 1991, 2020,
+                                                             os.path.join(cache, "power")))
     rows, params = [], []
     models = [(code, scientific, "CROPGRO") for code, scientific in CROPS.items()]
     models.append(("MZ", "Zea mays", "CERES-Maize"))
     for code, scientific, model in models:
-        cache = os.path.join(args.cache, "dssat")
+        dcache = os.path.join(cache, "dssat")
         if model == "CERES-Maize":
-            culs = parse_maize_cul(fetch("MZCER048.CUL", cache))
-            ecos = parse_maize_eco(fetch("MZCER048.ECO", cache))
+            culs = parse_maize_cul(fetch("MZCER048.CUL", dcache))
+            ecos = parse_maize_eco(fetch("MZCER048.ECO", dcache))
             spe = {"name": "Maize", "temps": {1: (ecos["IB0001"]["TBASE"], ecos["IB0001"]["TOPT"],
                                                   ecos["IB0001"]["TOPT"], 44.0)},
                    "freeze": (MAIZE_FREEZE_C, None)}
-            runners = maize_runners(culs, ecos, args.lat)
+            runners = maize_runners(culs, ecos, lat)
             size = {c["code"]: c["P1"] + c["P5"] for c in culs}
-            results = evaluate(runners, days, args.lat, cool=False)
+            results = evaluate(runners, days, lat, cool=False)
         else:
-            spe, ecos, culs = load(code, cache)
-            runners = cropgro_runners(spe, culs, ecos, args.lat)
+            spe, ecos, culs = load(code, dcache)
+            runners = cropgro_runners(spe, culs, ecos, lat)
             size = {c["code"]: (c["EM-FL"] or 0) + (c["FL-SD"] or 0) + (c["SD-PM"] or 0) for c in culs}
-            results = evaluate(runners, days, args.lat,
+            results = evaluate(runners, days, lat,
                                cool=spe["temps"][1][0] < COOL_SEASON_BASE_C)
         if not results:
             continue
         freeze_c = (spe.get("freeze") or (-2.22, None))[0]
-        if args.windows:
+        if windows_too:
             swept = sweep(representatives(runners, lambda r: size.get(r[1], 0)), days, freeze_c)
             sowing = "; ".join(f"{a}–{b}" for a, b in windows(swept)) or "none"
         else:
@@ -625,6 +618,21 @@ def main(argv=None) -> int:
                        "late_reproductive_c": " ".join(f"{x:g}" for x in t.get(3, ())),
                        "cultivars": len(culs), "critical_day_length_h": cd,
                        "photoperiod_sensitivity": ps})
+    return rows, params
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("lat", type=float)
+    ap.add_argument("lon", type=float)
+    ap.add_argument("--cache", required=True)
+    ap.add_argument("--out", required=True, help="per crop: the best cultivar's season at this site")
+    ap.add_argument("--params", help="also write the crops' DSSAT parameters here")
+    ap.add_argument("--windows", action="store_true",
+                    help="also sweep sowing dates through the year for each crop's windows")
+    args = ap.parse_args(argv)
+    rows, params = seasons_for(args.lat, args.lon, args.cache, args.windows)
     with open(args.out, "w", newline="", encoding="utf-8") as h:
         w = csv.DictWriter(h, fieldnames=list(rows[0]))
         w.writeheader()

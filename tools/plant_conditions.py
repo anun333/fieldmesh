@@ -123,14 +123,37 @@ def find(client: Client, ours: str):
     return None, None
 
 
-def statuses(profile: dict) -> str:
-    out = []
-    for kind in ("NoxiousStatuses", "InvasiveStatuses"):
-        for s in profile.get(kind) or []:
-            where = s.get("Region") or s.get("State") or s.get("Jurisdiction") or ""
-            text = s.get("Status") or s.get("StatusCode") or s.get("Name") or "listed"
-            out.append(f"{kind.removesuffix('Statuses').lower()}: {where} {text}".strip())
-    return "; ".join(sorted(set(out)))
+STATES = {"Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
+          "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "Florida": "FL", "Georgia": "GA",
+          "Hawaii": "HI", "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA",
+          "Kansas": "KS", "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
+          "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS",
+          "Missouri": "MO", "Montana": "MT", "Nebraska": "NE", "Nevada": "NV",
+          "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
+          "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK",
+          "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC",
+          "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT", "Vermont": "VT",
+          "Virginia": "VA", "Washington": "WA", "West Virginia": "WV", "Wisconsin": "WI",
+          "Wyoming": "WY", "Puerto Rico": "PR", "Virgin Islands": "VI", "Guam": "GU"}
+
+
+def statuses(client: "Client", profile: dict) -> tuple[str, str]:
+    """US noxious and invasive listings, by state: (readable text, state codes). The
+    profile only says whether there are any; the lists come from their own endpoints."""
+    text, codes = [], set()
+    for has, path, kind in (("HasInvasiveStatuses", "PlantInvasiveStatus", "invasive"),
+                            ("HasNoxiousStatuses", "PlantNoxiousStatus", "noxious")):
+        if not profile.get(has):
+            continue
+        for s in client.get(f"{path}/{profile['Id']}") or []:
+            place = s.get("LocalityName") or ""
+            listing = ", ".join(s.get("InvasiveStatuses") or s.get("NoxiousStatuses") or [kind])
+            text.append(f"{kind}: {place} ({listing})")
+            if place in STATES:
+                codes.add(STATES[place])
+            elif place:
+                codes.add(place)
+    return "; ".join(sorted(set(text))), ";".join(sorted(codes))
 
 
 def pull(client: Client, ours: str) -> dict:
@@ -144,9 +167,10 @@ def pull(client: Client, ours: str) -> dict:
     if profile.get("AcceptedSymbol") and profile.get("AcceptedSymbol") != profile.get("Symbol"):
         profile = client.get(f"PlantProfile?symbol={profile['AcceptedSymbol']}")
         note += ", via synonym"
+    listed, where = statuses(client, profile)
     row.update({"plants_symbol": profile.get("Symbol"),
                 "plants_name": normalise(profile.get("ScientificName") or ""),
-                "us_noxious_invasive": statuses(profile)})
+                "us_noxious_invasive": listed, "us_listed_states": where})
     if not profile.get("HasCharacteristics"):
         row["match"] = note + "; no characteristics"
         return row
@@ -158,7 +182,8 @@ def pull(client: Client, ours: str) -> dict:
     return row
 
 
-FIXED = ["scientific_name", "match", "plants_symbol", "plants_name", "us_noxious_invasive"]
+FIXED = ["scientific_name", "match", "plants_symbol", "plants_name", "us_noxious_invasive",
+         "us_listed_states"]
 
 
 def main(argv=None) -> int:

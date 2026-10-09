@@ -318,6 +318,7 @@ def soil_and_erosion(lat: float, lon: float, annual_rain_mm: float) -> dict:
     top = soil["horizons"][0]
     texture = soil_survey.texture(top) if top.get("clay_pct") is not None else None
     out = {"soil": {"map_unit": soil["map_unit"], "component": soil["component"],
+                    "state": soil.get("state"),
                     "drainage": soil.get("drainage"), "slope_pct": soil.get("slope_pct"),
                     "topsoil_texture": texture, "topsoil_sand_pct": top.get("sand_pct"),
                     "topsoil_clay_pct": top.get("clay_pct"), "topsoil_ph": top.get("ph"),

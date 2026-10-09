@@ -43,6 +43,18 @@ import argparse
 import collections
 import csv
 import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "sdk"))
+import i18n  # noqa: E402
+
+
+def _add(out: dict, kind: str, key: str, **params) -> None:
+    """Record a reason as a message key with its parameters — so a report can render it
+    in any language pack — and as the English sentence the CSV carries."""
+    out[kind].append(i18n.english(key, **params))
+    out["keys"].append((kind, key, params))
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 #: PLANTS bloom-period words → months, northern hemisphere (shifted six in the south).
@@ -100,18 +112,27 @@ def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = Non
     `season` is the crop model's verdict for this site (`dssat_crops.py`), where there is
     one. It outranks PLANTS on the season, because it runs the crop through the site's
     own thirty years of weather and day length rather than comparing one number."""
-    out = {"rules_out": [], "fixable": [], "caution": []}
+    out = {"rules_out": [], "fixable": [], "caution": [], "keys": []}
     if season is not None and not plant["category"].startswith("invasive") \
             and not (site.get("cover") and plant["category"] not in COVER_CATEGORIES):
         if int(season["cultivars_maturing_8_in_10"]) == 0:
-            out["rules_out"].append(f"season (crop model): no {season['dssat_crop'].lower()} cultivar "
-                                    f"matures before frost 8 years in 10 — the best in "
-                                    f"{float(season['best_matures_before_frost']):.0%} of years")
+            _add(out, "rules_out", "advise.why.model_season", crop=season["dssat_crop"].lower(),
+                 share=float(season["best_matures_before_frost"]))
         if not chars or not chars.get("plants_symbol") or "characteristics" in (chars.get("match") or ""):
             verdict = "unsuited" if out["rules_out"] else "suits (crop model)"
             return {**out, "verdict": verdict}
     if plant["category"].startswith("invasive"):
         return {**out, "verdict": "do not plant (invasive)"}
+    state = (site.get("soil") or {}).get("state")
+    listed = [s for s in ((chars or {}).get("us_listed_states") or "").split(";") if s]
+    # "United States" is a federal listing (a federal noxious weed): refused anywhere a US
+    # soil survey placed the site.
+    if state and (state in listed or "United States" in listed):
+        _add(out, "rules_out", "advise.why.invasive_here", state=state if state in listed else "United States")
+        return {**out, "verdict": "do not plant (invasive here)"}
+    if listed:
+        _add(out, "caution", "advise.why.invasive_elsewhere", count=len(listed),
+             states=", ".join(listed))
     if site.get("cover") and plant["category"] not in COVER_CATEGORIES:
         return {**out, "verdict": "not grown under cover"}
     if not chars or not chars.get("plants_symbol"):
@@ -132,58 +153,55 @@ def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = Non
             # range (eggplant), and some plain annuals a value that cannot be a season
             # (buckwheat, 365). Neither can rule a crop out where it is grown annually.
             if plant["cycle"] == "annual":
-                out["caution"].append(f"season: PLANTS lists {need:.0f} frost-free days, "
-                                      f"implausible for an annual — not used")
+                _add(out, "caution", "advise.why.season_implausible", need=need)
             else:
-                out["caution"].append(f"season: PLANTS lists {need:.0f} frost-free days, from its "
-                                      f"perennial range; as an annual it needs only its time to "
-                                      f"harvest, which PLANTS does not give")
+                _add(out, "caution", "advise.why.season_perennial_range", need=need)
         elif have < SEASON_RULES_OUT * need:
-            out["rules_out"].append(f"season: needs {need:.0f} frost-free days, has {have} (8 years in 10)")
+            _add(out, "rules_out", "advise.why.season_short", need=need, have=have)
         else:
-            out["caution"].append(f"season: PLANTS lists {need:.0f} frost-free days, has {have} "
-                                  f"(8 years in 10) — a little short")
+            _add(out, "caution", "advise.why.season_little_short", need=need, have=have)
 
     if plant["cycle"] in PERENNIAL:
         tmin = number(chars.get("Temperature, Minimum (°F)"))
         low = c["mean_annual_extreme_min_f"]
         if tmin is not None:
             if low < tmin - WINTER_RULES_OUT_F:
-                out["rules_out"].append(f"winter: average low {low:.0f} °F, survives {tmin:.0f} °F")
+                _add(out, "rules_out", "advise.why.winter_kills", low=low, tmin=tmin)
             elif low < tmin:
-                out["caution"].append(f"winter: average low {low:.0f} °F, below the {tmin:.0f} °F "
-                                      f"PLANTS lists")
+                _add(out, "caution", "advise.why.winter_below_listed", low=low, tmin=tmin)
             elif low - COLD_MARGIN_F < tmin:
-                out["caution"].append(f"winter: average low {low:.0f} °F is within {COLD_MARGIN_F:.0f} °F of its {tmin:.0f} °F limit")
+                _add(out, "caution", "advise.why.winter_near", low=low, tmin=tmin, margin=COLD_MARGIN_F)
 
     rain = c.get("annual_rain_in")
     lo, hi = number(chars.get("Precipitation, Minimum")), number(chars.get("Precipitation, Maximum"))
     if rain is not None and lo is not None and rain < lo:
-        out["fixable"].append(f"water: {rain:.0f} in of rain, needs {lo:.0f} — irrigate")
+        _add(out, "fixable", "advise.why.water_irrigate", rain=rain, need=lo)
     if rain is not None and hi is not None and rain > hi:
-        out["caution"].append(f"water: {rain:.0f} in of rain, wetter than its {hi:.0f} in maximum")
+        _add(out, "caution", "advise.why.water_wet", rain=rain, most=hi)
 
     ph = soil.get("topsoil_ph")
     pmin, pmax = number(chars.get("pH, Minimum")), number(chars.get("pH, Maximum"))
     if ph is not None and pmin is not None and ph < pmin:
-        out["fixable"].append(f"pH: topsoil {ph}, needs {pmin} or more — lime")
+        _add(out, "fixable", "advise.why.ph_lime", ph=ph, need=pmin)
     if ph is not None and pmax is not None and ph > pmax:
-        out["fixable"].append(f"pH: topsoil {ph}, needs {pmax} or less — sulfur")
+        _add(out, "fixable", "advise.why.ph_sulfur", ph=ph, most=pmax)
 
     word = texture_word(soil.get("topsoil_texture"))
     if word and chars.get(f"Adapted to {word} Textured Soils") == "No":
-        out["caution"].append(f"soil: PLANTS lists it as not adapted to {word.lower()}-textured soil")
+        _add(out, "caution", "advise.why.texture_" + word.lower())
     drainage = (soil.get("drainage") or "").lower()
     if "poorly" in drainage and chars.get("Anaerobic Tolerance") in ("None", None):
-        out["caution"].append(f"drainage: {drainage} soil, no tolerance of waterlogging")
+        _add(out, "caution", "advise.why.waterlogging")
     ec = soil.get("topsoil_ec_ds_per_m")
     if ec is not None and ec > 4 and chars.get("Salinity Tolerance") in ("None", "Low"):
-        out["caution"].append(f"salt: topsoil {ec} dS/m, low salt tolerance")
+        _add(out, "caution", "advise.why.salt", ec=ec)
 
     if out["rules_out"]:
         verdict = "unsuited"
     elif out["fixable"]:
-        verdict = "suits, with " + " and ".join(sorted({f.split(":")[0] for f in out["fixable"]}))
+        kinds = sorted({"pH" if k.startswith("advise.why.ph") else "water"
+                        for kind, k, _ in out["keys"] if kind == "fixable"})
+        verdict = "suits, with " + " and ".join(kinds)
     elif out["caution"]:
         verdict = "suits, with cautions"
     else:
@@ -245,7 +263,8 @@ def match(plants: list, chars: list, site: dict, seasons: list | None = None) ->
                      "rules_out": "; ".join(j["rules_out"]), "fixable": "; ".join(j["fixable"]),
                      "caution": "; ".join(j["caution"]),
                      "crop_model": season_note(s) if s else "",
-                     "bloom": (c or {}).get("Bloom Period") or ""})
+                     "bloom": (c or {}).get("Bloom Period") or "",
+                     "_keys": j["keys"], "_season": s})
     return rows, calendar(rows, site)
 
 
@@ -270,7 +289,8 @@ def main(argv=None) -> int:
     rows, cal = match(read_csv(args.plant_list), read_csv(args.characteristics), site, seasons)
     if args.out:
         with open(args.out, "w", newline="", encoding="utf-8") as h:
-            w = csv.DictWriter(h, fieldnames=list(rows[0]))
+            fields = [k for k in rows[0] if not k.startswith("_")]
+            w = csv.DictWriter(h, fieldnames=fields, extrasaction="ignore")
             w.writeheader()
             w.writerows(rows)
     verdicts = collections.Counter(r["verdict"] for r in rows)

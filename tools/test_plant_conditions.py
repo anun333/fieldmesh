@@ -31,5 +31,22 @@ class NameTest(unittest.TestCase):
         self.assertEqual(T.candidates("Rubus subg. Rubus"), ["rubus"])
 
 
+class StatusTest(unittest.TestCase):
+    class Fake:
+        def get(self, path):
+            if path.startswith("PlantInvasiveStatus/"):
+                return [{"LocalityName": "Alabama", "InvasiveStatuses": ["Category 2"]},
+                        {"LocalityName": "North Carolina", "InvasiveStatuses": ["Invasive"]}]
+            return []
+
+    def test_listings_become_state_codes(self):
+        text, codes = T.statuses(self.Fake(), {"Id": 1, "HasInvasiveStatuses": True})
+        self.assertEqual(codes, "AL;NC")
+        self.assertIn("invasive: Alabama (Category 2)", text)
+
+    def test_no_listing_no_request(self):
+        self.assertEqual(T.statuses(self.Fake(), {"Id": 1}), ("", ""))
+
+
 if __name__ == "__main__":
     unittest.main()

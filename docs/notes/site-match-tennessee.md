@@ -164,6 +164,25 @@ season, since it runs thirty real seasons rather than comparing one number. Simp
 and said so in the tool: hours are a sine between the day's minimum and maximum, soil
 temperature is taken as the air's, and water and nutrient stress are not simulated.
 
+## One command, in any language
+
+`tools/advise.py LAT LON --lang en,es --windows` runs all of the above for a point and
+writes a report a farmer can read — the site, food crops with sowing windows, what suits,
+what needs lime, sulfur or water, what does not suit and why, what is refused as invasive,
+bees, livestock heat — plus the data behind it. Its words come from the language packs, so
+the same report renders in Spanish (dates, decimal commas and the reasons included) and in
+any language a pack is added for; plant names stay English until AGROVOC's are added.
+Example: [advise-mcallister.en.md](advise-mcallister.en.md),
+[advise-mcallister.es.md](advise-mcallister.es.md).
+
+**Invasive listings by state.** USDA PLANTS lists invasive and noxious status by state for
+13 jurisdictions — Tennessee is not one of them, Alabama and North Carolina are — plus the
+federal noxious weed list. A plant listed in the site's own state, or federally, is
+refused; one listed elsewhere carries a caution naming the states. So the report refuses
+water spinach (a federal noxious weed) and kudzu (on the project's do-not-plant list), and
+flags paulownia as listed in Alabama, Connecticut, North Carolina and Wisconsin. The
+Tennessee Invasive Plant Council's list would close the local gap; its terms are to check.
+
 ## Bees per plant, from GloBI
 
 [plant-bees-globi.csv](plant-bees-globi.csv): for every plant on the list, the bees

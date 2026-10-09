@@ -42,8 +42,8 @@ SDA_URL = "https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest"
 
 QUERY = """SELECT TOP 40 mu.muname, c.compname, c.comppct_r, ch.hzdept_r, ch.hzdepb_r,
  ch.sandtotal_r, ch.claytotal_r, ch.wsatiated_r, ch.wthirdbar_r, ch.wfifteenbar_r,
- ch.ph1to1h2o_r, ch.om_r, ch.ec_r, ch.kwfact, c.drainagecl, c.slope_r, c.tfact
- FROM mapunit mu JOIN component c ON c.mukey = mu.mukey
+ ch.ph1to1h2o_r, ch.om_r, ch.ec_r, ch.kwfact, c.drainagecl, c.slope_r, c.tfact, l.areasymbol
+ FROM mapunit mu JOIN legend l ON l.lkey = mu.lkey JOIN component c ON c.mukey = mu.mukey
  JOIN chorizon ch ON ch.cokey = c.cokey
  WHERE mu.mukey IN (SELECT * FROM
    SDA_Get_Mukey_from_intersection_with_WktWgs84('point({lon} {lat})'))
@@ -120,6 +120,8 @@ def parse(doc: dict) -> dict:
     return {"map_unit": first["muname"], "component": dominant,
             "component_pct": number(first["comppct_r"]), "horizons": horizons,
             "drainage": first.get("drainagecl"), "slope_pct": number(first.get("slope_r")),
+            # A survey area is a county-sized code beginning with its state: TN103.
+            "state": (first.get("areasymbol") or "")[:2] or None,
             "tolerable_loss_t_per_acre": number(first.get("tfact"))}
 
 
