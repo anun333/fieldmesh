@@ -1,0 +1,4 @@
+# The rules module's one dependency: cel-python (Apache-2.0), the Common Expression
+# Language that conditions are written in (open-questions Q10). It brings lark, pendulum,
+# jmespath, pyyaml and google-re2.
+cel-python>=0.5

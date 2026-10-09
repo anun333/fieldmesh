@@ -48,6 +48,7 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [sim/](sim/) | **Harrow Bend**, a fictional farm on the prime meridian: soil water and heat physics, troughs, simulated nodes and radio links, fault injection, scored drills |
 | [server/](server/) | A read-only SensorThings 1.1 HTTP service — the reference implementation |
 | [tools/](tools/) | The measurements behind decisions, weather and forecast adapters, and the language-pack tool |
+| [modules/rules/](modules/rules/) | **Layer 1, rules and alerts**: CEL conditions over the log, each evaluation a logged decision. First rule: a frost watch, backtested on NOAA's forecasts against McAllister Farm's station |
 | [modules/advise/](modules/advise/) | **The first module above layer zero** (layer 3, decision support): for any point, what grows and when to sow it, which fruit cultivars get their chill and how often frost follows bloom, what the soil needs, bees, livestock heat, and the 2050s — in English and Spanish |
 
 About 1,130 tests. The simulator runs a 180-day season in under eight minutes.
@@ -81,6 +82,7 @@ Three licences, one per kind of artifact. The full reasoning is in
 | `docs/` — the spec and all prose | CC-BY-4.0 |
 | `sdk/`, `sim/`, `tools/` | Apache-2.0 — embeddable in firmware |
 | `server/` | AGPL-3.0-or-later — so a hosting vendor cannot enclose a farmer-owned stack |
+| `modules/rules/` | AGPL-3.0-or-later, as the reference server |
 | `modules/advise/` | AGPL-3.0-or-later for code, the same reasoning; its data under each source's licence ([MANIFEST](modules/advise/data/MANIFEST.csv)) |
 
 Some of `sdk/` derives from **campus_twin**, by the same author. See
@@ -98,9 +100,9 @@ Plainly, so nobody has to discover it:
 - **No commands.** §6 is deferred until a season of field evidence exists. The
   irrigation controller, livestock water monitor and research logger — the three
   acceptance apps — are not built.
-- **Little above layer zero.** One module exists, the advisor (layer 3). Rules and
-  alerts (layer 1), domain modules (2), apps (4) and the ecosystem (5) are described in §11
-  and do not; the frost watch and irrigation rules in `sim/` are their stand-ins.
+- **Little above layer zero.** Two modules exist: the advisor (layer 3) and rules and
+  alerts (layer 1), whose one rule is a frost watch. Domain modules (2), apps (4) and the
+  ecosystem (5) are described in §11 and do not; the irrigation rules in `sim/` stand in.
 - **Three rows of the completeness matrix are skipped**: offline-edit conflicts (Q14 named
   the fields; the records they belong to are not built) and the two that need §6.
 - **The Spanish language pack is an unreviewed draft.** It needs a native-speaking

@@ -1,0 +1,7 @@
+{
+ "_meta": {"language": "es", "module": "rules", "license": "AGPL-3.0-or-later",
+  "note": "Borrador: sin revisar por un agrónomo hispanohablante."},
+ "strings": {
+  "rules.frost.alert": "Aviso de helada: la mínima prevista para esta noche es {low:.1f} °C, igual o por debajo de los {warn:.1f} °C con que avisa esta finca. Cubra la flor abierta y las plantas tiernas antes de que oscurezca."
+ }
+}

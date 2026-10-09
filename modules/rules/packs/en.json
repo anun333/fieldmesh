@@ -1,0 +1,7 @@
+{
+ "_meta": {"language": "en", "module": "rules", "license": "AGPL-3.0-or-later",
+  "note": "The rules module's strings, merged over layer zero's pack at load. Every key starts with `rules.`."},
+ "strings": {
+  "rules.frost.alert": "Frost warning: tonight's forecast low is {low:.1f} °C, at or below the {warn:.1f} °C this farm warns at. Cover open bloom and tender plants before dark."
+ }
+}
