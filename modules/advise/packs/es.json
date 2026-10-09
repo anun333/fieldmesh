@@ -113,6 +113,15 @@
   "advise.nutrients.caveat": "Un balance, no una recomendación: cuánto del nitrógeno del estiércol aprovecha un cultivo el primer año depende de cómo y cuándo se aplica, y lo que el suelo necesita depende de su propio análisis. Manda el plan estatal de manejo de nutrientes.",
   "advise.nutrients.organic": "Orgánico certificado (7 CFR 205.203(c)): estiércol crudo solo en cultivos que no son para consumo humano, o incorporado al suelo al menos este tiempo antes de la cosecha:",
   "advise.nutrients.organic_crop": "{crop}: {days} días",
-  "advise.nutrients.source": "Fuentes: USDA NRCS, Agricultural Waste Management Field Handbook, capítulo 4, tabla 4-16(b), y capítulo 6, tabla 6-6 (dominio público)."
+  "advise.nutrients.source": "Fuentes: USDA NRCS, Agricultural Waste Management Field Handbook, capítulo 4, tabla 4-16(b), y capítulo 6, tabla 6-6 (dominio público).",
+  "advise.section.propagation": "Cuándo propagar",
+  "advise.propagation.preface": "Según las formas que USDA PLANTS indica para cada planta, en ventanas fijadas por las fechas medianas de helada de este sitio: la práctica habitual de cada método, como primera aproximación. La lista planta por planta está en propagation.csv.",
+  "advise.propagation.seed_cold": "Semilla que necesita frío ({count} plantas): sembrar al aire libre {windows}; la primera tras la helada de otoño, para que el invierno la estratifique; la segunda, para semilla estratificada en frío y húmedo.",
+  "advise.propagation.seed": "Semilla ({count} plantas): {windows}. Los cultivos con modelo tienen sus propias ventanas de siembra arriba.",
+  "advise.propagation.bare_root": "Planta a raíz desnuda ({count} plantas), en reposo: {windows}.",
+  "advise.propagation.container": "Planta en contenedor ({count} plantas), fuera del calor de pleno verano: {windows}.",
+  "advise.propagation.cuttings": "Estacas leñosas ({count} plantas), tomadas en reposo: {windows}.",
+  "advise.propagation.sprigs": "Estolones y tepes ({count} plantas), con el suelo cálido: {windows}.",
+  "advise.propagation.tubers": "Tubérculos ({count} plantas): {windows}."
  }
 }

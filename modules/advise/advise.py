@@ -35,6 +35,7 @@ import fruit_bloom  # noqa: E402
 import module  # noqa: E402
 import plant_match  # noqa: E402
 import plant_names  # noqa: E402
+import propagation as propagation_module  # noqa: E402
 import site_profile  # noqa: E402
 
 module.register_packs()
@@ -170,7 +171,8 @@ def bloom_lines(r: "Report", bloom: dict, north: bool) -> list:
 
 def render(site: dict, rows: list, cal: dict, language: str, today: str,
            chill: list | None = None, bloom: dict | None = None,
-           fruit_chill: float | None = None) -> str:
+           fruit_chill: float | None = None,
+           propagation: list | None = None) -> str:
     r = Report(language)
     c = site["climate"]
     out = [f"# {r.tr('advise.title', lat=site['lat'], lon=site['lon'])}", "",
@@ -259,6 +261,18 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str,
     heat = c["heat_stress_days_dairy_est"]
     out += ["", f"## {r.tr('advise.section.livestock')}", "",
             "- " + r.tr("advise.livestock.heat", low=heat["low"], high=heat["high"]), ""]
+    if propagation:
+        out += [f"## {r.tr('advise.section.propagation')}", "", r.tr("advise.propagation.preface"), ""]
+        for method in propagation_module.METHODS:
+            # In the method's own order — for seed needing cold, fall sowing comes first.
+            spans = list(dict.fromkeys((p["from"], p["to"]) for p in propagation
+                                       if p["method"] == method))
+            plants = {p["scientific_name"] for p in propagation if p["method"] == method}
+            if spans:
+                out.append("- " + r.tr(f"advise.propagation.{method}", count=len(plants),
+                                       windows="; ".join(r.tr("advise.window", start=r.date(a), end=r.date(b))
+                                                         for a, b in spans)))
+        out.append("")
     nodata = sum(1 for row in rows if row["verdict"].startswith("no data"))
     out += [f"## {r.tr('advise.section.nodata')}", "", r.tr("advise.nodata", count=nodata),
             "", f"*{r.tr('advise.names_note')}*", "",
@@ -369,9 +383,13 @@ def main(argv=None) -> int:
                                   state_lists)
     with open(os.path.join(args.out, "site.json"), "w", encoding="utf-8") as h:
         json.dump(site, h, indent=1)
-    for name, data in (("match.csv", rows), ("seasons.csv", seasons)):
+    plants = read_csv(os.path.join(DATA, "plant-list.csv"))
+    propagation = propagation_module.calendar(
+        plants, read_csv(os.path.join(DATA, "plant-characteristics-usda.csv")), site)
+    for name, data in (("match.csv", rows), ("seasons.csv", seasons), ("propagation.csv", propagation)):
         with open(os.path.join(args.out, name), "w", newline="", encoding="utf-8") as h:
-            fields = [k for k in data[0] if not k.startswith("_")]
+            # Every key any row has: rice carries transplanting columns the others lack.
+            fields = list(dict.fromkeys(k for row in data for k in row if not k.startswith("_")))
             w = csv.DictWriter(h, fieldnames=fields, extrasaction="ignore")
             w.writeheader()
             w.writerows(data)
@@ -384,7 +402,7 @@ def main(argv=None) -> int:
     for lang in args.lang.split(","):
         path = os.path.join(args.out, f"report.{lang}.md")
         with open(path, "w", encoding="utf-8") as h:
-            h.write(render(site, rows, cal, lang, today, chill, bloom, fruit_chill))
+            h.write(render(site, rows, cal, lang, today, chill, bloom, fruit_chill, propagation))
         print(f"wrote {path}")
     if args.warm is not None:
         site2 = site_profile.profile(args.lat, args.lon, cache=power, warm_c=args.warm,

@@ -113,6 +113,15 @@
   "advise.nutrients.caveat": "A balance, not a recommendation: how much of the manure's nitrogen a crop gets in its first year depends on how and when it is spread, and what the soil needs depends on its own test. A state nutrient management plan governs.",
   "advise.nutrients.organic": "Certified organic (7 CFR 205.203(c)): raw manure only on crops not for people, or worked into the soil at least this long before harvest:",
   "advise.nutrients.organic_crop": "{crop}: {days} days",
-  "advise.nutrients.source": "Sources: USDA NRCS Agricultural Waste Management Field Handbook, chapter 4 table 4-16(b) and chapter 6 table 6-6 (public domain)."
+  "advise.nutrients.source": "Sources: USDA NRCS Agricultural Waste Management Field Handbook, chapter 4 table 4-16(b) and chapter 6 table 6-6 (public domain).",
+  "advise.section.propagation": "When to propagate",
+  "advise.propagation.preface": "By the ways USDA PLANTS lists for each plant, in windows set by this site's median frost dates — common practice for each method, a first approximation. The plant-by-plant list is in propagation.csv.",
+  "advise.propagation.seed_cold": "Seed that needs cold ({count} plants): sow outdoors {windows} — the first after the fall frost, so winter stratifies it; the second for seed stratified cold and moist indoors.",
+  "advise.propagation.seed": "Seed ({count} plants): {windows}. Food crops with a crop model have their own sowing windows above.",
+  "advise.propagation.bare_root": "Bare-root stock ({count} plants), planted dormant: {windows}.",
+  "advise.propagation.container": "Container stock ({count} plants), out of midsummer heat: {windows}.",
+  "advise.propagation.cuttings": "Hardwood cuttings ({count} plants), taken dormant: {windows}.",
+  "advise.propagation.sprigs": "Sprigs and sod ({count} plants), in warm soil: {windows}.",
+  "advise.propagation.tubers": "Tubers ({count} plants): {windows}."
  }
 }
