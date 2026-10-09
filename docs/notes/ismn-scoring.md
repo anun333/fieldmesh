@@ -36,6 +36,12 @@ documentation.
 | break (D07, D08) | 1,494 | 0 | **0%** |
 | spike (D06) | 355 | 0 | **0%** |
 
+**After Q23** (decided 2026-10-08: spikes by shape, a cap on falls, no cap on rises), the
+same Tennessee record scores: negative jumps (D07) **56%** (29 of 52), spikes (D06) 8% (27
+of 355 — D06 mostly marks dry-soil noise, see [spikes-and-jumps.md](spikes-and-jumps.md)),
+positive jumps (D08) 0% by design. The new checks raised 253 `suspect` and 49
+`rate_exceeded` flags on the 2.24 million readings ISMN rates good — 0.013%.
+
 What we raise on readings ISMN rates **good**, by depth:
 
 | depth | good readings | stuck | out of range | share |

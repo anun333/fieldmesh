@@ -73,6 +73,11 @@ a non-commercial source cannot be redistributed in it.
 
 ## What to build, in order, when this is picked up
 
+**Steps 1–4 are built** (2026-10-08) and run on three Tennessee farms:
+[site-match-tennessee.md](site-match-tennessee.md). The run's main finding is that USDA
+PLANTS covers conservation, forage and timber plants well and food crops hardly at all,
+and that its limits are guidance rather than limits.
+
 1. **Resolve each scientific name to a PLANTS symbol.** The old checklist download link
    now serves the web application; the API's search, or the CC0 Darwin Core archive of
    PLANTS on Zenodo/GBIF, are the routes.

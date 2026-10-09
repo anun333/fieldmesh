@@ -41,7 +41,8 @@ import urllib.request
 SDA_URL = "https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest"
 
 QUERY = """SELECT TOP 40 mu.muname, c.compname, c.comppct_r, ch.hzdept_r, ch.hzdepb_r,
- ch.sandtotal_r, ch.claytotal_r, ch.wsatiated_r, ch.wthirdbar_r, ch.wfifteenbar_r
+ ch.sandtotal_r, ch.claytotal_r, ch.wsatiated_r, ch.wthirdbar_r, ch.wfifteenbar_r,
+ ch.ph1to1h2o_r, ch.om_r, ch.ec_r, ch.kwfact, c.drainagecl, c.slope_r, c.tfact
  FROM mapunit mu JOIN component c ON c.mukey = mu.mukey
  JOIN chorizon ch ON ch.cokey = c.cokey
  WHERE mu.mukey IN (SELECT * FROM
@@ -108,10 +109,18 @@ def parse(doc: dict) -> dict:
                  "sand_pct": number(r["sandtotal_r"]), "clay_pct": number(r["claytotal_r"]),
                  "saturated": _fraction(r["wsatiated_r"]),
                  "field_capacity": _fraction(r["wthirdbar_r"]),
-                 "wilting_point": _fraction(r["wfifteenbar_r"])}
+                 "wilting_point": _fraction(r["wfifteenbar_r"]),
+                 # Added for the site profile; older recorded responses lack them.
+                 "ph": number(r.get("ph1to1h2o_r")),
+                 "organic_matter_pct": number(r.get("om_r")),
+                 "ec_ds_per_m": number(r.get("ec_r")),
+                 "erodibility_k": number(r.get("kwfact"))}
                 for r in rows if r["compname"] == dominant]
-    return {"map_unit": rows[0]["muname"], "component": dominant,
-            "component_pct": number(rows[0]["comppct_r"]), "horizons": horizons}
+    first = rows[0]
+    return {"map_unit": first["muname"], "component": dominant,
+            "component_pct": number(first["comppct_r"]), "horizons": horizons,
+            "drainage": first.get("drainagecl"), "slope_pct": number(first.get("slope_r")),
+            "tolerable_loss_t_per_acre": number(first.get("tfact"))}
 
 
 def _fraction(percent):
