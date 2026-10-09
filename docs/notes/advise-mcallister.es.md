@@ -45,9 +45,9 @@ Generado el 2026-10-09 a partir de datos abiertos. Son puntos de partida, no res
 - Tomato: 4 de 4 variedades maduran 8 años de cada 10, en 120–131 días. Sembrar del 9 de abril al 2 de julio.
 - Velvet bean: ninguna variedad madura antes de la helada aquí.
 
-## Frutales de hueso según el frío invernal
+## Frutales según el frío invernal
 
-Los inviernos aquí dan al menos 1090 horas frío (horas entre 0 y 7,2 °C, de noviembre a marzo) 8 años de cada 10. Frente a las necesidades por variedad que recopilan Fadón y colaboradores (2020) —medidas en una docena de países, sobre todo en España, y por varios métodos, así que orientan, no garantizan—, estas variedades de cada especie cubrirían su frío.
+Los inviernos aquí dan al menos 1090 horas frío (horas entre 0 y 7,2 °C, de noviembre a marzo) 8 años de cada 10. Frente a las necesidades publicadas por variedad —los frutales de hueso que recopilan Fadón y colaboradores (2020), los manzanos de González Noguer y colaboradores (2023, los de mesa y de sidra), los perales que midieron Fadón y colaboradores (2023)—, tomadas en muchos países y por varios métodos, así que orientan, no garantizan, estas variedades de cada especie cubrirían su frío.
 
 - Almendro: 68 de 68 variedades
 - Albaricoquero europeo: 26 de 41 variedades
@@ -58,8 +58,10 @@ Los inviernos aquí dan al menos 1090 horas frío (horas entre 0 y 7,2 °C, de n
 - Ciruelo europeo: 4 de 9 variedades
 - Ciruelo japonés: 16 de 16 variedades
 - Cerezo: 25 de 40 variedades
+- Manzano: 55 de 78 variedades
+- Peral: 16 de 16 variedades
 
-Floración y helada: para 145 estimaciones de variedades cuyos estudios dan también una necesidad de calor, la floración se simula sobre los propios inviernos del sitio —frío desde el 1 de noviembre, luego calor— y un año cuenta como helado cuando la mínima baja a −2,2 °C (28 °F) o menos en las dos semanas tras la floración. Las mínimas de la malla son más suaves que las del suelo de un huerto, así que los recuentos se quedan cortos.
+Floración y helada: para 185 estimaciones de variedades cuyos estudios dan también una necesidad de calor, la floración se simula sobre los propios inviernos del sitio —frío desde el 1 de noviembre, luego calor— y un año cuenta como helado cuando la mínima baja a −2,2 °C (28 °F) o menos en las dos semanas tras la floración. Las mínimas de la malla son más suaves que las del suelo de un huerto, así que los recuentos se quedan cortos.
 
 - Almendro: florece del 4 de febrero al 12 de marzo (mediana 20 de febrero); helada tras la floración en 8 años de cada 10.
 - Albaricoquero europeo: florece del 14 de marzo al 15 de abril (mediana 23 de marzo); helada tras la floración en 3 años de cada 10. En 9 de sus 32 estimaciones, el frío no alcanza en más de 2 inviernos de cada 10.
@@ -68,6 +70,8 @@ Floración y helada: para 145 estimaciones de variedades cuyos estudios dan tamb
 - Nectarina: florece del 16 de marzo al 2 de abril (mediana 21 de marzo); helada tras la floración en 4 años de cada 10.
 - Ciruelo japonés: florece del 12 de marzo al 5 de abril (mediana 27 de marzo); helada tras la floración en 2 años de cada 10.
 - Cerezo: florece del 29 de marzo al 30 de abril (mediana 28 de abril); helada tras la floración en 0 años de cada 10.
+- Manzano: florece del 7 de abril al 23 de abril (mediana 15 de abril); helada tras la floración en 0 años de cada 10.
+- Peral: florece del 1 de abril al 5 de abril (mediana 3 de abril); helada tras la floración en 1 años de cada 10.
 
 ## Se adapta al sitio (90)
 
@@ -229,4 +233,4 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 ## Fuentes
 
-Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita. Frío y calor de frutales: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0); umbrales de helada en floración: Washington State University vía Penn State Extension.
+Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita. Frío y calor de frutales: Fadón et al. 2020, Agronomy 10:409; González Noguer et al. 2023, Front. Hortic. 2:1217689; Fadón et al. 2023, Agronomy 13:518 (todos CC BY 4.0); umbrales de helada en floración: Washington State University vía Penn State Extension.

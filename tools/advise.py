@@ -74,10 +74,22 @@ def plant_line(row: dict) -> str:
     return f"{row['common_name']} (*{row['scientific_name']}*)"
 
 
-#: The crops of docs/notes/chill-requirements.csv, in report order, and their pack keys.
+#: The crops of docs/notes/chill-requirements.csv and chill-requirements-pome.csv, in
+#: report order, and their pack keys.
 FRUIT = (("almond", "almond"), ("European apricot", "apricot_eu"), ("Japanese apricot", "apricot_jp"),
          ("peach", "peach"), ("nectarine", "nectarine"), ("flat peach", "flat_peach"),
-         ("European plum", "plum_eu"), ("Japanese plum", "plum_jp"), ("cherry (sweet or sour)", "cherry"))
+         ("European plum", "plum_eu"), ("Japanese plum", "plum_jp"), ("cherry (sweet or sour)", "cherry"),
+         ("apple", "apple"), ("pear", "pear"))
+
+#: Uses a fruit grower plants for fruit. The apple table also lists rootstocks and crab
+#: apples (pollinisers and ornamentals) and some cultivars with no use given; counting
+#: them would say more about rootstock breeding than about what fruits here.
+ORCHARD_USES = ("dessert", "cider")
+
+
+def orchard(requirements: list) -> list:
+    """The rows for trees grown for their fruit; a table without a use column is all fruit."""
+    return [r for r in requirements if r.get("usage") is None or r["usage"] in ORCHARD_USES]
 
 
 def need_upper(value: str):
@@ -321,7 +333,8 @@ def main(argv=None) -> int:
             w.writeheader()
             w.writerows(data)
     today = _dt.date.today().isoformat()
-    chill = read_csv(os.path.join(NOTES, "chill-requirements.csv"))
+    chill = orchard(read_csv(os.path.join(NOTES, "chill-requirements.csv"))
+                    + read_csv(os.path.join(NOTES, "chill-requirements-pome.csv")))
     bloom = fruit_bloom.summarize(fruit_bloom.simulate(chill, days, args.lat))
     eight = lambda xs: sorted(xs)[int(0.2 * len(xs))] if xs else 0.0
     fruit_chill = eight(fruit_bloom.winter_chill(days, args.lat))

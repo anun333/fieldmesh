@@ -31,7 +31,7 @@ useful tool at a time, from the plant-conditions plan. Three things now show the
 
 | moves (the advisor) | stays (layer zero and its validation) |
 | --- | --- |
-| `advise.py`, `plant_match.py`, `site_profile.py`, `dssat_crops.py`, `plant_conditions.py`, `globi_bees.py`, `interactions.py`, `chill_requirements.py`, `tunnel_gain.py`, and their tests | `ismn_*.py`, `q5_encoding.py`, `packs.py`, everything in `sdk/`, `server/`, `sim/` |
+| `advise.py`, `plant_match.py`, `site_profile.py`, `dssat_crops.py`, `plant_conditions.py`, `globi_bees.py`, `interactions.py`, `chill_requirements.py`, `chill_requirements_pome.py`, `fruit_bloom.py`, `tunnel_gain.py`, and their tests | `ismn_*.py`, `q5_encoding.py`, `packs.py`, everything in `sdk/`, `server/`, `sim/` |
 | the data: `plant-list.csv`, `plant-characteristics-usda.csv`, `crop-parameters-dssat.csv` (+ its licence), `plant-bees-globi*.{csv,txt}`, `interactions.csv`, `chill-requirements.csv`, the animal/fertilizer/nursery/structure lists | the spec, and notes about layer zero (siting, spikes, Q-notes, validation) |
 | the `advise.*` pack strings, into the module's own pack | the `enum.`, `term.`, `unit.`, `check.`, `siting.` strings |
 | the plan and results notes (`plant-conditions.md`, `site-match-tennessee.md`, `hoop-houses.md`, …) | |

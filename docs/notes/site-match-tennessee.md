@@ -14,7 +14,7 @@ knows best — McAllister Farm, Allen Farms and Eastview Farm, south-central Ten
 | match and bloom calendar | [plant_match.py](../../tools/plant_match.py) | per plant: which condition decides |
 | bees per plant | [globi_bees.py](../../tools/globi_bees.py) | bee records from GloBI |
 | what mixes with what | [interactions.py](../../tools/interactions.py) | [interactions.csv](interactions.csv) |
-| fruit chill requirements | [chill_requirements.py](../../tools/chill_requirements.py) | [chill-requirements.csv](chill-requirements.csv) (CC BY 4.0) |
+| fruit chill requirements | [chill_requirements.py](../../tools/chill_requirements.py), [chill_requirements_pome.py](../../tools/chill_requirements_pome.py) | [chill-requirements.csv](chill-requirements.csv), [chill-requirements-pome.csv](chill-requirements-pome.csv) (CC BY 4.0) |
 
 ## The three sites
 
@@ -210,7 +210,7 @@ temperature is taken as the air's, and water and nutrient stress are not simulat
 ## One command, in any language
 
 `tools/advise.py LAT LON --lang en,es --windows` runs all of the above for a point and
-writes a report a farmer can read — the site, food crops with sowing windows, stone fruit
+writes a report a farmer can read — the site, food crops with sowing windows, fruit trees
 by winter chill with bloom dates and the frost after them, what suits,
 what needs lime, sulfur or water, what does not suit and why, what is refused as invasive,
 bees, livestock heat — plus the data behind it. Its words come from the language packs, so
@@ -319,6 +319,55 @@ escape. In the 2050s every crop blooms about a week earlier and the frost count 
 falls by one — the frosts move earlier too. The grid's minimums are milder than an orchard
 floor on a still night, so these counts err low, and an orchard on a slope will do better
 than one in a frost pocket.
+
+## Apples and pears
+
+The stone-fruit review leaves out the commonest orchard trees. Two more CC BY 4.0 papers
+cover them, re-keyed by [chill_requirements_pome.py](../../tools/chill_requirements_pome.py)
+into **[chill-requirements-pome.csv](chill-requirements-pome.csv)**:
+
+* **Apples:** the review by González Noguer, Delgado, Else and Hadley (2023, *Frontiers in
+  Horticulture* 2:1217689). Its Table 2 holds 173 published requirements, each with the
+  cultivar's use (dessert, cider, crab or rootstock), place, method and study. It is read
+  from the article's HTML, where a cell spanning several rows carries its citation key
+  down to each, and every key is checked against the author and year the cell prints. One
+  cell writes a thousand with a point (Raxao, "1.005" chill hours), read as 1005.
+* **Pears:** Fadón, Espiau, Errea and Alonso Segura (2023, *Agronomy* 13:518), 16
+  traditional European pears over twenty years at Zaragoza, in all three chill models and
+  heat.
+
+Both define a chill hour as the stone-fruit review does, 0 to 7.2 °C. The advisor counts
+the dessert and cider apples. It leaves out rootstocks, crab apples and the 16 cultivars
+the table gives no use for, since none of those says what will fruit. That leaves 78
+apples with a chill-hour requirement, 54 of them from one study (Hauagge and Cummins 1991).
+
+At McAllister, **55 of 78 apples and all 16 pears** get their chill. The pears need 825 to
+894 hours at the top of their spread, well inside the site's 1090. In the 2050s the apples
+fall to **39**. Apples, unlike stone fruit, lose ground here, because Hauagge and Cummins
+put sixteen common cultivars between 1049 and 1090 hours: Golden Delicious, Gala, Fuji,
+McIntosh and Granny Smith among them. That is right where McAllister's 8-in-10 winter sits,
+so the 2050s' 43 fewer hours carry all sixteen across the line. The cliff is in the table
+more than in the orchard. Those requirements come from one place and one method, and a
+cultivar 20 hours short still blooms, only less evenly. But it marks which apples a
+warming winter here reaches first.
+
+Only 24 apple estimates come with a heat requirement too, and 21 of them are local apples
+from northwestern Spain, 19 of those for cider (Delgado and others 2021). So the apple bloom
+below speaks mostly for those:
+
+| crop | bloom (median) | frost after bloom | 2050s |
+| --- | --- | --- | --- |
+| apple | Apr 7–23 (Apr 15) | 0 in 10 | Apr 12, 0 in 10 |
+| pear | Apr 1–5 (Apr 3) | 1 in 10 | Mar 29, 0 in 10 |
+
+Two apples bred for warm winters, Anna and Dorsett Golden, need about 250 hours in the
+Egyptian study and bloom here at the start of March. Frost follows two years in three,
+which is why they are planted in Florida and not Tennessee. The estimates disagree as much
+as they do for stone fruit. Hauagge and Cummins give Dorsett Golden 814 hours to Egypt's
+238, and a Moroccan statistical estimate pairs Gala's 537 hours with 22,402 degree-hours of
+heat, which simulates bloom on May 19. Estimates from warm-winter sites trade chill for
+heat and do not travel. The pear estimates, from one orchard and one method, barely differ
+from each other, which says more about the method than about the pears.
 
 ## Bees per plant, from GloBI
 

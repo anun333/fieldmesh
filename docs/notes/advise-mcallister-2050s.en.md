@@ -51,7 +51,7 @@ The site's own thirty years of weather, every day +1.0 °C warmer and with +0% r
 - Tomato: cultivars maturing 4 → 4 of 4; sow April 9 to July 2 → March 26 to July 2
 - Velvet bean: cultivars maturing 0 → 0 of 20; sow — → —
 
-## Stone fruit by winter chill
+## Fruit trees by winter chill
 
 - Almond: cultivars getting their chill 68 → 68 of 68
 - European apricot: cultivars getting their chill 26 → 24 of 41
@@ -62,6 +62,8 @@ The site's own thirty years of weather, every day +1.0 °C warmer and with +0% r
 - European plum: cultivars getting their chill 4 → 4 of 9
 - Japanese plum: cultivars getting their chill 16 → 16 of 16
 - Cherry: cultivars getting their chill 25 → 25 of 40
+- Apple: cultivars getting their chill 55 → 39 of 78
+- Pear: cultivars getting their chill 16 → 16 of 16
 
 - Almond: median bloom February 20 → February 9; frost after bloom in 8 → 7 years of 10
 - European apricot: median bloom March 23 → March 17; frost after bloom in 3 → 2 years of 10
@@ -70,3 +72,5 @@ The site's own thirty years of weather, every day +1.0 °C warmer and with +0% r
 - Nectarine: median bloom March 21 → March 16; frost after bloom in 4 → 3 years of 10
 - Japanese plum: median bloom March 27 → March 21; frost after bloom in 2 → 2 years of 10
 - Cherry: median bloom April 28 → April 22; frost after bloom in 0 → 0 years of 10
+- Apple: median bloom April 15 → April 12; frost after bloom in 0 → 0 years of 10
+- Pear: median bloom April 3 → March 29; frost after bloom in 1 → 0 years of 10

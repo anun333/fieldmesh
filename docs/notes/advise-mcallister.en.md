@@ -45,9 +45,9 @@ Generated 2026-10-09 from open data. These are starting points, not answers: che
 - Tomato: 4 of 4 cultivars mature 8 years in 10, in 120–131 days. Sow April 9 to July 2.
 - Velvet bean: no cultivar matures before frost here.
 
-## Stone fruit by winter chill
+## Fruit trees by winter chill
 
-Winters here give at least 1090 chill hours (hours between 0 and 7.2 °C, November to March) 8 years in 10. Against the cultivar requirements compiled by Fadón and others (2020) — measured in a dozen countries, Spain most of all, and by several methods, so a guide, not a guarantee — this many cultivars of each would get their chill.
+Winters here give at least 1090 chill hours (hours between 0 and 7.2 °C, November to March) 8 years in 10. Against published cultivar requirements — stone fruit compiled by Fadón and others (2020), apples by González Noguer and others (2023, the dessert and cider apples), pears measured by Fadón and others (2023) — taken in many countries and by several methods, so a guide, not a guarantee, this many cultivars of each would get their chill.
 
 - Almond: 68 of 68 cultivars
 - European apricot: 26 of 41 cultivars
@@ -58,8 +58,10 @@ Winters here give at least 1090 chill hours (hours between 0 and 7.2 °C, Novemb
 - European plum: 4 of 9 cultivars
 - Japanese plum: 16 of 16 cultivars
 - Cherry: 25 of 40 cultivars
+- Apple: 55 of 78 cultivars
+- Pear: 16 of 16 cultivars
 
-Bloom and frost: for 145 cultivar estimates whose studies also give a heat requirement, bloom is simulated on this site's own winters — chill from November 1, then heat — and a year counts as frosted when the minimum falls to −2.2 °C (28 °F) or below within two weeks after bloom. The grid's minimums are milder than an orchard floor's, so the counts err low.
+Bloom and frost: for 185 cultivar estimates whose studies also give a heat requirement, bloom is simulated on this site's own winters — chill from November 1, then heat — and a year counts as frosted when the minimum falls to −2.2 °C (28 °F) or below within two weeks after bloom. The grid's minimums are milder than an orchard floor's, so the counts err low.
 
 - Almond: blooms February 4 to March 12 (median February 20); frost after bloom in 8 years of 10.
 - European apricot: blooms March 14 to April 15 (median March 23); frost after bloom in 3 years of 10. For 9 of its 32 estimates, chill falls short in more than 2 winters of 10.
@@ -68,6 +70,8 @@ Bloom and frost: for 145 cultivar estimates whose studies also give a heat requi
 - Nectarine: blooms March 16 to April 2 (median March 21); frost after bloom in 4 years of 10.
 - Japanese plum: blooms March 12 to April 5 (median March 27); frost after bloom in 2 years of 10.
 - Cherry: blooms March 29 to April 30 (median April 28); frost after bloom in 0 years of 10.
+- Apple: blooms April 7 to April 23 (median April 15); frost after bloom in 0 years of 10.
+- Pear: blooms April 1 to April 5 (median April 3); frost after bloom in 1 years of 10.
 
 ## Suits the site (90)
 
@@ -229,4 +233,4 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 ## Sources
 
-Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill and heat: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0); bloom frost thresholds: Washington State University via Penn State Extension.
+Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill and heat: Fadón et al. 2020, Agronomy 10:409; González Noguer et al. 2023, Front. Hortic. 2:1217689; Fadón et al. 2023, Agronomy 13:518 (all CC BY 4.0); bloom frost thresholds: Washington State University via Penn State Extension.

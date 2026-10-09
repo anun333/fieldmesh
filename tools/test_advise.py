@@ -103,12 +103,26 @@ class ChillTest(unittest.TestCase):
 
     def test_the_report_section_in_two_languages(self):
         en = A.render(SITE, ROWS, CAL, "en", "2026-10-08", CHILL)
-        self.assertIn("## Stone fruit by winter chill", en)
+        self.assertIn("## Fruit trees by winter chill", en)
         self.assertIn("at least 1400 chill hours", en)
         self.assertIn("at least 1500 chill hours", A.render(SITE, ROWS, CAL, "en", "2026-10-08", CHILL, None, 1500.0))
         self.assertIn("- Peach: 2 of 2 cultivars", en)
         es = A.render(SITE, ROWS, CAL, "es", "2026-10-08", CHILL)
         self.assertIn("- Melocotonero: 2 de 2 variedades", es)
+
+    def test_apples_and_pears_count_only_fruiting_trees(self):
+        pome = [{"crop": "apple", "cultivar": "Anna", "usage": "dessert", "chill_hours": "253"},
+                {"crop": "apple", "cultivar": "Kingston Black", "usage": "cider", "chill_hours": "1005"},
+                {"crop": "apple", "cultivar": "M.9", "usage": "rootstock", "chill_hours": "600"},
+                {"crop": "apple", "cultivar": "Almey", "usage": "crab", "chill_hours": "842"},
+                {"crop": "apple", "cultivar": "Edgar", "usage": "-", "chill_hours": "1127"},
+                {"crop": "pear", "cultivar": "Conference", "usage": "dessert", "chill_hours": "745 ± 114"}]
+        rows = A.orchard(CHILL + pome)
+        self.assertEqual(len(rows), len(CHILL) + 3)                 # the stone table has no use column
+        self.assertEqual(A.chill_fit(rows, 1000), [("peach", 2, 1), ("cherry", 1, 0), ("apple", 2, 1), ("pear", 1, 1)])
+        es = A.render(SITE, ROWS, CAL, "es", "2026-10-08", rows, None, 1000.0)
+        self.assertIn("- Manzano: 1 de 2 variedades", es)
+        self.assertIn("- Peral: 1 de 1 variedades", es)
 
     def test_bloom_and_frost_lines(self):
         bloom = {"peach": {"estimates": 3, "bloom_early": 140, "bloom_median": 145, "bloom_late": 150,

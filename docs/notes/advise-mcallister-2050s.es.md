@@ -51,7 +51,7 @@ Los treinta años de tiempo del propio sitio, cada día +1,0 °C más cálido y 
 - Tomato: variedades que maduran 4 → 4 de 4; sembrar del 9 de abril al 2 de julio → del 26 de marzo al 2 de julio
 - Velvet bean: variedades que maduran 0 → 0 de 20; sembrar — → —
 
-## Frutales de hueso según el frío invernal
+## Frutales según el frío invernal
 
 - Almendro: variedades que cubren su frío 68 → 68 de 68
 - Albaricoquero europeo: variedades que cubren su frío 26 → 24 de 41
@@ -62,6 +62,8 @@ Los treinta años de tiempo del propio sitio, cada día +1,0 °C más cálido y 
 - Ciruelo europeo: variedades que cubren su frío 4 → 4 de 9
 - Ciruelo japonés: variedades que cubren su frío 16 → 16 de 16
 - Cerezo: variedades que cubren su frío 25 → 25 de 40
+- Manzano: variedades que cubren su frío 55 → 39 de 78
+- Peral: variedades que cubren su frío 16 → 16 de 16
 
 - Almendro: floración mediana 20 de febrero → 9 de febrero; helada tras la floración en 8 → 7 años de cada 10
 - Albaricoquero europeo: floración mediana 23 de marzo → 17 de marzo; helada tras la floración en 3 → 2 años de cada 10
@@ -70,3 +72,5 @@ Los treinta años de tiempo del propio sitio, cada día +1,0 °C más cálido y 
 - Nectarina: floración mediana 21 de marzo → 16 de marzo; helada tras la floración en 4 → 3 años de cada 10
 - Ciruelo japonés: floración mediana 27 de marzo → 21 de marzo; helada tras la floración en 2 → 2 años de cada 10
 - Cerezo: floración mediana 28 de abril → 22 de abril; helada tras la floración en 0 → 0 años de cada 10
+- Manzano: floración mediana 15 de abril → 12 de abril; helada tras la floración en 0 → 0 años de cada 10
+- Peral: floración mediana 3 de abril → 29 de marzo; helada tras la floración en 1 → 0 años de cada 10

@@ -24,6 +24,7 @@ in the file's own header:
 | `plant-bees-globi.csv`, `plant-bees-globi-sources.txt` | GloBI, and the 49 datasets it cites | CC-BY-4.0 |
 | `crop-parameters-dssat.csv` | DSSAT Cropping System Model genotype files | BSD-3-Clause, with DSSAT's notice in `crop-parameters-dssat-LICENSE.txt` |
 | `chill-requirements.csv` | Fadón et al. 2020, *Agronomy* 10:409, doi:10.3390/agronomy10030409 — the tables, re-keyed | CC-BY-4.0 (the version of record's licence) |
+| `chill-requirements-pome.csv` | González Noguer et al. 2023, *Front. Hortic.* 2:1217689, doi:10.3389/fhort.2023.1217689, Table 2 (apples); Fadón et al. 2023, *Agronomy* 13:518, doi:10.3390/agronomy13020518, Table 2 (pears) — re-keyed | CC-BY-4.0 (both articles') |
 | `interactions.csv` | USDA PLANTS (CC0), GloBI (CC-BY-4.0), and curated rows citing their sources | CC-BY-4.0 |
 
 And test fixtures outside `docs/notes/`: `sim/data/mcallister-2007-spring.csv` and
