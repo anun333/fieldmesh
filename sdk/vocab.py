@@ -67,6 +67,16 @@ FIELD_CAPACITY = CF + "volume_fraction_of_condensed_water_in_soil_at_field_capac
 WILTING_POINT = CF + "volume_fraction_of_condensed_water_in_soil_at_wilting_point/"
 
 
+#: Rain (and snow, as water) as a depth over the period. CF's `precipitation_amount`
+#: is a mass per area (kg m-2); a rain gauge and a forecast both give millimetres, a
+#: length, and declaring millimetres under a mass term would be the unit lie §3.4
+#: forbids. The liquid-water-equivalent thickness is the length term.
+PRECIPITATION_DEPTH = CF + "lwe_thickness_of_precipitation_amount/"
+
+#: Wind speed. CF, canonical m s-1.
+WIND_SPEED = CF + "wind_speed/"
+
+
 #: A node's own GNSS fix. CF names, canonical units degree_north and degree_east;
 #: UCUM writes both as `deg`. A node that keeps GPS time already has this fix and
 #: used to discard it.
@@ -116,6 +126,8 @@ TERMS: dict[str, tuple[str, str]] = {
     WILTING_POINT: ("cm3/cm3", "CF"),
     LATITUDE: ("deg", "CF"),
     LONGITUDE: ("deg", "CF"),
+    PRECIPITATION_DEPTH: ("mm", "CF"),
+    WIND_SPEED: ("m/s", "CF"),
     BATTERY_VOLTAGE: ("V", "ODM2"),
     RSSI: ("dB[mW]", "ODM2"),
     VESSEL_FILL_FRACTION: ("1", "local"),
@@ -134,6 +146,8 @@ ACCEPTED_UNITS: dict[str, frozenset] = {
     RELATIVE_HUMIDITY: frozenset({"%", "1"}),
     LATITUDE: frozenset({"deg"}),
     LONGITUDE: frozenset({"deg"}),
+    PRECIPITATION_DEPTH: frozenset({"mm", "m", "[in_i]"}),
+    WIND_SPEED: frozenset({"m/s", "km/h", "[mi_i]/h"}),
     BATTERY_VOLTAGE: frozenset({"V", "mV"}),
     RSSI: frozenset({"dB[mW]"}),
     VESSEL_FILL_FRACTION: frozenset({"1", "%"}),

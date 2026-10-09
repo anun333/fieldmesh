@@ -29,6 +29,7 @@ python3 demo.py --json                        # the served Observations collecti
 | `gateway.py` | §5.1, §5.4, §8.1 | Ingest: decode, quarantine, dedup, gaps, reboots, raw, derive, assess |
 | `checks.py` | §4.2 | The four health checks, writing assertions and never mutations. One assertion per run carrying the union of flags |
 | `sensorthings.py` | §10, §3.2 | The SensorThings out-adapter. Serves **live observations only**, which is the compatibility promise v0 would have broken. Validated against FROST-Server |
+| `forecast.py` | §3.1, §3.2, §10; Q26 | Weather forecasts as input data: runs onto a `forecast` datastream with `issued_at`, the latest issue live, every run kept and scored against the farm's sensors by lead time |
 | `demo.py` | — | One command that exercises the whole chain, no hardware and no site data |
 | `spool.py` | §5.2 | Gateway-side store-and-forward: retry, auth, spool, drain |
 | `modbus_rtu.py` | §9 | Modbus RTU framing over serial, read function codes only (see [PROVENANCE.md](PROVENANCE.md)) |

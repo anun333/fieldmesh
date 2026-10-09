@@ -42,6 +42,7 @@
   "enum.ClockQuality.rtc_unsynced": "reloj sin sincronizar",
   "enum.DatastreamKind.derived": "calibrado",
   "enum.DatastreamKind.raw": "en bruto",
+  "enum.DatastreamKind.forecast": "pronóstico",
   "enum.DeviceKind.gateway": "pasarela",
   "enum.DeviceKind.node": "nodo",
   "enum.DeviceKind.sensor": "sensor",
@@ -202,6 +203,14 @@
   "advise.bloom.preface": "Floración y helada: para {count} estimaciones de variedades cuyos estudios dan también una necesidad de calor, la floración se simula sobre los propios inviernos del sitio —frío desde el 1 de noviembre, luego calor— y un año cuenta como helado cuando la mínima baja a −2,2 °C (28 °F) o menos en las dos semanas tras la floración. Las mínimas de la malla son más suaves que las del suelo de un huerto, así que los recuentos se quedan cortos.",
   "advise.bloom.crop": "{crop}: florece del {early} al {late} (mediana {median}); helada tras la floración en {frost} años de cada 10.",
   "advise.bloom.crop_unmet": "{crop}: florece del {early} al {late} (mediana {median}); helada tras la floración en {frost} años de cada 10. En {unmet} de sus {count} estimaciones, el frío no alcanza en más de 2 inviernos de cada 10.",
-  "advise.future.bloom": "{crop}: floración mediana {now} → {then}; helada tras la floración en {fnow} → {fthen} años de cada 10"
+  "advise.future.bloom": "{crop}: floración mediana {now} → {then}; helada tras la floración en {fnow} → {fthen} años de cada 10",
+  "term.http://vocab.nerc.ac.uk/standard_name/lwe_thickness_of_precipitation_amount/": "precipitación",
+  "term.http://vocab.nerc.ac.uk/standard_name/wind_speed/": "velocidad del viento",
+  "unit.mm": "milímetro",
+  "unit.m/s": "metro por segundo",
+  "unit.m": "metro",
+  "unit.[in_i]": "pulgada",
+  "unit.km/h": "kilómetro por hora",
+  "unit.[mi_i]/h": "milla por hora"
  }
 }

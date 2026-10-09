@@ -157,6 +157,7 @@ _CONVERTERS = {
         "calibration": (_enc_uuid, _dec_uuid),
         "supersedes": (_enc_uuid, _dec_uuid),
         "provenance": (_same, _same),
+        "issued_at": (_enc_time, _dec_time),
     },
     Threshold: {
         "id": (_enc_uuid, _dec_uuid),
@@ -185,6 +186,11 @@ _CONVERTERS = {
 _BY_NAME = {cls.__name__: cls for cls in _CONVERTERS}
 
 
+#: Fields added after logs existed, written only when set — so every log line written
+#: before them reads back, and is written again, byte for byte the same.
+_OMIT_WHEN_NONE = {(Observation, "issued_at")}
+
+
 def dump(record) -> dict:
     """A contract record as a JSON-able dict, tagged with its type."""
     table = _CONVERTERS.get(type(record))
@@ -192,7 +198,10 @@ def dump(record) -> dict:
         raise TypeError(f"no encoding for {type(record).__name__}")
     out = {TYPE_KEY: type(record).__name__}
     for name, (enc, _) in table.items():
-        out[name] = enc(getattr(record, name))
+        value = getattr(record, name)
+        if value is None and (type(record), name) in _OMIT_WHEN_NONE:
+            continue
+        out[name] = enc(value)
     return out
 
 

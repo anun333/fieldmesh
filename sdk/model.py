@@ -56,6 +56,10 @@ class ClockQuality(str, Enum):
 class DatastreamKind(str, Enum):
     RAW = "raw"
     DERIVED = "derived"
+    #: A prediction rather than a measurement: each observation is valid at
+    #: `measured_at` and was issued at `issued_at`, and a later issue for the same
+    #: valid time is the live one (§3.2; Q26).
+    FORECAST = "forecast"
 
 
 class QualityFlag(str, Enum):
@@ -207,6 +211,9 @@ class Datastream:
                 "observed_property must be a vocabulary URI, not free text (§3.4)")
         if self.kind is DatastreamKind.RAW and self.derived_from is not None:
             raise ValueError("a raw datastream has no derived_from (§3.1)")
+        if self.kind is DatastreamKind.FORECAST and self.derived_from is not None:
+            raise ValueError("a forecast datastream derives from no series of this farm; "
+                             "its source is its sensor, the forecast model (§3.1)")
         if self.kind is DatastreamKind.DERIVED and self.derived_from is None:
             raise ValueError("a derived datastream must name its derived_from (§3.1)")
         if self.derived_from == self.id:
@@ -484,10 +491,16 @@ class Observation:
     calibration: UUID | None = None
     supersedes: UUID | None = None
     provenance: dict = field(default_factory=dict)
+    #: When the result was produced — SensorThings' resultTime. Only a forecast has
+    #: one: a sensor reading's is unknown, and stays null rather than borrow
+    #: `received_at` (§3.2; Q26).
+    issued_at: _dt.datetime | None = None
 
     def __post_init__(self) -> None:
         _uuid7(self.id, "id")
         _uuid7(self.datastream, "datastream")
+        if self.issued_at is not None:
+            _utc(self.issued_at, "issued_at")
         _opt_uuid7(self.feature, "feature")
         _opt_uuid7(self.calibration, "calibration")
         _opt_uuid7(self.supersedes, "supersedes")
@@ -529,6 +542,18 @@ class Observation:
         """The §3.2 rules that need the datastream to check."""
         if datastream.id != self.datastream:
             raise ValueError("datastream mismatch")
+        if datastream.kind is DatastreamKind.FORECAST:
+            if self.issued_at is None:
+                raise ValueError("a forecast observation must say when it was issued "
+                                 "(§3.2; Q26)")
+            if self.calibration is not None or self.supersedes is not None:
+                raise ValueError(
+                    "a forecast carries no calibration and no supersedes: a later "
+                    "issue for the same valid time replaces it by its issued_at")
+            return
+        if self.issued_at is not None:
+            raise ValueError("only a forecast has an issued_at; a measurement's "
+                             "result time is not recorded (§3.2)")
         if datastream.kind is DatastreamKind.RAW:
             if self.calibration is not None:
                 raise ValueError(

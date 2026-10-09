@@ -26,11 +26,13 @@ scattering them at the top level would both misrepresent them and collide with a
 legitimate use. Nesting keeps `$filter` working — `parameters/librefarm/clock_quality
 eq 'none'` is a valid path — and reduces the 2.0 migration to one key.
 
-**`resultTime` is null.** 1.1 makes it mandatory-but-nullable, and it means "when
-the result was generated", which layer zero does not record. `received_at` is a
-different thing (when the gateway got it) and claiming it as `resultTime` would be
-a small lie in a field researchers read. Null is the honest encoding, and 1.1
-explicitly provides for it.
+**`resultTime` is null for a measurement.** 1.1 makes it mandatory-but-nullable, and it
+means "when the result was generated", which layer zero does not record for a sensor.
+`received_at` is a different thing (when the gateway got it) and claiming it as
+`resultTime` would be a small lie in a field researchers read. Null is the honest
+encoding, and 1.1 explicitly provides for it. A forecast is the case the field exists
+for — O&M's own example: `phenomenonTime` is the hour it is valid for and `resultTime`
+the run that produced it, so a forecast's `issued_at` is served there (Q26).
 
 `resultQuality` is emitted whenever an assertion exists, **including a clean one**,
 and omitted only when nothing has been asserted. §3.3's empty flag set is a
@@ -46,7 +48,7 @@ from uuid import UUID
 
 import i18n
 import project as P
-from model import Datastream, Observation, QualityAssertion
+from model import Datastream, DatastreamKind, Observation, QualityAssertion
 
 OM = "http://www.opengis.net/def/observationType/OGC-OM/2.0/"
 UCUM_DEFINITION = "http://unitsofmeasure.org/ucum.html"
@@ -502,7 +504,7 @@ class Service:
         doc = self._control("Observations", obs.id)
         doc["phenomenonTime"] = self._phenomenon_time(obs)
         doc["result"] = obs.result
-        doc["resultTime"] = None          # see the module docstring
+        doc["resultTime"] = iso(obs.issued_at) if obs.issued_at else None   # module docstring
         extras = {
             "measured_at_uncertainty_s": obs.measured_at_uncertainty,
             "received_at": iso(obs.received_at),
@@ -642,6 +644,9 @@ class Service:
         datastream, on every `/Datastreams` request — the same quadratic shape §7.2
         forbids, hidden in a serialiser rather than in the projection.
         """
+        if ds.kind is DatastreamKind.FORECAST:
+            issued = self.state.latest_issue(ds.id)
+            return P.datastream_health(ds, issued, issued) if issued else P.Health.UNKNOWN
         stamps = self.state._times_by_datastream.get(ds.id)
         now = max(stamps) if stamps else None
         return P.datastream_health(ds, now, now) if now else P.Health.UNKNOWN

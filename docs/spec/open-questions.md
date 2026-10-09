@@ -711,6 +711,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q23 | A rate-of-change limit that works at any sampling interval | **Decided 2026-10-08** |
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | False alarms on deep probes today |
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
+| Q26 | How does a weather forecast enter layer zero? | **Built as recommended 2026-10-09** — open to revisit |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
@@ -787,3 +788,45 @@ Worth noting what is *not* in tension: on a node that already transmits often fo
 urgent series, sending every sample of a sleepy one costs under 2%. This question
 only bites for a node whose series are all slow, which is exactly the node where
 battery life matters most.
+
+## Q26. How does a weather forecast enter layer zero?
+
+**Status: built as recommended 2026-10-09; open to revisit.** Raised when forecasts were
+asked for as input data: a frost watch, an irrigation rule that skips a watering when rain
+is coming, a tunnel closed before a cold night all act on them, and §1 promises that any
+action can be traced to why it happened — so the forecast an action rested on belongs in
+the log, not in a cache.
+
+A forecast does not fit a measured series. It has **two times**, the hour it is valid for
+and the run that produced it, where a reading has one. And it is **re-issued**: a run every
+hour or six predicts tomorrow afternoon again, so keeping the runs puts several values at
+one valid time, which §3.2 forbids of a measured series because it doubles every
+SensorThings chart.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **A. A `forecast` datastream kind; observations carry `issued_at`; the live value per valid time is the latest issue** | One series per variable and source, as a client expects; every run kept, so a forecast can be scored against the farm's sensors; `issued_at` is `resultTime`, which O&M defines for exactly this; no pointers to maintain, and a run arriving late cannot displace a newer one | A third kind, and one optional field on the observation |
+| B. Each newer run `supersedes` the older value for the same hour | Reuses the recalibration machinery unchanged | A newer forecast does not correct an older one; a late run would supersede a newer one unless the writer checks; still needs the issue time somewhere |
+| C. One datastream per run | No change to the model | Four new datastreams a day per variable; "the forecast for tomorrow" is a search across them |
+| D. One datastream per lead time (the 24-hour forecast, the 48-hour …) | Each series has one value per hour, as verification tables are kept | "The latest forecast" is a union of many series; leads are not uniform across sources |
+| E. Keep forecasts out of the log, in a layer 1 cache | Layer zero stays measurements only | Decisions made on a forecast cannot be traced to the forecast; nothing to score it with |
+
+**Recommendation and build: A.** It follows the principle Q20 recommends for a node's
+aggregates — a different kind of data is labelled as one rather than filed among
+measurements — and it reuses SensorThings as written: a forecast datastream is an ordinary
+Datastream, its observations ordinary Observations with `resultTime` set. A measurement's
+encoding does not change; `issued_at` is written only when present, so every log line
+written before it reads and writes back byte for byte.
+
+**Built:** `DatastreamKind.FORECAST` and `Observation.issued_at` (sdk/model.py); the
+latest-issue projection, health from the latest issue, `State.forecast()` and
+`has_issue()` (sdk/project.py); `resultTime` served (sdk/sensorthings.py); ingest and
+verification by lead time (sdk/forecast.py); NWS and MET Norway runs
+(tools/forecast_sources.py); and on the virtual farm, real recorded weather, a forecaster
+with a declared error and a scored frost watch (`make forecast`;
+[notes/forecasts.md](../notes/forecasts.md)).
+
+**Still open:** a forecast's quality — §4.2's checks are written for sensors and none runs
+on a forecast; a range check would, and the rest would mislead. And a forecast that is
+not a series — a probability of rain, an ensemble's spread — has no term or kind yet.
+

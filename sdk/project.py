@@ -111,6 +111,12 @@ def live(records) -> list:
     return [r for r in records if r.id not in dead]
 
 
+def later_issue(a: Observation, b: Observation) -> Observation:
+    """Of two forecasts for one valid time, the live one: the later issue (Q26). Ties
+    go to the later id, so any replay order gives the same answer."""
+    return max(a, b, key=lambda o: (o.issued_at, o.id.int))
+
+
 def live_observations(observations, *, strict: bool = True) -> dict:
     """Live observations keyed by `(datastream, measured_at)` (§3.2).
 
@@ -125,6 +131,9 @@ def live_observations(observations, *, strict: bool = True) -> dict:
         clash = out.get(key)
         if clash is None:
             out[key] = obs
+            continue
+        if obs.issued_at is not None and clash.issued_at is not None:
+            out[key] = later_issue(clash, obs)      # a forecast: the latest issue lives
             continue
         if strict:
             raise ProjectionError(
@@ -399,6 +408,12 @@ class State:
     _by_time: dict = field(default_factory=dict, repr=False)
     _superseded_labels: set = field(default_factory=set, repr=False)
     _streams_by_sensor: dict = field(default_factory=dict, repr=False)
+    #: Per `(forecast datastream, valid time)`, the live issue. A later issue retires
+    #: the earlier into `_superseded_obs` — no pointer in the data, so a run that
+    #: arrives late, after a newer one, simply never becomes live (Q26).
+    _forecast_live: dict = field(default_factory=dict, repr=False)   # ds -> {valid: obs}
+    _forecast_keys: set = field(default_factory=set, repr=False)     # (ds, valid, issued)
+    _last_issue: dict = field(default_factory=dict, repr=False)
 
     def observations_of(self, datastream_id: UUID) -> list:
         """Every observation on one series, in insertion order."""
@@ -548,10 +563,28 @@ class State:
                                datastream)
 
     def health_of(self, datastream_id: UUID, now: _dt.datetime) -> Health:
+        """A forecast's freshness is its latest issue: its newest `measured_at` is in
+        the future, and would read as healthy long after the source went quiet."""
         ds = self.datastreams[datastream_id]
+        if ds.kind is DatastreamKind.FORECAST:
+            return datastream_health(ds, self._last_issue.get(datastream_id), now)
         stamps = [o.measured_at for o in self.observations
                   if o.datastream == datastream_id]
         return datastream_health(ds, max(stamps) if stamps else None, now)
+
+    def latest_issue(self, datastream_id: UUID):
+        """When a forecast datastream's newest run was issued, or None."""
+        return self._last_issue.get(datastream_id)
+
+    def forecast(self, datastream_id: UUID, start: _dt.datetime, end: _dt.datetime) -> list:
+        """The live forecast between two valid times, in time order: for each hour,
+        the latest issue that covered it."""
+        hours = self._forecast_live.get(datastream_id, {})
+        return [hours[at] for at in sorted(hours) if start <= at < end]
+
+    def has_issue(self, datastream_id: UUID, valid_at: _dt.datetime, issued_at: _dt.datetime) -> bool:
+        """Whether this run's value for this hour is already in the log — live or not."""
+        return (datastream_id, valid_at, issued_at) in self._forecast_keys
 
     def add(self, record) -> None:
         """Fold one record into the current state.
@@ -602,6 +635,19 @@ class State:
                 record.datastream, set()).add(record.measured_at)
             if record.supersedes is not None:
                 self._superseded_obs.add(record.supersedes)
+            if record.issued_at is not None:
+                hours = self._forecast_live.setdefault(record.datastream, {})
+                self._forecast_keys.add((record.datastream, record.measured_at, record.issued_at))
+                current = hours.get(record.measured_at)
+                if current is None:
+                    hours[record.measured_at] = record
+                else:
+                    winner = later_issue(current, record)
+                    self._superseded_obs.add((record if winner is current else current).id)
+                    hours[record.measured_at] = winner
+                last = self._last_issue.get(record.datastream)
+                if last is None or record.issued_at > last:
+                    self._last_issue[record.datastream] = record.issued_at
         elif attr == "assertions":
             self._by_observation.setdefault(record.observation, []).append(record)
             if record.supersedes is not None:

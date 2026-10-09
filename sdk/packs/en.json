@@ -34,6 +34,7 @@
   "enum.ClockQuality.rtc_unsynced": "unsynced clock",
   "enum.DatastreamKind.derived": "calibrated",
   "enum.DatastreamKind.raw": "raw",
+  "enum.DatastreamKind.forecast": "forecast",
   "enum.DeviceKind.gateway": "gateway",
   "enum.DeviceKind.node": "node",
   "enum.DeviceKind.sensor": "sensor",
@@ -194,6 +195,14 @@
   "advise.bloom.preface": "Bloom and frost: for {count} cultivar estimates whose studies also give a heat requirement, bloom is simulated on this site's own winters — chill from November 1, then heat — and a year counts as frosted when the minimum falls to −2.2 °C (28 °F) or below within two weeks after bloom. The grid's minimums are milder than an orchard floor's, so the counts err low.",
   "advise.bloom.crop": "{crop}: blooms {early} to {late} (median {median}); frost after bloom in {frost} years of 10.",
   "advise.bloom.crop_unmet": "{crop}: blooms {early} to {late} (median {median}); frost after bloom in {frost} years of 10. For {unmet} of its {count} estimates, chill falls short in more than 2 winters of 10.",
-  "advise.future.bloom": "{crop}: median bloom {now} → {then}; frost after bloom in {fnow} → {fthen} years of 10"
+  "advise.future.bloom": "{crop}: median bloom {now} → {then}; frost after bloom in {fnow} → {fthen} years of 10",
+  "term.http://vocab.nerc.ac.uk/standard_name/lwe_thickness_of_precipitation_amount/": "precipitation",
+  "term.http://vocab.nerc.ac.uk/standard_name/wind_speed/": "wind speed",
+  "unit.mm": "millimetre",
+  "unit.m/s": "metre per second",
+  "unit.m": "metre",
+  "unit.[in_i]": "inch",
+  "unit.km/h": "kilometre per hour",
+  "unit.[mi_i]/h": "mile per hour"
  }
 }
