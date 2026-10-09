@@ -74,3 +74,5 @@ The site's own thirty years of weather, every day +1.0 °C warmer and with +0% r
 - Cherry: median bloom April 28 → April 22; frost after bloom in 0 → 0 years of 10
 - Apple: median bloom April 15 → April 12; frost after bloom in 0 → 0 years of 10
 - Pear: median bloom April 3 → March 29; frost after bloom in 1 → 0 years of 10
+
+*Made by librefarm advise 0.1.0, data ecfc5086e400, crop models DSSAT 25c93b9.*
