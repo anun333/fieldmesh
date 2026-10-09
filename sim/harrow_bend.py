@@ -406,8 +406,11 @@ def build(*, seed: int = 1, start: _dt.datetime = START,
     troughs = [ph.Trough(name="trough_north"),
                ph.Trough(name="trough_south", capacity_l=250.0, level_l=235.0,
                          stock_count=14)]
+    # The hoop house is a tunnel with its own physics — sun trapped by day, the soil's
+    # heat given back by night, less of it on a clear cold night, the sides rolled up
+    # when it passes 27 °C — rather than a constant six degrees over the outside air.
     world = ph.World(start=start, climate=ph.Climate(seed=seed), beds=beds,
-                     troughs=troughs)
+                     troughs=troughs, tunnels=[ph.Tunnel(name="hoop")])
     # Drip timers, one per bed, each starting at its own hour and alternating days.
     # Ordinary for a market garden; and the reason a probe's moisture record says which
     # bed it is in — shared rain wets every bed together, but each bed's own timer wets
@@ -474,7 +477,7 @@ def build(*, seed: int = 1, start: _dt.datetime = START,
     _series(farm, name="hoop_temp", feature="hoop", prop=AIR_TEMP, unit="Cel",
             scale=10.0, decimals=1, thresholds=AIR_THRESHOLDS, interval=300.0,
             latency=600.0, channel=1,
-            read=lambda t: t.weather.air_temp_c + 6.0)
+            read=lambda t: t.tunnel_temp["hoop"])
     _series(farm, name="hoop_humidity", feature="hoop", prop=HUMIDITY, unit="%",
             scale=10.0, decimals=1,
             thresholds={"min": 0.0, "max": 100.0, "flat_seconds": 6 * 3600,

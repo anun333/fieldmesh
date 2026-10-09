@@ -79,6 +79,25 @@ class TestTheFarmItself(Matrix):
                          [o.result for o in again.gateway.state.observations])
 
 
+class TestTheHoopHouse(unittest.TestCase):
+    def test_it_reads_the_tunnels_own_physics_not_a_constant_offset(self):
+        """Inside minus outside swings between the sun's gain by day and the soil's by
+        night. The hoop sensor read a flat outside + 6 °C before the tunnel was modelled;
+        a constant offset would give one gain at every hour."""
+        farm = hb.build(seed=1)
+        self.assertIn("hoop", farm.world.tunnels)
+        gains = {}
+        for _ in range(int(24 * 3600 / 300)):
+            truth = farm.world.step()
+            gains.setdefault(truth.when.hour, []).append(
+                truth.tunnel_temp["hoop"] - truth.weather.air_temp_c)
+        morning = max(max(gains[h]) for h in range(7, 11))
+        night = max(max(gains[h]) for h in range(0, 5))
+        self.assertGreater(morning, night + 3.0, "the sun under plastic, before the sides go up")
+        self.assertGreater(min(min(gains[h]) for h in range(0, 5)), 0.0,
+                           "the soil gives back heat at night")
+
+
 class TestIdentity(Matrix):
     """§1."""
 
