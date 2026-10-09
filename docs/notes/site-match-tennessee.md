@@ -121,7 +121,7 @@ USDA PLANTS knows almost nothing about food crops, so a second source was brough
 **DSSAT** crop models (BSD-3-Clause), whose parameter files give each crop's cardinal
 temperatures for development, its response to day length, and — per cultivar — how long
 each phase takes. [dssat_crops.py](../../tools/dssat_crops.py) ports DSSAT's own response
-curves and CROPGRO's phenology and runs every cultivar of 22 crops through the site's
+curves and the CROPGRO and CERES-Maize phenology, and runs every cultivar of 23 crops through the site's
 thirty years of weather and day length: planted a week after each year's last frost (four
 weeks before it for cool-season crops), does it reach physiological maturity before the
 first fall frost? [crop-parameters-dssat.csv](crop-parameters-dssat.csv) carries the
@@ -131,6 +131,7 @@ At McAllister Farm:
 
 | crop | cultivars maturing 8 years in 10 | days to maturity |
 | --- | --- | --- |
+| maize (CERES-Maize) | 166 of 166 hybrids | 86–148 |
 | dry bean | 30 of 30 | 75–107 |
 | tomato | 4 of 4 | 120–131 |
 | pepper | 5 of 5 | 155–182 |
@@ -184,11 +185,11 @@ another PLANTS oddity.
 
 ## Not checked yet
 
-For the 22 crops with a crop model, temperature, day length and time to maturity are now
+For the 23 crops with a crop model, temperature, day length and time to maturity are now
 checked together, by simulation. Still not checked: chill hours against a fruit tree's
 requirement (no open source found yet), heat damage to fruit set beyond the development
-curve, fall plantings of cool-season crops, the cereals (DSSAT's CERES models use a
-different structure, not ported yet), and everything for the 255 plants with neither
+curve, fall plantings of cool-season crops, the other cereals (sorghum, millet, wheat, barley
+and rice each have their own DSSAT phenology, not ported yet), and everything for the 255 plants with neither
 source — most fruit, herbs and flowers.
 
 ## Reproducing

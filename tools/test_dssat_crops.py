@@ -87,5 +87,36 @@ class DevelopTest(unittest.TestCase):
         self.assertLess(D.civil_day_length(35, 172), 15.6)
 
 
+class MaizeTest(unittest.TestCase):
+    ECO = {"TBASE": 8.0, "TOPT": 34.0, "P2O": 12.5, "DJTI": 4.0, "GDDE": 6.0, "DSGFT": 170.0}
+    CUL = {"P1": 160.0, "P2": 0.75, "P5": 780.0, "PHINT": 49.0}
+
+    def test_thermal_time(self):
+        self.assertEqual(D.maize_dtt(2, 7, 20, 12, 12, 8, 34), 0.0, "below base all day")
+        self.assertEqual(D.maize_dtt(20, 30, 20, 12, 12, 8, 34), 17.0, "mean less base")
+        self.assertEqual(D.maize_dtt(35, 40, 20, 12, 12, 8, 34), 26.0, "capped at the optimum")
+        self.assertGreater(D.maize_dtt(4, 20, 20, 12, 12, 8, 34), 0.0, "sine when crossing the base")
+
+    def days(self, temp, n=300, srad=20.0):
+        start = dt.date(2020, 5, 1)
+        return [(start + dt.timedelta(days=i), {"T2M_MIN": temp, "T2M_MAX": temp,
+                                                "ALLSKY_SFC_SW_DWN": srad}) for i in range(n)]
+
+    def test_it_silks_then_matures(self):
+        r = D.develop_maize(self.CUL, self.ECO, self.days(28.0), 0, 35.0)
+        self.assertIsNotNone(r["flower"])
+        self.assertGreater(r["maturity"], r["flower"])
+        # 20 thermal units a day at 28 °C: P5 = 780 after silking is 39 days.
+        self.assertEqual(r["maturity"] - r["flower"], 39)
+
+    def test_a_longer_season_hybrid_matures_later(self):
+        early = D.develop_maize(self.CUL, self.ECO, self.days(28.0), 0, 35.0)
+        late = D.develop_maize({**self.CUL, "P5": 950.0}, self.ECO, self.days(28.0), 0, 35.0)
+        self.assertGreater(late["maturity"], early["maturity"])
+
+    def test_cold_stops_it(self):
+        self.assertIsNone(D.develop_maize(self.CUL, self.ECO, self.days(6.0), 0, 35.0)["maturity"])
+
+
 if __name__ == "__main__":
     unittest.main()

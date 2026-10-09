@@ -20,7 +20,11 @@ What is ported, from DSSAT's own source:
   ecotype FORMAT 3100 — and the derived thresholds: PHTHRS(5) as the remainder of EM-FL,
   CLDVAR = CSDVAR + (1−THVAR)/PPSEN, CSDVRR = CSDVAR − R1PPO;
 * PHENOL.for's daily rate for a phase: the temperature curve averaged over 24 hourly
-  temperatures, times the day-length curve.
+  temperatures, times the day-length curve;
+* for maize, MZ_PHENOL.for's CERES phenology: daily thermal time (soil-temperature rule
+  before ten leaves, a 24-point sine when the day crosses base or optimum), emergence,
+  the juvenile phase, the day-length index to tassel initiation, the leaf-number rule to
+  silking, and P5 to maturity.
 
 What is simplified, and said so: hourly temperatures are a sine between the day's minimum
 and maximum, not DSSAT's own diurnal model; soil temperature at seed depth is taken as
@@ -274,21 +278,17 @@ def frost_years(days: list, north: bool) -> list:
     return [(y, *years[y]) for y in sorted(years)]
 
 
-def evaluate(spe: dict, cultivars: list, ecos: dict, days: list, lat: float) -> list:
-    """For each cultivar: median days to flower and maturity, and the share of years it
-    matures before the first fall frost."""
+def evaluate(runners: list, days: list, lat: float, cool: bool) -> list:
+    """For each cultivar runner: median days to flower and maturity, and the share of
+    years it matures before the first fall frost. A runner is (name, code, photoperiod,
+    critical day length, run) where `run(days, start, stop)` -> {flower, maturity}."""
     north = lat >= 0
     index = {d: i for i, (d, _) in enumerate(days)}
     seasons = frost_years(days, north)
     lasts = [days[l][0].timetuple().tm_yday for _, l, _ in seasons if l is not None]
     median_last = int(statistics.median(lasts)) if lasts else 60
-    cool = spe["temps"][1][0] < COOL_SEASON_BASE_C
     out = []
-    for cul in cultivars:
-        eco = ecos.get(cul["eco"]) or ecos.get("DFAULT")
-        if eco is None:
-            continue
-        th = thresholds(cul, eco)
+    for name, code, photoperiod, csdl, run in runners:
         to_flower, to_mature, safe, tried = [], [], 0, 0
         for year, last, first in seasons:
             if cool:
@@ -301,22 +301,157 @@ def evaluate(spe: dict, cultivars: list, ecos: dict, days: list, lat: float) -> 
             if start is None:
                 continue
             tried += 1
-            r = develop(spe, th, days, start, lat, stop=first)
+            r = run(days, start, first)
             if r["flower"] is not None:
                 to_flower.append(r["flower"] - start)
             if r["maturity"] is not None:
                 to_mature.append(r["maturity"] - start)
                 safe += 1
         if tried:
-            out.append({"cultivar": cul["name"], "code": cul["code"],
+            out.append({"cultivar": name, "code": code,
                         "planting": "4 weeks before last frost" if cool else "1 week after last frost",
                         "days_to_flower": int(statistics.median(to_flower)) if to_flower else None,
                         "days_to_maturity": int(statistics.median(to_mature)) if to_mature else None,
                         "matures_before_frost": round(safe / tried, 2), "years": tried,
-                        "photoperiod": ("day-neutral" if abs(cul["PPSEN"] or 0) < 1e-6
-                                        else "short-day" if (cul["PPSEN"] or 0) > 0 else "long-day"),
-                        "csdl_h": cul["CSDL"]})
+                        "photoperiod": photoperiod, "csdl_h": csdl})
     return out
+
+
+def cropgro_runners(spe: dict, cultivars: list, ecos: dict, lat: float) -> list:
+    runners = []
+    for cul in cultivars:
+        eco = ecos.get(cul["eco"]) or ecos.get("DFAULT")
+        if eco is None:
+            continue
+        th = thresholds(cul, eco)
+        photoperiod = ("day-neutral" if abs(cul["PPSEN"] or 0) < 1e-6
+                       else "short-day" if (cul["PPSEN"] or 0) > 0 else "long-day")
+        runners.append((cul["name"], cul["code"], photoperiod, cul["CSDL"],
+                        lambda days, start, stop, th=th: develop(spe, th, days, start, lat, stop)))
+    return runners
+
+
+# ----------------------------------------------------------- CERES-Maize, ported
+
+def parse_maize_cul(text: str) -> list:
+    """MZCER048.CUL: VAR#, VRNAME, EXPNO, ECO#, then P1, P2, P5, G2, G3, PHINT."""
+    out = []
+    for line in text.replace("\r", "").splitlines():
+        if not line.strip() or line[0] in "!*@" or len(line) < 72:
+            continue
+        code = line[0:6].strip()
+        if code in ("999991", "999992"):
+            continue
+        out.append({"code": code, "name": line[7:23].strip(), "eco": line[30:36].strip(),
+                    "P1": _f(line[36:42]), "P2": _f(line[42:48]), "P5": _f(line[48:54]),
+                    "PHINT": _f(line[66:72])})
+    return out
+
+
+def parse_maize_eco(text: str) -> dict:
+    """MZ_PHENOL.for FORMAT 3100: (A6,1X,A16,1X,10(1X,F5.0),...): TBASE, TOPT, ROPT, P2O,
+    DJTI, GDDE, DSGFT, ..."""
+    out = {}
+    for line in text.replace("\r", "").splitlines():
+        if not line.strip() or line[0] in "!*@" or len(line) < 66:
+            continue
+        out[line[0:6].strip()] = {"TBASE": _f(line[25:30]), "TOPT": _f(line[31:36]),
+                                  "P2O": _f(line[43:48]), "DJTI": _f(line[49:54]),
+                                  "GDDE": _f(line[55:60]), "DSGFT": _f(line[61:66])}
+    return out
+
+
+def maize_dtt(tmin: float, tmax: float, srad: float, dayl: float, leafno: float,
+              tbase: float, dopt: float) -> float:
+    """MZ_PHENOL.for's daily thermal time, without snow: before ten leaves, from the
+    soil-temperature estimate; otherwise the mean, or a 24-point sine when the day
+    crosses the base or the optimum."""
+    if tmax < tbase:
+        dtt = 0.0
+    elif tmin > dopt:
+        dtt = dopt - tbase
+    elif leafno <= 10:
+        acoef = 0.01061 * srad + 0.5902
+        tdsoil = acoef * tmax + (1.0 - acoef) * tmin
+        tnsoil = 0.36354 * tmax + 0.63646 * tmin
+        if tdsoil < tbase:
+            dtt = 0.0
+        else:
+            tnsoil = max(tnsoil, tbase)
+            tdsoil = min(tdsoil, dopt)
+            tmsoil = tdsoil * (dayl / 24.0) + tnsoil * ((24.0 - dayl) / 24.0)
+            dtt = ((tbase + tdsoil) / 2.0 - tbase) if tmsoil < tbase else ((tnsoil + tdsoil) / 2.0 - tbase)
+            dtt = min(dtt, dopt - tbase)
+    elif tmin < tbase or tmax > dopt:
+        dtt = 0.0
+        for i in range(1, 25):
+            th = (tmax + tmin) / 2.0 + (tmax - tmin) / 2.0 * math.sin(3.14 / 12.0 * i)
+            th = min(max(th, tbase), dopt)
+            dtt += (th - tbase) / 24.0
+    else:
+        dtt = (tmax + tmin) / 2.0 - tbase
+    return max(dtt, 0.0)
+
+
+SOWING_DEPTH_CM = 5.0
+
+
+def develop_maize(cul: dict, eco: dict, days: list, start: int, lat: float,
+                  stop: int | None = None) -> dict:
+    """MZ_PHENOL.for's stages from sowing: emergence after 45 + GDDE x depth; juvenile to
+    P1; tassel initiation when the day-length index reaches 1, at 1/(DJTI + P2 x
+    (twilight day length − P2O)) a day; then P3 = (leaves + 0.5) x PHINT − thermal time
+    so far to silking, with leaves = thermal time / (0.5 x PHINT) + 5; maturity at P5
+    after silking. Germination is taken as immediate (moist soil); the leaf count that
+    switches the early soil-temperature rule is estimated as one leaf per PHINT."""
+    out = {"flower": None, "maturity": None}
+    tbase, dopt = eco["TBASE"], eco["TOPT"]
+    p9 = 45.0 + eco["GDDE"] * SOWING_DEPTH_CM
+    stage, sumdtt, sind, p3, since_emergence = 9, 0.0, 0.0, None, 0.0
+    end = min(len(days), stop if stop is not None else start + 365)
+    for i in range(start, end):
+        date, v = days[i]
+        if "T2M_MIN" not in v or "T2M_MAX" not in v:
+            continue
+        doy = date.timetuple().tm_yday
+        leafno = 1.0 + since_emergence / cul["PHINT"] if stage != 9 else 0.0
+        dtt = maize_dtt(v["T2M_MIN"], v["T2M_MAX"], v.get("ALLSKY_SFC_SW_DWN", 15.0),
+                        site_profile.day_length_h(lat, doy), leafno, tbase, dopt)
+        sumdtt += dtt
+        if stage != 9:
+            since_emergence += dtt
+        if stage == 9 and sumdtt >= p9:
+            stage, sumdtt = 1, sumdtt - p9
+        elif stage == 1 and sumdtt >= cul["P1"]:
+            stage, sind = 2, 0.0
+        elif stage == 2:
+            twilen = civil_day_length(lat, doy)
+            rate = (1.0 / (eco["DJTI"] + cul["P2"] * (twilen - eco["P2O"]))
+                    if twilen > eco["P2O"] else 1.0 / eco["DJTI"])
+            sind += rate
+            if sind >= 1.0:
+                tlno = sumdtt / (cul["PHINT"] * 0.5) + 5.0
+                p3 = (tlno + 0.5) * cul["PHINT"] - sumdtt
+                stage, sumdtt = 3, 0.0
+        elif stage == 3 and sumdtt >= p3:
+            stage, sumdtt = 4, sumdtt - p3
+            out["flower"] = i                            # silking
+        elif stage == 4 and sumdtt >= cul["P5"]:
+            out["maturity"] = i                          # black layer
+            return out
+    return out
+
+
+def maize_runners(cultivars: list, ecos: dict, lat: float) -> list:
+    runners = []
+    for cul in cultivars:
+        eco = ecos.get(cul["eco"]) or ecos.get("DFAULT") or next(iter(ecos.values()))
+        if None in (cul["P1"], cul["P2"], cul["P5"], cul["PHINT"]):
+            continue
+        runners.append((cul["name"], cul["code"], "short-day" if cul["P2"] > 0 else "day-neutral",
+                        eco["P2O"], lambda days, start, stop, cul=cul, eco=eco:
+                        develop_maize(cul, eco, days, start, lat, stop)))
+    return runners
 
 
 # ---------------------------------------------------------------------- I/O
@@ -352,9 +487,20 @@ def main(argv=None) -> int:
     days = site_profile.days_of(site_profile.fetch_power(args.lat, args.lon, 1991, 2020,
                                                          os.path.join(args.cache, "power")))
     rows, params = [], []
-    for code, scientific in CROPS.items():
-        spe, ecos, culs = load(code, os.path.join(args.cache, "dssat"))
-        results = evaluate(spe, culs, ecos, days, args.lat)
+    models = [(code, scientific, "CROPGRO") for code, scientific in CROPS.items()]
+    models.append(("MZ", "Zea mays", "CERES-Maize"))
+    for code, scientific, model in models:
+        cache = os.path.join(args.cache, "dssat")
+        if model == "CERES-Maize":
+            culs = parse_maize_cul(fetch("MZCER048.CUL", cache))
+            ecos = parse_maize_eco(fetch("MZCER048.ECO", cache))
+            spe = {"name": "Maize", "temps": {1: (ecos["IB0001"]["TBASE"], ecos["IB0001"]["TOPT"],
+                                                  ecos["IB0001"]["TOPT"], 44.0)}}
+            results = evaluate(maize_runners(culs, ecos, args.lat), days, args.lat, cool=False)
+        else:
+            spe, ecos, culs = load(code, cache)
+            results = evaluate(cropgro_runners(spe, culs, ecos, args.lat), days, args.lat,
+                               cool=spe["temps"][1][0] < COOL_SEASON_BASE_C)
         if not results:
             continue
         best = max(results, key=lambda r: (r["matures_before_frost"],
@@ -377,13 +523,19 @@ def main(argv=None) -> int:
                      "longest_days_to_maturity": longest["days_to_maturity"] if longest else "",
                      "planting": best["planting"], "photoperiod": best["photoperiod"]})
         t = spe["temps"]
+        if model == "CERES-Maize":
+            cd = f"{min(e['P2O'] for e in ecos.values()):g}–{max(e['P2O'] for e in ecos.values()):g}"
+            ps = f"P2 {min(c['P2'] for c in culs):g}–{max(c['P2'] for c in culs):g} days/h"
+        else:
+            cd = f"{min(c['CSDL'] for c in culs):g}–{max(c['CSDL'] for c in culs):g}"
+            ps = f"{min(c['PPSEN'] for c in culs):g}–{max(c['PPSEN'] for c in culs):g}"
         params.append({"scientific_name": scientific, "dssat_crop": spe["name"], "dssat_code": code,
+                       "model": model,
                        "vegetative_tb_to1_to2_tm_c": " ".join(f"{x:g}" for x in t[1]),
                        "early_reproductive_c": " ".join(f"{x:g}" for x in t.get(2, ())),
                        "late_reproductive_c": " ".join(f"{x:g}" for x in t.get(3, ())),
-                       "cultivars": len(culs),
-                       "critical_day_length_h": f"{min(c['CSDL'] for c in culs):g}–{max(c['CSDL'] for c in culs):g}",
-                       "photoperiod_sensitivity": f"{min(c['PPSEN'] for c in culs):g}–{max(c['PPSEN'] for c in culs):g}"})
+                       "cultivars": len(culs), "critical_day_length_h": cd,
+                       "photoperiod_sensitivity": ps})
     with open(args.out, "w", newline="", encoding="utf-8") as h:
         w = csv.DictWriter(h, fieldnames=list(rows[0]))
         w.writeheader()
