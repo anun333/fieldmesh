@@ -51,4 +51,12 @@ regulated in ways the rest of a farm is not:
 
 1. Pull the propagation fields from USDA PLANTS with the rest of the plant characteristics.
 2. A propagation calendar for a farm: when to sow, stratify, take cuttings, graft, lift.
-3. A check for protected varieties before anything is propagated for sale.
+3. A check for protected varieties before anything is propagated for sale. *Built 2026-10-09 for
+   Plant Variety Protection:* [protected_varieties.py](../protected_varieties.py) reads the
+   PVP Office's monthly Application Status Report (every application since 1970: 18,327
+   rows, 8,955 certificates issued, 983 pending) and says whether a variety is protected,
+   provisionally protected (pending: the Act protects from the date of application), or not
+   under PVP. Kizuri apple: protected to 2047. Plant patents are not checked — fruit trees,
+   berries and plants propagated from cuttings are usually patented rather than
+   certificated (Honeycrisp was, until 2008), and the patent office serves plant patents as
+   scanned images — so "not found" is never "free to propagate", and the tool says so.
