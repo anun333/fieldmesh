@@ -116,5 +116,5 @@ from USDA PLANTS' noxious and invasive status by state; worldwide, from GRIIS.
    "The 2050s"; +1.0 °C for the 2050s and about +1.3 °C for the 2060s at the Tennessee
    farms, from `~/dev/climate-analysis`). It is a uniform shift: species limited by summer
    nights or by drought need the seasonal and variability changes a CMIP6 downscale gives.
-   For fruit trees, chill is now checked by cultivar for stone fruit, with bloom date and
-   frost after bloom, and the 2050s run reports how each moves.
+   For fruit trees, chill is now checked by cultivar for stone fruit, apples and pears, with
+   bloom date and frost after bloom, and the 2050s run reports how each moves.

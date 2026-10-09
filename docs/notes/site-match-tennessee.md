@@ -410,9 +410,9 @@ buckwheat's photosensitisation — while "bloat: medium" on maize is another PLA
 
 For the 28 crops with a crop model, temperature, day length and time to maturity — and for
 wheat and barley, vernalization, winter kill, freeze after boot and heat at flowering — are
-checked together, by simulation; for 531 stone-fruit cultivars, winter chill, and for 132
-of them, bloom date and frost after it. Still not checked: chill and bloom for apples,
-pears and blueberries (no openly licensed table found), heat damage to fruit set beyond
+checked together, by simulation; for 531 stone-fruit cultivars, 78 apples and 16 pears,
+winter chill, and for 167 of them, bloom date and frost after it. Still not checked: chill
+and bloom for blueberries (no openly licensed table found), heat damage to fruit set beyond
 the development curve, transplanted rice (the drill-seeded path is ported, as the
 Mid-South sows it), oats and rye (no DSSAT model), and everything for the 255 plants with
 neither source — most fruit, herbs and flowers.
