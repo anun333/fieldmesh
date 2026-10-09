@@ -472,7 +472,7 @@ The hand-packed layout stays **documented as an escape hatch** for a node draini
 
 ## Q6. Which link ships first
 
-**Status: DECIDED 2026-10-09 — Meshtastic first, a wired Modbus driver kept in the test suite as the control, LoRaWAN second (the maintainer adopted the recommendation).** Since decided: `sdk/modbus_rtu.py` has its tests (CRC against the specification's example, a round trip over a pty). Plan B, if Meshtastic's firmware churn or airtime makes nodes unreliable: LoRaWAN first through a self-hosted ChirpStack. Was: blocks v0. It sets the airtime budget everything else is sized against.
+**Status: DECIDED 2026-10-09 — Meshtastic first, a wired Modbus driver kept in the test suite as the control, LoRaWAN second (the maintainer adopted the recommendation).** Since decided: `sdk/modbus_rtu.py` has its tests (CRC against the specification's example, a round trip over a pty), and a real device's live stream runs through layer zero ahead of hardware — McAllister Farm's SCAN station, every six hours ([notes/scan-live.md](../notes/scan-live.md)). Plan B, if Meshtastic's firmware churn or airtime makes nodes unreliable: LoRaWAN first through a self-hosted ChirpStack. Was: blocks v0. It sets the airtime budget everything else is sized against.
 
 | Option | For | Against |
 | --- | --- | --- |
