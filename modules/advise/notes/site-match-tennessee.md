@@ -431,9 +431,18 @@ For the 28 crops with a crop model, temperature, day length and time to maturity
 wheat and barley, vernalization, winter kill, freeze after boot and heat at flowering — are
 checked together, by simulation; for 531 stone-fruit cultivars, 78 apples and 16 pears,
 winter chill, and for 167 of them, bloom date and frost after it. Still not checked: chill
-and bloom for blueberries, heat damage to fruit set beyond
-the development curve, a rice nursery raised under cover, oats (no DSSAT model), and everything for the 255 plants with
+and bloom for blueberries, heat damage to fruit set in any crop but tomato, a rice nursery raised under cover, oats (no DSSAT model), and everything for the 255 plants with
 neither source — most fruit, herbs and flowers.
+
+**Heat at fruit set** is checked for tomato, the one crop with a threshold a field can be
+held to: Sato, Peet and Thomas (2000) found four of five cultivars set no fruit at 32/26 °C
+day and night, where ten days' relief before flowering restored it ([fruit_set.py](../fruit_set.py)).
+At McAllister the days get there — ten-day mean highs of 32 °C on up to 77 days a summer —
+but the nights never do: the warmest ten-day stretch of nights in thirty years averaged
+23.6 °C. So heat does not stop tomato fruit set here, and in the 2050s, a degree warmer,
+it still would not. Pepper and bean were considered and left out: the pepper study held a
+constant 33 °C, which no field's day is, and the bean threshold could not be read from an
+open copy of its study.
 
 **Blueberries, looked for and not found (2026-10-09).** No openly licensed table of chill
 by cultivar turned up — not in MDPI or Frontiers, where the apple and stone-fruit tables

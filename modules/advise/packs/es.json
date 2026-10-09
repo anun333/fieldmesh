@@ -122,6 +122,8 @@
   "advise.propagation.container": "Planta en contenedor ({count} plantas), fuera del calor de pleno verano: {windows}.",
   "advise.propagation.cuttings": "Estacas leñosas ({count} plantas), tomadas en reposo: {windows}.",
   "advise.propagation.sprigs": "Estolones y tepes ({count} plantas), con el suelo cálido: {windows}.",
-  "advise.propagation.tubers": "Tubérculos ({count} plantas): {windows}."
+  "advise.propagation.tubers": "Tubérculos ({count} plantas): {windows}.",
+  "advise.fruitset.none": "El calor que impide su cuajado — {day:.0f}/{night:.0f} °C de día y de noche durante los {window} días antes de la floración ({source}) — no llega aquí: la racha de noches más cálida en treinta años promedió {warmest:.1f} °C.",
+  "advise.fruitset.days": "El calor que impide su cuajado — {day:.0f}/{night:.0f} °C de día y de noche durante los {window} días antes de la floración ({source}) — llega unos {days} días por verano, 8 años de cada 10: las flores que abren entonces cuajan poco."
  }
 }

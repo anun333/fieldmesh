@@ -36,6 +36,7 @@ import module  # noqa: E402
 import plant_match  # noqa: E402
 import plant_names  # noqa: E402
 import propagation as propagation_module  # noqa: E402
+import fruit_set  # noqa: E402
 import site_profile  # noqa: E402
 
 module.register_packs()
@@ -172,7 +173,8 @@ def bloom_lines(r: "Report", bloom: dict, north: bool) -> list:
 def render(site: dict, rows: list, cal: dict, language: str, today: str,
            chill: list | None = None, bloom: dict | None = None,
            fruit_chill: float | None = None,
-           propagation: list | None = None) -> str:
+           propagation: list | None = None,
+           fruit_set_heat: dict | None = None) -> str:
     r = Report(language)
     c = site["climate"]
     out = [f"# {r.tr('advise.title', lat=site['lat'], lon=site['lon'])}", "",
@@ -214,6 +216,16 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str,
                 out.append("- " + r.tr("advise.crop.fits_nowindow", crop=r.plant(row), fit=fit,
                                        total=s["cultivars"], fast=s["best_days_to_maturity"],
                                        slow=s["longest_days_to_maturity"]))
+            rule = fruit_set.RULES.get(row["scientific_name"])
+            if rule and fruit_set_heat and row["scientific_name"] in fruit_set_heat:
+                h = fruit_set_heat[row["scientific_name"]]
+                out[-1] += " " + (r.tr("advise.fruitset.days", day=rule.day_c, night=rule.night_c,
+                                       window=rule.window_days, source=rule.source,
+                                       days=h["days_8_in_10"])
+                                  if h["days_8_in_10"] else
+                                  r.tr("advise.fruitset.none", day=rule.day_c, night=rule.night_c,
+                                       window=rule.window_days, source=rule.source,
+                                       warmest=h["warmest_night_mean_c"]))
             if str(s.get("transplanted_cultivars_maturing_8_in_10", "")).strip():
                 out[-1] += " " + r.tr("advise.crop.transplanted",
                                       fit=int(s["transplanted_cultivars_maturing_8_in_10"]),
@@ -399,10 +411,11 @@ def main(argv=None) -> int:
     bloom = fruit_bloom.summarize(fruit_bloom.simulate(chill, days, args.lat))
     eight = lambda xs: sorted(xs)[int(0.2 * len(xs))] if xs else 0.0
     fruit_chill = eight(fruit_bloom.winter_chill(days, args.lat))
+    heat = {name: fruit_set.heat_days(days, rule) for name, rule in fruit_set.RULES.items()}
     for lang in args.lang.split(","):
         path = os.path.join(args.out, f"report.{lang}.md")
         with open(path, "w", encoding="utf-8") as h:
-            h.write(render(site, rows, cal, lang, today, chill, bloom, fruit_chill, propagation))
+            h.write(render(site, rows, cal, lang, today, chill, bloom, fruit_chill, propagation, heat))
         print(f"wrote {path}")
     if args.warm is not None:
         site2 = site_profile.profile(args.lat, args.lon, cache=power, warm_c=args.warm,
