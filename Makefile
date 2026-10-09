@@ -1,6 +1,6 @@
 # librefarm — layer zero
 .POSIX:
-.PHONY: help test demo world drill siting q5 q5-points power vocab vocab-resolve packs serve season export frost clean
+.PHONY: help test demo world drill siting forecast q5 q5-points power vocab vocab-resolve packs serve season export frost clean
 
 help:
 	@echo "test   run every test (sdk + tools + sim + server)"
@@ -8,6 +8,7 @@ help:
 	@echo "world  a day of farm physics through a node to the gateway"
 	@echo "drill  seed faults and score the detectors against ground truth"
 	@echo "siting score the depth check against moves nobody logged (§4.1)"
+	@echo "forecast  forecasts through layer zero on real 2007 weather, scored (Q26)"
 	@echo "q5     the encoding measurement behind the Q5 decision"
 	@echo "q5-points  what each encoding costs at realistic sample/transmit rates"
 	@echo "power  where a node's battery goes, per datastream"
@@ -37,6 +38,9 @@ drill:
 
 siting:
 	@cd sim && python3 siting_drill.py
+
+forecast:
+	@cd sim && python3 forecast_drill.py
 
 q5:
 	@cd tools && python3 q5_encoding.py

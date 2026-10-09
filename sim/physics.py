@@ -136,6 +136,108 @@ class Climate:
                        raining=self._raining)
 
 
+class RecordedClimate:
+    """A real place's weather, replayed: daily records disaggregated to the 5-minute tick.
+
+    The seeded `Climate` has the right shape and no history; this has history. Give it
+    daily minimum and maximum air temperature, rain, mean humidity and sunshine — the
+    NASA POWER fields `T2M_MIN`, `T2M_MAX`, `PRECTOTCORR`, `RH2M`, `ALLSKY_SFC_SW_DWN`
+    — and the virtual farm lives through that season: McAllister Farm's spring of 2007,
+    say, warm March, Easter freeze and all (sim/data/).
+
+    * **Temperature** runs on half-cosines between the day's extremes, coldest at 05:00
+      and warmest at 17:00 — the phase `Climate` uses, so every check calibrated
+      against the synthetic world sees the same shape — and joins each evening's
+      maximum to the next morning's minimum, so midnight has no step.
+    * **Rain** falls in one spell a day, about 2.5 mm an hour, at an hour drawn from
+      the seed and the date; the day's total is exact.
+    * **Humidity** is the day's mean, lower in the warm afternoon, near saturation in
+      rain.
+    * **Reference ET** is Hargreaves' radiation formula, 0.0135 (T + 17.8) Rs, from the
+      day's sunshine, spread over daylight and cut by rain as `Climate` cuts it.
+
+    Like `Climate`, the hour of `when` is read as the site's local solar time — POWER's
+    days are local solar days — so a world on recorded weather starts at a midnight.
+    """
+
+    def __init__(self, days, *, seed: int = 1):
+        self.days = {d: dict(v) for d, v in days}
+        if not self.days:
+            raise ValueError("no days of weather")
+        self.seed = seed
+
+    @classmethod
+    def from_csv(cls, path: str, *, seed: int = 1) -> "RecordedClimate":
+        """`date,T2M_MIN,T2M_MAX,...` with `#` comment lines, as sim/data/ holds."""
+        rows = []
+        with open(path, encoding="utf-8") as h:
+            lines = [line for line in h if not line.startswith("#")]
+        names = lines[0].strip().split(",")
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+            cells = line.strip().split(",")
+            rows.append((_dt.date.fromisoformat(cells[0]),
+                         {k: float(v) for k, v in zip(names[1:], cells[1:])}))
+        return cls(rows, seed=seed)
+
+    def _day(self, d: _dt.date) -> dict:
+        v = self.days.get(d)
+        if v is None:
+            first, last = min(self.days), max(self.days)
+            raise ValueError(f"{d} is outside the recorded weather ({first} to {last})")
+        return v
+
+    def _near(self, d: _dt.date) -> dict:
+        """A day's record, or the nearest recorded neighbour at the record's edges."""
+        return self.days.get(d) or self._day(min(self.days, key=lambda x: abs((x - d).days)))
+
+    def _air(self, when: _dt.datetime) -> float:
+        d, h = when.date(), when.hour + when.minute / 60.0
+        today = self._day(d)
+        if 5.0 <= h < 17.0:
+            lo, hi, frac = today["T2M_MIN"], today["T2M_MAX"], (h - 5.0) / 12.0
+            return lo + (hi - lo) * (1 - math.cos(math.pi * frac)) / 2.0
+        if h >= 17.0:
+            hi, lo, frac = today["T2M_MAX"], self._near(d + _dt.timedelta(days=1))["T2M_MIN"], (h - 17.0) / 12.0
+        else:
+            hi, lo, frac = self._near(d - _dt.timedelta(days=1))["T2M_MAX"], today["T2M_MIN"], (h + 7.0) / 12.0
+        return hi + (lo - hi) * (1 - math.cos(math.pi * frac)) / 2.0
+
+    def _rain_spell(self, d: _dt.date):
+        total = self._day(d).get("PRECTOTCORR", 0.0)
+        if total < 0.2:
+            return None
+        hours = min(18, max(1, math.ceil(total / 2.5)))
+        start = random.Random(self.seed * 1_000_003 + d.toordinal()).randrange(0, 24 - hours + 1)
+        return start, hours, total
+
+    def step(self, when: _dt.datetime) -> "Weather":
+        v = self._day(when.date())
+        h = when.hour + when.minute / 60.0
+        temp = self._air(when)
+        spell = self._rain_spell(when.date())
+        raining = spell is not None and spell[0] <= h < spell[0] + spell[1]
+        rain = spell[2] / spell[1] * HOURS_PER_STEP if raining else 0.0
+        mean = (v["T2M_MIN"] + v["T2M_MAX"]) / 2.0
+        rh = v.get("RH2M", 70.0)
+        humidity = max(92.0, rh) if raining else max(25.0, min(100.0, rh + 2.0 * (mean - temp)))
+        daylight = max(0.0, math.sin(math.pi * (h - 6.0) / 12.0))
+        et0_day = 0.0135 * (mean + 17.8) * v.get("ALLSKY_SFC_SW_DWN", 15.0) * 0.408
+        et0 = max(0.0, et0_day) * daylight * HOURS_PER_STEP / (24.0 / math.pi)
+        if raining:
+            et0 *= 0.15
+        return Weather(air_temp_c=round(temp, 2), relative_humidity=round(humidity, 1),
+                       rain_mm=round(rain, 4), et0_mm=round(et0, 5), raining=raining)
+
+    def _seasonal_temp(self, when: _dt.datetime) -> float:
+        """The deep soil's driver: the mean air temperature of the month around."""
+        d = when.date()
+        near = [(x["T2M_MIN"] + x["T2M_MAX"]) / 2.0 for k, x in self.days.items()
+                if abs((k - d).days) <= 15]
+        return sum(near) / len(near) if near else 10.0
+
+
 # --------------------------------------------------------------- soil heat
 
 #: Layer thickness and count for the soil heat model: 40 layers of 2.5 cm, to 1 m.
