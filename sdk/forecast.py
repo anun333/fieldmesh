@@ -29,6 +29,7 @@ import datetime as _dt
 from dataclasses import dataclass
 from uuid import UUID
 
+import checks as C
 import project as P
 from ids import uuid7
 from model import ClockQuality, DatastreamKind, Observation
@@ -47,13 +48,17 @@ class ForecastReport:
     #: Written, but an issue newer than this one already covers the hour, so it is
     #: history from the moment it lands — a run that arrived late.
     behind_newer: int = 0
+    #: Values the range check flagged — a broken feed or a unit mixed up upstream.
+    out_of_range: int = 0
 
 
 def ingest(log, state: P.State, datastream_id: UUID, issued_at: _dt.datetime,
            values, *, uncertainty_s: float, received_at: _dt.datetime | None = None,
            clock_quality: ClockQuality = ClockQuality.NETWORK,
-           provenance: dict | None = None) -> ForecastReport:
-    """Append one forecast run's values to `log` and fold them into `state`."""
+           provenance: dict | None = None, assess: bool = True) -> ForecastReport:
+    """Append one forecast run's values to `log` and fold them into `state`, each with
+    the quality assertion §4.2 makes of any arriving value — for a forecast, the range
+    check alone (checks.FORECAST_CHECKS)."""
     ds = state.datastreams.get(datastream_id)
     if ds is None:
         raise ForecastError(f"no datastream {datastream_id} is declared")
@@ -65,6 +70,8 @@ def ingest(log, state: P.State, datastream_id: UUID, issued_at: _dt.datetime,
         raise ForecastError("issued_at must be timezone-aware UTC (§2)")
     received = received_at or _dt.datetime.now(tz=UTC)
     report = ForecastReport()
+    live = P.live([t for t in state.thresholds.values() if t.datastream == datastream_id])
+    threshold = max(live, key=lambda t: t.id.int) if live else None
     for valid_at, value in values:
         if state.has_issue(datastream_id, valid_at, issued_at):
             report.already_present += 1
@@ -79,6 +86,11 @@ def ingest(log, state: P.State, datastream_id: UUID, issued_at: _dt.datetime,
         log.append_record(obs)
         state.add(obs)
         report.written += 1
+        if assess:
+            assertion = C.assess(state, obs, threshold=threshold, asserted_at=received)
+            log.append_record(assertion)
+            state.add(assertion)
+            report.out_of_range += bool(assertion.flags)
         if current and current[0].issued_at > issued_at:
             report.behind_newer += 1
     return report

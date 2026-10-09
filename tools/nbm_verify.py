@@ -57,6 +57,18 @@ def f_to_c(f: float) -> float:
     return (f - 32.0) * 5.0 / 9.0
 
 
+def celsius(value: float, unit: str) -> float:
+    """A temperature in its declared unit, in °C: the unit is on the datastream, never
+    assumed from the source."""
+    if unit == "Cel":
+        return value
+    if unit == "[degF]":
+        return f_to_c(value)
+    if unit == "K":
+        return value - 273.15
+    raise ValueError(f"not a temperature unit: {unit!r}")
+
+
 def nbm_key(issued: _dt.datetime, valid: _dt.datetime, var: str = "temp") -> str:
     return (f"blendv4.3/conus/{issued:%Y/%m/%d/%H%M}/{var}/"
             f"blendv4.3_conus_{var}_{issued:%Y-%m-%dT%H:%M}_{valid:%Y-%m-%dT%H:%M}.tif")
@@ -157,23 +169,26 @@ def build_log(runs: dict, station: list):
 
 
 def score(state, raw, fc, warn_c: tuple = (1.0, 0.0, -1.0, -2.2)) -> dict:
+    """Forecast against station from one log, whatever units each was declared in."""
+    f_to_c = lambda v, u=fc.unit: celsius(v, u)          # noqa: E731 — the forecast's unit
+    s_to_c = lambda v, u=raw.unit: celsius(v, u)         # noqa: E731 — the station's
     errors = {}
     cold = {}
     for obs in state.observations_of(fc.id):
         truth = state.nearest(raw.id, obs.measured_at, 0.0)
         if truth is None:
             continue
-        lead_day = int((obs.measured_at - obs.issued_at).total_seconds() // 86400)
-        e = f_to_c(obs.result) - f_to_c(truth.result)
+        lead_day = max(0, int((obs.measured_at - obs.issued_at).total_seconds() // 86400))
+        e = f_to_c(obs.result) - s_to_c(truth.result)
         errors.setdefault(lead_day, []).append(e)
-        if f_to_c(truth.result) <= 2.0:
+        if s_to_c(truth.result) <= 2.0:
             cold.setdefault(lead_day, []).append(e)
     summary = {day: {"n": len(es), "mae_c": statistics.mean(abs(x) for x in es), "bias_c": statistics.mean(es)}
                for day, es in sorted(errors.items())}
     cold_summary = {day: {"n": len(es), "mae_c": statistics.mean(abs(x) for x in es), "bias_c": statistics.mean(es)}
                     for day, es in sorted(cold.items())}
     # Frost nights the station recorded, and the forecast standing 12 hours before each.
-    readings = sorted((o.measured_at, f_to_c(o.result)) for o in state.observations_of(raw.id))
+    readings = sorted((o.measured_at, s_to_c(o.result)) for o in state.observations_of(raw.id))
     events, current = [], None
     for t, v in readings:
         if v <= DAMAGE_C:
@@ -195,19 +210,21 @@ def score(state, raw, fc, warn_c: tuple = (1.0, 0.0, -1.0, -2.2)) -> dict:
                       "forecast_min_c": forecast_min,
                       "warned": {w: forecast_min is not None and forecast_min <= w for w in warn_c}})
     return {"by_lead_day": summary, "cold_nights": cold_summary, "frost_nights": watch,
-            "nights": nights(state, raw, fc, warn_c)}
+            "nights": nights(state, raw, fc, warn_c, f_to_c, s_to_c)}
 
 
-def nights(state, raw, fc, warn_c: tuple) -> dict:
+def nights(state, raw, fc, warn_c: tuple, f_to_c=None, s_to_c=None) -> dict:
     """Night by night, the call a farmer would have made at dusk: the run standing at
     22 UTC (late afternoon here) forecasting the night's minimum (00–14 UTC), against the
     station's. Per threshold: frosts warned (hits), frosts not (misses), and warned
     nights that stayed above the damage line (false alerts)."""
+    f_to_c = f_to_c or (lambda v: celsius(v, fc.unit))
+    s_to_c = s_to_c or (lambda v: celsius(v, raw.unit))
     obs_by_night, issues = {}, sorted({o.issued_at for o in state.observations_of(fc.id)})
     for o in state.observations_of(raw.id):
         if o.measured_at.hour <= 14:
             n = o.measured_at.date()
-            obs_by_night[n] = min(obs_by_night.get(n, 99.0), f_to_c(o.result))
+            obs_by_night[n] = min(obs_by_night.get(n, 99.0), s_to_c(o.result))
     by_issue = {}
     for o in state.observations_of(fc.id):
         by_issue.setdefault(o.issued_at, []).append(o)
@@ -248,6 +265,15 @@ def main(argv=None) -> int:
     print(f"NBM v4.3 at {args.lat:.4f}, {args.lon:.4f} against SCAN {args.station}, {start} to {end}: "
           f"{len(runs)} runs, {len(state.observations_of(fc.id))} forecast values, "
           f"{len(station)} station hours; log problems: {len(problems)}")
+    report(s)
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as h:
+            json.dump(s, h, indent=1, default=str)
+    return 0
+
+
+def report(s: dict) -> None:
+    """The score, as tables."""
     print("\n  lead day   n      MAE °C   bias °C   | station ≤ 2 °C:   n   MAE   bias")
     for day, v in s["by_lead_day"].items():
         c = s["cold_nights"].get(day)
@@ -263,10 +289,6 @@ def main(argv=None) -> int:
     print("    warn at   frosts warned   missed   false alerts   quiet nights")
     for w, row in s["nights"].items():
         print(f"    {w:+6.1f}   {row['hits']:>13}   {row['misses']:>6}   {row['false']:>12}   {row['quiet']:>12}")
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as h:
-            json.dump(s, h, indent=1, default=str)
-    return 0
 
 
 if __name__ == "__main__":

@@ -826,7 +826,14 @@ verification by lead time (sdk/forecast.py); NWS and MET Norway runs
 with a declared error and a scored frost watch (`make forecast`;
 [notes/forecasts.md](../notes/forecasts.md)).
 
-**Still open:** a forecast's quality — §4.2's checks are written for sensors and none runs
-on a forecast; a range check would, and the rest would mislead. And a forecast that is
-not a series — a probability of rain, an ensemble's spread — has no term or kind yet.
+**Since built:** a forecast's quality. Only the range check runs on a forecast datastream
+(`checks.FORECAST_CHECKS`), and `sdk.forecast.ingest` writes its assertion with every value,
+as the gateway does for a reading; the stuck, rate, fall, cross and spike checks are sensor
+checks and would mislead. `tools/forecast_collect.py` declares each variable's physical
+bounds on its datastream, and has been collecting McAllister Farm's NWS forecast morning and
+dusk since 2026-10-09; `tools/forecast_score.py` scores the collection against the farm's
+station.
+
+**Still open:** a forecast that is not a series — a probability of rain, an ensemble's
+spread, NOAA's frost-probability grids — has no term or kind yet.
 

@@ -38,5 +38,22 @@ class CollectTest(unittest.TestCase):
         self.assertEqual(len(state.entities_named("NWS forecast: air temperature")), 1)
 
 
+    def test_scoring_a_collection_against_a_station(self):
+        import datetime as dt
+        import forecast_score as SC
+        import nbm_verify as N
+        C.collect(self.path, self.run, "nws")
+        size = os.path.getsize(self.path)
+        state = P.state_from_log(L.Log(self.path))
+        (fc_id,) = state.entities_named("NWS forecast: air temperature")
+        fc = state.datastreams[fc_id]
+        # A station reading 1 °F under every forecast hour.
+        station = [(o.measured_at, o.result * 9 / 5 + 32 - 1.0) for o in state.observations_of(fc_id)]
+        raw = SC.with_station(state, fc_id, station)
+        s = N.score(state, raw, fc)
+        self.assertAlmostEqual(s["by_lead_day"][0]["bias_c"], 5 / 9, places=6)
+        self.assertEqual(os.path.getsize(self.path), size, "the station is added in memory only")
+
+
 if __name__ == "__main__":
     unittest.main()

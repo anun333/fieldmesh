@@ -355,6 +355,17 @@ def check_fall(obs: Observation, series, values, peers) -> Finding | None:
 
 DEFAULT_CHECKS = (check_range, check_flatline, check_rate, check_fall, check_cross)
 
+#: A forecast gets the range check and nothing else (Q26). A value outside what the
+#: variable can be — 80 °C air, negative rain — is a broken feed or a unit mixed up in
+#: an adapter, and saying so is honest. The rest are sensor checks and would mislead:
+#: a forecast holding one value for a day is not a stuck probe, a front is not a spike,
+#: and a forecast has no redundant neighbour or frozen soil to consult.
+FORECAST_CHECKS = (check_range,)
+
+
+def checks_for(datastream: Datastream) -> tuple:
+    return FORECAST_CHECKS if datastream.kind is DatastreamKind.FORECAST else DEFAULT_CHECKS
+
 
 def _spike_containing(state: P.State, obs: Observation, values) -> Finding | None:
     """Whether `obs` is inside a spike the series has already come back from — known
@@ -536,7 +547,7 @@ def _peers(state: P.State, obs: Observation, window_s: float = 900.0):
 
 def assess(state: P.State, obs: Observation, *,
            threshold: Threshold | None = None,
-           checks=DEFAULT_CHECKS,
+           checks=None,
            asserted_at: _dt.datetime | None = None,
            supersedes: UUID | None = None) -> QualityAssertion:
     """Run the suite over one observation and return one assertion.
@@ -546,19 +557,21 @@ def assess(state: P.State, obs: Observation, *,
     looked, which is the absence of any assertion at all.
     """
     datastream = state.datastreams[obs.datastream]
+    forecast = datastream.kind is DatastreamKind.FORECAST
+    checks = checks if checks is not None else checks_for(datastream)
     values = thresholds_for(datastream, threshold)
-    series = state.ordered_upto(obs.datastream, obs, _lookback(datastream, values))
-    peers = _peers(state, obs)
+    series = [] if forecast else state.ordered_upto(obs.datastream, obs, _lookback(datastream, values))
+    peers = [] if forecast else _peers(state, obs)
 
     findings = [f for f in (c(obs, series, values, peers) for c in checks)
                 if f is not None]
-    frozen_ran, frozen = _frozen(state, obs, datastream, values)
+    frozen_ran, frozen = (False, None) if forecast else _frozen(state, obs, datastream, values)
     if frozen is not None:
         findings.append(frozen)
     # Only decidable here when the readings after this one are already in: otherwise
     # `spike_assertions` decides it when they arrive, and the evidence must not claim
     # the check ran.
-    spike_ran = (values.get("spike_step") is not None
+    spike_ran = (not forecast and values.get("spike_step") is not None
                  and bool(state.following(obs.datastream, obs, 1)))
     spike = _spike_containing(state, obs, values) if spike_ran else None
     if spike is not None:
@@ -592,7 +605,7 @@ def assess(state: P.State, obs: Observation, *,
 
 def assess_series(state: P.State, datastream_id: UUID, *,
                   threshold: Threshold | None = None,
-                  checks=DEFAULT_CHECKS,
+                  checks=None,
                   asserted_at: _dt.datetime | None = None,
                   reassess: bool = False) -> list[QualityAssertion]:
     """Assess every live observation in a datastream.

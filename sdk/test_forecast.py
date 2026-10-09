@@ -148,6 +148,20 @@ class IngestTest(unittest.TestCase):
         with self.assertRaises(FC.ForecastError):
             FC.ingest(self.log, self.state, raw.id, T0, self.values(T0, [5]), uncertainty_s=1800)
 
+    def test_each_value_is_range_checked_and_nothing_else(self):
+        ds = forecast_datastream(thresholds={"min": -60.0, "max": 60.0, "flat_seconds": 3600.0,
+                                             "flat_n": 2, "max_rate_per_s": 0.0001})
+        state, log = P.State(), Log()
+        state.add(ds)
+        log.append_record(ds)
+        values = self.values(T0, [5.0] * 10 + [85.0] + [-3.0, 12.0])   # flat, absurd, a front
+        r = FC.ingest(log, state, ds.id, T0, values, uncertainty_s=1800, received_at=T0)
+        self.assertEqual((r.written, r.out_of_range), (13, 1))
+        self.assertEqual(len(state.assertions), 13, "one assertion per value, as for a reading")
+        flagged = [a for a in state.assertions if a.flags]
+        self.assertEqual(len(flagged), 1, "a steady forecast is not stuck; a front is not a fault")
+        self.assertEqual(flagged[0].evidence["checks_run"], ["range"])
+
     def test_verify_by_lead_time(self):
         measured = F.raw_datastream(observed_property=V.AIR_TEMPERATURE, unit="Cel",
                                     expected_interval=3600.0)

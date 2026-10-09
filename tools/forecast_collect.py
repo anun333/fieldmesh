@@ -12,10 +12,13 @@ A run already in the log is skipped, so calling more often than the source updat
 nothing but the fetch.
 
 A season of runs in the log, next to the farm's own station, is what scores the forecast
-for this place (`sdk.forecast.verify`; tools/nbm_verify.py shows the result on NOAA's
-archive). Hourly from cron, say:
+for this place (tools/forecast_score.py; tools/nbm_verify.py shows the result on NOAA's
+archive). Morning and dusk from cron, say — the NWS grid updates about hourly, but a farm
+acts on the forecast at dusk, and every run kept costs log space: some 185 hours of each
+variable, each with its range-check assertion, about 470 KB a run for two variables, so
+about 350 MB a year at two runs a day:
 
-    17 * * * *  cd ~/dev/librefarm && python3 tools/forecast_collect.py ~/farm/log.jsonl --lat 35.0645 --lon -86.5914
+    17 6,18 * * *  cd ~/dev/librefarm && python3 tools/forecast_collect.py ~/farm/log.jsonl --lat 35.0645 --lon -86.5914
 
 Nothing is scheduled by this tool itself; adding that line is the farm's decision.
 """
@@ -39,6 +42,12 @@ from model import Datastream, DatastreamKind, Label  # noqa: E402
 UTC = _dt.timezone.utc
 SOURCE_NAMES = {"nws": "NWS", "metno": "MET Norway"}
 
+#: What each variable can physically be, by unit — the range check's bounds, declared on
+#: the datastream. Wide on purpose: they catch a broken feed or a mixed-up unit, not
+#: weather that is merely extreme.
+BOUNDS = {"Cel": (-60.0, 60.0), "[degF]": (-76.0, 140.0), "%": (0.0, 100.0),
+          "km/h": (0.0, 400.0), "m/s": (0.0, 110.0), "mm": (0.0, 300.0)}
+
 
 def stream_name(source: str, variable: str) -> str:
     return f"{SOURCE_NAMES[source]} forecast: {variable.replace('_', ' ')}"
@@ -57,9 +66,11 @@ def ensure_datastreams(log, state, run: FS.Run, source: str, *, thing=None, feat
         if existing:
             out[variable] = existing[0]
             continue
+        lo, hi = BOUNDS.get(unit, (None, None))
         ds = Datastream(id=uuid7(), thing=thing or uuid7(), sensor=uuid7(), feature=feature or uuid7(),
                         observed_property=FS.VARIABLES[variable][0], unit=unit,
-                        kind=DatastreamKind.FORECAST, expected_interval=3600.0, max_latency=3600.0)
+                        kind=DatastreamKind.FORECAST, expected_interval=3600.0, max_latency=3600.0,
+                        thresholds={"min": lo, "max": hi})
         label = Label(id=uuid7(), entity=ds.id, name=name, set_at=now,
                       description=f"{run.source}, {run.where}")
         for record in (ds, label):
@@ -69,7 +80,11 @@ def ensure_datastreams(log, state, run: FS.Run, source: str, *, thing=None, feat
     return out
 
 
-def collect(log_path: str, run: FS.Run, source: str) -> dict:
+def collect(log_path: str, run: FS.Run, source: str, variables=None) -> dict:
+    """Append one run to the log at `log_path`; `variables` limits which series are kept."""
+    if variables:
+        run.series = {k: v for k, v in run.series.items() if k in variables}
+        run.units = {k: v for k, v in run.units.items() if k in variables}
     log = L.Log(log_path)
     state = P.state_from_log(log)
     ids = ensure_datastreams(log, state, run, source)
@@ -88,10 +103,13 @@ def main(argv=None) -> int:
     ap.add_argument("--lon", type=float, required=True)
     ap.add_argument("--source", choices=("nws", "metno"), default="nws")
     ap.add_argument("--user-agent", default="librefarm/0.1")
+    ap.add_argument("--variables", default="air_temperature,precipitation",
+                    help="which to keep; each run re-forecasts some 185 hours, so every variable "
+                         "kept twice a day adds about 170 MB a year")
     args = ap.parse_args(argv)
     fetch = FS.fetch_nws if args.source == "nws" else FS.fetch_metno
     run = fetch(args.lat, args.lon, args.user_agent)
-    report = collect(args.log, run, args.source)
+    report = collect(args.log, run, args.source, set(args.variables.split(",")))
     parts = ", ".join(f"{v}: {w} new, {a} already" for v, (w, a) in report.items())
     print(f"{run.source} issued {run.issued_at:%Y-%m-%d %H:%M} UTC — {parts}")
     return 0
