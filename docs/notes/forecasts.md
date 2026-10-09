@@ -100,13 +100,95 @@ The watch is a stand-in: rules and alerts are layer 1, which is not built. It is
 show a forecast arriving as data, being acted on, and being scored the way such a rule will
 have to be before it goes live (§11).
 
+## Thirty springs: a threshold on evidence
+
+`forecast_drill.py --springs 1991-2020` (on McAllister's thirty years from NASA POWER,
+written by `tools/weather_csv.py`) runs the watch over every spring, March 1 to May 10,
+with every threshold on the same forecasts. Scoring was tightened for it: a frost night
+counts as warned only if the alert **standing 12 hours before** — the latest run then —
+was on, since one early run that dipped and was withdrawn is not a warning anyone heeded;
+and alerts are counted by **episode**, consecutive warning runs being one alert updated.
+
+| warn at | frost nights warned 12 h ahead | false alerts a spring |
+| --- | --- | --- |
+| +1 °C | 132 of 133 (99%) | 10.6 |
+| **0 °C** | **132 of 133 (99%)** | **9.9** |
+| −1 °C | 127 of 133 (95%) | 7.5 |
+| −1.5 °C | 122 of 133 (92%) | 5.9 |
+| −2.2 °C, the damage line | 112 of 133 (84%) | 4.2 |
+
+With the same forecast running 1.5 °C warm, every row moves by the bias: holding 98% then
+takes a warning at +1 °C. So the rule the backtest gives is **warn about 2 °C above the
+damage temperature, plus whatever warm bias the forecast has on this farm's cold nights** —
+which is a number only the farm's own station can supply.
+
+## A real season: NOAA's forecasts against McAllister Farm's station
+
+That number exists for McAllister. NOAA keeps every run of the National Blend of Models —
+what the NWS forecast starts from — in a public bucket, and McAllister Farm has a SCAN
+station measuring air temperature hourly. `tools/nbm_verify.py` reads the forecast for the
+station's 2.5 km cell from every 00 and 12 UTC run, October 15, 2025 to April 30, 2026 —
+14,076 values from 391 runs, read one cell at a time over HTTP with GDAL — and puts them and
+4,926 station hours into one layer-zero log, then scores from it:
+
+| lead day | error (MAE) | bias | on nights the station read ≤ 2 °C: MAE | bias |
+| --- | --- | --- | --- | --- |
+| 0 | 1.05 °C | +0.20 | 1.06 | +0.44 |
+| 1 | 1.21 | +0.16 | 1.16 | +0.51 |
+| 2 | 1.30 | +0.14 | 1.21 | +0.39 |
+| 3 | 1.52 | +0.12 | 1.51 | +0.29 |
+| 5 | 2.19 | +0.02 | 2.37 | +0.81 |
+| 7 | 2.73 | +0.04 | 3.54 | +1.84 |
+
+Unbiased overall, and **warm on cold nights**: half a degree at a day or two, nearly two at a
+week — the frost-pocket effect the drill anticipated, measured. Night by night, the run
+standing at dusk against the station's minimum:
+
+| warn at | frosts warned | missed | false alerts in the season |
+| --- | --- | --- | --- |
+| +1 °C | 38 of 38 | 0 | 8 |
+| **0 °C** | **38 of 38** | **0** | **6** |
+| −1 °C | 37 of 38 | 1 | 2 |
+| −2.2 °C | 34 of 38 | 4 | 0 |
+
+The real forecast is sharper on frost nights than the simulated one, and both point to the
+same threshold: **at McAllister, warn at 0 °C** — every damaging frost of the season
+warned, six false alerts in six and a half months. The season was a cold one: 38 nights
+reached −2.2 °C by this dusk-to-morning count (33 frost spells, where hours within six of
+each other are one), down to −12 °C in January.
+
+## Watering by forecast, and by soil
+
+`irrigation_drill.py` puts one bed — a 30 cm root zone in silt loam, full canopy — through
+each recorded summer under five rules, on identical weather and forecasts: a drip timer
+(12 mm every second morning), the timer skipping when 10 mm or more is forecast in the
+next 24 hours, the same skip with perfect knowledge of the rain, watering back to field
+capacity only when the bed's own probe reads a third of the available water gone, and
+that rule with the skip. Thirty summers, 315 mm of rain on average:
+
+| rule | water applied | drained below the roots | transpired | hours seriously stressed |
+| --- | --- | --- | --- | --- |
+| timer | 552 mm | 432 mm | 441 mm | 0 |
+| timer, skip on forecast rain | 484 | 365 | 439 | 0 |
+| timer, skip knowing the rain | 494 | 374 | 440 | 0 |
+| soil probe | 219 | 146 | 395 | 0 |
+| soil probe, skip on forecast rain | 205 | 133 | 393 | 0 |
+
+Skipping on forecast rain saves 12% of a timer's water with no cost to the crop, and does
+as well as perfect knowledge — it skips slightly more often, since a false rain forecast
+costs little when the timer overwaters anyway. **The farm's own soil probe saves 60%**, and
+the forecast adds a little on top. The probe rule's lower transpiration is an upper bound:
+the simulator's stress falls linearly from field capacity, stricter than FAO-56, which
+holds full transpiration until about half the available water is gone. The bundled summer
+is 2013, the wettest of the thirty.
+
 ## Next
 
-* Run the frost watch over thirty recorded springs, for a threshold chosen on evidence.
-* Score NWS's real forecasts against a station: fetch a run every hour into a log next to a
-  SCAN station's air temperature, and after a season the farm knows how far to trust them —
-  likely a warm bias on still, clear nights in low ground, which is the frost that matters.
-* Put rain forecasts to work where they pay: an irrigation rule that skips a watering when
-  enough rain is forecast, backtested on the virtual farm's soil water.
+* Collect NWS runs going forward: `tools/forecast_collect.py` appends each run to a farm's
+  log and is idempotent, so it can run hourly from cron (the line is in its docstring; it is
+  not installed). A year of runs next to the station scores the forecast the farm actually
+  receives, not only the blend behind it.
+* The rules above are stand-ins for layer 1 and 2 modules; when those are built, these
+  drills are their backtests (§11).
 * A forecast's quality: none of §4.2's sensor checks runs on a forecast; a range check
   would be honest, the rest would mislead (Q26).

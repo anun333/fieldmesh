@@ -75,9 +75,66 @@ def declare(state, log, *, kind, unit, prop, expected_interval, sensor, thing, f
     return ds
 
 
+def frost_events(measured: list) -> list:
+    """Frost nights in a station's readings: runs of hours at or below the damage line,
+    a new one after six hours without."""
+    events, current = [], None
+    for t, v in measured:
+        if v <= DAMAGE_C:
+            if current is None or t - current[-1] > 6 * HOUR:
+                current = [t, t]
+                events.append(current)
+            current[-1] = t
+    return events
+
+
+def score_watch(warnings: list, events: list, issue_every_h: int, issues: list | None = None,
+                score_from: _dt.datetime | None = None) -> dict:
+    """A frost watch, scored as a farmer meets it.
+
+    A frost night counts as **warned in time** when the alert standing 12 hours before it
+    — the latest run issued by then — was warning: that is the state a farmer acts on
+    that evening, and one early run that dipped below the threshold and was withdrawn is
+    not a warning anyone heeded. `warned_h` is how long the alert had stood unbroken.
+    Warnings are counted by **episode** — consecutive issues that each warn are one
+    alert, updated — and an episode is false when no frost night begins while it runs or
+    within 48 hours of its last warning."""
+    warned = {issued for issued, _ in warnings}
+    issues = sorted(issues or warned)
+    scored = []
+    for first, last in events:
+        decide = first - ENOUGH_LEAD_H * HOUR
+        standing = [i for i in issues if i <= decide]
+        lead = 0.0
+        if standing and standing[-1] in warned:
+            k = issues.index(standing[-1])
+            while k > 0 and issues[k - 1] in warned and first - issues[k - 1] <= 48 * HOUR:
+                k -= 1
+            lead = (first - issues[k]).total_seconds() / 3600.0
+        else:
+            # Not standing at the decision time: report the latest warning, if any.
+            late = [i for i in issues if i in warned and decide < i <= first]
+            lead = (first - late[0]).total_seconds() / 3600.0 if late else 0.0
+        scored.append({"start": first, "end": last, "warned_h": lead})
+    episodes, current = [], None
+    for issued, _ in warnings:
+        if current is None or issued - current[1] > issue_every_h * HOUR:
+            current = [issued, issued]
+            episodes.append(current)
+        current[1] = issued
+    if score_from is not None:                    # alerts before the scored window are its warm-up
+        episodes = [e for e in episodes if e[0] >= score_from]
+    false = [e for e in episodes
+             if not any(e[0] <= ev["start"] <= e[1] + 48 * HOUR for ev in scored)]
+    return {"events": scored, "episodes": len(episodes), "false_episodes": len(false),
+            "in_time": sum(e["warned_h"] >= ENOUGH_LEAD_H for e in scored)}
+
+
 def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float = 0.0,
-          seed: int = 1, issue_every_h: int = 6, station_noise_c: float = 0.2) -> dict:
-    climate = ph.RecordedClimate.from_csv(WEATHER, seed=seed)
+          seed: int = 1, issue_every_h: int = 6, station_noise_c: float = 0.2,
+          thresholds: tuple = (), weather: str = WEATHER, climate=None,
+          score_from: _dt.datetime | None = None) -> dict:
+    climate = climate or ph.RecordedClimate.from_csv(weather, seed=seed)
     truth = hourly_truth(climate, start, days)
     state, log = P.State(), L.Log()
     thing, feature = uuid7(), uuid7()
@@ -97,6 +154,8 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
 
     forecaster = FCS.Forecaster(truth, skill=skill, seed=seed)
     warnings = []                                   # (issued_at, first forecast frost hour)
+    issues = []
+    by_threshold = {thr: [] for thr in thresholds}
     issued, runs = start, 0
     end = truth[-1][0]
     while issued < end - 48 * HOUR:
@@ -107,22 +166,23 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
         FC.ingest(log, state, fc_rain.id, issued, run["precipitation"], uncertainty_s=1800.0,
                   received_at=issued, provenance=prov)
         ahead = state.forecast(fc_temp.id, issued, issued + 48 * HOUR)
+        issues.append(issued)
         cold = [o.measured_at for o in ahead if o.result <= warn_c]
         if cold:
             warnings.append((issued, cold[0]))
+        lowest = min((o.result for o in ahead), default=None)
+        for thr, ws in by_threshold.items():
+            if lowest is not None and lowest <= thr:
+                ws.append((issued, None))
         runs += 1
         last_issue = issued
         issued += issue_every_h * HOUR
 
     # Frost nights the station recorded: runs of hours at or below the damage line.
     measured = sorted((o.measured_at, o.result) for o in state.observations_of(station.id))
-    events, current = [], None
-    for t, v in measured:
-        if v <= DAMAGE_C:
-            if current is None or t - current[-1] > 6 * HOUR:
-                current = [t, t]
-                events.append(current)
-            current[-1] = t
+    events = [e for e in frost_events(measured) if score_from is None or e[0] >= score_from]
+    watch = {thr: score_watch(ws, events, issue_every_h, issues, score_from)
+             for thr, ws in by_threshold.items()}
     scored = []
     for first, last in events:
         leads = [(first - issued).total_seconds() / 3600.0 for issued, _ in warnings
@@ -139,7 +199,7 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
                           "bias": statistics.mean(e), "sd": statistics.pstdev(e)}
                     for day, e in sorted(by_day.items())}
     problems = state.validate()
-    return {"events": scored, "warnings": warnings, "false_alarms": false_alarms,
+    return {"events": scored, "warnings": warnings, "false_alarms": false_alarms, "watch": watch,
             "verification": verification, "runs": runs,
             "forecast_rows": len(state.observations_of(fc_temp.id)),
             "live_hours": len(state.forecast(fc_temp.id, start, end + HOUR)),
@@ -147,6 +207,30 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
             "health": state.health_of(fc_temp.id, last_issue + HOUR).value,
             # §4.2: stale after three intervals without a run
             "health_later": state.health_of(fc_temp.id, last_issue + 4 * issue_every_h * HOUR).value}
+
+
+def springs(weather: str, years: range, *, skill: FCS.Skill, thresholds: tuple, seed: int = 1,
+            first=(3, 1), last=(5, 10)) -> dict:
+    """The frost watch over many recorded springs, every threshold on the same forecasts:
+    per threshold, frost nights warned in time, missed, and false alert episodes."""
+    climate = ph.RecordedClimate.from_csv(weather, seed=seed)
+    totals = {thr: {"frosts": 0, "in_time": 0, "late_or_missed": [], "episodes": 0, "false_episodes": 0}
+              for thr in thresholds}
+    for year in years:
+        scored_from = _dt.datetime(year, *first, tzinfo=UTC)
+        start = scored_from - _dt.timedelta(days=3)     # so the first frost can be warned of
+        days = (_dt.datetime(year, *last, tzinfo=UTC) - start).days
+        r = drill(start=start, days=days, skill=skill, seed=seed + year, thresholds=thresholds,
+                  climate=climate, score_from=scored_from)
+        for thr, w in r["watch"].items():
+            tot = totals[thr]
+            tot["frosts"] += len(w["events"])
+            tot["in_time"] += w["in_time"]
+            tot["late_or_missed"] += [(e["start"], e["warned_h"]) for e in w["events"]
+                                      if e["warned_h"] < ENOUGH_LEAD_H]
+            tot["episodes"] += w["episodes"]
+            tot["false_episodes"] += w["false_episodes"]
+    return totals
 
 
 def main(argv=None) -> int:
@@ -158,7 +242,28 @@ def main(argv=None) -> int:
     ap.add_argument("--bias", type=float, default=0.0)
     ap.add_argument("--warn", type=float, default=0.0, help="warn when the forecast falls to this, °C")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--weather", default=WEATHER, help="a recorded-weather CSV (tools/weather_csv.py)")
+    ap.add_argument("--springs", help="YEAR-YEAR: score the frost watch over these springs, "
+                                      "March 1 to May 10, at several thresholds")
+    ap.add_argument("--thresholds", default="1,0,-1,-2.2", help="°C, comma-separated, with --springs")
     args = ap.parse_args(argv)
+    if args.springs:
+        a, _, b = args.springs.partition("-")
+        thresholds = tuple(float(x) for x in args.thresholds.split(","))
+        skill = FCS.Skill(sd0_c=args.sd0, sd_per_day_c=args.per_day, bias_c=args.bias)
+        totals = springs(args.weather, range(int(a), int(b) + 1), skill=skill, thresholds=thresholds,
+                         seed=args.seed)
+        n = int(b) - int(a) + 1
+        print(f"Frost watch over {n} springs (March 1 – May 10), damage at {DAMAGE_C} °C, "
+              f"{ENOUGH_LEAD_H} h of warning enough; forecast spread {skill.sd0_c} + {skill.sd_per_day_c}/day, "
+              f"bias {skill.bias_c:+}:")
+        print("  warn at   frost nights warned in time   alerts   false alerts   false per spring")
+        for thr, tot in totals.items():
+            print(f"  {thr:+6.1f}   {tot['in_time']:>4} of {tot['frosts']:<4} ({tot['in_time'] / max(1, tot['frosts']):.0%})"
+                  f"            {tot['episodes']:>5}   {tot['false_episodes']:>6}         {tot['false_episodes'] / n:5.1f}")
+            for when, lead in tot["late_or_missed"][:6]:
+                print(f"           {'missed' if not lead else f'{lead:.0f} h only'}: {when:%Y-%m-%d %H:%M}")
+        return 0
     skill = FCS.Skill(sd0_c=args.sd0, sd_per_day_c=args.per_day, bias_c=args.bias)
     start = _dt.datetime.fromisoformat(args.start).replace(tzinfo=UTC)
     r = drill(start=start, days=args.days, skill=skill, warn_c=args.warn, seed=args.seed)

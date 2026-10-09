@@ -26,8 +26,9 @@ in the file's own header:
 | `chill-requirements.csv` | Fadón et al. 2020, *Agronomy* 10:409, doi:10.3390/agronomy10030409 — the tables, re-keyed | CC-BY-4.0 (the version of record's licence) |
 | `interactions.csv` | USDA PLANTS (CC0), GloBI (CC-BY-4.0), and curated rows citing their sources | CC-BY-4.0 |
 
-And two test fixtures outside `docs/notes/`: `sim/data/mcallister-2007-spring.csv`, NASA
-POWER daily weather (CC-BY-4.0, credited in its header), and
+And test fixtures outside `docs/notes/`: `sim/data/mcallister-2007-spring.csv` and
+`sim/data/mcallister-2013-summer.csv`, NASA POWER daily weather (CC-BY-4.0, credited in
+their headers), and
 `tools/fixtures/nws-gridpoint-HUN-62-57.json`, a trimmed National Weather Service forecast
 (public domain, a US government work).
 

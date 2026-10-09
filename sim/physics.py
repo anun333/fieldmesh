@@ -165,6 +165,7 @@ class RecordedClimate:
         if not self.days:
             raise ValueError("no days of weather")
         self.seed = seed
+        self._seasonal: dict = {}
 
     @classmethod
     def from_csv(cls, path: str, *, seed: int = 1) -> "RecordedClimate":
@@ -178,7 +179,7 @@ class RecordedClimate:
                 continue
             cells = line.strip().split(",")
             rows.append((_dt.date.fromisoformat(cells[0]),
-                         {k: float(v) for k, v in zip(names[1:], cells[1:])}))
+                         {k: float(v) for k, v in zip(names[1:], cells[1:]) if v != ""}))
         return cls(rows, seed=seed)
 
     def _day(self, d: _dt.date) -> dict:
@@ -233,9 +234,12 @@ class RecordedClimate:
     def _seasonal_temp(self, when: _dt.datetime) -> float:
         """The deep soil's driver: the mean air temperature of the month around."""
         d = when.date()
-        near = [(x["T2M_MIN"] + x["T2M_MAX"]) / 2.0 for k, x in self.days.items()
-                if abs((k - d).days) <= 15]
-        return sum(near) / len(near) if near else 10.0
+        if d not in self._seasonal:                 # per day: asked every tick
+            near = [(x["T2M_MIN"] + x["T2M_MAX"]) / 2.0
+                    for k in (d + _dt.timedelta(days=j) for j in range(-15, 16))
+                    if (x := self.days.get(k)) is not None]
+            self._seasonal[d] = sum(near) / len(near) if near else 10.0
+        return self._seasonal[d]
 
 
 # --------------------------------------------------------------- soil heat
@@ -303,6 +307,11 @@ class SoilBed:
     #: needs roughly a day to establish itself at 20 cm, as it would after a real
     #: probe is pushed into undisturbed ground.
     temps: list = field(default=None, repr=False)
+    #: Season totals, for anything that has to account for water: what drained below
+    #: the root zone, what ran off a saturated bed, what the crop transpired.
+    drained_mm: float = field(default=0.0, repr=False)
+    runoff_mm: float = field(default=0.0, repr=False)
+    et_mm: float = field(default=0.0, repr=False)
 
     def __post_init__(self) -> None:
         if not self.wilting_point < self.field_capacity < self.saturation:
@@ -337,13 +346,19 @@ class SoilBed:
         # Actual ET falls off as the soil dries — a dry bed loses water slower.
         et = weather.et0_mm * self.crop_coefficient * (1.0 - self.stress)
         water -= et
+        self.et_mm += et
 
         # Free drainage of anything above field capacity.
         capacity_mm = self.field_capacity * self.depth_mm
         if water > capacity_mm:
             excess = water - capacity_mm
-            water -= excess * min(1.0, self.drainage_per_hour * HOURS_PER_STEP)
+            drained = excess * min(1.0, self.drainage_per_hour * HOURS_PER_STEP)
+            water -= drained
+            self.drained_mm += drained
 
+        full = self.saturation * self.depth_mm
+        if water > full:
+            self.runoff_mm += water - full
         self.theta = self._clamp(water / self.depth_mm)
         return self.theta
 

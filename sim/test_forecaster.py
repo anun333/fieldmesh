@@ -77,6 +77,27 @@ class ForecasterTest(unittest.TestCase):
         self.assertEqual(len(run["air_temperature"]), 35)
 
 
+class ScoreWatchTest(unittest.TestCase):
+    """A frost night counts as warned when the alert standing 12 hours before it was on."""
+    T0 = dt.datetime(2007, 3, 1, tzinfo=UTC)
+
+    def issues(self, n=12):
+        return [self.T0 + k * 6 * HOUR for k in range(n)]
+
+    def test_the_standing_alert_counts_not_a_flicker(self):
+        frost = [[self.T0 + 60 * HOUR, self.T0 + 63 * HOUR]]
+        steady = [(i, None) for i in self.issues()[4:10]]                 # 24 h to 54 h, unbroken
+        flicker = [(self.issues()[2], None)]                               # once at 12 h, withdrawn
+        self.assertEqual(D.score_watch(steady, frost, 6, self.issues())["in_time"], 1)
+        self.assertEqual(D.score_watch(steady, frost, 6, self.issues())["events"][0]["warned_h"], 36.0)
+        self.assertEqual(D.score_watch(flicker, frost, 6, self.issues())["in_time"], 0)
+
+    def test_alerts_are_counted_by_episode(self):
+        warnings = [(i, None) for i in self.issues()[0:3]] + [(self.issues()[8], None)]
+        r = D.score_watch(warnings, [], 6, self.issues())
+        self.assertEqual((r["episodes"], r["false_episodes"]), (2, 2))
+
+
 class DrillTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

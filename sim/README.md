@@ -11,14 +11,16 @@ python3 world_demo.py --stuck-float                     # the fault, and the cat
 python3 world_demo.py --outage 10 --days 2              # buffer, evict, report
 python3 world_demo.py --dr 3                            # a better link
 python3 forecast_drill.py                               # forecasts on real 2007 weather, scored
+python3 irrigation_drill.py                             # watering by timer, forecast and probe
 ```
 
 | Module | What it is |
 | --- | --- |
 | `physics.py` | Ground truth: a seeded seasonal climate — or `RecordedClimate`, a real place's daily weather replayed at the 5-minute tick — a soil water balance, a trough with a float valve, an unheated tunnel (tested by tools/tunnel_gain.py) |
-| `data/` | Recorded weather: McAllister Farm's spring of 2007 from NASA POWER (CC BY 4.0), the Easter freeze in it |
+| `data/` | Recorded weather from NASA POWER (CC BY 4.0): McAllister Farm's spring of 2007, the Easter freeze in it, and its summer of 2013, the wettest of thirty. `tools/weather_csv.py` writes any site's years |
 | `forecaster.py` | Forecast runs read from the world's own future, with an error of declared size that grows with lead time |
-| `forecast_drill.py` | Forecasts through layer zero (Q26) on recorded weather: scored against the farm's station by lead day, and a frost watch scored on warning time and false alarms |
+| `forecast_drill.py` | Forecasts through layer zero (Q26) on recorded weather: scored against the farm's station by lead day, and a frost watch scored on the alert standing 12 h before each frost and on false alert episodes; `--springs` over many years |
+| `irrigation_drill.py` | Five watering rules on identical recorded summers and forecasts — timer, skip on forecast rain, skip knowing the rain, soil probe, probe with skip — by water applied, drained and transpired, and stress |
 | `node.py` | A duty-cycled node: sampling, buffering, transmit-time restamping, eviction, resend, reboot |
 | `link.py` | A radio that loses, delays, duplicates, drops acks and goes out — seeded |
 | `faults.py` | Injectable sensor faults: drift, sticking, bias, noise, death, out-of-range |
