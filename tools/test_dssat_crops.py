@@ -118,5 +118,22 @@ class MaizeTest(unittest.TestCase):
         self.assertIsNone(D.develop_maize(self.CUL, self.ECO, self.days(6.0), 0, 35.0)["maturity"])
 
 
+class WindowTest(unittest.TestCase):
+    def test_runs_of_good_weeks(self):
+        swept = [(1, 0.0), (8, 0.9), (15, 0.9), (22, 0.5), (29, 0.85)]
+        self.assertEqual(D.windows(swept), [("Jan 08", "Jan 15"), ("Jan 29", "Jan 29")])
+
+    def test_a_window_across_the_new_year_is_joined(self):
+        swept = [(1, 0.9), (8, 0.0), (358, 0.9)]
+        self.assertEqual(D.windows(swept), [("Dec 24", "Jan 01")])
+
+    def test_freeze_thresholds_are_read_from_the_live_line(self):
+        spe = D.parse_spe("*TOMATO SPECIES COEFFICIENTS: CRGRO048 MODEL\n"
+                          "!  0.90  0.15  0.06 -9.00 -9.00        SENRTE,SENRT2,SENDAY,FREEZ1,FREEZ2\n"
+                          "  1.00  0.02  0.02 -2.22 -5.00        SENRTE,SENRT2,SENDAY,FREEZ1,FREEZ2\n"
+                          "!*PHENOLOGY PARAMETERS\n  7.0  22.0  28.0  48.0              1 VEG\n")
+        self.assertEqual(spe["freeze"], (-2.22, -5.0))
+
+
 if __name__ == "__main__":
     unittest.main()

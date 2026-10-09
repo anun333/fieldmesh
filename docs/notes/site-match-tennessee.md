@@ -146,6 +146,17 @@ At McAllister Farm:
 | **pigeon pea** | **0 of 3** | short-day: long summer days delay flowering until frost |
 | **velvet bean** | **0 of 20** | likewise |
 
+**When to sow.** With `--windows` the tool sows every week of the year, with the fastest,
+a middle and the slowest cultivar, and ends each season at the first freeze below that
+crop's own damage threshold (DSSAT's FREEZ1: −2.2 °C for tomato and beans, −6 for cabbage,
+−9 for faba bean, −29 for lentil). Sowing windows that mature 8 years in 10 at McAllister
+Farm: tomato Apr 9–Jul 2; pepper Apr 9–May 21; maize Apr 9–Jul 23; soybean Apr 9–Aug 6
+(the late end is the double crop after wheat); peanut Apr 9–Jul 2; dry bean Apr 9–Aug 13;
+cabbage Mar 12–Aug 6, spring and fall; chickpea Feb 19–Aug 27; canola Mar 5–Jul 30. The
+dates are sowing, not transplanting. Lentil and sunflower come out "all year" because
+DSSAT gives them damage thresholds of −29 and −15 °C; lentil's is a modern winter-hardy
+calibration, sunflower's is generous for young plants.
+
 Sixteen food crops on the list move from *no data* to a verdict, and pigeon pea and
 velvet bean are ruled out for the right reason — day length, which PLANTS never checked.
 The matcher takes these with `--crop-seasons` and lets the crop model outrank PLANTS on the

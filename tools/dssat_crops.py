@@ -34,7 +34,10 @@ at its unstressed pace; and only the path to physiological maturity is followed
 
 Planting: a warm-season crop (vegetative base temperature 5 °C or more) a week after each
 year's last spring frost; a cool-season crop four weeks before the median last frost.
-Fall plantings of cool-season crops are not tried yet.
+`--windows` also sweeps sowing week by week through the year, with three representative
+cultivars, ending each season at the first freeze below the crop's own damage threshold
+(CROPGRO's FREEZ1: −2.22 °C for tomato, −6 for cabbage, −29 for lentil) — which is what
+lets a fall sowing of a hardy crop overwinter and a tender one fail.
 """
 from __future__ import annotations
 
@@ -142,6 +145,13 @@ def parse_spe(text: str) -> dict:
     lines = text.replace("\r", "").splitlines()
     name = lines[0].lstrip("*").split("SPECIES")[0].strip().title()
     temps, phases = {}, {}
+    freeze = None
+    for line in lines:
+        # "SENRTE,SENRT2,SENDAY,FREEZ1,FREEZ2" — the live line, not a commented-out one.
+        if "FREEZ1,FREEZ2" in line.upper() and not line.lstrip().startswith("!"):
+            nums = [_f(x) for x in line.split()[:5]]
+            if len(nums) == 5 and None not in nums:
+                freeze = (nums[3], nums[4])
     start = next(i for i, l in enumerate(lines) if "PHENOLOGY PARAMETERS" in l.upper())
     for line in lines[start + 1:]:
         if line.startswith("!*"):
@@ -155,7 +165,7 @@ def parse_spe(text: str) -> dict:
         elif len(parts) >= 5 and parts[0].isdigit() and parts[2].isalpha():
             phases[int(parts[0])] = {"prior": int(parts[1]), "daylength": parts[2],
                                      "temperature": parts[3], "row": int(parts[4])}
-    return {"name": name, "temps": temps, "phases": phases}
+    return {"name": name, "temps": temps, "phases": phases, "freeze": freeze}
 
 
 def parse_eco(text: str) -> dict:
@@ -454,6 +464,70 @@ def maize_runners(cultivars: list, ecos: dict, lat: float) -> list:
     return runners
 
 
+# ------------------------------------------------------------- planting windows
+
+#: A killing-frost stand-in for maize, whose file gives none: the leaf-damage
+#: threshold CROPGRO gives most warm-season crops (FREEZ1 = −2.22 °C). An assumption.
+MAIZE_FREEZE_C = -2.22
+WINDOW_SHARE = 0.8
+
+
+def representatives(runners: list, size) -> list:
+    """The fastest, a middle and the slowest cultivar by `size` (their total thermal or
+    photothermal requirement) — enough to find the windows without running every one."""
+    if len(runners) <= 3:
+        return runners
+    ordered = sorted(runners, key=size)
+    return [ordered[0], ordered[len(ordered) // 2], ordered[-1]]
+
+
+def sweep(runners: list, days: list, freeze_c: float, step_days: int = 7) -> list:
+    """For sowings every `step_days` through the year: the share of years in which the
+    best of `runners` matures before the first freeze below `freeze_c` after sowing.
+    -> [(day of year, share)]."""
+    index = {d: i for i, (d, _) in enumerate(days)}
+    years = sorted({d.year for d, _ in days})[:-1]        # each needs the year after it
+    tmins = [v.get("T2M_MIN", 99.0) for _, v in days]
+    out = []
+    for doy in range(1, 366, step_days):
+        best = 0.0
+        for runner in runners:
+            ok = tried = 0
+            for y in years:
+                start = index.get(_dt.date(y, 1, 1) + _dt.timedelta(days=doy - 1))
+                if start is None:
+                    continue
+                stop = next((i for i in range(start + 1, min(len(days), start + 366))
+                             if tmins[i] < freeze_c), None)
+                tried += 1
+                r = runner[4](days, start, stop)
+                ok += r["maturity"] is not None
+            if tried:
+                best = max(best, ok / tried)
+        out.append((doy, best))
+    return out
+
+
+def windows(swept: list, share: float = WINDOW_SHARE) -> list:
+    """Runs of sowing dates at or above `share`, as ("Apr 08", "Jun 10") pairs; a run
+    that crosses the new year is joined."""
+    runs, current = [], []
+    for doy, s in swept:
+        if s >= share:
+            current.append(doy)
+        elif current:
+            runs.append(current)
+            current = []
+    if current:
+        runs.append(current)
+    if len(runs) > 1 and runs[0][0] == swept[0][0] and runs[-1][-1] == swept[-1][0]:
+        runs[0] = runs.pop() + runs[0]
+
+    def md(doy):
+        return (_dt.date(2001, 1, 1) + _dt.timedelta(days=doy - 1)).strftime("%b %d")
+    return [(md(r[0]), md(r[-1])) for r in runs]
+
+
 # ---------------------------------------------------------------------- I/O
 
 def fetch(name: str, cache: str) -> str:
@@ -483,6 +557,8 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", required=True)
     ap.add_argument("--out", required=True, help="per crop: the best cultivar's season at this site")
     ap.add_argument("--params", help="also write the crops' DSSAT parameters here")
+    ap.add_argument("--windows", action="store_true",
+                    help="also sweep sowing dates through the year for each crop's windows")
     args = ap.parse_args(argv)
     days = site_profile.days_of(site_profile.fetch_power(args.lat, args.lon, 1991, 2020,
                                                          os.path.join(args.cache, "power")))
@@ -495,14 +571,25 @@ def main(argv=None) -> int:
             culs = parse_maize_cul(fetch("MZCER048.CUL", cache))
             ecos = parse_maize_eco(fetch("MZCER048.ECO", cache))
             spe = {"name": "Maize", "temps": {1: (ecos["IB0001"]["TBASE"], ecos["IB0001"]["TOPT"],
-                                                  ecos["IB0001"]["TOPT"], 44.0)}}
-            results = evaluate(maize_runners(culs, ecos, args.lat), days, args.lat, cool=False)
+                                                  ecos["IB0001"]["TOPT"], 44.0)},
+                   "freeze": (MAIZE_FREEZE_C, None)}
+            runners = maize_runners(culs, ecos, args.lat)
+            size = {c["code"]: c["P1"] + c["P5"] for c in culs}
+            results = evaluate(runners, days, args.lat, cool=False)
         else:
             spe, ecos, culs = load(code, cache)
-            results = evaluate(cropgro_runners(spe, culs, ecos, args.lat), days, args.lat,
+            runners = cropgro_runners(spe, culs, ecos, args.lat)
+            size = {c["code"]: (c["EM-FL"] or 0) + (c["FL-SD"] or 0) + (c["SD-PM"] or 0) for c in culs}
+            results = evaluate(runners, days, args.lat,
                                cool=spe["temps"][1][0] < COOL_SEASON_BASE_C)
         if not results:
             continue
+        freeze_c = (spe.get("freeze") or (-2.22, None))[0]
+        if args.windows:
+            swept = sweep(representatives(runners, lambda r: size.get(r[1], 0)), days, freeze_c)
+            sowing = "; ".join(f"{a}–{b}" for a, b in windows(swept)) or "none"
+        else:
+            sowing = ""
         best = max(results, key=lambda r: (r["matures_before_frost"],
                                            -(r["days_to_maturity"] or 999)))
         maturing = [r for r in results if r["days_to_maturity"]]
@@ -521,7 +608,9 @@ def main(argv=None) -> int:
                                                 if maturing else ""),
                      "longest_cultivar_8_in_10": longest["cultivar"] if longest else "",
                      "longest_days_to_maturity": longest["days_to_maturity"] if longest else "",
-                     "planting": best["planting"], "photoperiod": best["photoperiod"]})
+                     "planting": best["planting"], "photoperiod": best["photoperiod"],
+                     "damaging_freeze_c": freeze_c,
+                     "sowing_windows_8_in_10": sowing})
         t = spe["temps"]
         if model == "CERES-Maize":
             cd = f"{min(e['P2O'] for e in ecos.values()):g}–{max(e['P2O'] for e in ecos.values()):g}"
@@ -556,6 +645,8 @@ def main(argv=None) -> int:
         else:
             print(f"  {r['dssat_crop']:<18}  0/{r['cultivars']:<2} cultivars mature before frost 8 years in 10 — best "
                   f"{r['best_cultivar'][:18]} in {r['best_matures_before_frost']:.0%} of years ({r['photoperiod']})")
+        if r["sowing_windows_8_in_10"]:
+            print(f"  {'':<18} sow: {r['sowing_windows_8_in_10']} (freeze below {r['damaging_freeze_c']:g} °C ends it)")
     return 0
 
 

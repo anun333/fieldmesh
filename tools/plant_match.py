@@ -85,10 +85,13 @@ def texture_word(texture: str | None) -> str | None:
 
 
 def season_note(season: dict) -> str:
-    return (f"{season['cultivars_maturing_8_in_10']}/{season['cultivars']} {season['dssat_crop'].lower()} "
+    note = (f"{season['cultivars_maturing_8_in_10']}/{season['cultivars']} {season['dssat_crop'].lower()} "
             f"cultivars mature before frost 8 years in 10"
             + (f", {season['best_days_to_maturity']}–{season['longest_days_to_maturity']} days "
                f"({season['planting']})" if season.get("longest_days_to_maturity") else ""))
+    if season.get("sowing_windows_8_in_10"):
+        note += f"; sow {season['sowing_windows_8_in_10']}"
+    return note
 
 
 def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = None) -> dict:
