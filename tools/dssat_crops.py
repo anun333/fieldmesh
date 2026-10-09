@@ -288,28 +288,35 @@ def frost_years(days: list, north: bool) -> list:
     return [(y, *years[y]) for y in sorted(years)]
 
 
-def evaluate(runners: list, days: list, lat: float, cool: bool) -> list:
+def evaluate(runners: list, days: list, lat: float, cool: bool, fall: bool = False) -> list:
     """For each cultivar runner: median days to flower and maturity, and the share of
     years it matures before the first fall frost. A runner is (name, code, photoperiod,
-    critical day length, run) where `run(days, start, stop)` -> {flower, maturity}."""
+    critical day length, run) where `run(days, start, stop)` -> {flower, maturity}.
+    `fall`: a winter cereal, sown two weeks before the median first fall frost and run
+    through the winter with no frost stop — its own winter-kill model decides."""
     north = lat >= 0
     index = {d: i for i, (d, _) in enumerate(days)}
     seasons = frost_years(days, north)
     lasts = [days[l][0].timetuple().tm_yday for _, l, _ in seasons if l is not None]
     median_last = int(statistics.median(lasts)) if lasts else 60
+    firsts = [days[f][0].timetuple().tm_yday for _, _, f in seasons if f is not None]
+    median_first = int(statistics.median(firsts)) if firsts else 305
     out = []
     for name, code, photoperiod, csdl, run in runners:
         to_flower, to_mature, safe, tried = [], [], 0, 0
         for year, last, first in seasons:
-            if cool:
+            if fall:
+                plant = _dt.date(year, 1, 1) + _dt.timedelta(days=median_first - 1 - 14)
+                first = None
+            elif cool:
                 plant = _dt.date(year, 1, 1) + _dt.timedelta(days=median_last - 1 - 28)
             elif last is not None:
                 plant = days[last][0] + _dt.timedelta(days=7)
             else:
                 continue
             start = index.get(plant)
-            if start is None:
-                continue
+            if start is None or (fall and start + 300 > len(days)):
+                continue                    # a fall sowing needs the next summer in the record
             tried += 1
             r = run(days, start, first)
             if r["flower"] is not None:
@@ -319,7 +326,8 @@ def evaluate(runners: list, days: list, lat: float, cool: bool) -> list:
                 safe += 1
         if tried:
             out.append({"cultivar": name, "code": code,
-                        "planting": "4 weeks before last frost" if cool else "1 week after last frost",
+                        "planting": ("2 weeks before first fall frost" if fall else
+                                     "4 weeks before last frost" if cool else "1 week after last frost"),
                         "days_to_flower": int(statistics.median(to_flower)) if to_flower else None,
                         "days_to_maturity": int(statistics.median(to_mature)) if to_mature else None,
                         "matures_before_frost": round(safe / tried, 2), "years": tried,
@@ -659,6 +667,223 @@ def millet_runners(cultivars: list, ecos: dict, lat: float) -> list:
     return runners
 
 
+# -------------------------------- CERES-Wheat and -Barley (Cropsim-CERES), ported
+
+def _header_rows(text: str) -> list:
+    """Cropsim-style tables: an '@' header of names, then whitespace-separated rows.
+    -> [(names, [row tokens, ...])] per header."""
+    out = []
+    for line in text.replace("\r", "").splitlines():
+        if line.startswith("@"):
+            out.append((line[1:].split(), []))
+        elif out and line.strip() and line[0] not in "!*$":
+            out[-1][1].append(line.split("!")[0].split())
+        elif out and line.startswith("*"):
+            out.append(([], []))
+    return out
+
+
+def parse_cscer_cul(text: str) -> list:
+    """WHCER048/BACER048.CUL: VAR#, name, EXP# (may be blank), ECO#, P1V, P1D, P5, G1,
+    G2, G3, PHINT — read from the right, since names hold spaces and EXP# can be empty."""
+    out = []
+    for line in text.replace("\r", "").splitlines():
+        if not line.strip() or line[0] in "!*@$":
+            continue
+        code = line[0:6].strip()
+        tokens = line[23:].split("!")[0].split()
+        if code in ("999991", "999992", "DFAULT") or len(tokens) < 8:
+            continue
+        nums = [_f(x) for x in tokens[-7:]]
+        out.append({"code": code, "name": line[7:23].strip(), "eco": tokens[-8],
+                    "P1V": nums[0], "P1D": nums[1], "P5": nums[2], "PHINT": nums[6]})
+    return out
+
+
+def parse_cscer_eco(text: str) -> dict:
+    """WHCER048/BACER048.ECO, by header name: P1, P2FR1, P2, P3, P4FR1, P4FR2, P4,
+    VEFF, TKFH (the fully hardened kill temperature)."""
+    out = {}
+    for names, rows in _header_rows(text):
+        if "ECO#" not in names:
+            continue
+        for row in rows:
+            if len(row) != len(names):
+                continue
+            rec = dict(zip(names, row))
+            out[rec["ECO#"]] = {k: _f(rec[k]) for k in
+                                ("P1", "P2FR1", "P2", "P3", "P4FR1", "P4FR2", "P4", "VEFF", "TKFH")}
+    return out
+
+
+def parse_cscer_spe(text: str) -> dict:
+    """The species file's phase durations, photoperiod settings, cold hardiness and
+    four-point temperature responses (TRDV1, TRVRN, ...) by name."""
+    out = {}
+    for names, rows in _header_rows(text):
+        if not names or not rows:
+            continue
+        if len(rows) == 1:
+            out.update({k: _f(v) for k, v in zip(names, rows[0])})
+        elif len(rows) == 4 and all(len(r) == len(names) for r in rows):
+            out.update({k: tuple(_f(r[i]) for r in rows) for i, k in enumerate(names)})
+    return out
+
+
+def tfac4(card: tuple, temp: float) -> tuple:
+    """CSUTS.for's Tfac4: a factor rising from the base to the first optimum, flat to the
+    second, falling to the maximum; and its thermal units, factor x (optimum − base)."""
+    if temp <= card[0]:
+        f = 0.0
+    elif temp <= card[1]:
+        f = (temp - card[0]) / (card[1] - card[0])
+    elif temp <= card[2]:
+        f = 1.0
+    elif temp <= card[3]:
+        f = 1.0 - (temp - card[2]) / (card[3] - card[2])
+    else:
+        f = 0.0
+    f = max(0.0, min(1.0, f))
+    return f, f * (card[1] - card[0])
+
+
+SMALL_GRAIN_DEPTH_CM = 4.0
+
+#: A freeze from boot on ends a wheat or barley season. DSSAT stops counting cold once
+#: the spike grows; K-State's C-646, Spring Freeze Injury to Kansas Wheat, puts injury at
+#: 28 °F (−2.2 °C) for two hours at boot and 30 °F at heading and flowering. The daily
+#: minimum here stands in for those two hours — and a grid cell's minimum is milder
+#: than a field's, so this errs toward a crop surviving.
+HEAD_FREEZE_C = -2.2
+
+#: Longest a wheat or barley season may run. Phenology alone lets a winter wheat sown in
+#: June wait out the summer for its cold and mature the next June; no one farms that, so
+#: a season longer than nine months counts as not maturing. In practice the early end of
+#: the fall window is set by what phenology cannot see — the Hessian fly-free date,
+#: aphids carrying barley yellow dwarf, too much growth before winter.
+SMALL_GRAIN_MAX_DAYS = 275
+
+#: Heat at flowering ends a wheat or barley season too: above 31 °C pollination fails
+#: (Porter & Gawith 1999, Eur. J. Agron. 10:23–36, as cited by Journal of Experimental
+#: Botany 71:5740, doi:10.1093/jxb/eraa326), checked against each day's maximum from
+#: anthesis to its end. Without it, a summer sowing would flower in August and "mature".
+HEAT_AT_ANTHESIS_C = 31.0
+
+
+def develop_cscer(cul: dict, eco: dict, spe: dict, days: list, start: int, lat: float,
+                  stop: int | None = None) -> dict:
+    """Cropsim-CERES (CER_Growth/CER_Integrate.for) development from sowing.
+
+    Development units are thermal time x a vernalization factor x a day-length factor
+    (DU = TT·VF·DF), accumulated from sowing against cumulative phase thresholds from
+    the ecotype (P1–P4) and cultivar (P5). Thermal time follows the daily mean through
+    TRDV1 (TRDV2 after anthesis). Vernalization days accrue through TRVRN from
+    germination until terminal spikelet, are lost on days over 30 °C while fewer than
+    10, and give VF = (1 − VEFF) + VEFF·min(1, days/P1V). Day length is long-day:
+    DF = 1 − P1D/10000·(PPTHR − twilight day length)², until stage PPEND. Germination and
+    emergence run on their own thermal time (TRGEM): PGERM, then PEMRG per cm of depth.
+    Anthesis is P4FR1 of the way into phase 4; maturity is the end of phase 5.
+
+    Winter kill: the kill temperature hardens from TKUH toward the ecotype's TKFH as
+    hardening days (TRHAR) accrue over HDUR, and is lost on warm days; a day whose
+    mean is below it removes 5% of plants plus 2% per degree squared, and the crop
+    fails when fewer than 5% are left — DSSAT's rule, applied to plants directly where
+    DSSAT first spends tillers, so it errs toward kill. No snow cover: NASA POWER has
+    none, and DSSAT would set the crown to 0 °C under snow. Beyond DSSAT: a freeze from
+    boot on ends the season (HEAD_FREEZE_C), as does heat over 31 °C while it flowers
+    (HEAT_AT_ANTHESIS_C) and a season over nine months (SMALL_GRAIN_MAX_DAYS)."""
+    out = {"flower": None, "maturity": None, "winter_killed": False, "frozen_in_head": False,
+           "heat_at_anthesis": False}
+    pd = [spe.get("P0", 0.0) or 0.0, eco["P1"], eco["P2"], eco["P3"], eco["P4"], cul["P5"],
+          spe.get("P6", 200.0)]
+    pth = [pd[0]]
+    for L in range(1, 7):
+        pth.append(pth[-1] + max(0.0, pd[L]))
+    anthesis_du = pth[3] + eco["P4FR1"] * pd[4]
+    anthesis_end_du = pth[3] + (eco["P4FR1"] + eco["P4FR2"]) * pd[4]
+    pegd, emerge = spe["PGERM"], spe["PGERM"] + spe["PEMRG"] * SMALL_GRAIN_DEPTH_CM
+    p1v, veff, p1d = cul["P1V"], eco["VEFF"], cul["P1D"]
+    tkuh, tkfh, hdur = spe["TKUH"], eco["TKFH"], spe["HDUR"]
+    cumdu = cumgeu = cumvd = hardays = 0.0
+    vf, tkill, survive, rstage, istage = 0.0, tkuh, 1.0, 0.0, 8
+    end = min(len(days), stop if stop is not None else start + 365, start + SMALL_GRAIN_MAX_DAYS)
+    for i in range(start, end):
+        date, v = days[i]
+        if "T2M_MIN" not in v or "T2M_MAX" not in v:
+            continue
+        tmin, tmax = v["T2M_MIN"], v["T2M_MAX"]
+        tmean = (tmin + tmax) / 2.0
+        after_anthesis = out["flower"] is not None and 4 < istage <= 6
+        tt = tfac4(spe["TRDV2"] if after_anthesis else spe["TRDV1"], tmean)[1]
+        early = istage >= 9 or istage <= 2
+        tfv = tfac4(spe["TRVRN"], tmean)[0] if early else 0.0
+        tfh = tfac4(spe["TRHAR"], tmean)[0] if early else 0.0
+        if istage >= 7:
+            df = spe["PPFPE"]
+        else:
+            twilen = civil_day_length(lat, date.timetuple().tm_yday)
+            df = max(0.0, min(1.0, 1.0 - (p1d / 10000.0) * (spe["PPTHR"] - twilen) ** 2))
+            if rstage > spe["PPEND"]:
+                df = 1.0
+        du = max(0.0, tt * vf * df)
+        if rstage >= 3.0 and istage < 7 and tmin <= HEAD_FREEZE_C:
+            out["frozen_in_head"] = True                 # boot onward: see HEAD_FREEZE_C
+            return out
+        # cold: yesterday's kill temperature against today's mean, before spike growth
+        if istage < 4 and tkill > tmean:
+            survive *= max(0.0, 0.95 - 0.02 * (tmean - tkill) ** 2)
+            if survive < 0.05:
+                out["winter_killed"] = True
+                return out
+        vdlost = 0.5 * (tmax - 30.0) if cumvd < 10.0 and tmax > 30.0 else 0.0
+        if istage != 8:
+            hardilos = max(0.0, (tmax - 10.0) * (0.1 if 2 <= istage < 7 else 0.01))
+        else:
+            hardilos = 0.0
+        # integrate
+        cumvd = max(0.0, cumvd + tfv - vdlost)
+        if istage >= 7 or istage <= 1:
+            vf = max(0.0, (1.0 - veff) + veff * min(1.0, cumvd / p1v)) if p1v > 0 else 1.0
+        else:
+            vf = 1.0
+        hardays = max(hardays + tfh - hardilos, 0.0)
+        tkill = tkuh + (tkfh - tkuh) * min(1.0, hardays / hdur)
+        cumdu += du
+        for L in range(6, 0, -1):
+            if cumdu >= pth[L - 1]:
+                rstage = min(6.9, L + (cumdu - pth[L - 1]) / pd[L])
+                break
+        if istage >= 8:
+            cumgeu += tfac4(spe["TRGEM"], tmean)[1]
+            if cumgeu >= emerge:
+                istage = int(rstage)
+            elif cumgeu >= pegd:
+                istage = 9
+        else:
+            istage = int(rstage)
+        if out["flower"] is None and cumdu >= anthesis_du and istage < 7:
+            out["flower"] = i
+        if out["flower"] is not None and cumdu - du < anthesis_end_du and tmax > HEAT_AT_ANTHESIS_C:
+            out["heat_at_anthesis"] = True               # see HEAT_AT_ANTHESIS_C
+            return out
+        if cumdu >= pth[5] and istage < 7:
+            out["maturity"] = i
+            return out
+    return out
+
+
+def cscer_runners(cultivars: list, ecos: dict, spe: dict, lat: float) -> list:
+    runners = []
+    for cul in cultivars:
+        eco = ecos.get(cul["eco"]) or ecos.get("DFAULT") or next(iter(ecos.values()))
+        if None in (cul["P1V"], cul["P1D"], cul["P5"]) or None in eco.values():
+            continue
+        runners.append((cul["name"], cul["code"], "long-day", spe["PPTHR"],
+                        lambda days, start, stop, cul=cul, eco=eco:
+                        develop_cscer(cul, eco, spe, days, start, lat, stop)))
+    return runners
+
+
 # ------------------------------------------------------------- planting windows
 
 #: A killing-frost stand-in for maize, sorghum and millet, whose files give none: the leaf-damage
@@ -712,9 +937,10 @@ def sweep(runners: list, days: list, freeze_c: float, step_days: int = 7) -> lis
     return out
 
 
-def windows(swept: list, share: float = WINDOW_SHARE) -> list:
+def windows(swept: list, share: float = WINDOW_SHARE, min_sowings: int = 2) -> list:
     """Runs of sowing dates at or above `share`, as ("Apr 08", "Jun 10") pairs; a run
-    that crosses the new year is joined."""
+    that crosses the new year is joined, and a run of fewer than `min_sowings` weekly
+    sowings — a lone week passing at a boundary — is not a window."""
     runs, current = [], []
     for doy, s in swept:
         if s >= share:
@@ -726,6 +952,7 @@ def windows(swept: list, share: float = WINDOW_SHARE) -> list:
         runs.append(current)
     if len(runs) > 1 and runs[0][0] == swept[0][0] and runs[-1][-1] == swept[-1][0]:
         runs[0] = runs.pop() + runs[0]
+    runs = [r for r in runs if len(r) >= min_sowings]
 
     def md(doy):
         return (_dt.date(2001, 1, 1) + _dt.timedelta(days=doy - 1)).strftime("%b %d")
@@ -764,6 +991,8 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
     models.append(("MZ", "Zea mays", "CERES-Maize"))
     models.append(("SG", "Sorghum bicolor", "CERES-Sorghum"))
     models.append(("ML", "Cenchrus americanus", "CERES-Millet"))
+    models.append(("WH", "Triticum aestivum", "CERES-Wheat"))
+    models.append(("BA", "Hordeum vulgare", "CERES-Barley"))
     for code, scientific, model in models:
         dcache = os.path.join(cache, "dssat")
         if model == "CERES-Maize":
@@ -793,6 +1022,15 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
             runners = millet_runners(culs, ecos, lat)
             size = {c["code"]: (c["P1"] or 0) + (c["P5"] or 0) for c in culs}
             results = evaluate(runners, days, lat, cool=False)
+        elif model in ("CERES-Wheat", "CERES-Barley"):
+            culs = parse_cscer_cul(fetch(f"{code}CER048.CUL", dcache))
+            ecos = parse_cscer_eco(fetch(f"{code}CER048.ECO", dcache))
+            sp = parse_cscer_spe(fetch(f"{code}CER048.SPE", dcache))
+            spe = {"name": model.split("-")[1], "temps": {1: sp["TRDV1"], 2: sp["TRDV2"]},
+                   "freeze": (None, None), "cscer": sp}
+            runners = cscer_runners(culs, ecos, sp, lat)
+            size = {c["code"]: 10 * (c["P1V"] or 0) + (c["P5"] or 0) for c in culs}
+            results = evaluate(runners, days, lat, cool=False, fall=True)
         else:
             spe, ecos, culs = load(code, dcache)
             runners = cropgro_runners(spe, culs, ecos, lat)
@@ -803,7 +1041,9 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
             continue
         freeze_c = (spe.get("freeze") or (-2.22, None))[0]
         if windows_too:
-            swept = sweep(representatives(runners, lambda r: size.get(r[1], 0), results), days, freeze_c)
+            # A winter cereal's season is ended by its own winter-kill model, not a freeze.
+            swept = sweep(representatives(runners, lambda r: size.get(r[1], 0), results), days,
+                          -99.0 if freeze_c is None else freeze_c)
             sowing = "; ".join(f"{a}–{b}" for a, b in windows(swept)) or "none"
         else:
             sowing = ""
@@ -832,6 +1072,10 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
         if model == "CERES-Maize":
             cd = f"{min(e['P2O'] for e in ecos.values()):g}–{max(e['P2O'] for e in ecos.values()):g}"
             ps = f"P2 {min(c['P2'] for c in culs):g}–{max(c['P2'] for c in culs):g} days/h"
+        elif model in ("CERES-Wheat", "CERES-Barley"):
+            cd = f"{spe['cscer']['PPTHR']:g}"
+            ps = (f"P1D {min(c['P1D'] for c in culs):g}–{max(c['P1D'] for c in culs):g}; "
+                  f"vernalization P1V {min(c['P1V'] for c in culs):g}–{max(c['P1V'] for c in culs):g} d")
         elif model in ("CERES-Sorghum", "CERES-Millet"):
             cd = f"{min(c['P2O'] for c in culs):g}–{max(c['P2O'] for c in culs):g}"
             ps = f"P2R {min(c['P2R'] for c in culs):g}–{max(c['P2R'] for c in culs):g} °C·d/h"
@@ -881,7 +1125,9 @@ def main(argv=None) -> int:
             print(f"  {r['dssat_crop']:<18}  0/{r['cultivars']:<2} cultivars mature before frost 8 years in 10 — best "
                   f"{r['best_cultivar'][:18]} in {r['best_matures_before_frost']:.0%} of years ({r['photoperiod']})")
         if r["sowing_windows_8_in_10"]:
-            print(f"  {'':<18} sow: {r['sowing_windows_8_in_10']} (freeze below {r['damaging_freeze_c']:g} °C ends it)")
+            end = (f"freeze below {r['damaging_freeze_c']:g} °C ends it" if r["damaging_freeze_c"] is not None
+                   else "its winter-kill model decides")
+            print(f"  {'':<18} sow: {r['sowing_windows_8_in_10']} ({end})")
     return 0
 
 

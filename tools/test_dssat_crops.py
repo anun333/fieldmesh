@@ -175,7 +175,84 @@ class MilletTest(unittest.TestCase):
         self.assertEqual(e["IB0001"], {"TBASE": 10.0, "TOPT": 34.0, "ROPT": 34.0, "DJTI": 68.0, "GDDE": 6.0})
 
 
+class CscerTest(unittest.TestCase):
+    SPE = {"PGERM": 10.0, "PEMRG": 8.0, "P0": 0.0, "P6": 200.0, "PPFPE": 1.0, "PPTHR": 20.0,
+           "PPEND": 2.0, "TKUH": -6.0, "HDUR": 10.0, "TRGEM": (1, 26, 50, 60), "TRDV1": (0, 26, 50, 60),
+           "TRDV2": (0, 30, 50, 60), "TRVRN": (-5, 0, 7, 15), "TRHAR": (-5, 0, 5, 10)}
+    ECO = {"P1": 100.0, "P2FR1": 0.25, "P2": 100.0, "P3": 100.0, "P4FR1": 0.25, "P4FR2": 0.1,
+           "P4": 100.0, "VEFF": 0.0, "TKFH": -20.0}
+    CUL = {"P1V": 0.0, "P1D": 0.0, "P5": 200.0, "PHINT": 95.0}
+    days = MaizeTest.days
+
+    def test_tfac4(self):
+        self.assertEqual(D.tfac4((0, 26, 50, 60), 13), (0.5, 13.0))
+        self.assertEqual(D.tfac4((0, 26, 50, 60), 40), (1.0, 26.0))
+        self.assertEqual(D.tfac4((0, 26, 50, 60), 55)[0], 0.5)
+        self.assertEqual(D.tfac4((0, 26, 50, 60), -3), (0.0, 0.0))
+
+    def test_the_stages_by_hand(self):
+        # 20 units a day at 20 °C, from the second day (the vernalization factor starts at
+        # 0). Thresholds 100/200/300/400/600: anthesis a quarter into phase 4, at 325
+        # (day 17); maturity at the end of phase 5, 600 (day 30).
+        r = D.develop_cscer(self.CUL, self.ECO, self.SPE, self.days(20.0), 0, 35.0)
+        self.assertEqual((r["flower"], r["maturity"]), (17, 30))
+
+    def test_a_winter_wheat_needs_its_cold(self):
+        cul = {**self.CUL, "P1V": 50.0}
+        eco = {**self.ECO, "VEFF": 1.0}
+        self.assertIsNone(D.develop_cscer(cul, eco, self.SPE, self.days(20.0), 0, 35.0)["maturity"],
+                          "never vernalized at 20 °C")
+        cold_then_warm = self.days(5.0, 60) + [(d + dt.timedelta(days=60), v) for d, v in self.days(20.0, 200)]
+        self.assertIsNotNone(D.develop_cscer(cul, eco, self.SPE, cold_then_warm, 0, 35.0)["maturity"])
+
+    def test_hardened_wheat_survives_what_kills_an_unhardened_one(self):
+        start = dt.date(2020, 10, 1)
+        def season(first_c, n_first):
+            temps = [first_c] * n_first + [-14.0] * 3 + [12.0] * 250
+            return [(start + dt.timedelta(days=i), {"T2M_MIN": t, "T2M_MAX": t}) for i, t in enumerate(temps)]
+        cul = {**self.CUL, "P1V": 30.0}
+        eco = {**self.ECO, "VEFF": 1.0}
+        warm = D.develop_cscer(cul, eco, self.SPE, season(12.0, 20), 0, 35.0)    # no hardening
+        # At 6 °C it emerges in nine days (5 germination units a day against 10 + 8 x 4)
+        # and hardens 0.8 of a day a day, fully within the 40; at 12 °C it never hardens.
+        hard = D.develop_cscer(cul, eco, self.SPE, season(6.0, 40), 0, 35.0)
+        cannot_harden = D.develop_cscer(cul, {**eco, "TKFH": -6.0}, self.SPE, season(6.0, 40), 0, 35.0)
+        self.assertTrue(warm["winter_killed"])
+        self.assertFalse(hard["winter_killed"])
+        self.assertTrue(cannot_harden["winter_killed"], "the same season, without hardening, kills")
+
+    def test_a_freeze_after_boot_ends_it_and_before_does_not(self):
+        # Constant 20 °C reaches boot (300 units) on day 16 and anthesis on day 17.
+        def with_freeze(day):
+            days = self.days(20.0)
+            d, v = days[day]
+            days[day] = (d, {**v, "T2M_MIN": -3.0})
+            return D.develop_cscer(self.CUL, self.ECO, self.SPE, days, 0, 35.0)
+        self.assertTrue(with_freeze(20)["frozen_in_head"])
+        early = with_freeze(8)
+        self.assertFalse(early["frozen_in_head"])
+        self.assertIsNotNone(early["maturity"])
+
+    def test_heat_while_it_flowers_ends_it(self):
+        hot = D.develop_cscer(self.CUL, self.ECO, self.SPE,
+                              [(d, {**v, "T2M_MAX": 33.0, "T2M_MIN": 7.0}) for d, v in self.days(20.0)],
+                              0, 35.0)
+        self.assertTrue(hot["heat_at_anthesis"])
+        self.assertIsNone(hot["maturity"])
+
+    def test_columns(self):
+        (c,) = D.parse_cscer_cul("KZ0001 North KAZAK1           DFAULT    10   120   670    16    42   2.0    90")
+        self.assertEqual((c["name"], c["eco"], c["P1V"], c["P1D"], c["P5"], c["PHINT"]),
+                         ("North KAZAK1", "DFAULT", 10.0, 120.0, 670.0, 90.0))
+        (c,) = D.parse_cscer_cul("IB0488 NEWTON             1,6 USWH01 48.45 73.50 505.0 35.42 22.60  0.78 95.00  ")
+        self.assertEqual((c["eco"], c["P1V"]), ("USWH01", 48.45))
+
+
 class WindowTest(unittest.TestCase):
+    def test_a_lone_week_is_not_a_window(self):
+        swept = [(1, 0.0), (8, 0.9), (15, 0.0), (22, 0.9), (29, 0.9), (36, 0.0)]
+        self.assertEqual(D.windows(swept), [("Jan 22", "Jan 29")])
+
     def test_representatives_come_from_what_matures(self):
         runners = [(n, n, "", 0, None) for n in "abcde"]
         results = [{"code": "a", "matures_before_frost": 1.0, "days_to_maturity": 150},
@@ -188,7 +265,8 @@ class WindowTest(unittest.TestCase):
 
     def test_runs_of_good_weeks(self):
         swept = [(1, 0.0), (8, 0.9), (15, 0.9), (22, 0.5), (29, 0.85)]
-        self.assertEqual(D.windows(swept), [("Jan 08", "Jan 15"), ("Jan 29", "Jan 29")])
+        self.assertEqual(D.windows(swept), [("Jan 08", "Jan 15")])
+        self.assertEqual(D.windows(swept, min_sowings=1), [("Jan 08", "Jan 15"), ("Jan 29", "Jan 29")])
 
     def test_a_window_across_the_new_year_is_joined(self):
         swept = [(1, 0.9), (8, 0.0), (358, 0.9)]

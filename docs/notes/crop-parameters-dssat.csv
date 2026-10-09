@@ -26,3 +26,5 @@ Mucuna pruriens,Velvetbean,VB,CROPGRO,8 30 35 45,8 28 35 45,0 26 35 45,20,12–1
 Zea mays,Maize,MZ,CERES-Maize,8 34 34 44,,,166,12.5–12.5,P2 0–2 days/h
 Sorghum bicolor,Sorghum,SG,CERES-Sorghum,8 34 34 44,,,55,11–16.5,P2R 1–1800 °C·d/h
 Cenchrus americanus,Pearl millet,ML,CERES-Millet,10 34 34 44,,,60,12–14.54,P2R 3–999.9 °C·d/h
+Triticum aestivum,Wheat,WH,CERES-Wheat,0 26 50 60,0 30 50 60,,8,20,P1D 13.12–120; vernalization P1V 2–53.02 d
+Hordeum vulgare,Barley,BA,CERES-Barley,0 26 50 60,0 30 50 60,,3,20,P1D 32.26–142; vernalization P1V 0.001–25.26 d
