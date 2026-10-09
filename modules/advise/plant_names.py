@@ -154,7 +154,17 @@ def choose(plants: list, agro: list, wiki: list, lang: str) -> dict:
                 item = rs[0]["item"]
                 out[sci] = (next(iter(found)), "Wikidata (CC0)", item)
                 break
-    return {k: (v[0][:1].upper() + v[0][1:], v[1], v[2]) for k, v in out.items()}
+    return {k: (_tidy(v[0]), v[1], v[2]) for k, v in out.items()}
+
+
+#: What a product label carries that a plant's name does not: "Semilla de ricino" names
+#: castor seed, "Litchi (fruta)" the fruit. Dropped so the plant is named, not its product.
+_PRODUCT = re.compile(r"^(?:semillas? de |graines? de )", re.I)
+
+
+def _tidy(name: str) -> str:
+    name = re.sub(r"\s*\([^)]*\)$", "", _PRODUCT.sub("", name.strip()))
+    return name[:1].upper() + name[1:]
 
 
 def read_plants(path: str) -> list:

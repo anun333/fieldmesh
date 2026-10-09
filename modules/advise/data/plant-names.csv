@@ -1,0 +1,473 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# Plant names by language. AGROVOC (FAO, CC BY 4.0, agrovoc.fao.org) and Wikidata (CC0), chosen by modules/advise/plant_names.py; each row names its source and concept. Retrieved 2026-10-09.
+scientific_name,language,name,source,concept
+Abelmoschus esculentus,es,Ocra,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12920
+Abies balsamea,es,Bálsamo Canadá,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9565
+Actinidia deliciosa,es,Kiwi,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12002
+Agave sisalana,es,Sisal,Wikidata (CC0),http://www.wikidata.org/entity/Q159221
+Allium ampeloprasum,es,Puerro,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12128
+Allium cepa,es,Cebolla,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12934
+Allium fistulosum,es,Cebolla japonesa,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4040
+Allium sativum,es,Ajo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11091
+Allium schoenoprasum,es,Cebollino,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9813
+Anacardium occidentale,es,Anacardo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9647
+Ananas comosus,es,Piña,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13394
+Anethum graveolens,es,Eneldo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10377
+Annona cherimola,es,Chirimoyo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9761
+Annona muricata,es,Graviola,Wikidata (CC0),http://www.wikidata.org/entity/Q1709343
+Apium graveolens var. rapaceum,es,Apio-nabo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1411
+Arachis hypogaea,es,Cacahuete,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11368
+Armoracia rusticana,es,Rábano picante,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11614
+Artemisia dracunculus,es,Estragón,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14793
+Artocarpus altilis,es,Fruta de pan,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1f256793
+Artocarpus heterophyllus,es,Jaca,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11864
+Asimina triloba,es,Pawpaw,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_ceb1a952
+Asparagus officinalis,es,Espárrago,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_17156
+Avena sativa,es,Avena,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_5287
+Averrhoa carambola,es,Carambola,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9605
+Bertholletia excelsa,es,Nuez del Brasil,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9410
+Boehmeria nivea,es,Ramio,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6442
+Borago officinalis,es,Borraja,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_a9bcfd61
+Brassica juncea,es,Mostaza,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_fd07a050
+Brassica napus,es,Colza,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25499
+Brassica oleracea var. botrytis,es,Coliflor,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1394
+Brassica oleracea var. capitata,es,Repollo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1173
+Brassica oleracea var. gemmifera,es,Col de Bruselas,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1127
+Brassica oleracea var. gongylodes,es,Colirrábano,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4114
+Brassica oleracea var. italica,es,Bróculi,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7339
+Brassica oleracea var. viridis,es,Col,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4070
+Brassica rapa subsp. chinensis,es,Col china,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9804
+Brassica rapa subsp. pekinensis,es,Col china,Wikidata (CC0),http://www.wikidata.org/entity/Q13360268
+Brassica rapa subsp. rapa,es,Nabo,Wikidata (CC0),http://www.wikidata.org/entity/Q33690609
+Cajanus cajan,es,Guisante de angola,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13356
+Calendula officinalis,es,Botón de oro,Wikidata (CC0),http://www.wikidata.org/entity/Q145930
+Camellia sinensis,es,Té,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7634
+Cannabis sativa,es,Cáñamo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3558
+Capsicum annuum,es,Chili dulce,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14727
+Capsicum frutescens,es,Guindilla,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9795
+Carica papaya,es,Papaya,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13087
+Carthamus tinctorius,es,Cartamo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25503
+Carum carvi,es,Alcaravea,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9607
+Carya illinoinensis,es,Pacana,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13178
+Cedrela odorata,es,Cedro,Wikidata (CC0),http://www.wikidata.org/entity/Q163004
+Cenchrus americanus,es,Mijo perla,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_e4e17d1b
+Ceratonia siliqua,es,Algarroba,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9631
+Chenopodium quinoa,es,Quinua,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13716
+Cicer arietinum,es,Garbanzo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9785
+Cichorium endivia,es,Endibia,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10596
+Cinnamomum verum,es,Canela,Wikidata (CC0),http://www.wikidata.org/entity/Q370239
+Citrullus lanatus,es,Sandía,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_15277
+Citrus reticulata,es,Mandarina,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4568
+Citrus × limon,es,Limonero,Wikidata (CC0),http://www.wikidata.org/entity/Q500
+Cocos nucifera,es,Coco,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25470
+Coffea arabica,es,Café arábica,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_566
+Coffea canephora,es,Café robusta,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6626
+Coix lacryma-jobi,es,Lágrima de Job,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_87d11e43
+Colocasia esculenta,es,Taro,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14791
+Corchorus capsularis,es,Yute,Wikidata (CC0),http://www.wikidata.org/entity/Q3190566
+Coriandrum sativum,es,Cilantro,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10097
+Corylus avellana,es,Avellano común,Wikidata (CC0),http://www.wikidata.org/entity/Q124969
+Crocus sativus,es,Azafrán,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14023
+Crotalaria juncea,es,Cáñamo sunn,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7520
+Cucumis melo,es,Melón bordado,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12487
+Cucumis sativus,es,Pepino,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10195
+Cucurbita maxima,es,Calabaza confitera,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8411
+Cucurbita pepo,es,Calabacín,Wikidata (CC0),http://www.wikidata.org/entity/Q7229863
+Cuminum cyminum,es,Comino,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10205
+Curcuma longa,es,Cúrcuma,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_15048
+Cydonia oblonga,es,Membrillo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13714
+Cymbopogon citratus,es,Hierba de limón,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_41d978c7
+Daucus carota subsp. sativus,es,Zanahoria,Wikidata (CC0),http://www.wikidata.org/entity/Q11678009
+Digitaria exilis,es,Fonio blanco,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3b4c07e9
+Dimocarpus longan,es,Longana,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_331528
+Dioscorea alata,es,Ñame de agua,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_b62580dc
+Dioscorea rotundata,es,Ñame guinea,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_bd43049a
+Diospyros kaki,es,Caqui,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11934
+Durio zibethinus,es,Durian,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10488
+Elaeis guineensis,es,Almendra de palma,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25493
+Elettaria cardamomum,es,Cardamomo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9620
+Eleusine coracana,es,Mijo africano,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_2904
+Eragrostis tef,es,Tef,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_b2ba9c4c
+Eriobotrya japonica,es,Níspero,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12246
+Ficus carica,es,Higo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10840
+Fragaria × ananassa,es,Pineberry,Wikidata (CC0),http://www.wikidata.org/entity/Q13158
+Garcinia mangostana,es,Mangostan,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12368
+Glycine max,es,Soja,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14477
+Gossypium hirsutum,es,Algodón,Wikidata (CC0),http://www.wikidata.org/entity/Q133481
+Guizotia abyssinica,es,Negrillo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12827
+Helianthus annuus,es,Girasol,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25507
+Helianthus tuberosus,es,Pataca,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11903
+Hibiscus cannabinus,es,Kenaf,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4084
+Hibiscus sabdariffa,es,Rosella,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_a8b0f9a7
+Hippophae rhamnoides,es,Baya de espino amarillo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_bfa826ad
+Hordeum vulgare,es,Cebada,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_823
+Humulus lupulus,es,Lúpulo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11596
+Ilex paraguariensis,es,Mate,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4647
+Ipomoea batatas,es,Batata,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14729
+Juglans nigra,es,Nogal negro,Wikidata (CC0),http://www.wikidata.org/entity/Q852572
+Juglans regia,es,Nuez,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_15254
+Lactuca sativa,es,Lechuga,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12151
+Lens culinaris,es,Lenteja,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12140
+Linum usitatissimum,es,Lino,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_2970
+Litchi chinensis,es,Litchi,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12283
+Lycium barbarum,es,Baya de Goji,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_caacd4d4
+Macrotyloma uniflorum,es,Fríjol grande de américa,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3666
+Malus domestica,es,Manzana,Wikidata (CC0),http://www.wikidata.org/entity/Q18674606
+Mangifera indica,es,Mango,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12367
+Manihot esculenta,es,Mandioca,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9649
+Manilkara zapota,es,Chicle,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1542
+Moringa oleifera,es,Baqueta,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_330156
+Musa acuminata,es,Banano,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_806
+Musa textilis,es,Abacá,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4
+Myristica fragrans,es,Nuez moscada,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_23169
+Nephelium lappaceum,es,Rambután,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13754
+Ocimum basilicum,es,Albahaca,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9093
+Olea europaea,es,Aceituna,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12926
+Opuntia ficus-indica,es,Tuna,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_ba7fc495
+Origanum vulgare,es,Orégano,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_34066
+Oryza glaberrima,es,Arroz,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6599
+Oryza sativa,es,Arroz,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6599
+Panicum miliaceum,es,Mijo común,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_66a6d28a
+Passiflora edulis,es,Granadilla,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13127
+Pastinaca sativa,es,Chirivia,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13122
+Paullinia cupana,es,Planta de guaraná,Wikidata (CC0),http://www.wikidata.org/entity/Q209089
+Persea americana,es,Aguacate,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9022
+Petroselinum crispum,es,Perejil,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13120
+Phaseolus coccineus,es,Ayocote,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_94046467
+Phaseolus lunatus,es,Judía de lima,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12180
+Phaseolus vulgaris,es,Fríjol,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4098
+Phoenix dactylifera,es,Dátil,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25475
+Physalis philadelphica,es,Tomatillo,Wikidata (CC0),http://www.wikidata.org/entity/Q622525
+Pimenta dioica,es,Pimienta inglesa,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_19193
+Pimpinella anisum,es,Anís,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8817
+Pinus palustris,es,Pino de hoja larga,Wikidata (CC0),http://www.wikidata.org/entity/Q148542
+Pinus ponderosa,es,Pino ponderoso,Wikidata (CC0),http://www.wikidata.org/entity/Q460523
+Pinus strobus,es,Pinabete,Wikidata (CC0),http://www.wikidata.org/entity/Q157230
+Pinus sylvestris,es,Pino silvestre,Wikidata (CC0),http://www.wikidata.org/entity/Q133128
+Pinus virginiana,es,Pino virginiano,Wikidata (CC0),http://www.wikidata.org/entity/Q3505749
+Piper nigrum,es,Pimienta,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25495
+Pistacia vera,es,Pistacho,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13413
+Pisum sativum,es,Guisante,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13177
+Prunus americana,es,Ciruela,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6028
+Prunus armeniaca,es,Albaricoque,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_545
+Prunus avium,es,Cereza,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1534
+Prunus cerasus,es,Cereza ácida,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9767
+Prunus domestica,es,Ciruela,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6028
+Prunus dulcis,es,Almendra,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8734
+Prunus serotina,es,Cerezo negro,Wikidata (CC0),http://www.wikidata.org/entity/Q158987
+Psidium guajava,es,Guayaba,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11392
+Punica granatum,es,Granada,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13505
+Pyrus communis,es,Pera,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_5645
+Raphanus sativus,es,Rábano,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13735
+Rheum rhabarbarum,es,Ruibarbo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11089
+Ribes nigrum,es,Grosella negra,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_945
+Ribes uva-crispa,es,Uva espina,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3333
+Ricinus communis,es,Ricino,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_18705
+Rubus idaeus,es,Frambuesa,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6458
+Rubus subg. Rubus,es,Mora,Wikidata (CC0),http://www.wikidata.org/entity/Q13180
+Saccharum officinarum,es,Caña de azúcar,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7501
+Salvia rosmarinus,es,Romero,Wikidata (CC0),http://www.wikidata.org/entity/Q102240169
+Secale cereale,es,Centeno,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14010
+Sesamum indicum,es,Sésamo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14216
+Setaria italica,es,Mijo de cola de zorra,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_fc4e1303
+Sinapis alba,es,Mostaza,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_fd07a050
+Solanum lycopersicum,es,Tomate,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7805
+Solanum melongena,es,Berenjena,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8998
+Solanum tuberosum,es,Papa,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13551
+Sorghum bicolor,es,Sorgo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_435824c5
+Spinacia oleracea,es,Espinaca,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14508
+Syzygium aromaticum,es,Clavo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_23597
+Tamarindus indica,es,Madera de tamarindo,Wikidata (CC0),http://www.wikidata.org/entity/Q80235
+Tectona grandis,es,Teca,Wikidata (CC0),http://www.wikidata.org/entity/Q156938
+Theobroma cacao,es,Cacao,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1711
+Thymus vulgaris,es,Tomillo,Wikidata (CC0),http://www.wikidata.org/entity/Q148668
+Trifolium repens,es,Trébol blanco,Wikidata (CC0),http://www.wikidata.org/entity/Q148675
+Trigonella foenum-graecum,es,Fenogreco,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_b8cb7919
+Vaccinium corymbosum,es,Arándanos highbush,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11556
+Vaccinium macrocarpon,es,Arándano americano,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1944
+Vaccinium virgatum,es,Arándano ojo de conejo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_60480662
+Valerianella locusta,es,Hierba del canónigo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_bee45268
+Vanilla planifolia,es,Vainilla,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_15126
+Vicia faba,es,Haba,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10722
+Vigna angularis,es,Fríjol adzuki,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8632
+Vigna mungo,es,Porotos mungo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8089
+Vigna subterranea,es,Guisante de tierra,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_de4c5ffc
+Vigna unguiculata,es,Caupi,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1938
+Vitellaria paradoxa,es,Nuez de galam,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25505
+Vitis rotundifolia,es,Uva,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3359
+Vitis vinifera,es,Uva,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3359
+Zea mays,es,Maíz,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12332
+Zingiber officinale,es,Jengibre,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11157
+Ziziphus jujuba,es,Azufaifa,Wikidata (CC0),http://www.wikidata.org/entity/Q11181633
+Abelmoschus esculentus,fr,Gombo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12920
+Abies balsamea,fr,Baume du canada,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9565
+Abies nordmanniana,fr,Sapin de Nordmann,Wikidata (CC0),http://www.wikidata.org/entity/Q148920
+Acer rubrum,fr,Érable rouge,Wikidata (CC0),http://www.wikidata.org/entity/Q161364
+Acer saccharum,fr,Érable à sucre,Wikidata (CC0),http://www.wikidata.org/entity/Q214733
+Achillea millefolium,fr,Achillée millefeuille,Wikidata (CC0),http://www.wikidata.org/entity/Q25408
+Actinidia arguta,fr,Kiwaï,Wikidata (CC0),http://www.wikidata.org/entity/Q848074
+Actinidia deliciosa,fr,Kiwi,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12002
+Agave sisalana,fr,Sisal,Wikidata (CC0),http://www.wikidata.org/entity/Q159221
+Allium ampeloprasum,fr,Poireau,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12128
+Allium cepa,fr,Oignon,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12934
+Allium fistulosum,fr,Ciboule japonaise,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4040
+Allium sativum,fr,Ail,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11091
+Allium schoenoprasum,fr,Ciboulette,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9813
+Allium tuberosum,fr,Ciboule de Chine,Wikidata (CC0),http://www.wikidata.org/entity/Q42285
+Amelanchier alnifolia,fr,Amélanchier à feuilles d'aulne,Wikidata (CC0),http://www.wikidata.org/entity/Q164158
+Ammophila breviligulata,fr,Ammophile à ligule courte,Wikidata (CC0),http://www.wikidata.org/entity/Q2843697
+Anacardium occidentale,fr,Noix de cajou,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9647
+Ananas comosus,fr,Ananas,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13394
+Anemone coronaria,fr,Anémone couronnée,Wikidata (CC0),http://www.wikidata.org/entity/Q511179
+Anethum graveolens,fr,Aneth,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10377
+Annona cherimola,fr,Chérimole,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9761
+Annona muricata,fr,Graviola,Wikidata (CC0),http://www.wikidata.org/entity/Q1709343
+Antirrhinum majus,fr,Muflier à grandes fleurs,Wikidata (CC0),http://www.wikidata.org/entity/Q156843
+Apium graveolens var. rapaceum,fr,Céleri rave,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1411
+Arachis hypogaea,fr,Arachide,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11368
+Armoracia rusticana,fr,Raifort,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11614
+Artemisia dracunculus,fr,Estragon,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14793
+Artocarpus altilis,fr,Fruit à pain,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1f256793
+Artocarpus heterophyllus,fr,Jaquier,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11864
+Asimina triloba,fr,Asimine,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_ceb1a952
+Asparagus officinalis,fr,Asperge,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_17156
+Avena sativa,fr,Avoine,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_5287
+Averrhoa carambola,fr,Carambole,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9605
+Azadirachta indica,fr,Margousier,Wikidata (CC0),http://www.wikidata.org/entity/Q170461
+Benincasa hispida,fr,Courge cireuse,Wikidata (CC0),http://www.wikidata.org/entity/Q652206
+Bertholletia excelsa,fr,Noix du brésil,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9410
+Betula papyrifera,fr,Bouleau à papier,Wikidata (CC0),http://www.wikidata.org/entity/Q76971
+Bixa orellana,fr,Roucou,Wikidata (CC0),http://www.wikidata.org/entity/Q147701
+Boehmeria nivea,fr,Ramie,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6442
+Borago officinalis,fr,Bourrache,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_a9bcfd61
+Brassica juncea,fr,Moutarde,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_fd07a050
+Brassica napus,fr,Colza,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25499
+Brassica oleracea var. botrytis,fr,Chou fleur,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1394
+Brassica oleracea var. capitata,fr,Chou pomme,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1173
+Brassica oleracea var. gemmifera,fr,Chou de bruxelles,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1127
+Brassica oleracea var. gongylodes,fr,Chou rave,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4114
+Brassica oleracea var. italica,fr,Brocoli,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7339
+Brassica oleracea var. viridis,fr,Chou vert,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4070
+Brassica rapa subsp. chinensis,fr,Chou chinois,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9804
+Brassica rapa subsp. pekinensis,fr,Chou chinois,Wikidata (CC0),http://www.wikidata.org/entity/Q13360268
+Brassica rapa subsp. rapa,fr,Navet,Wikidata (CC0),http://www.wikidata.org/entity/Q33690609
+Cajanus cajan,fr,Pois pigeon,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13356
+Camellia sinensis,fr,Thé,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7634
+Cannabis sativa,fr,Chanvre,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3558
+Capsicum annuum,fr,Piment doux,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14727
+Capsicum frutescens,fr,Piment fort,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9795
+Carica papaya,fr,Papaye,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13087
+Carthamus tinctorius,fr,Carthame,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25503
+Carum carvi,fr,Carvi,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9607
+Carya illinoinensis,fr,Noix de pécan,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13178
+Castanea dentata,fr,Châtaignier d'Amérique,Wikidata (CC0),http://www.wikidata.org/entity/Q468698
+Cenchrus americanus,fr,Mil à chandelle,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_e4e17d1b
+Ceratonia siliqua,fr,Caroube,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9631
+Chenopodium quinoa,fr,Quinoa,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13716
+Chloris gayana,fr,Herbe de Rhodes,Wikidata (CC0),http://www.wikidata.org/entity/Q3133411
+Cicer arietinum,fr,Pois chiche,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9785
+Cichorium endivia,fr,Chicorée frisée et scarole,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10596
+Cinnamomum verum,fr,Cannelle,Wikidata (CC0),http://www.wikidata.org/entity/Q370239
+Citrullus lanatus,fr,Pastèque,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_15277
+Citrus reticulata,fr,Mandarine,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4568
+Citrus × limon,fr,Citronnier,Wikidata (CC0),http://www.wikidata.org/entity/Q500
+Claytonia perfoliata,fr,Claytone de Cuba,Wikidata (CC0),http://www.wikidata.org/entity/Q1376670
+Cocos nucifera,fr,Noix de coco,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25470
+Coffea arabica,fr,Café arabica,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_566
+Coffea canephora,fr,Café robusta,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6626
+Coix lacryma-jobi,fr,Larme de Job,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_87d11e43
+Colocasia esculenta,fr,Taro,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14791
+Corchorus capsularis,fr,Jute,Wikidata (CC0),http://www.wikidata.org/entity/Q3190566
+Corchorus olitorius,fr,Corète potagère,Wikidata (CC0),http://www.wikidata.org/entity/Q165343
+Coriandrum sativum,fr,Coriandre,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10097
+Corylus americana,fr,Noisetier d'Amérique,Wikidata (CC0),http://www.wikidata.org/entity/Q468659
+Corylus avellana,fr,Noisette,Wikidata (CC0),http://www.wikidata.org/entity/Q124969
+Crocus sativus,fr,Safran,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14023
+Crotalaria juncea,fr,Chanvre des indes,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7520
+Cucumis melo,fr,Melon,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12487
+Cucumis sativus,fr,Concombre,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10195
+Cucurbita maxima,fr,Courge d'hiver,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8411
+Cucurbita moschata,fr,Courge musquée,Wikidata (CC0),http://www.wikidata.org/entity/Q160571
+Cuminum cyminum,fr,Cumin,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10205
+Curcuma longa,fr,Curcuma,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_15048
+Cydonia oblonga,fr,Coing,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13714
+Cymbopogon citratus,fr,Citronelle,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_41d978c7
+Cynodon dactylon,fr,Chiendent pied de poule,Wikidata (CC0),http://www.wikidata.org/entity/Q208705
+Dactylis glomerata,fr,Dactyle pelotonné,Wikidata (CC0),http://www.wikidata.org/entity/Q161735
+Daucus carota subsp. sativus,fr,Carotte,Wikidata (CC0),http://www.wikidata.org/entity/Q11678009
+Dianthus caryophyllus,fr,Œillet commun,Wikidata (CC0),http://www.wikidata.org/entity/Q158984
+Digitaria exilis,fr,Fonio blanc,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3b4c07e9
+Dimocarpus longan,fr,Longan,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_331528
+Dioscorea alata,fr,Grande igname,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_b62580dc
+Dioscorea rotundata,fr,Igname de guinée,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_bd43049a
+Diospyros kaki,fr,Kaki,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11934
+Durio zibethinus,fr,Durion,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10488
+Elaeis guineensis,fr,Palmiste,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25493
+Elettaria cardamomum,fr,Cardamome,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9620
+Eleusine coracana,fr,Éleusine cultivée,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_2904
+Eragrostis tef,fr,Teff,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_b2ba9c4c
+Eriobotrya japonica,fr,Nèfle,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12246
+Ficus carica,fr,Figue,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10840
+Foeniculum vulgare,fr,Fenouil commun,Wikidata (CC0),http://www.wikidata.org/entity/Q43511
+Fragaria × ananassa,fr,Fraise,Wikidata (CC0),http://www.wikidata.org/entity/Q13158
+Garcinia mangostana,fr,Mangoustan,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12368
+Gleditsia triacanthos,fr,Févier d'Amérique,Wikidata (CC0),http://www.wikidata.org/entity/Q157650
+Glycine max,fr,Soja,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14477
+Gossypium hirsutum,fr,Coton,Wikidata (CC0),http://www.wikidata.org/entity/Q133481
+Guizotia abyssinica,fr,Niger,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12827
+Helianthus annuus,fr,Tournesol,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25507
+Helianthus tuberosus,fr,Topinambour,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11903
+Hemerocallis fulva,fr,Hémérocalle fauve,Wikidata (CC0),http://www.wikidata.org/entity/Q1424440
+Hevea brasiliensis,fr,Hévéa,Wikidata (CC0),http://www.wikidata.org/entity/Q156538
+Hibiscus cannabinus,fr,Kenaf,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4084
+Hibiscus sabdariffa,fr,Roselle,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_a8b0f9a7
+Hippophae rhamnoides,fr,Argouse,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_bfa826ad
+Hordeum vulgare,fr,Orge,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_823
+Humulus lupulus,fr,Houblon,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11596
+Ilex paraguariensis,fr,Maté,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4647
+Indigofera tinctoria,fr,Indigotier,Wikidata (CC0),http://www.wikidata.org/entity/Q165213
+Ipomoea batatas,fr,Patate douce,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14729
+Juglans nigra,fr,Noyer noir,Wikidata (CC0),http://www.wikidata.org/entity/Q852572
+Juglans regia,fr,Noix,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_15254
+Juniperus virginiana,fr,Genévrier de Virginie,Wikidata (CC0),http://www.wikidata.org/entity/Q157522
+Lactuca sativa,fr,Laitue,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12151
+Larix decidua,fr,Mélèze d'Europe,Wikidata (CC0),http://www.wikidata.org/entity/Q146048
+Lathyrus odoratus,fr,Pois de senteur,Wikidata (CC0),http://www.wikidata.org/entity/Q163944
+Lens culinaris,fr,Lentille,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12140
+Leptospermum scoparium,fr,Manuka,Wikidata (CC0),http://www.wikidata.org/entity/Q1520028
+Linum usitatissimum,fr,Lin,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_2970
+Litchi chinensis,fr,Litchi,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12283
+Lolium multiflorum,fr,Ray-grass d'Italie,Wikidata (CC0),http://www.wikidata.org/entity/Q157883
+Lolium perenne,fr,Ray-grass anglais,Wikidata (CC0),http://www.wikidata.org/entity/Q161722
+Lonicera caerulea,fr,Chèvrefeuille bleu,Wikidata (CC0),http://www.wikidata.org/entity/Q157699
+Lotus corniculatus,fr,Lotier corniculé,Wikidata (CC0),http://www.wikidata.org/entity/Q29907
+Luffa aegyptiaca,fr,Courge éponge,Wikidata (CC0),http://www.wikidata.org/entity/Q2308434
+Lycium barbarum,fr,Baie de goji,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_caacd4d4
+Macadamia integrifolia,fr,Noyer du Queensland,Wikidata (CC0),http://www.wikidata.org/entity/Q311178
+Maclura pomifera,fr,Oranger des osages,Wikidata (CC0),http://www.wikidata.org/entity/Q1066106
+Macrotyloma uniflorum,fr,Haricot de kulthi,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3666
+Malus domestica,fr,Pomme,Wikidata (CC0),http://www.wikidata.org/entity/Q18674606
+Mangifera indica,fr,Mangue,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12367
+Manihot esculenta,fr,Manioc,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9649
+Manilkara zapota,fr,Chicle,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1542
+Matthiola incana,fr,Grande giroflée,Wikidata (CC0),http://www.wikidata.org/entity/Q30063
+Melilotus officinalis,fr,Mélilot officinal,Wikidata (CC0),http://www.wikidata.org/entity/Q161160
+Morella pensylvanica,fr,Myrique de Pennsylvanie,Wikidata (CC0),http://www.wikidata.org/entity/Q3331585
+Moringa oleifera,fr,Jeune gousse de moringa,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_330156
+Morus alba,fr,Mûrier blanc,Wikidata (CC0),http://www.wikidata.org/entity/Q157307
+Musa acuminata,fr,Banane,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_806
+Musa textilis,fr,Abaca,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4
+Myristica fragrans,fr,Noix de muscade,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_23169
+Nasturtium officinale,fr,Cresson de fontaine,Wikidata (CC0),http://www.wikidata.org/entity/Q150452
+Nephelium lappaceum,fr,Ramboutan,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13754
+Nicotiana tabacum,fr,Tabac commun,Wikidata (CC0),http://www.wikidata.org/entity/Q181095
+Ocimum basilicum,fr,Basilic,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9093
+Olea europaea,fr,Olive,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12926
+Onobrychis viciifolia,fr,Sainfoin cultivé,Wikidata (CC0),http://www.wikidata.org/entity/Q157933
+Opuntia ficus-indica,fr,Figue de barbarie,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_ba7fc495
+Origanum vulgare,fr,Origan,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_34066
+Oryza glaberrima,fr,Riz,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6599
+Oryza sativa,fr,Riz,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6599
+Oxalis tuberosa,fr,Oca du Pérou,Wikidata (CC0),http://www.wikidata.org/entity/Q1355893
+Paeonia lactiflora,fr,Pivoine de Chine,Wikidata (CC0),http://www.wikidata.org/entity/Q163076
+Panax quinquefolius,fr,Ginseng américain,Wikidata (CC0),http://www.wikidata.org/entity/Q2737217
+Panicum miliaceum,fr,Millet commun,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_66a6d28a
+Passiflora edulis,fr,Grenadille,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13127
+Pastinaca sativa,fr,Panais,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13122
+Paullinia cupana,fr,Plante de guarana,Wikidata (CC0),http://www.wikidata.org/entity/Q209089
+Persea americana,fr,Avocat,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9022
+Petroselinum crispum,fr,Persil,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13120
+Phacelia tanacetifolia,fr,Phacélie à feuilles de tanaisie,Wikidata (CC0),http://www.wikidata.org/entity/Q158942
+Phaseolus acutifolius,fr,Haricot tépari,Wikidata (CC0),http://www.wikidata.org/entity/Q1639734
+Phaseolus coccineus,fr,Haricot d'espagne,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_94046467
+Phaseolus lunatus,fr,Haricot de lima,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12180
+Phaseolus vulgaris,fr,Haricot commun,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_4098
+Phleum pratense,fr,Fléole des prés,Wikidata (CC0),http://www.wikidata.org/entity/Q256508
+Phoenix dactylifera,fr,Datte,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25475
+Physalis philadelphica,fr,Tomatille,Wikidata (CC0),http://www.wikidata.org/entity/Q622525
+Picea pungens,fr,Épicéa bleu,Wikidata (CC0),http://www.wikidata.org/entity/Q146025
+Picea sitchensis,fr,Épinette de Sitka,Wikidata (CC0),http://www.wikidata.org/entity/Q147426
+Pimenta dioica,fr,Piment de la Jamaïque,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_19193
+Pimpinella anisum,fr,Anis vert,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8817
+Pinus elliottii,fr,Pin d'Elliott,Wikidata (CC0),http://www.wikidata.org/entity/Q1249109
+Pinus palustris,fr,Pin des marais,Wikidata (CC0),http://www.wikidata.org/entity/Q148542
+Pinus ponderosa,fr,Pin ponderosa,Wikidata (CC0),http://www.wikidata.org/entity/Q460523
+Pinus radiata,fr,Pin de Monterey,Wikidata (CC0),http://www.wikidata.org/entity/Q748888
+Pinus sylvestris,fr,Pin d'Écosse,Wikidata (CC0),http://www.wikidata.org/entity/Q133128
+Pinus virginiana,fr,Pin de Virginie,Wikidata (CC0),http://www.wikidata.org/entity/Q3505749
+Piper nigrum,fr,Poivre,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25495
+Pistacia vera,fr,Pistache,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13413
+Pisum sativum,fr,Pois,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13177
+Poa pratensis,fr,Pâturin des prés,Wikidata (CC0),http://www.wikidata.org/entity/Q147783
+Prunus americana,fr,Prune,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6028
+Prunus armeniaca,fr,Abricot,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_545
+Prunus avium,fr,Cerise,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1534
+Prunus cerasus,fr,Griottes,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_9767
+Prunus domestica,fr,Prune,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6028
+Prunus dulcis,fr,Amande,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8734
+Prunus persica,fr,Pêcher,Wikidata (CC0),http://www.wikidata.org/entity/Q13189
+Prunus serotina,fr,Cerisier noir,Wikidata (CC0),http://www.wikidata.org/entity/Q158987
+Prunus virginiana,fr,Cerisier de Virginie,Wikidata (CC0),http://www.wikidata.org/entity/Q162829
+Psidium guajava,fr,Goyave,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11392
+Psophocarpus tetragonolobus,fr,Haricot ailé,Wikidata (CC0),http://www.wikidata.org/entity/Q1468260
+Punica granatum,fr,Grenade,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13505
+Pyrus communis,fr,Poire,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_5645
+Pyrus pyrifolia,fr,Nashi,Wikidata (CC0),http://www.wikidata.org/entity/Q838963
+Quercus rubra,fr,Chêne rouge d'Amérique,Wikidata (CC0),http://www.wikidata.org/entity/Q147525
+Raphanus sativus,fr,Radis,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13735
+Rheum rhabarbarum,fr,Rhubarbe,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11089
+Rhus glabra,fr,Sumac à bois glabre,Wikidata (CC0),http://www.wikidata.org/entity/Q3177997
+Ribes nigrum,fr,Cassis,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_945
+Ribes uva-crispa,fr,Groseille à maquereau,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3333
+Ricinus communis,fr,Ricin,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_18705
+Rubus idaeus,fr,Framboise,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_6458
+Rubus subg. Rubus,fr,Mûre,Wikidata (CC0),http://www.wikidata.org/entity/Q13180
+Saccharum officinarum,fr,Canne à sucre,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7501
+Salix viminalis,fr,Saule des vanniers,Wikidata (CC0),http://www.wikidata.org/entity/Q158590
+Salvia officinalis,fr,Sauge officinale,Wikidata (CC0),http://www.wikidata.org/entity/Q1111359
+Salvia rosmarinus,fr,Romarin,Wikidata (CC0),http://www.wikidata.org/entity/Q102240169
+Secale cereale,fr,Seigle,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14010
+Sechium edule,fr,Chayote,Wikidata (CC0),http://www.wikidata.org/entity/Q319611
+Securigera varia,fr,Coronille bigarrée,Wikidata (CC0),http://www.wikidata.org/entity/Q158908
+Sesamum indicum,fr,Sésame,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14216
+Setaria italica,fr,Sétaire d'Italie,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_fc4e1303
+Sinapis alba,fr,Moutarde,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_fd07a050
+Smallanthus sonchifolius,fr,Poire de terre,Wikidata (CC0),http://www.wikidata.org/entity/Q1075177
+Solanum lycopersicum,fr,Tomate,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_7805
+Solanum melongena,fr,Aubergine,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8998
+Solanum tuberosum,fr,Pomme de terre,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_13551
+Sorghum bicolor,fr,Sorgho,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_435824c5
+Spartina patens,fr,Spartine étalée,Wikidata (CC0),http://www.wikidata.org/entity/Q3492753
+Spartina pectinata,fr,Spartine pectinée,Wikidata (CC0),http://www.wikidata.org/entity/Q978311
+Spinacia oleracea,fr,Épinard,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_14508
+Syzygium aromaticum,fr,Clou de girofle,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_23597
+Tagetes patula,fr,Œillet d'Inde,Wikidata (CC0),http://www.wikidata.org/entity/Q644934
+Tamarindus indica,fr,Tamarinier,Wikidata (CC0),http://www.wikidata.org/entity/Q80235
+Tanacetum cinerariifolium,fr,Pyrèthre de Dalmatie,Wikidata (CC0),http://www.wikidata.org/entity/Q1158053
+Taraxacum officinale,fr,Pissenlit,Wikidata (CC0),http://www.wikidata.org/entity/Q131219
+Tectona grandis,fr,Teck,Wikidata (CC0),http://www.wikidata.org/entity/Q156938
+Theobroma cacao,fr,Fève de cacao,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1711
+Thymus vulgaris,fr,Thym,Wikidata (CC0),http://www.wikidata.org/entity/Q148668
+Tilia americana,fr,Tilleul d'Amérique,Wikidata (CC0),http://www.wikidata.org/entity/Q163981
+Tilia cordata,fr,Tilleul à petites feuilles,Wikidata (CC0),http://www.wikidata.org/entity/Q158746
+Trifolium incarnatum,fr,Trèfle incarnat,Wikidata (CC0),http://www.wikidata.org/entity/Q161361
+Trifolium pratense,fr,Trèfle des prés,Wikidata (CC0),http://www.wikidata.org/entity/Q156635
+Trifolium repens,fr,Trèfle blanc,Wikidata (CC0),http://www.wikidata.org/entity/Q148675
+Trigonella foenum-graecum,fr,Fenugrec,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_b8cb7919
+Ullucus tuberosus,fr,Ulluco,Wikidata (CC0),http://www.wikidata.org/entity/Q1478038
+Vaccinium corymbosum,fr,Myrtille arbustive,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11556
+Vaccinium macrocarpon,fr,Canneberge,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1944
+Vaccinium virgatum,fr,Myrtille d'argentine,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_60480662
+Valerianella locusta,fr,Mâche,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_bee45268
+Vanilla planifolia,fr,Vanille,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_15126
+Vicia faba,fr,Fève,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_10722
+Vigna angularis,fr,Haricot adzuki,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8632
+Vigna mungo,fr,Haricot mungo,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_8089
+Vigna subterranea,fr,Pois bambara,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_de4c5ffc
+Vigna unguiculata,fr,Niébé,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_1938
+Vitellaria paradoxa,fr,Noix de galam,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_25505
+Vitis rotundifolia,fr,Raisin,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3359
+Vitis vinifera,fr,Raisin,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_3359
+Zea mays,fr,Maïs,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_12332
+Zingiber officinale,fr,Gingembre,AGROVOC (CC BY 4.0),http://aims.fao.org/aos/agrovoc/c_11157
+Ziziphus jujuba,fr,Jujube,Wikidata (CC0),http://www.wikidata.org/entity/Q11181633

@@ -19,3 +19,4 @@ structures-list.csv,compiled by this project: farm structures such as tunnels,CC
 state-pest-plants.csv,"Tennessee pest plant rule, Tenn. Comp. R. & Regs. 0080-06-24-.02, as listed in TDA's Summary of Plant Protection Regulations (June 2024)",CC-BY-4.0,2026-10-09,bbb73047256191102ccdc93faebc773a35968f16ccb4aef219e13a9a852b87fe
 manure-nutrients-awmfh.csv,"USDA NRCS Agricultural Waste Management Field Handbook, ch. 4, Table 4-16(b), transcribed",LicenseRef-PD-USGov,2026-10-09,0e441794300a2329fe99da3a5b1af361eeeaecde9d3cf75d977bec35fac5ee58
 crop-removal-awmfh.csv,"USDA NRCS Agricultural Waste Management Field Handbook, ch. 6, Table 6-6, transcribed",LicenseRef-PD-USGov,2026-10-09,1eac62025f994bf27312e53a21dc26763a9bef1584f4ffbd01bb329eca851404
+plant-names.csv,"AGROVOC (FAO, agrovoc.fao.org; FAO languages CC BY 4.0) and Wikidata (CC0), chosen by plant_names.py",CC-BY-4.0,2026-10-09,b8c3cf08f0a61348b3dc6882223b30aad53802e16fb3cd8f197fb73786f59bcd

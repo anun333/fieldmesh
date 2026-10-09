@@ -43,5 +43,12 @@ class ChooseTest(unittest.TestCase):
         self.assertNotIn("Ilex paraguariensis", self.es)
 
 
+class TidyTest(unittest.TestCase):
+    def test_a_product_label_becomes_the_plants_name(self):
+        self.assertEqual(N._tidy("Semilla de ricino"), "Ricino")
+        self.assertEqual(N._tidy("Litchi (fruta)"), "Litchi")
+        self.assertEqual(N._tidy("graines de moutarde"), "Moutarde")
+
+
 if __name__ == "__main__":
     unittest.main()

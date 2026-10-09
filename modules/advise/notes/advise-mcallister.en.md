@@ -37,12 +37,13 @@ Generated 2026-10-09 from open data. These are starting points, not answers: che
 - Pigeon pea: no cultivar matures before frost here.
 - Quinoa: 2 of 2 cultivars mature 8 years in 10, in 88–91 days. Sow March 12 to August 27.
 - Rapeseed (canola): 3 of 3 cultivars mature 8 years in 10, in 96–128 days. Sow March 5 to July 30.
-- Rice: 42 of 55 cultivars mature 8 years in 10, in 122–190 days. Sow April 9 to July 2.
+- Rice: 42 of 55 cultivars mature 8 years in 10, in 122–190 days. Sow April 9 to July 2. Raised in a nursery and transplanted at 25 days: 35 of 55.
+- Rye: 2 of 2 cultivars mature 8 years in 10, in 251–251 days. Sow September 24 to March 26.
 - Safflower: 5 of 5 cultivars mature 8 years in 10, in 103–115 days. Sow April 9 to August 13.
 - Sorghum: 51 of 55 cultivars mature 8 years in 10, in 113–191 days. Sow April 9 to July 9.
 - Soybean: 36 of 59 cultivars mature 8 years in 10, in 89–200 days. Sow April 9 to August 20.
 - Sunflower: 11 of 11 cultivars mature 8 years in 10, in 81–128 days. Sow any time of year.
-- Tomato: 4 of 4 cultivars mature 8 years in 10, in 120–131 days. Sow April 9 to July 2.
+- Tomato: 4 of 4 cultivars mature 8 years in 10, in 120–131 days. Sow April 9 to July 2. Heat that stops its fruit set — 32/26 °C by day and night over the 10 days before flowering (Sato et al. 2000) — does not come here: the warmest such stretch of nights in thirty years averaged 25.3 °C.
 - Velvet bean: no cultivar matures before frost here.
 
 ## Fruit trees by winter chill
@@ -225,14 +226,26 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 - Dairy cattle face heat stress on 96 to 172 days a year: favour heat-tolerant breeds, shade and water.
 
+## When to propagate
+
+By the ways USDA PLANTS lists for each plant, in windows set by this site's median frost dates — common practice for each method, a first approximation. The plant-by-plant list is in propagation.csv.
+
+- Seed that needs cold (67 plants): sow outdoors November 3 to December 1; March 31 to April 21 — the first after the fall frost, so winter stratifies it; the second for seed stratified cold and moist indoors.
+- Seed (114 plants): March 31 to May 30. Food crops with a crop model have their own sowing windows above.
+- Bare-root stock (101 plants), planted dormant: February 17 to April 14; November 3 to December 15.
+- Container stock (117 plants), out of midsummer heat: March 31 to May 26; September 8 to November 3.
+- Hardwood cuttings (65 plants), taken dormant: November 3 to February 17.
+- Sprigs and sod (26 plants), in warm soil: April 14 to August 25.
+- Tubers (2 plants): March 31 to April 28.
+
 ## No data yet
 
 260 plants on the list have no data in either source yet — mostly fruit, herbs and flowers.
 
-*Plant names are in English until multilingual names are added from AGROVOC.*
+*Plant names come from AGROVOC (FAO) and Wikidata where either has one in this language; the rest stay in English. The scientific name is always beside them.*
 
 ## Sources
 
-Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill and heat: Fadón et al. 2020, Agronomy 10:409; González Noguer et al. 2023, Front. Hortic. 2:1217689; Fadón et al. 2023, Agronomy 13:518 (all CC BY 4.0); bloom frost thresholds: Washington State University via Penn State Extension.
+Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill and heat: Fadón et al. 2020, Agronomy 10:409; González Noguer et al. 2023, Front. Hortic. 2:1217689; Fadón et al. 2023, Agronomy 13:518 (all CC BY 4.0); bloom frost thresholds: Washington State University via Penn State Extension. Plant names: AGROVOC (FAO, CC BY 4.0) and Wikidata (CC0).
 
-*Made by librefarm advise 0.1.0, data ecfc5086e400, crop models DSSAT 25c93b9.*
+*Made by librefarm advise 0.1.0, data c61f00dace9b, crop models DSSAT 25c93b9.*

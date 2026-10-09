@@ -234,7 +234,9 @@ by winter chill with bloom dates and the frost after them, what suits,
 what needs lime, sulfur or water, what does not suit and why, what is refused as invasive,
 bees, livestock heat — plus the data behind it. Its words come from the language packs, so
 the same report renders in Spanish (dates, decimal commas and the reasons included) and in
-any language a pack is added for; plant names stay English until AGROVOC's are added.
+any language a pack is added for. Plant names come from AGROVOC and Wikidata where they
+have one — 198 of 477 in Spanish, 272 in French — and stay English beside the scientific name
+where they do not ([plant_names.py](../plant_names.py)).
 Example: [advise-mcallister.en.md](advise-mcallister.en.md),
 [advise-mcallister.es.md](advise-mcallister.es.md).
 
@@ -250,8 +252,9 @@ Tennessee Invasive Plant Council's list would close the local gap; its terms are
 
 `advise.py --warm 1.0 --future-label 2050s` runs everything twice, the second time on the
 same thirty years of weather with every day 1.0 °C warmer (the delta method), and writes
-what changes: [advise-mcallister-2050s.en.md](advise-mcallister-2050s.en.md),
-[advise-mcallister-2050s.es.md](advise-mcallister-2050s.es.md).
+what changes. (The example reports, [advise-mcallister-2050s.en.md](advise-mcallister-2050s.en.md)
+and [advise-mcallister-2050s.es.md](advise-mcallister-2050s.es.md), now come from the CMIP6
+run described below; this uniform shift's numbers are kept in the comparison there.)
 
 **Why +1.0 °C.** The Berkeley Earth series for Tennessee in `~/dev/climate-analysis` puts
 the 2050 level at +1.89 °C against 1951–1980 and 2060 at +2.18 °C. The 2011–2020 mean sits at
