@@ -34,6 +34,7 @@ import i18n  # noqa: E402
 import fruit_bloom  # noqa: E402
 import module  # noqa: E402
 import plant_match  # noqa: E402
+import plant_names  # noqa: E402
 import site_profile  # noqa: E402
 
 module.register_packs()
@@ -43,9 +44,30 @@ MONTH = {m: i for i, m in enumerate(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "
                                      "Sep", "Oct", "Nov", "Dec"], 1)}
 
 
+#: Plant names by language (plant_names.py), read once: {language: {scientific: name}}.
+_NAMES: dict | None = None
+
+
+def names_for(language: str) -> dict:
+    global _NAMES
+    if _NAMES is None:
+        path = os.path.join(DATA, "plant-names.csv")
+        _NAMES = plant_names.load(path) if os.path.exists(path) else {}
+    return _NAMES.get(language.split("-")[0], {})
+
+
 class Report:
     def __init__(self, language: str):
         self.t = i18n.Translator(language)
+        self.names = names_for(language)
+
+    def plant(self, row: dict) -> str:
+        """The plant's common name in the report's language where AGROVOC or Wikidata has
+        one, else the English name from the list."""
+        return self.names.get(row["scientific_name"], row["common_name"])
+
+    def line(self, row: dict) -> str:
+        return f"{self.plant(row)} (*{row['scientific_name']}*)"
 
     def tr(self, key: str, **params) -> str:
         return str(self.t.text(key, **params))
@@ -176,20 +198,24 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str,
     modelled = [row for row in rows if row.get("_season")]
     if modelled:
         out += [f"## {r.tr('advise.section.crops')}", ""]
-        for row in sorted(modelled, key=lambda x: x["common_name"]):
+        for row in sorted(modelled, key=lambda x: r.plant(x)):
             s = row["_season"]
             fit = int(s["cultivars_maturing_8_in_10"])
             if fit == 0:
-                out.append("- " + r.tr("advise.crop.fails", crop=row["common_name"]))
+                out.append("- " + r.tr("advise.crop.fails", crop=r.plant(row)))
             elif s.get("sowing_windows_8_in_10") and s["sowing_windows_8_in_10"] != "none":
-                out.append("- " + r.tr("advise.crop.fits", crop=row["common_name"], fit=fit,
+                out.append("- " + r.tr("advise.crop.fits", crop=r.plant(row), fit=fit,
                                        total=s["cultivars"], fast=s["best_days_to_maturity"],
                                        slow=s["longest_days_to_maturity"],
                                        windows=r.windows(s["sowing_windows_8_in_10"])))
             else:
-                out.append("- " + r.tr("advise.crop.fits_nowindow", crop=row["common_name"], fit=fit,
+                out.append("- " + r.tr("advise.crop.fits_nowindow", crop=r.plant(row), fit=fit,
                                        total=s["cultivars"], fast=s["best_days_to_maturity"],
                                        slow=s["longest_days_to_maturity"]))
+            if str(s.get("transplanted_cultivars_maturing_8_in_10", "")).strip():
+                out[-1] += " " + r.tr("advise.crop.transplanted",
+                                      fit=int(s["transplanted_cultivars_maturing_8_in_10"]),
+                                      total=s["cultivars"], age=s["transplant_age_days"])
         out.append("")
 
     if chill:
@@ -215,14 +241,14 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str,
               ("advise.section.unsuited", lambda v: v == "unsuited", ("rules_out",)),
               ("advise.section.refused", lambda v: v.startswith("do not plant"), ("rules_out",))]
     for key, test, kinds in groups:
-        chosen = sorted((row for row in rows if test(row["verdict"])), key=lambda x: x["common_name"])
+        chosen = sorted((row for row in rows if test(row["verdict"])), key=lambda x: r.plant(x))
         if not chosen:
             continue
         out += [f"## {r.tr(key)} ({len(chosen)})", ""]
         if kinds is None:
-            out.append(", ".join(plant_line(row) for row in chosen))
+            out.append(", ".join(r.line(row) for row in chosen))
         else:
-            out += [f"- {plant_line(row)}" + (f" — {why}" if (why := reasons(row, kinds)) else "")
+            out += [f"- {r.line(row)}" + (f" — {why}" if (why := reasons(row, kinds)) else "")
                     for row in chosen]
         out.append("")
 
@@ -275,15 +301,15 @@ def render_future(site: dict, rows: list, site2: dict, rows2: list, language: st
     losses = [x for x in rows if good(x["verdict"]) and not good(then[x["scientific_name"]]["verdict"])]
     for key, chosen in (("advise.future.gains", gains), ("advise.future.losses", losses)):
         out += [f"## {r.tr(key, count=len(chosen))}", ""]
-        out += [f"- {plant_line(x)}" for x in sorted(chosen, key=lambda y: y["common_name"])] or ["—"]
+        out += [f"- {r.line(x)}" for x in sorted(chosen, key=lambda y: r.plant(y))] or ["—"]
         out.append("")
     modelled = [x for x in rows if x.get("_season")]
     if modelled:
         out += [f"## {r.tr('advise.section.crops')}", ""]
-        for x in sorted(modelled, key=lambda y: y["common_name"]):
+        for x in sorted(modelled, key=lambda y: r.plant(y)):
             s, s2 = x["_season"], then[x["scientific_name"]].get("_season") or {}
             win = lambda w: r.windows(w) if w and w != "none" else "—"
-            out.append("- " + r.tr("advise.future.crop", crop=x["common_name"],
+            out.append("- " + r.tr("advise.future.crop", crop=r.plant(x),
                                    now=s["cultivars_maturing_8_in_10"], then=s2.get("cultivars_maturing_8_in_10", "—"),
                                    total=s["cultivars"], now_window=win(s.get("sowing_windows_8_in_10")),
                                    then_window=win(s2.get("sowing_windows_8_in_10"))))
@@ -336,9 +362,11 @@ def main(argv=None) -> int:
     site = site_profile.profile(args.lat, args.lon, cache=power)
     days = site_profile.days_of(site_profile.fetch_power(args.lat, args.lon, 1991, 2020, power))
     seasons, _ = dssat_crops.seasons_for(args.lat, args.lon, args.cache, args.windows, days=days)
+    state_lists = plant_match.state_listings(os.path.join(DATA, "state-pest-plants.csv"))
     rows, cal = plant_match.match(read_csv(os.path.join(DATA, "plant-list.csv")),
                                   read_csv(os.path.join(DATA, "plant-characteristics-usda.csv")),
-                                  site, [{k: str(v) for k, v in s.items()} for s in seasons])
+                                  site, [{k: str(v) for k, v in s.items()} for s in seasons],
+                                  state_lists)
     with open(os.path.join(args.out, "site.json"), "w", encoding="utf-8") as h:
         json.dump(site, h, indent=1)
     for name, data in (("match.csv", rows), ("seasons.csv", seasons)):
@@ -365,7 +393,8 @@ def main(argv=None) -> int:
         seasons2, _ = dssat_crops.seasons_for(args.lat, args.lon, args.cache, args.windows, days=days2)
         rows2, _ = plant_match.match(read_csv(os.path.join(DATA, "plant-list.csv")),
                                      read_csv(os.path.join(DATA, "plant-characteristics-usda.csv")),
-                                     site2, [{k: str(v) for k, v in s.items()} for s in seasons2])
+                                     site2, [{k: str(v) for k, v in s.items()} for s in seasons2],
+                                     state_lists)
         label = args.future_label or f"{args.warm:+.1f} °C"
         bloom2 = fruit_bloom.summarize(fruit_bloom.simulate(chill, days2, args.lat))
         fruit_chill2 = eight(fruit_bloom.winter_chill(days2, args.lat))

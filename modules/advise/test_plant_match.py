@@ -94,6 +94,22 @@ class JudgeTest(unittest.TestCase):
         j = T.judge(plant(), chars(us_listed_states="United States"), site)
         self.assertEqual(j["verdict"], "do not plant (invasive here)")
 
+    def test_a_states_own_pest_plant_law_refuses_too(self):
+        """Tennessee is not among the jurisdictions PLANTS lists, so its own rule —
+        0080-06-24-.02 — is read from the state file and refuses the same way."""
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        lists = T.state_listings(os.path.join(here, "data", "state-pest-plants.csv"))
+        self.assertIn("TN", lists["Lonicera maackii"])
+        self.assertEqual(len(lists), 14)
+        site = {**SITE, "soil": {**SITE["soil"], "state": "TN"}}
+        p = {**plant(category="shrub", cycle="perennial"), "scientific_name": "Lonicera maackii"}
+        rows, _ = T.match([p], [], site, state_lists=lists)
+        self.assertEqual(rows[0]["verdict"], "do not plant (invasive here)")
+        elsewhere = {**SITE, "soil": {**SITE["soil"], "state": "KY"}}
+        rows, _ = T.match([p], [], elsewhere, state_lists=lists)
+        self.assertNotEqual(rows[0]["verdict"], "do not plant (invasive here)")
+
     def test_invasives_are_refused_first(self):
         j = T.judge(plant(category="invasive: do not plant (US)"), chars(), SITE)
         self.assertEqual(j["verdict"], "do not plant (invasive)")

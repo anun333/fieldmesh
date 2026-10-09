@@ -141,6 +141,7 @@ At McAllister Farm:
 | wheat, fall-sown (Cropsim-CERES) | 5 of 8 — the winter wheats | 229–248 |
 | barley, fall-sown (Cropsim-CERES) | 1 of 3 | 261 |
 | rice, drill-seeded (CERES-Rice) | 42 of 55 | 122–221 |
+| rice, transplanted at 25 days (CERES-Rice) | 35 of 55 | from nursery sowing; median 174 |
 | dry bean | 30 of 30 | 75–107 |
 | tomato | 4 of 4 | 120–131 |
 | pepper | 5 of 5 | 155–182 |
@@ -185,6 +186,16 @@ grain fill. Lemont, a southern long-grain, sown May 1 heads in about 98 days and
 about 122, the end of August, as the region's rice does. The season is no obstacle at
 McAllister — 42 of 55 cultivars mature 8 years in 10 — but rice there is a question of
 water, a flooded field on silt loam, which no phenology model asks.
+
+**Transplanted rice** is ported too, as DSSAT runs a nursery crop (RI_Transpl_p.for): the
+seedlings develop in the nursery on the same weather, transplanting at 25 days lengthens
+the juvenile phase by the shock (P1 + 25 + 0.4 × the thermal time since emergence, at most
+1.75 P1), and the crop goes on filling its tillers' grain to P5 + 40 degree-days where a
+drilled crop stops at 90% of P5. Sown on the same date, 35 of 55 cultivars mature 8 years in
+10 against 42 drilled, and take a median 174 days from nursery sowing against 166: the
+shock and the longer fill cost a week. What transplanting buys in practice — a nursery
+sown weeks earlier under cover, so the field is occupied for less of the season — is not
+modelled, because the nursery here sits in the open on the field's own weather.
 
 **When to sow.** With `--windows` the tool sows every week of the year, with the fastest,
 a middle and the slowest of the cultivars that mature here 8 years in 10 (by simulated
@@ -413,8 +424,7 @@ wheat and barley, vernalization, winter kill, freeze after boot and heat at flow
 checked together, by simulation; for 531 stone-fruit cultivars, 78 apples and 16 pears,
 winter chill, and for 167 of them, bloom date and frost after it. Still not checked: chill
 and bloom for blueberries (no openly licensed table found), heat damage to fruit set beyond
-the development curve, transplanted rice (the drill-seeded path is ported, as the
-Mid-South sows it), oats and rye (no DSSAT model), and everything for the 255 plants with
+the development curve, a rice nursery raised under cover, oats and rye (no DSSAT model), and everything for the 255 plants with
 neither source — most fruit, herbs and flowers.
 
 ## Reproducing

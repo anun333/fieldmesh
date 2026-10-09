@@ -116,7 +116,8 @@ def season_note(season: dict) -> str:
 PADDY_GENERA = ("Oryza",)
 
 
-def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = None) -> dict:
+def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = None,
+          extra_states=()) -> dict:
     """-> {verdict, rules_out[], fixable[], caution[]}
 
     `season` is the crop model's verdict for this site (`dssat_crops.py`), where there is
@@ -137,7 +138,8 @@ def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = Non
     if plant["category"].startswith("invasive"):
         return {**out, "verdict": "do not plant (invasive)"}
     state = (site.get("soil") or {}).get("state")
-    listed = [s for s in ((chars or {}).get("us_listed_states") or "").split(";") if s]
+    listed = sorted({s for s in ((chars or {}).get("us_listed_states") or "").split(";") if s}
+                    | set(extra_states))
     # "United States" is a federal listing (a federal noxious weed): refused anywhere a US
     # soil survey placed the site.
     if state and (state in listed or "United States" in listed):
@@ -263,14 +265,27 @@ def read_csv(path: str) -> list:
         return list(csv.DictReader(line for line in h if not line.startswith("#")))
 
 
-def match(plants: list, chars: list, site: dict, seasons: list | None = None) -> tuple[list, dict]:
+def state_listings(path: str) -> dict:
+    """{scientific name: [states]} from a state pest-plant file: a state's own law, which
+    the PLANTS database does not carry for Tennessee."""
+    out: dict = {}
+    with open(path, encoding="utf-8") as h:
+        for r in csv.DictReader(line for line in h if not line.startswith("#")):
+            out.setdefault(r["scientific_name"], []).append(r["state"])
+    return out
+
+
+def match(plants: list, chars: list, site: dict, seasons: list | None = None,
+          state_lists: dict | None = None) -> tuple[list, dict]:
     by_name = {c["scientific_name"]: c for c in chars}
+    state_lists = state_lists or {}
     by_season = {s["scientific_name"]: s for s in seasons or []}
     rows = []
     for p in plants:
         c = by_name.get(p["scientific_name"])
         s = by_season.get(p["scientific_name"])
-        j = judge(p, c, site, s)
+        # A state's own law joins the states PLANTS lists, so it refuses the same way.
+        j = judge(p, c, site, s, extra_states=state_lists.get(p["scientific_name"], ()))
         rows.append({"common_name": p["common_name"], "scientific_name": p["scientific_name"],
                      "category": p["category"], "verdict": j["verdict"],
                      "rules_out": "; ".join(j["rules_out"]), "fixable": "; ".join(j["fixable"]),

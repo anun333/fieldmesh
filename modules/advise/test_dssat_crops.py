@@ -274,6 +274,22 @@ class RiceTest(unittest.TestCase):
         self.assertAlmostEqual(D.rice_dtt(28, 28, 20, 12, 12), 19.0)
         self.assertLess(D.rice_dtt(40, 40, 20, 12, 12), D.rice_dtt(33, 33, 20, 12, 12))
 
+    def test_a_transplanted_crop_fills_its_tillers_longer(self):
+        # Juvenile ends on day 15, before transplanting on day 25, so the shock changes
+        # nothing; grain fill from day 56 (2.6 over) runs to P5 + 40 = 440 on day 80,
+        # three days after the direct-seeded crop's 77.
+        r = D.develop_rice(self.CUL, self.days(28.0), 0, 35.0, transplant_age=25)
+        self.assertEqual((r["flower"], r["maturity"]), (50, 80))
+
+    def test_the_shock_lengthens_a_juvenile_seedling(self):
+        # P1 600: at transplanting on day 25 the seedling has 12.8 + 20 x 19 = 392.8 since
+        # emergence, so P1 becomes 600 + 25 + 0.4 x 392.8 = 782.1 (under 1.75 P1): the
+        # juvenile phase ends on day 46 instead of 36, and heading follows ten days later.
+        cul = {**self.CUL, "P1": 600.0}
+        direct = D.develop_rice(cul, self.days(28.0), 0, 35.0)
+        moved = D.develop_rice(cul, self.days(28.0), 0, 35.0, transplant_age=25)
+        self.assertGreaterEqual(moved["flower"] - direct["flower"], 10)
+
     def test_columns(self):
         (c,) = D.parse_rice_cul("IB0003 IR 36                . IB0001 556.8 53.88 373.4 12.87 68.00 0.023  1.00 83.00  31.3  15.0  15.0  0.00  0.00  25.0")
         self.assertEqual((c["name"], c["P1"], c["P2R"], c["P5"], c["P2O"], c["PHINT"], c["TCLDP"]),

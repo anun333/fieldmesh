@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# Plants a state's law forbids to propagate, sell or release. Tennessee: Pest Plant Regulations, Tenn. Comp. R. & Regs. 0080-06-24-.02, as listed in the Tennessee Department of Agriculture's Summary of Plant Protection Regulations, updated June 2024 (published by the National Plant Board). Mimosa (Albizia julibrissin) was proposed for the list in 2007 but is not on the 2024 summary, so it is not listed here.
+state,scientific_name,common_name,rule
+TN,Commelina benghalensis,Tropical spiderwort,0080-06-24-.02
+TN,Elaeagnus umbellata,Autumn olive,0080-06-24-.02
+TN,Elaeagnus pungens,Thorny olive,0080-06-24-.02
+TN,Imperata cylindrica,Cogongrass,0080-06-24-.02
+TN,Ligustrum sinense,"Chinese privet, with its variegated and related cultivars",0080-06-24-.02
+TN,Ligustrum vulgare,"Common privet, European privet",0080-06-24-.02
+TN,Lonicera maackii,Amur honeysuckle,0080-06-24-.02
+TN,Lonicera morrowii,Morrow's honeysuckle,0080-06-24-.02
+TN,Lonicera x bella,Bell's honeysuckle,0080-06-24-.02
+TN,Lythrum salicaria,"Purple loosestrife, with related cultivars",0080-06-24-.02
+TN,Lythrum virgatum,"Purple loosestrife, with related cultivars",0080-06-24-.02
+TN,Rosa multiflora,Multiflora rose,0080-06-24-.02
+TN,Salvinia molesta,Giant salvinia,0080-06-24-.02
+TN,Solanum viarum,Tropical soda apple,0080-06-24-.02

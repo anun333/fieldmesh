@@ -733,8 +733,22 @@ def rice_dtt(tmin: float, tmax: float, srad: float, dayl: float, leafno: float) 
     return (tmax + tmin) / 2.0 - tb
 
 
-def develop_rice(cul: dict, days: list, start: int, lat: float, stop: int | None = None) -> dict:
-    """RI_Phenol.for's stages for a direct-seeded crop (ITRANS 1), from sowing.
+#: Seedling age at transplanting, days in the nursery — mid-range of the 20 to 30 a
+#: transplanted crop is commonly raised for.
+RICE_TRANSPLANT_AGE = 25
+
+
+def develop_rice(cul: dict, days: list, start: int, lat: float, stop: int | None = None,
+                 transplant_age: int | None = None) -> dict:
+    """RI_Phenol.for's stages for a direct-seeded crop (ITRANS 1), from sowing — or, with
+    `transplant_age`, for one raised in a nursery and transplanted that many days after
+    sowing (ITRANS 2, "N": the nursery simulated on the same weather).
+
+    Transplanting, as RI_Transpl_p.for has it: the shock lengthens the juvenile phase to
+    P1 + 25 + 0.4 x the thermal time the seedling had gathered since emergence, at most
+    1.75 P1. And a transplanted crop keeps filling its tillers' grain after the main
+    culm, to P5 + 40 degree-days, where DSSAT ends a direct-seeded one at 90% of P5 —
+    the tiller-fill test it also uses needs the growth model, so the upper bound is taken.
 
     Germination after P8 = 150 exp(−0.055 x the sowing day's mean), held between 28 and
     85, within forty days or the stand fails; emergence after 10 x depth + 20; juvenile
@@ -748,6 +762,8 @@ def develop_rice(cul: dict, days: list, start: int, lat: float, stop: int | None
     out = {"flower": None, "maturity": None}
     stage, sumdtt, since_emergence, sind = 7, 0.0, 0.0, 0.0
     p8 = p9 = p3 = None
+    p1 = cul["P1"]
+    transplant_at = start + transplant_age if transplant_age else None
     cum_tn, nights, warm_streak, germ_days = 0.0, 0, 0, 0
     reached = None
     end = min(len(days), stop if stop is not None else start + 365)
@@ -766,6 +782,8 @@ def develop_rice(cul: dict, days: list, start: int, lat: float, stop: int | None
         sumdtt += dtt
         if stage in (1, 2, 3):
             since_emergence += dtt
+        if i == transplant_at and stage == 1:
+            p1 = min(cul["P1"] + 25.0 + 0.4 * sumdtt, 1.75 * cul["P1"])
         if stage == 8:
             germ_days += 1
             if germ_days >= 40:
@@ -775,7 +793,7 @@ def develop_rice(cul: dict, days: list, start: int, lat: float, stop: int | None
                 stage, sumdtt = 9, sumdtt - p8
         elif stage == 9 and sumdtt >= p9:
             stage, sumdtt = 1, sumdtt - p9
-        elif stage == 1 and sumdtt >= cul["P1"]:
+        elif stage == 1 and sumdtt >= p1:
             stage, sind, cum_tn, nights, warm_streak = 2, 0.0, 0.0, 0, 0
         elif stage == 2:
             twilen = civil_day_length(lat, doy)
@@ -793,6 +811,10 @@ def develop_rice(cul: dict, days: list, start: int, lat: float, stop: int | None
             stage, sumdtt = 4, sumdtt - p3
         elif stage == 4 and sumdtt >= 120.0:
             stage, sumdtt = 5, sumdtt - 120.0
+        elif stage == 5 and transplant_at is not None:
+            if sumdtt >= cul["P5"] + 40.0:
+                out["maturity"] = i
+                return out
         elif stage == 5 and sumdtt >= 0.9 * cul["P5"]:
             if reached is None:
                 reached = i
@@ -802,13 +824,14 @@ def develop_rice(cul: dict, days: list, start: int, lat: float, stop: int | None
     return out
 
 
-def rice_runners(cultivars: list, lat: float) -> list:
+def rice_runners(cultivars: list, lat: float, transplant_age: int | None = None) -> list:
     runners = []
     for cul in cultivars:
         if None in (cul["P1"], cul["P2R"], cul["P5"], cul["P2O"], cul["PHINT"], cul["TCLDP"]):
             continue
         runners.append((cul["name"], cul["code"], "short-day" if cul["P2R"] > 0 else "day-neutral",
-                        cul["P2O"], lambda days, start, stop, cul=cul: develop_rice(cul, days, start, lat, stop)))
+                        cul["P2O"], lambda days, start, stop, cul=cul: develop_rice(
+                            cul, days, start, lat, stop, transplant_age)))
     return runners
 
 
@@ -1175,6 +1198,9 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
             runners = rice_runners(culs, lat)
             size = {c["code"]: (c["P1"] or 0) + (c["P5"] or 0) for c in culs}
             results = evaluate(runners, days, lat, cool=False)
+            # The same cultivars raised in a nursery and transplanted (the nursery sown on
+            # the date): how many mature in the field's season that way.
+            transplanted = evaluate(rice_runners(culs, lat, RICE_TRANSPLANT_AGE), days, lat, cool=False)
         elif model in ("CERES-Wheat", "CERES-Barley"):
             culs = parse_cscer_cul(fetch(f"{code}CER048.CUL", dcache))
             ecos = parse_cscer_eco(fetch(f"{code}CER048.ECO", dcache))
@@ -1221,6 +1247,10 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
                      "planting": best["planting"], "photoperiod": best["photoperiod"],
                      "damaging_freeze_c": freeze_c,
                      "sowing_windows_8_in_10": sowing})
+        if model == "CERES-Rice":
+            rows[-1]["transplanted_cultivars_maturing_8_in_10"] = sum(
+                1 for r in transplanted if r["matures_before_frost"] >= 0.8)
+            rows[-1]["transplant_age_days"] = RICE_TRANSPLANT_AGE
         t = spe["temps"]
         if model == "CERES-Maize":
             cd = f"{min(e['P2O'] for e in ecos.values()):g}–{max(e['P2O'] for e in ecos.values()):g}"
