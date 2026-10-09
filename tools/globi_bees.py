@@ -3,7 +3,7 @@
 """Which bees are recorded visiting or pollinating each plant on the list, from GloBI.
 
     python3 tools/globi_bees.py docs/notes/plant-list.csv --cache DIR \\
-        --out docs/notes/plant-bees-globi.csv --citations docs/notes/plant-bees-globi-studies.txt
+        --out docs/notes/plant-bees-globi.csv --citations docs/notes/plant-bees-globi-sources.txt
 
 GloBI (Global Biotic Interactions) indexes species-interaction records from hundreds of
 studies and collections; its data is CC BY 4.0, and each record carries the study it came
@@ -28,19 +28,43 @@ import time
 import urllib.parse
 import urllib.request
 
-API = ("https://api.globalbioticinteractions.org/interaction?targetTaxon={taxon}"
-       "&interactionType=interactsWith&fields=source_taxon_name,source_taxon_path,"
-       "interaction_type,target_taxon_name,study_title&limit={limit}")
+#: `includeObservations=true` returns individual records with their sources; the
+#: aggregated view leaves every study field empty.
+#: `sourceTaxon=Apoidea` asks for bee-superfamily records only: without it a well-studied
+#: plant's first few thousand records are its pests and diseases, and apple came back
+#: with no bees at all.
+API = ("https://api.globalbioticinteractions.org/interaction?sourceTaxon=Apoidea&targetTaxon={taxon}"
+       "&interactionType=interactsWith&includeObservations=true&fields=source_taxon_name,"
+       "source_taxon_path,interaction_type,target_taxon_name,study_citation,"
+       "study_source_citation&limit={limit}")
 LIMIT = 4000
 BEE_FAMILIES = ("Apidae", "Megachilidae", "Halictidae", "Andrenidae", "Colletidae",
                 "Melittidae", "Stenotritidae")
 KEPT = ("visitsFlowersOf", "pollinates")
-#: The managed bees on the animal list, so a plant's row says which of them are recorded.
-MANAGED = ("Apis mellifera", "Apis cerana", "Bombus terrestris", "Bombus impatiens",
-           "Osmia lignaria", "Osmia cornifrons", "Osmia cornuta", "Osmia bicornis",
-           "Megachile rotundata", "Nomia melanderi", "Xenoglossa pruinosa",
-           "Peponapis pruinosa", "Habropoda laboriosa", "Melipona beecheii",
-           "Tetragonisca angustula", "Tetragonula carbonaria", "Heterotrigona itama")
+#: The bees on the animal list — (name there, genera it is filed under, species
+#: epithet) — so a plant's row says which of them are recorded. Genera move: the squash
+#: bee is Xenoglossa, Peponapis or Eucera (Peponapis) depending on the record's age.
+MANAGED = (("Apis mellifera", ("Apis",), "mellifera"), ("Apis cerana", ("Apis",), "cerana"),
+           ("Bombus terrestris", ("Bombus",), "terrestris"),
+           ("Bombus impatiens", ("Bombus",), "impatiens"),
+           ("Osmia lignaria", ("Osmia",), "lignaria"), ("Osmia cornifrons", ("Osmia",), "cornifrons"),
+           ("Osmia cornuta", ("Osmia",), "cornuta"), ("Osmia bicornis", ("Osmia",), "bicornis"),
+           ("Megachile rotundata", ("Megachile",), "rotundata"),
+           ("Nomia melanderi", ("Nomia",), "melanderi"),
+           ("squash bee (Xenoglossa pruinosa)", ("Xenoglossa", "Peponapis", "Eucera"), "pruinosa"),
+           ("Habropoda laboriosa", ("Habropoda",), "laboriosa"),
+           ("Melipona beecheii", ("Melipona",), "beecheii"),
+           ("Tetragonisca angustula", ("Tetragonisca",), "angustula"),
+           ("Tetragonula carbonaria", ("Tetragonula", "Trigona"), "carbonaria"),
+           ("Heterotrigona itama", ("Heterotrigona", "Trigona"), "itama"))
+
+
+def managed_in(taxa) -> list:
+    found = []
+    for label, genera, epithet in MANAGED:
+        if any(name.split()[-1] == epithet and any(g in name for g in genera) for name in taxa):
+            found.append(label)
+    return found
 PAUSE_S = 0.5
 USER_AGENT = "librefarm-tools/0.1 (globi_bees.py; open-source farm data research)"
 
@@ -80,14 +104,15 @@ def summarise(doc: dict) -> tuple[dict, set]:
     bees = [r for r in rows if r.get("interaction_type") in KEPT
             and is_bee(r.get("source_taxon_path"))]
     taxa = collections.Counter(r["source_taxon_name"] for r in bees)
-    # GloBI names the field `study_title`; it holds the study's full citation.
-    studies = {r.get("study_title") or r.get("study_citation") for r in bees}
-    studies.discard(None)
+    # The dataset each record came from — what GloBI asks users to credit.
+    sources = collections.Counter(r.get("study_source_citation") or r.get("study_citation")
+                                  for r in bees)
+    sources.pop(None, None)
     return {"bee_records": len(bees), "bee_taxa": len(taxa),
             "top_bees": "; ".join(f"{n} ({c})" for n, c in taxa.most_common(8)),
-            "managed_bees_recorded": "; ".join(m for m in MANAGED if m in taxa),
-            "studies": len(studies),
-            "capped": "yes" if len(rows) >= LIMIT else ""}, studies
+            "managed_bees_recorded": "; ".join(managed_in(taxa)),
+            "sources": len(sources),
+            "capped": "yes" if len(rows) >= LIMIT else ""}, sources
 
 
 def main(argv=None) -> int:
@@ -100,17 +125,17 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     with open(args.plant_list, encoding="utf-8") as h:
         plants = list(csv.DictReader(line for line in h if not line.startswith("#")))
-    out, all_studies = [], set()
+    out, all_sources = [], collections.Counter()
     for p in plants:
         taxon = query_name(p["scientific_name"])
         try:
             summary, studies = summarise(fetch(taxon, args.cache))
         except Exception as exc:                       # reported, not hidden
-            summary, studies = {"error": type(exc).__name__}, set()
-        all_studies |= studies
+            summary, studies = {"error": type(exc).__name__}, collections.Counter()
+        all_sources.update(studies)
         out.append({"scientific_name": p["scientific_name"], "queried_as": taxon, **summary})
     fields = ["scientific_name", "queried_as", "bee_records", "bee_taxa", "managed_bees_recorded",
-              "top_bees", "studies", "capped", "error"]
+              "top_bees", "sources", "capped", "error"]
     with open(args.out, "w", newline="", encoding="utf-8") as h:
         h.write("# SPDX-License-Identifier: CC-BY-4.0\n# Derived from GloBI (Global Biotic "
                 "Interactions, globalbioticinteractions.org), CC BY 4.0, and the studies "
@@ -119,11 +144,16 @@ def main(argv=None) -> int:
         w.writeheader()
         w.writerows(out)
     with open(args.citations, "w", encoding="utf-8") as h:
-        h.write("SPDX-License-Identifier: CC-BY-4.0\nStudies behind the bee records in "
-                "plant-bees-globi.csv, as cited by GloBI.\n\n")
-        h.write("\n".join(sorted(all_studies)) + "\n")
+        h.write("SPDX-License-Identifier: CC-BY-4.0\nThe datasets behind the bee records in "
+                "plant-bees-globi.csv, as GloBI cites them, with the number of records "
+                "used from each. Cite GloBI as: Poelen, J.H., Simons, J.D. and Mungall, "
+                "C.J. (2014). Global Biotic Interactions: an open infrastructure to share "
+                "and analyze species-interaction datasets. Ecological Informatics 24, "
+                "148-159. doi:10.1016/j.ecoinf.2014.08.005\n\n")
+        for source, n in all_sources.most_common():
+            h.write(f"{n:>7}  {source}\n")
     with_bees = sum(1 for r in out if r.get("bee_records"))
-    print(f"{len(out)} plants; {with_bees} with bee records; {len(all_studies)} studies")
+    print(f"{len(out)} plants; {with_bees} with bee records; {len(all_sources)} source datasets")
     return 0
 
 

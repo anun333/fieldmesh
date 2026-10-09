@@ -105,7 +105,7 @@ def main(argv=None) -> int:
     with open(args.out, "w", newline="", encoding="utf-8") as h:
         h.write("# SPDX-License-Identifier: CC-BY-4.0\n# Interaction records. Sources per row: "
                 "USDA PLANTS (CC0), GloBI (CC BY 4.0, with the studies listed in "
-                "plant-bees-globi-studies.txt), or curated (to cite).\n")
+                "plant-bees-globi-sources.txt), or curated (to cite).\n")
         w = csv.DictWriter(h, fieldnames=["subject", "object", "effect", "mechanism", "level", "source"])
         w.writeheader()
         w.writerows(rows)

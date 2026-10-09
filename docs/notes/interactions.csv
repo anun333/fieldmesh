@@ -1,0 +1,505 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# Interaction records. Sources per row: USDA PLANTS (CC0), GloBI (CC BY 4.0, with the studies listed in plant-bees-globi-sources.txt), or curated (to cite).
+subject,object,effect,mechanism,level,source
+Maize (corn) (Zea mays),cattle and sheep grazing it,harm,bloat,Medium,USDA PLANTS (CC0)
+Maize (corn) (Zea mays),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Bread wheat (Triticum aestivum),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Spelt (Triticum aestivum subsp. spelta),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Barley (Hordeum vulgare),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Oats (Avena sativa),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Rye (Secale cereale),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Rye (Secale cereale),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Rye (Secale cereale),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Sorghum (Sorghum bicolor),livestock,harm,toxic,Moderate,USDA PLANTS (CC0)
+Sorghum (Sorghum bicolor),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Pearl millet (Cenchrus americanus),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Pearl millet (Cenchrus americanus),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Buckwheat (Fagopyrum esculentum),livestock,harm,toxic,Severe,USDA PLANTS (CC0)
+Buckwheat (Fagopyrum esculentum),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Soybean (Glycine max),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Cowpea (Vigna unguiculata),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+Cowpea (Vigna unguiculata),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Cowpea (Vigna unguiculata),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Mung bean (Vigna radiata),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Mung bean (Vigna radiata),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Mung bean (Vigna radiata),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Pigeon pea (Cajanus cajan),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Pigeon pea (Cajanus cajan),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Pigeon pea (Cajanus cajan),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+White lupin (Lupinus albus),livestock,harm,toxic,Moderate,USDA PLANTS (CC0)
+White lupin (Lupinus albus),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+Lablab (hyacinth bean) (Lablab purpureus),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Lablab (hyacinth bean) (Lablab purpureus),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Lablab (hyacinth bean) (Lablab purpureus),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Lablab (hyacinth bean) (Lablab purpureus),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Cassava (Manihot esculenta),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Jerusalem artichoke (Helianthus tuberosus),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Jerusalem artichoke (Helianthus tuberosus),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Eggplant (Solanum melongena),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Chinese cabbage (Brassica rapa subsp. pekinensis),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Chinese cabbage (Brassica rapa subsp. pekinensis),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Bok choy (Brassica rapa subsp. chinensis),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Bok choy (Brassica rapa subsp. chinensis),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Sugarcane (Saccharum officinarum),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Sugarcane (Saccharum officinarum),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Sugar maple (Acer saccharum),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Pear (Pyrus communis),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Muscadine grape (Vitis rotundifolia),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Red raspberry (Rubus idaeus),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Black chokeberry (aronia) (Aronia melanocarpa),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Sea buckthorn (Hippophae rhamnoides),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Mango (Mangifera indica),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Tamarind (Tamarindus indica),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Tamarind (Tamarindus indica),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Tamarind (Tamarindus indica),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+English walnut (Juglans regia),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Black walnut (Juglans nigra),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Black walnut (Juglans nigra),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Alfalfa (Medicago sativa),cattle and sheep grazing it,harm,bloat,Medium,USDA PLANTS (CC0)
+Alfalfa (Medicago sativa),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+Alfalfa (Medicago sativa),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Alfalfa (Medicago sativa),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Alfalfa (Medicago sativa),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Red clover (Trifolium pratense),cattle and sheep grazing it,harm,bloat,Medium,USDA PLANTS (CC0)
+Red clover (Trifolium pratense),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Red clover (Trifolium pratense),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Red clover (Trifolium pratense),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Red clover (Trifolium pratense),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+White clover (Trifolium repens),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+White clover (Trifolium repens),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+White clover (Trifolium repens),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+White clover (Trifolium repens),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Crimson clover (Trifolium incarnatum),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Crimson clover (Trifolium incarnatum),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Crimson clover (Trifolium incarnatum),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Crimson clover (Trifolium incarnatum),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Hairy vetch (Vicia villosa),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Hairy vetch (Vicia villosa),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Hairy vetch (Vicia villosa),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Hairy vetch (Vicia villosa),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Common vetch (Vicia sativa),cattle and sheep grazing it,harm,bloat,Medium,USDA PLANTS (CC0)
+Common vetch (Vicia sativa),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Yellow sweet clover (Melilotus officinalis),cattle and sheep grazing it,harm,bloat,Medium,USDA PLANTS (CC0)
+Yellow sweet clover (Melilotus officinalis),livestock,harm,toxic,Moderate,USDA PLANTS (CC0)
+Yellow sweet clover (Melilotus officinalis),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Yellow sweet clover (Melilotus officinalis),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Birdsfoot trefoil (Lotus corniculatus),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Birdsfoot trefoil (Lotus corniculatus),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Birdsfoot trefoil (Lotus corniculatus),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Sainfoin (Onobrychis viciifolia),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Sainfoin (Onobrychis viciifolia),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Sunn hemp (Crotalaria juncea),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+Partridge pea (Chamaecrista fasciculata),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Partridge pea (Chamaecrista fasciculata),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Sudangrass (Sorghum × drummondii),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Sudangrass (Sorghum × drummondii),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Sudangrass (Sorghum × drummondii),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Sudangrass (Sorghum × drummondii),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Tall fescue (Schedonorus arundinaceus),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Tall fescue (Schedonorus arundinaceus),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Perennial ryegrass (Lolium perenne),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Timothy (Phleum pratense),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Timothy (Phleum pratense),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Timothy (Phleum pratense),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Kentucky bluegrass (Poa pratensis),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Kentucky bluegrass (Poa pratensis),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Bermudagrass (Cynodon dactylon),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Switchgrass (Panicum virgatum),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Big bluestem (Andropogon gerardii),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Indiangrass (Sorghastrum nutans),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Little bluestem (Schizachyrium scoparium),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Eastern gamagrass (Tripsacum dactyloides),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Eastern gamagrass (Tripsacum dactyloides),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Guinea grass (Megathyrsus maximus),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Buffelgrass (Cenchrus ciliaris),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Buffelgrass (Cenchrus ciliaris),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Leucaena (Leucaena leucocephala),livestock,harm,toxic,Moderate,USDA PLANTS (CC0)
+Leucaena (Leucaena leucocephala),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+Leucaena (Leucaena leucocephala),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Leucaena (Leucaena leucocephala),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Leucaena (Leucaena leucocephala),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Gliricidia (Gliricidia sepium),livestock,harm,toxic,Moderate,USDA PLANTS (CC0)
+Gliricidia (Gliricidia sepium),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+Gliricidia (Gliricidia sepium),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Gliricidia (Gliricidia sepium),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Black locust (Robinia pseudoacacia),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Rose gum (Eucalyptus grandis),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Yarrow (Achillea millefolium),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Red maple (Acer rubrum),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Black cherry (Prunus serotina),livestock,harm,toxic,Severe,USDA PLANTS (CC0)
+Eastern redcedar (Juniperus virginiana),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Eastern redcedar (Juniperus virginiana),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Paper birch (Betula papyrifera),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+False indigo bush (Amorpha fruticosa),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+False indigo bush (Amorpha fruticosa),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Hazel alder (Alnus serrulata),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Red alder (Alnus rubra),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+Soft rush (Juncus effusus),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+American plum (Prunus americana),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Chokecherry (Prunus virginiana),livestock,harm,toxic,Severe,USDA PLANTS (CC0)
+Chokecherry (Prunus virginiana),neighbouring plants,harm,allelopathy (PLANTS marks it; often weakly evidenced),Yes,USDA PLANTS (CC0)
+Chokecherry (Prunus virginiana),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Silver buffaloberry (Shepherdia argentea),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Blue grama (Bouteloua gracilis),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Buffalograss (Bouteloua dactyloides),grazing livestock,benefit,palatable forage,High,USDA PLANTS (CC0)
+Sea oats (Uniola paniculata),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Northern bayberry (Morella pensylvanica),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Fourwing saltbush (Atriplex canescens),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Fourwing saltbush (Atriplex canescens),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Crownvetch (Securigera varia),livestock,harm,toxic,Slight,USDA PLANTS (CC0)
+Crownvetch (Securigera varia),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Crownvetch (Securigera varia),browsing livestock (goats),benefit,palatable browse,High,USDA PLANTS (CC0)
+Autumn olive (Elaeagnus umbellata),the crop that follows,benefit,nitrogen fixation,Medium,USDA PLANTS (CC0)
+Russian olive (Elaeagnus angustifolia),the crop that follows,benefit,nitrogen fixation,High,USDA PLANTS (CC0)
+Maize (corn) (Zea mays),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"337 records, 46 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Durum wheat (Triticum turgidum subsp. durum),bees: Hylaeus communis (2),benefit,flowers visited or pollinated (recorded),"2 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Emmer wheat (Triticum turgidum subsp. dicoccum),bees: Hylaeus communis (2),benefit,flowers visited or pollinated (recorded),"2 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Rice (Oryza sativa),bees: Apis cerana,benefit,flowers visited or pollinated (recorded),"8 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sorghum (Sorghum bicolor),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Wild rice (Zizania palustris),bees: Bombus (2),benefit,flowers visited or pollinated (recorded),"2 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Buckwheat (Fagopyrum esculentum),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"257 records, 48 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Grain amaranth (Amaranthus cruentus),bees: Bombus terrestris,benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Soybean (Glycine max),bees: Apis mellifera; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"330 records, 30 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Common bean (Phaseolus vulgaris),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"221 records, 56 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lima bean (Phaseolus lunatus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"175 records, 55 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Runner bean (Phaseolus coccineus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"458 records, 81 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cowpea (Vigna unguiculata),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"8 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chickpea (Cicer arietinum),bees: Osmia rufohirta (2); Lasioglossum lissonotum (2); Lasioglossum nigripes (2); Anthidium loti (2); Lasioglossum glabriusculum (2); Lasioglossum marginellum (2); Lasioglossum quadrisignatum (2); Osmia viridana (2),benefit,flowers visited or pollinated (recorded),"38 records, 19 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lentil (Lens culinaris),bees: Lasioglossum glabriusculum (2); Lasioglossum nigripes (2); Osmia steinmanni (2); Lasioglossum quadrisignatum (2); Lasioglossum semilucens (2); Lasioglossum lissonotum (2); Nomada rhenana (2); Lasioglossum marginellum (2),benefit,flowers visited or pollinated (recorded),"38 records, 19 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Pea (Pisum sativum),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"104 records, 50 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Faba bean (Vicia faba),bees: Apis mellifera; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"1245 records, 107 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Pigeon pea (Cajanus cajan),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"190 records, 53 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Peanut (Arachis hypogaea),bees: Apis mellifera; Apis cerana; Bombus impatiens; Tetragonula carbonaria,benefit,flowers visited or pollinated (recorded),"14 records, 14 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+White lupin (Lupinus albus),bees: Bombus terrestris,benefit,flowers visited or pollinated (recorded),"69 records, 36 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Grass pea (Lathyrus sativus),bees: Osmia viridana (4); Nomada rhenana (4); Osmia steinmanni (4); Lasioglossum semilucens (4); Lasioglossum glabriusculum (4); Lasioglossum marginellum (4); Osmia rufohirta (4); Anthophora aestivalis (4),benefit,flowers visited or pollinated (recorded),"110 records, 34 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lablab (hyacinth bean) (Lablab purpureus),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"6 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Potato (Solanum tuberosum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"458 records, 75 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sweet potato (Ipomoea batatas),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"117 records, 34 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cassava (Manihot esculenta),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"10 records, 7 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+White yam (Dioscorea rotundata),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Taro (Colocasia esculenta),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Yacón (Smallanthus sonchifolius),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"13 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Jerusalem artichoke (Helianthus tuberosus),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"912 records, 147 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Jícama (Pachyrhizus erosus),bees: Coelioxys nigripes (2); Megachile nigripollex (1); Megachile adeloptera (1); Megachile malimbana (1); Xylocopa albiceps (1),benefit,flowers visited or pollinated (recorded),"6 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tomato (Solanum lycopersicum),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"477 records, 84 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Eggplant (Solanum melongena),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"487 records, 82 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Bell and chili pepper (Capsicum annuum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia cornifrons; Tetragonula carbonaria,benefit,flowers visited or pollinated (recorded),"111 records, 39 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tabasco-type chili (Capsicum frutescens),bees: Bombus impatiens; Osmia cornifrons,benefit,flowers visited or pollinated (recorded),"9 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Habanero-type chili (Capsicum chinense),bees: Augochlora pura (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tomatillo (Physalis philadelphica),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"95 records, 32 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cucumber (Cucumis sativus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia cornifrons; squash bee (Xenoglossa pruinosa),benefit,flowers visited or pollinated (recorded),"171 records, 51 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Melon (Cucumis melo),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Megachile rotundata; squash bee (Xenoglossa pruinosa),benefit,flowers visited or pollinated (recorded),"135 records, 33 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Watermelon (Citrullus lanatus),bees: Apis mellifera; Apis cerana; Bombus impatiens; Osmia lignaria; squash bee (Xenoglossa pruinosa),benefit,flowers visited or pollinated (recorded),"2482 records, 117 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+"Summer squash, zucchini, pumpkin (Cucurbita pepo)",bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; squash bee (Xenoglossa pruinosa),benefit,flowers visited or pollinated (recorded),"423 records, 72 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Winter squash (Cucurbita maxima),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; squash bee (Xenoglossa pruinosa),benefit,flowers visited or pollinated (recorded),"26 records, 15 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Butternut squash (Cucurbita moschata),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; squash bee (Xenoglossa pruinosa),benefit,flowers visited or pollinated (recorded),"311 records, 78 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Bottle gourd (Lagenaria siceraria),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; squash bee (Xenoglossa pruinosa),benefit,flowers visited or pollinated (recorded),"225 records, 61 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Bitter gourd (Momordica charantia),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"56 records, 17 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Luffa (Luffa aegyptiaca),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"19 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chayote (Sechium edule),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"10 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cabbage (Brassica oleracea var. capitata),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"2754 records, 138 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Kale and collards (Brassica oleracea var. viridis),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"2754 records, 138 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Broccoli (Brassica oleracea var. italica),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"2754 records, 138 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cauliflower (Brassica oleracea var. botrytis),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"2754 records, 138 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Brussels sprouts (Brassica oleracea var. gemmifera),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"2754 records, 138 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Kohlrabi (Brassica oleracea var. gongylodes),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"2754 records, 138 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chinese cabbage (Brassica rapa subsp. pekinensis),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia cornifrons; Osmia cornuta; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"685 records, 186 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Bok choy (Brassica rapa subsp. chinensis),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia cornifrons; Osmia cornuta; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"685 records, 186 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Turnip (Brassica rapa subsp. rapa),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia cornifrons; Osmia cornuta; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"685 records, 186 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Rutabaga (Brassica napus var. napobrassica),bees: Apis mellifera; Apis cerana; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"3780 records, 174 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Mustard greens (Brassica juncea),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"1033 records, 121 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Radish (Raphanus sativus),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"391 records, 99 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Arugula (Eruca vesicaria),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"69 records, 22 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Watercress (Nasturtium officinale),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"101 records, 69 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Horseradish (Armoracia rusticana),bees: Andrena florivaga (3); Nomada melathoracica (2); Lasioglossum subfasciatum (2); Lasioglossum sabulosum (2); Lasioglossum nitidiusculum (2); Lasioglossum bluethgeni (2); Lasioglossum pygmaeum (2); Lasioglossum nigripes (2),benefit,flowers visited or pollinated (recorded),"95 records, 64 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Onion (Allium cepa),bees: Apis mellifera; Apis cerana; Bombus terrestris; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"72 records, 38 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Shallot (Allium cepa var. aggregatum),bees: Apis mellifera; Apis cerana; Bombus terrestris; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"72 records, 38 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Garlic (Allium sativum),bees: Apis mellifera; Bombus terrestris; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"30 records, 15 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Leek (Allium ampeloprasum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"42 records, 16 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Welsh onion (Allium fistulosum),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"122 records, 29 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Carrot (Daucus carota subsp. sativus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"1157 records, 200 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Parsnip (Pastinaca sativa),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"241 records, 125 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Celery (Apium graveolens var. dulce),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"83 records, 58 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Celeriac (Apium graveolens var. rapaceum),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"83 records, 58 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Beet (Beta vulgaris subsp. vulgaris),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"11 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Swiss chard (Beta vulgaris subsp. vulgaris (Cicla group)),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"11 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Vegetable amaranth (Amaranthus tricolor),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"56 records, 4 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lettuce (Lactuca sativa),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"168 records, 101 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Endive (Cichorium endivia),bees: Hylaeus nigritus (3); Halictus scabiosae (2); Lasioglossum albocinctum (2); Osmia mustelina (2); Lasioglossum minutulum (2); Lasioglossum pauperatum (2); Osmia rufohirta (2); Nomada integra (2),benefit,flowers visited or pollinated (recorded),"162 records, 97 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chicory and radicchio (Cichorium intybus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"1821 records, 233 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Globe artichoke (Cynara cardunculus var. scolymus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"317 records, 133 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Okra (Abelmoschus esculentus),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"13 records, 8 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Roselle (Hibiscus sabdariffa),bees: Dactylurina staudingeri (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Asparagus (Asparagus officinalis),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"127 records, 38 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Rhubarb (Rheum rhabarbarum),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"4 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Malabar spinach (Basella alba),bees: Halictidae (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Moringa (Moringa oleifera),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"127 records, 30 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sunflower (Helianthus annuus),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"579 records, 169 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Rapeseed (canola) (Brassica napus),bees: Apis mellifera; Apis cerana; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"3780 records, 174 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sesame (Sesamum indicum),bees: Apis mellifera; Apis cerana,benefit,flowers visited or pollinated (recorded),"62 records, 26 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Flax (linseed) (Linum usitatissimum),bees: Apis mellifera; Apis cerana; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"19 records, 12 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Safflower (Carthamus tinctorius),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Niger seed (Guizotia abyssinica),bees: Hylaeus nigritus (3); Nomada bifasciata (2); Osmia rufohirta (2); Halictus scabiosae (2); Andrena pellucens (2); Lasioglossum pleurospeculum (2); Halictus subauratus (2); Nomada femoralis (2),benefit,flowers visited or pollinated (recorded),"114 records, 69 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Castor (Ricinus communis),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"6 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Hemp (Cannabis sativa),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"5 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Oil palm (Elaeis guineensis),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"6 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Coconut (Cocos nucifera),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"111 records, 7 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Olive (Olea europaea),bees: Anthophora dispar (2); Lasioglossum subfasciatum (2); Hylaeus punctatus (1),benefit,flowers visited or pollinated (recorded),"5 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sugarcane (Saccharum officinarum),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"108 records, 32 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sugar beet (Beta vulgaris subsp. vulgaris (Altissima group)),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"11 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sugar maple (Acer saccharum),bees: Apis mellifera; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"36 records, 25 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cotton (Gossypium hirsutum),bees: Apis mellifera; Apis cerana; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"119 records, 41 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Arabica coffee (Coffea arabica),bees: Apis mellifera; Apis cerana; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"2476 records, 117 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Robusta coffee (Coffea canephora),bees: Apis cerana,benefit,flowers visited or pollinated (recorded),"787 records, 28 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tea (Camellia sinensis),bees: Apis mellifera; Apis cerana; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"16 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Hops (Humulus lupulus),bees: Osmia bicornis,benefit,flowers visited or pollinated (recorded),"3 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tobacco (Nicotiana tabacum),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cinnamon (Cinnamomum verum),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"166 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Annatto (Bixa orellana),bees: Melipona beecheii; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"158 records, 23 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Saffron (Crocus sativus),bees: Bombus terrestris; Osmia cornuta,benefit,flowers visited or pollinated (recorded),"7 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Coriander (cilantro) (Coriandrum sativum),bees: Apis mellifera; Apis cerana; Bombus impatiens; Megachile rotundata; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"195 records, 101 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Dill (Anethum graveolens),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"133 records, 83 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Fennel (Foeniculum vulgare),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"456 records, 111 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Parsley (Petroselinum crispum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"64 records, 41 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Anise (Pimpinella anisum),bees: Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"4 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Caraway (Carum carvi),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"181 records, 79 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Fenugreek (Trigonella foenum-graecum),bees: Anthidium loti (2); Osmia tergestensis (2); Nomada rhenana (2); Lasioglossum quadrisignatum (2); Lasioglossum lissonotum (2); Anthophora aestivalis (2); Lasioglossum nigripes (2); Megachile nigriventris (2),benefit,flowers visited or pollinated (recorded),"62 records, 31 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+White mustard (Sinapis alba),bees: Apis mellifera; Bombus terrestris; Osmia lignaria; Osmia cornifrons,benefit,flowers visited or pollinated (recorded),"181 records, 99 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Basil (Ocimum basilicum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Megachile rotundata; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"614 records, 53 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Holy basil (Ocimum tenuiflorum),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"127 records, 8 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Peppermint (Mentha × piperita),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"30 records, 12 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Spearmint (Mentha spicata),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"184 records, 69 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Oregano (Origanum vulgare),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"3421 records, 186 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Thyme (Thymus vulgaris),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria,benefit,flowers visited or pollinated (recorded),"168 records, 64 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Rosemary (Salvia rosmarinus),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"66 records, 19 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sage (Salvia officinalis),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"1350 records, 64 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lavender (Lavandula angustifolia),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"2112 records, 113 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tarragon (Artemisia dracunculus),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"161 records, 96 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chamomile (Matricaria chamomilla),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"552 records, 162 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chives (Allium schoenoprasum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"620 records, 83 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Garlic chives (Allium tuberosum),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"191 records, 23 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Apple (Malus domestica),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia cornifrons; Osmia cornuta; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"3830 records, 157 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Pear (Pyrus communis),bees: Apis mellifera; Apis cerana; Bombus terrestris; Osmia lignaria; Osmia cornuta; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"541 records, 94 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Asian pear (Pyrus pyrifolia),bees: Lasioglossum sordidum (1); Xylocopa virginica (1),benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Peach and nectarine (Prunus persica),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Osmia cornuta; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"790 records, 93 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+European plum (Prunus domestica),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"327 records, 108 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Japanese plum (Prunus salicina),bees: Apis mellifera; Apis cerana; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"99 records, 65 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Apricot (Prunus armeniaca),bees: Apis mellifera; Apis cerana; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"96 records, 62 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sweet cherry (Prunus avium),bees: Apis mellifera; Apis cerana; Bombus terrestris; Osmia lignaria; Osmia cornuta; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"632 records, 160 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sour cherry (Prunus cerasus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"174 records, 85 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Quince (Cydonia oblonga),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia cornuta,benefit,flowers visited or pollinated (recorded),"135 records, 58 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Asian persimmon (Diospyros kaki),bees: Apis cerana,benefit,flowers visited or pollinated (recorded),"4 records, 4 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+American persimmon (Diospyros virginiana),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"34 records, 27 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Pawpaw (Asimina triloba),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"6 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Pomegranate (Punica granatum),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"14 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+White mulberry (Morus alba),bees: Xylocopa virginica virginica (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Jujube (Ziziphus jujuba),bees: Apis mellifera; Apis cerana,benefit,flowers visited or pollinated (recorded),"12 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Grape (Vitis vinifera),bees: Apis mellifera; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"6 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Muscadine grape (Vitis rotundifolia),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"11 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Strawberry (Fragaria × ananassa),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"211 records, 28 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Highbush blueberry (Vaccinium corymbosum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia cornifrons; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"3499 records, 162 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Rabbiteye blueberry (Vaccinium virgatum),bees: Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"2 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cranberry (Vaccinium macrocarpon),bees: Apis mellifera; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"6 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Red raspberry (Rubus idaeus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia cornifrons; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"1468 records, 205 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Blackberry (Rubus subg. Rubus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia cornifrons; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"1563 records, 233 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Black currant (Ribes nigrum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"81 records, 26 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Gooseberry (Ribes uva-crispa),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"50 records, 13 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+American elderberry (Sambucus canadensis),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"59 records, 19 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Haskap (honeyberry) (Lonicera caerulea),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria,benefit,flowers visited or pollinated (recorded),"249 records, 36 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Black chokeberry (aronia) (Aronia melanocarpa),bees: Bombus impatiens; Osmia cornuta,benefit,flowers visited or pollinated (recorded),"60 records, 23 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Saskatoon (serviceberry) (Amelanchier alnifolia),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"69 records, 18 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Hardy kiwi (Actinidia arguta),bees: Bombus hypocrita hypocrita (1); Lasioglossum (1); Bombus diversus diversus (1),benefit,flowers visited or pollinated (recorded),"3 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Goji (Lycium barbarum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"75 records, 14 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Passion fruit (Passiflora edulis),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"289 records, 32 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Dragon fruit (Selenicereus undatus),bees: Apis mellifera; Apis cerana,benefit,flowers visited or pollinated (recorded),"19 records, 4 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sweet orange (Citrus × sinensis),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"18 records, 11 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Mandarin (Citrus reticulata),bees: Apis dorsata (1); Apis florea (1); Xylocopa augusti (1); Bombus sp. (1),benefit,flowers visited or pollinated (recorded),"4 records, 4 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lemon (Citrus × limon),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"28 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lime (Citrus × aurantiifolia),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"4 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Grapefruit (Citrus × paradisi),bees: Apis mellifera; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"5 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Dessert banana (Musa acuminata),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"2 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Plantain (Musa × paradisiaca),bees: Trigona corvina (128); Trigona nigerrima (91); Trigona fulviventris (44); Partamona bilineata (4); Scaptotrigona pectoralis (2); Lasioglossum (2); Cephalotrigona zexmeniae (1); Tetrapedia (1),benefit,flowers visited or pollinated (recorded),"277 records, 12 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Mango (Mangifera indica),bees: Apis mellifera; Apis cerana; Tetragonisca angustula; Tetragonula carbonaria,benefit,flowers visited or pollinated (recorded),"146 records, 37 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Papaya (Carica papaya),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"19 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Avocado (Persea americana),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"83 records, 22 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Guava (Psidium guajava),bees: Apis mellifera; Apis cerana; Heterotrigona itama,benefit,flowers visited or pollinated (recorded),"60 records, 31 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lychee (Litchi chinensis),bees: Apis mellifera; Apis cerana,benefit,flowers visited or pollinated (recorded),"14 records, 12 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Longan (Dimocarpus longan),bees: Apis mellifera; Apis cerana,benefit,flowers visited or pollinated (recorded),"3 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Jackfruit (Artocarpus heterophyllus),bees: Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Breadfruit (Artocarpus altilis),bees: Trigona silvestriana (2); Trigona guianae (1),benefit,flowers visited or pollinated (recorded),"3 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Prickly pear (Opuntia ficus-indica),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"18 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Soursop (Annona muricata),bees: Liotrigona bottegoi (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Starfruit (Averrhoa carambola),bees: Apis mellifera; Heterotrigona itama,benefit,flowers visited or pollinated (recorded),"19 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tamarind (Tamarindus indica),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"16 records, 4 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Loquat (Eriobotrya japonica),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"148 records, 61 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Acerola (Malpighia emarginata),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"150 records, 12 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Baobab (Adansonia digitata),bees: Trigona spinipes (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Açaí (Euterpe oleracea),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"54 records, 26 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Peach palm (Bactris gasipaes),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"5 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Almond (Prunus dulcis),bees: Apis mellifera; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"628 records, 74 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+English walnut (Juglans regia),bees: Bombus terrestris; Osmia cornuta; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"12 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Hazelnut (Corylus avellana),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"11 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chinese chestnut (Castanea mollissima),bees: Apis cerana; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"15 records, 13 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cashew (Anacardium occidentale),bees: Apis mellifera; Apis cerana,benefit,flowers visited or pollinated (recorded),"235 records, 15 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Macadamia (Macadamia integrifolia),bees: Apis mellifera; Tetragonula carbonaria,benefit,flowers visited or pollinated (recorded),"5 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Brazil nut (Bertholletia excelsa),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"31 records, 26 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Stone pine (pine nut) (Pinus pinea),bees: Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"5 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Carob (Ceratonia siliqua),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"5 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Alfalfa (Medicago sativa),bees: Apis mellifera; Bombus terrestris; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"775 records, 87 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Red clover (Trifolium pratense),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"2299 records, 151 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+White clover (Trifolium repens),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"2366 records, 175 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Crimson clover (Trifolium incarnatum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"226 records, 68 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Hairy vetch (Vicia villosa),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"1022 records, 118 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Common vetch (Vicia sativa),bees: Apis mellifera; Bombus terrestris; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"775 records, 87 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Yellow sweet clover (Melilotus officinalis),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"2535 records, 192 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Birdsfoot trefoil (Lotus corniculatus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"2855 records, 124 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sainfoin (Onobrychis viciifolia),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"10 records, 4 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Velvet bean (Mucuna pruriens),bees: Bombus brevivillus (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Partridge pea (Chamaecrista fasciculata),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"653 records, 35 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Phacelia (Phacelia tanacetifolia),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"925 records, 91 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Oilseed radish (tillage radish) (Raphanus sativus var. oleiformis),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"391 records, 99 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Annual ryegrass (Lolium multiflorum),bees: Hylaeus (2),benefit,flowers visited or pollinated (recorded),"2 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Perennial ryegrass (Lolium perenne),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"3 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Orchardgrass (Dactylis glomerata),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"7 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Timothy (Phleum pratense),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"15 records, 7 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Kentucky bluegrass (Poa pratensis),bees: Andrena cressonii (2); Lasioglossum imitatum (1); Andrena spiraeana (1); Nomada parva (1); Ashmeadiella bucconis (1); Triepeolus donatus (1); Bombus griseocollis (1),benefit,flowers visited or pollinated (recorded),"8 records, 7 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Bermudagrass (Cynodon dactylon),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"4 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Bahiagrass (Paspalum notatum),bees: Apis cerana; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"16 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Switchgrass (Panicum virgatum),bees: Holcopasites heliopsis (1); Andrena miserabilis (1); Ceratina dupla (1); Pseudopanurgus labrosiformis (1); Halictus rubicundus (1); Melissodes bimaculatus (1); Dialictus (1); Lasioglossum versatum (1),benefit,flowers visited or pollinated (recorded),"8 records, 8 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Big bluestem (Andropogon gerardii),bees: Bombus griseocollis (2); Bombus pensylvanicus (1),benefit,flowers visited or pollinated (recorded),"3 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Indiangrass (Sorghastrum nutans),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Little bluestem (Schizachyrium scoparium),bees: Lasioglossum vierecki (1); Bombus pensylvanicus (1),benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Eastern gamagrass (Tripsacum dactyloides),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"12 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Leucaena (Leucaena leucocephala),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"16 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Gliricidia (Gliricidia sepium),bees: Gaesischia exul (61); Megachile axyx (29); Megachile chichimeca (28); Halictus lutescens (26); Centris fuscata (22); Megachile otomita (15); Centris flavifrons (15); Centris (12),benefit,flowers visited or pollinated (recorded),"316 records, 44 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sesbania (Sesbania sesban),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"8 records, 8 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Black locust (Robinia pseudoacacia),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"161 records, 62 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Honey locust (Gleditsia triacanthos),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"66 records, 38 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Teak (Tectona grandis),bees: Apis mellifera; Melipona beecheii; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"190 records, 30 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Basket willow (Salix viminalis),bees: Apis mellifera; Bombus terrestris; Osmia cornuta; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"233 records, 76 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Eastern cottonwood (Populus deltoides),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"6 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Purple coneflower (Echinacea purpurea),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"3196 records, 75 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Black-eyed Susan (Rudbeckia hirta),bees: Apis mellifera; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"1071 records, 223 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Common milkweed (Asclepias syriaca),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"2770 records, 99 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Butterfly milkweed (Asclepias tuberosa),bees: Apis mellifera; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"2031 records, 122 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Wild bergamot (Monarda fistulosa),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"2099 records, 79 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Lanceleaf coreopsis (Coreopsis lanceolata),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"1137 records, 192 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Canada goldenrod (Solidago canadensis),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"933 records, 223 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+New England aster (Symphyotrichum novae-angliae),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"2088 records, 80 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Yarrow (Achillea millefolium),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia bicornis; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"1661 records, 337 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Borage (Borago officinalis),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia cornuta; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"1310 records, 85 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Comfrey (Symphytum officinale),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"879 records, 69 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Calendula (Calendula officinalis),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"334 records, 148 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+French marigold (Tagetes patula),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"242 records, 119 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Nasturtium (Tropaeolum majus),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"469 records, 27 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cosmos (Cosmos bipinnatus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"1111 records, 179 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Zinnia (Zinnia elegans),bees: Apis mellifera; Bombus impatiens; Tetragonisca angustula,benefit,flowers visited or pollinated (recorded),"439 records, 97 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Aloe vera (Aloe vera),bees: Apis mellifera; Apis cerana,benefit,flowers visited or pollinated (recorded),"31 records, 10 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Pyrethrum (Tanacetum cinerariifolium),bees: Hylaeus nigritus (3); Pseudapis diversipes (2); Lasioglossum pleurospeculum (2); Andrena pellucens (2); Lasioglossum lucidulum (2); Lasioglossum sabulosum (2); Lasioglossum subfasciatum (2); Lasioglossum nitidiusculum (2),benefit,flowers visited or pollinated (recorded),"164 records, 97 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+True indigo (Indigofera tinctoria),bees: Colletes rufitarsis (1); Lasioglossum (1); Megachile exilis (1),benefit,flowers visited or pollinated (recorded),"3 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Dahlia (Dahlia pinnata),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"134 records, 25 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Peony (Paeonia lactiflora),bees: Bombus huntii (1); Bombus griseocollis (1); Andrena carlini (1),benefit,flowers visited or pollinated (recorded),"3 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Snapdragon (Antirrhinum majus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"88 records, 39 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tulip (Tulipa gesneriana),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"12 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Daffodil (Narcissus pseudonarcissus),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia cornifrons,benefit,flowers visited or pollinated (recorded),"114 records, 31 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Celosia (Celosia argentea),bees: Apis mellifera; Apis cerana; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"37 records, 14 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sweet pea (Lathyrus odoratus),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"54 records, 16 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Poppy anemone (Anemone coronaria),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"16 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Statice (Limonium sinuatum),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"11 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Stock (Matthiola incana),bees: Hylaeus (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Carnation (Dianthus caryophyllus),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"11 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Easter lily (Lilium longiflorum),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Strawflower (Xerochrysum bracteatum),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"17 records, 13 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Globe amaranth (Gomphrena globosa),bees: Apis mellifera; Apis cerana; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"33 records, 11 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Larkspur (Consolida ajacis),bees: Bombus hortorum (4); Andrena florivaga (3); Osmia mustelina (2); Lasioglossum glabriusculum (2); Lasioglossum majus (2); Lasioglossum semilucens (2); Lasioglossum lineare (2); Lasioglossum minutulum (2),benefit,flowers visited or pollinated (recorded),"21 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Bigleaf hydrangea (Hydrangea macrophylla),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"89 records, 24 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Heartsease (viola) (Viola tricolor),bees: Bombus terrestris,benefit,flowers visited or pollinated (recorded),"6 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Orange daylily (Hemerocallis fulva),bees: Augochlora pura (4); Melissodes bimaculatus (2); Bombus pensylvanicus (2); Xylocopa (1); Trigona spinipes (1); Xylocopa virginica (1),benefit,flowers visited or pollinated (recorded),"11 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Tulip poplar (Liriodendron tulipifera),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"111 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+American basswood (Tilia americana),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"59 records, 28 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Small-leaved lime (Tilia cordata),bees: Apis mellifera; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"33 records, 13 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sourwood (Oxydendrum arboreum),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"6 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Ogeechee tupelo (Nyssa ogeche),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"6 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Red maple (Acer rubrum),bees: Apis mellifera; Bombus impatiens; Osmia lignaria,benefit,flowers visited or pollinated (recorded),"52 records, 12 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Pussy willow (Salix discolor),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"87 records, 26 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Eastern redbud (Cercis canadensis),bees: Apis mellifera; Bombus impatiens; Osmia lignaria; Osmia cornifrons; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"380 records, 49 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Smooth sumac (Rhus glabra),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"165 records, 70 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Honey mesquite (Prosopis glandulosa),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"72 records, 23 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Mānuka (Leptospermum scoparium),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"45 records, 10 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Heather (Calluna vulgaris),bees: Apis mellifera; Bombus terrestris,benefit,flowers visited or pollinated (recorded),"3747 records, 61 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Dandelion (Taraxacum officinale),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia cornuta; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"1107 records, 277 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Anise hyssop (Agastache foeniculum),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"1800 records, 52 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Virginia mountain mint (Pycnanthemum virginianum),bees: Apis mellifera; Bombus impatiens; Megachile rotundata,benefit,flowers visited or pollinated (recorded),"336 records, 59 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Catmint (Nepeta × faassenii),bees: Bombus bimaculatus (5),benefit,flowers visited or pollinated (recorded),"5 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sweet alyssum (Lobularia maritima),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"156 records, 88 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Northern red oak (Quercus rubra),bees: Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"18 records, 8 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Black cherry (Prunus serotina),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"135 records, 98 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Eastern redcedar (Juniperus virginiana),bees: Colletes inaequalis (3),benefit,flowers visited or pollinated (recorded),"3 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+American chestnut (Castanea dentata),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"15 records, 10 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Eastern white pine (Pinus strobus),bees: Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"6 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Ponderosa pine (Pinus ponderosa),bees: Bombus insularis (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Douglas-fir (Pseudotsuga menziesii),bees: Andrena angustitarsata (2); Colletes gypsicolens (1); Andrena prunorum (1); Andrena pertristis (1); Lasioglossum sisymbrii (1); Nomada (1); Lasioglossum anhypops (1); Andrena buckelli (1),benefit,flowers visited or pollinated (recorded),"10 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Norway spruce (Picea abies),bees: Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"13 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Scots pine (Pinus sylvestris),bees: Apis mellifera; Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"15 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+European larch (Larix decidua),bees: Bombus pascuorum (1); Bombus pratorum (1); Bombus pyrenaeus (1),benefit,flowers visited or pollinated (recorded),"3 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cork oak (Quercus suber),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Paulownia (Paulownia tomentosa),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Nordmann fir (Abies nordmanniana),bees: Bombus terrestris; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"4 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Black cohosh (Actaea racemosa),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"68 records, 13 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Black willow (Salix nigra),bees: Apis mellifera; Osmia lignaria,benefit,flowers visited or pollinated (recorded),"66 records, 44 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sandbar willow (Salix interior),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"21 records, 15 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Silky dogwood (Cornus amomum),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"55 records, 41 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Red osier dogwood (Cornus sericea),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria,benefit,flowers visited or pollinated (recorded),"194 records, 60 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Buttonbush (Cephalanthus occidentalis),bees: Apis mellifera; Bombus impatiens; squash bee (Xenoglossa pruinosa),benefit,flowers visited or pollinated (recorded),"1070 records, 70 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Common ninebark (Physocarpus opulifolius),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia bicornis; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"132 records, 81 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Northern spicebush (Lindera benzoin),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"7 records, 5 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Arrowwood viburnum (Viburnum dentatum),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"22 records, 12 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+False indigo bush (Amorpha fruticosa),bees: Apis mellifera; Apis cerana; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"241 records, 80 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Fox sedge (Carex vulpinoidea),bees: Anthophora terminalis (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Soft rush (Juncus effusus),bees: Bombus lucorum (2),benefit,flowers visited or pollinated (recorded),"2 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Prairie cordgrass (Spartina pectinata),bees: Melissodes bimaculatus (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+American plum (Prunus americana),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia cornuta; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"513 records, 157 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chokecherry (Prunus virginiana),bees: Apis mellifera; Bombus terrestris; Bombus impatiens; Osmia lignaria; Osmia bicornis,benefit,flowers visited or pollinated (recorded),"495 records, 163 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Common hackberry (Celtis occidentalis),bees: Bombus griseocollis (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Silver buffaloberry (Shepherdia argentea),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"2 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+New Jersey tea (Ceanothus americanus),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"148 records, 48 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Fragrant sumac (Rhus aromatica),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"91 records, 40 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Coralberry (Symphoricarpos orbiculatus),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"78 records, 40 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Saltmeadow cordgrass (Spartina patens),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"3 records, 2 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Beach plum (Prunus maritima),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"40 records, 8 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Big sagebrush (Artemisia tridentata),bees: Andrena prunorum (6); Bombus nevadensis (3); Agapostemon texanus (2); Nomada vegana (1); Osmia cobaltina (1); Lasioglossum sisymbrii (1); Lasioglossum (1); Bombus huntii (1),benefit,flowers visited or pollinated (recorded),"17 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Kudzu (Pueraria montana var. lobata),bees: Bombus impatiens,benefit,flowers visited or pollinated (recorded),"67 records, 35 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Crownvetch (Securigera varia),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"741 records, 79 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Sericea lespedeza (Lespedeza cuneata),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"27 records, 9 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Multiflora rose (Rosa multiflora),bees: Apis mellifera; Apis cerana; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"199 records, 95 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Autumn olive (Elaeagnus umbellata),bees: Apis mellifera; Bombus impatiens; Habropoda laboriosa,benefit,flowers visited or pollinated (recorded),"141 records, 18 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Russian olive (Elaeagnus angustifolia),bees: Apis mellifera; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"17 records, 11 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Japanese honeysuckle (Lonicera japonica),bees: Apis mellifera; Bombus terrestris; Bombus impatiens,benefit,flowers visited or pollinated (recorded),"76 records, 26 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Chinese privet (Ligustrum sinense),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"21 records, 6 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Saltcedar (Tamarix ramosissima),bees: Apis mellifera,benefit,flowers visited or pollinated (recorded),"9 records, 3 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+Cogongrass (Imperata cylindrica),bees: Hypotrigona ruspolii (1),benefit,flowers visited or pollinated (recorded),"1 records, 1 bee taxa",GloBI (CC BY 4.0) and the studies it cites
+"Maize, common bean and squash",each other,benefit,three sisters: the bean climbs the maize and fixes nitrogen; the squash shades out weeds,,curated — to cite
+legume cover crop,a following cereal,benefit,nitrogen left in the soil,,curated — to cite
+cattle,sheep and goats,benefit,"grazed together they prefer different plants and mostly do not share gut parasites, diluting each other's worm burden",,curated — to cite
+poultry,cattle pasture,benefit,"following cattle, they scratch apart dung pats and eat fly larvae",,curated — to cite
+ducks,rice,benefit,pest and weed control; manure,,curated — to cite
+fish (common carp),rice,benefit,pest control; manure,,curated — to cite
+pigs,woodland,benefit,finishing on acorns and nuts,,curated — to cite
+"donkeys, llamas, guardian dogs",sheep and goats,benefit,protection from canid predators,,curated — to cite
+goats,"kudzu, multiflora rose and other invasive brush",benefit,browse it down,,curated — to cite
+black soldier fly,poultry and fish,benefit,larvae raised on manure become feed; frass becomes fertilizer,,curated — to cite
+silkworm,mulberry,benefit,the only food silkworms eat,,curated — to cite
+windbreaks and hedgerows,livestock and bees,benefit,shelter from wind,,curated — to cite
+riparian buffers,streams,benefit,catch manure and fertilizer runoff,,curated — to cite
+insecticide or mowing during bloom,bees,harm,kills foragers,,curated — to cite
+deep tillage,squash bees,harm,destroys nests in the soil beneath cucurbits,,curated — to cite
+chickens,turkeys,harm,"chickens carry blackhead (Histomonas), which kills turkeys",,curated — to cite
+"copper (feeds, minerals, orchard sprays)",sheep,harm,sheep are poisoned at levels other livestock tolerate,,curated — to cite
+goats,young trees,harm,they strip bark,,curated — to cite
+Black walnut,tomatoes and other Solanaceae; horses (shavings),harm,juglone,,curated — to cite
+wilted cherry and other Prunus leaves,ruminants,harm,cyanide,,curated — to cite
+acorns in quantity,cattle and horses,harm,tannin poisoning (pigs tolerate them),,curated — to cite
+waterfowl,chickens,harm,a reservoir for avian influenza,,curated — to cite
+Bombus terrestris,places outside its native range,harm,invasive where introduced,,curated — to cite
+"poultry litter, applied repeatedly",water,harm,phosphorus builds up and runs off,,curated — to cite
+fresh manure,food crops,harm,pathogens; the organic rule's 90/120-day interval exists for this,,curated — to cite
