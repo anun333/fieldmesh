@@ -43,6 +43,7 @@ Los treinta años de tiempo del propio sitio, cada día +1,0 °C más cálido y 
 - Pigeon pea: variedades que maduran 0 → 0 de 3; sembrar — → —
 - Quinoa: variedades que maduran 2 → 2 de 2; sembrar del 12 de marzo al 27 de agosto → del 12 de marzo al 3 de septiembre
 - Rapeseed (canola): variedades que maduran 3 → 3 de 3; sembrar del 5 de marzo al 30 de julio → del 19 de febrero al 30 de julio
+- Rice: variedades que maduran 42 → 48 de 55; sembrar del 9 de abril al 2 de julio → del 26 de marzo al 9 de julio
 - Safflower: variedades que maduran 5 → 5 de 5; sembrar del 9 de abril al 13 de agosto → del 26 de marzo al 13 de agosto
 - Sorghum: variedades que maduran 51 → 52 de 55; sembrar del 9 de abril al 9 de julio → del 26 de marzo al 16 de julio
 - Soybean: variedades que maduran 36 → 36 de 59; sembrar del 9 de abril al 20 de agosto → del 26 de marzo al 20 de agosto

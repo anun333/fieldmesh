@@ -106,6 +106,12 @@ def season_note(season: dict) -> str:
     return note
 
 
+#: Crops grown flooded. A crop model judges their season, never their water: on an upland
+#: field the season can fit and the crop still be impossible without a field that holds a
+#: flood, so a season verdict for them always carries this caution.
+PADDY_GENERA = ("Oryza",)
+
+
 def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = None) -> dict:
     """-> {verdict, rules_out[], fixable[], caution[]}
 
@@ -118,8 +124,11 @@ def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = Non
         if int(season["cultivars_maturing_8_in_10"]) == 0:
             _add(out, "rules_out", "advise.why.model_season", crop=season["dssat_crop"].lower(),
                  share=float(season["best_matures_before_frost"]))
+        if plant["scientific_name"].split()[0] in PADDY_GENERA:
+            _add(out, "caution", "advise.why.paddy")
         if not chars or not chars.get("plants_symbol") or "characteristics" in (chars.get("match") or ""):
-            verdict = "unsuited" if out["rules_out"] else "suits (crop model)"
+            verdict = ("unsuited" if out["rules_out"] else
+                       "suits, with cautions" if out["caution"] else "suits (crop model)")
             return {**out, "verdict": verdict}
     if plant["category"].startswith("invasive"):
         return {**out, "verdict": "do not plant (invasive)"}

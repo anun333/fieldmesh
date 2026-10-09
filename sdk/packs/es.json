@@ -128,6 +128,7 @@
   "advise.why.texture_fine": "suelo: PLANTS la considera no adaptada a suelos de textura fina",
   "advise.why.waterlogging": "drenaje: suelo mal drenado y sin tolerancia al encharcamiento",
   "advise.why.salt": "sal: suelo superficial de {ec} dS/m y poca tolerancia a la sal",
+  "advise.why.paddy": "agua: se cultiva inundado — necesita un campo que retenga la lámina (un subsuelo compacto, bordos) y agua para llenarlo; aquí la temporada no es el límite",
   "advise.title": "Qué crece en {lat:.4f}; {lon:.4f}",
   "advise.preface": "Generado el {date} a partir de datos abiertos. Son puntos de partida, no respuestas: contrástelos con el conocimiento local, un análisis de suelo y sus propios registros.",
   "advise.section.site": "El sitio",

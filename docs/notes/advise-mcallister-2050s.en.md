@@ -43,6 +43,7 @@ The site's own thirty years of weather, every day +1.0 °C warmer and with +0% r
 - Pigeon pea: cultivars maturing 0 → 0 of 3; sow — → —
 - Quinoa: cultivars maturing 2 → 2 of 2; sow March 12 to August 27 → March 12 to September 3
 - Rapeseed (canola): cultivars maturing 3 → 3 of 3; sow March 5 to July 30 → February 19 to July 30
+- Rice: cultivars maturing 42 → 48 of 55; sow April 9 to July 2 → March 26 to July 9
 - Safflower: cultivars maturing 5 → 5 of 5; sow April 9 to August 13 → March 26 to August 13
 - Sorghum: cultivars maturing 51 → 52 of 55; sow April 9 to July 9 → March 26 to July 16
 - Soybean: cultivars maturing 36 → 36 of 59; sow April 9 to August 20 → March 26 to August 20

@@ -667,6 +667,151 @@ def millet_runners(cultivars: list, ecos: dict, lat: float) -> list:
     return runners
 
 
+# ---------------------------------------------- CERES-Rice (direct-seeded), ported
+
+def parse_rice_cul(text: str) -> list:
+    """RICER048.CUL: VAR#, VRNAME, EXPNO, ECO#, then P1, P2R, P5, P2O, G1, G2, G3, PHINT,
+    THOT, TCLDP, TCLDF in six-character columns from column 37."""
+    out = []
+    names = ("P1", "P2R", "P5", "P2O", "G1", "G2", "G3", "PHINT", "THOT", "TCLDP", "TCLDF")
+    for line in text.replace("\r", "").splitlines():
+        if not line.strip() or line[0] in "!*@" or len(line) < 102:
+            continue
+        code = line[0:6].strip()
+        if code in ("999991", "999992"):
+            continue
+        row = {"code": code, "name": line[7:23].strip(), "eco": line[30:36].strip()}
+        row.update({k: _f(line[36 + 6 * i:42 + 6 * i]) for i, k in enumerate(names)})
+        out.append(row)
+    return out
+
+
+RICE_TBASE, RICE_TOPT, RICE_TOPTMX, RICE_TDELAYMX = 9.0, 28.0, 36.0, 46.0
+RICE_SOWING_DEPTH_CM = 3.0          # drill-seeded, as Mid-South rice is
+
+
+def rice_dtt(tmin: float, tmax: float, srad: float, dayl: float, leafno: float) -> float:
+    """RI_Phenol.for's thermal time: base 9, optimum 28, development slowing back down
+    above 36 and stopping at 46 — the soil-temperature rule before ten leaves, a 24-point
+    sine when the day crosses the base or the optimum, the mean otherwise."""
+    tb, to, tx, td = RICE_TBASE, RICE_TOPT, RICE_TOPTMX, RICE_TDELAYMX
+    if tmax < tb:
+        return 0.0
+    if leafno <= 10:
+        acoef = 0.01061 * srad + 0.5902
+        tdsoil = acoef * tmax + (1.0 - acoef) * tmin
+        tnsoil = 0.36354 * tmax + 0.63646 * tmin
+        if tdsoil < tb:
+            return 0.0
+        if tnsoil > to:
+            tnsoil = to - (tnsoil - to)
+        tdsoil = min(tdsoil, to) if tdsoil <= 40.0 else to - (tdsoil - 40.0)
+        tmsoil = tdsoil * (dayl / 24.0) + tnsoil * ((24.0 - dayl) / 24.0)
+        if tmsoil < tb:
+            dtt = (tb + tdsoil) / 2.0 - tb
+        elif tmsoil > td:
+            dtt = 0.0
+        elif tmsoil > tx:
+            dtt = (to - (tmsoil - to)) - tb
+        elif tmsoil > to:
+            dtt = to - tb
+        else:
+            dtt = tmsoil - tb
+        return max(0.0, min(dtt, tx - tb))
+    if tmin < tb or tmax > to:
+        dtt = 0.0
+        for i in range(1, 25):
+            th = (tmax + tmin) / 2.0 + (tmax - tmin) / 2.0 * math.sin(3.14 / 12.0 * i)
+            if th < tb or th > td:
+                th = tb
+            if th > tx:
+                th = to - (th - to)
+            elif th > to:
+                th = to
+            dtt += (th - tb) / 24.0
+        return max(0.0, dtt)
+    return (tmax + tmin) / 2.0 - tb
+
+
+def develop_rice(cul: dict, days: list, start: int, lat: float, stop: int | None = None) -> dict:
+    """RI_Phenol.for's stages for a direct-seeded crop (ITRANS 1), from sowing.
+
+    Germination after P8 = 150 exp(−0.055 x the sowing day's mean), held between 28 and
+    85, within forty days or the stand fails; emergence after 10 x depth + 20; juvenile
+    to P1; panicle initiation when the index reaches 1 at 1/(136 + P2R x (twilight day
+    length − P2O)) per degree-day — and not on a cold spell: if the nights through the
+    phase averaged below TCLDP, it waits for a second warm night (or the index to pass 2);
+    heading P3 = 5.5 PHINT + 0.135 x (thermal time since emergence) later; grain fill
+    from 120 more; maturity once 90% of P5 is past, two days on, as DSSAT ends a
+    direct-seeded crop. Cold sterility and heat at heading cut grain number, not the
+    calendar, and are not modelled here."""
+    out = {"flower": None, "maturity": None}
+    stage, sumdtt, since_emergence, sind = 7, 0.0, 0.0, 0.0
+    p8 = p9 = p3 = None
+    cum_tn, nights, warm_streak, germ_days = 0.0, 0, 0, 0
+    reached = None
+    end = min(len(days), stop if stop is not None else start + 365)
+    for i in range(start, end):
+        date, v = days[i]
+        if "T2M_MIN" not in v or "T2M_MAX" not in v:
+            continue
+        tmin, tmax = v["T2M_MIN"], v["T2M_MAX"]
+        doy = date.timetuple().tm_yday
+        leafno = 1.0 + since_emergence / cul["PHINT"] if stage in (1, 2, 3) else 0.0
+        dtt = rice_dtt(tmin, tmax, v.get("ALLSKY_SFC_SW_DWN", 15.0), site_profile.day_length_h(lat, doy), leafno)
+        if stage == 7:                                   # sowing day
+            p8 = min(85.0, max(28.0, 150.0 * math.exp(-0.055 * (tmin + tmax) / 2.0)))
+            stage, sumdtt = 8, 0.0
+            continue
+        sumdtt += dtt
+        if stage in (1, 2, 3):
+            since_emergence += dtt
+        if stage == 8:
+            germ_days += 1
+            if germ_days >= 40:
+                return out                               # failed to germinate
+            if sumdtt >= p8:
+                p9 = 10.0 * RICE_SOWING_DEPTH_CM + 20.0
+                stage, sumdtt = 9, sumdtt - p8
+        elif stage == 9 and sumdtt >= p9:
+            stage, sumdtt = 1, sumdtt - p9
+        elif stage == 1 and sumdtt >= cul["P1"]:
+            stage, sind, cum_tn, nights, warm_streak = 2, 0.0, 0.0, 0, 0
+        elif stage == 2:
+            twilen = civil_day_length(lat, doy)
+            rate = (1.0 / (136.0 + cul["P2R"] * (twilen - cul["P2O"]))
+                    if twilen > cul["P2O"] else 1.0 / 136.0)
+            sind += rate * dtt
+            tn = 0.25 * tmax + 0.75 * tmin
+            cum_tn, nights = cum_tn + tn, nights + 1
+            warm_streak = warm_streak + 1 if tn > cul["TCLDP"] else 0
+            if sind >= 1.0 and (cum_tn / nights >= cul["TCLDP"] or warm_streak >= 2 or sind > 2.0):
+                p3 = 5.5 * cul["PHINT"] + 0.135 * sumdtt
+                stage, sumdtt = 3, 0.0                   # panicle initiation
+        elif stage == 3 and sumdtt >= p3:
+            out["flower"] = i                            # heading
+            stage, sumdtt = 4, sumdtt - p3
+        elif stage == 4 and sumdtt >= 120.0:
+            stage, sumdtt = 5, sumdtt - 120.0
+        elif stage == 5 and sumdtt >= 0.9 * cul["P5"]:
+            if reached is None:
+                reached = i
+            elif i - reached >= 2:
+                out["maturity"] = i
+                return out
+    return out
+
+
+def rice_runners(cultivars: list, lat: float) -> list:
+    runners = []
+    for cul in cultivars:
+        if None in (cul["P1"], cul["P2R"], cul["P5"], cul["P2O"], cul["PHINT"], cul["TCLDP"]):
+            continue
+        runners.append((cul["name"], cul["code"], "short-day" if cul["P2R"] > 0 else "day-neutral",
+                        cul["P2O"], lambda days, start, stop, cul=cul: develop_rice(cul, days, start, lat, stop)))
+    return runners
+
+
 # -------------------------------- CERES-Wheat and -Barley (Cropsim-CERES), ported
 
 def _header_rows(text: str) -> list:
@@ -886,7 +1031,7 @@ def cscer_runners(cultivars: list, ecos: dict, spe: dict, lat: float) -> list:
 
 # ------------------------------------------------------------- planting windows
 
-#: A killing-frost stand-in for maize, sorghum and millet, whose files give none: the leaf-damage
+#: A killing-frost stand-in for maize, sorghum, millet and rice, whose files give none: the leaf-damage
 #: threshold CROPGRO gives most warm-season crops (FREEZ1 = −2.22 °C). An assumption.
 MAIZE_FREEZE_C = -2.22
 WINDOW_SHARE = 0.8
@@ -993,6 +1138,7 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
     models.append(("ML", "Cenchrus americanus", "CERES-Millet"))
     models.append(("WH", "Triticum aestivum", "CERES-Wheat"))
     models.append(("BA", "Hordeum vulgare", "CERES-Barley"))
+    models.append(("RI", "Oryza sativa", "CERES-Rice"))
     for code, scientific, model in models:
         dcache = os.path.join(cache, "dssat")
         if model == "CERES-Maize":
@@ -1020,6 +1166,13 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
             spe = {"name": "Pearl millet", "temps": {1: (e["TBASE"], e["TOPT"], e["ROPT"], 44.0)},
                    "freeze": (MAIZE_FREEZE_C, None)}
             runners = millet_runners(culs, ecos, lat)
+            size = {c["code"]: (c["P1"] or 0) + (c["P5"] or 0) for c in culs}
+            results = evaluate(runners, days, lat, cool=False)
+        elif model == "CERES-Rice":
+            culs = parse_rice_cul(fetch("RICER048.CUL", dcache))
+            spe = {"name": "Rice", "temps": {1: (RICE_TBASE, RICE_TOPT, RICE_TOPTMX, RICE_TDELAYMX)},
+                   "freeze": (MAIZE_FREEZE_C, None)}
+            runners = rice_runners(culs, lat)
             size = {c["code"]: (c["P1"] or 0) + (c["P5"] or 0) for c in culs}
             results = evaluate(runners, days, lat, cool=False)
         elif model in ("CERES-Wheat", "CERES-Barley"):
@@ -1076,7 +1229,7 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
             cd = f"{spe['cscer']['PPTHR']:g}"
             ps = (f"P1D {min(c['P1D'] for c in culs):g}–{max(c['P1D'] for c in culs):g}; "
                   f"vernalization P1V {min(c['P1V'] for c in culs):g}–{max(c['P1V'] for c in culs):g} d")
-        elif model in ("CERES-Sorghum", "CERES-Millet"):
+        elif model in ("CERES-Sorghum", "CERES-Millet", "CERES-Rice"):
             cd = f"{min(c['P2O'] for c in culs):g}–{max(c['P2O'] for c in culs):g}"
             ps = f"P2R {min(c['P2R'] for c in culs):g}–{max(c['P2R'] for c in culs):g} °C·d/h"
         else:

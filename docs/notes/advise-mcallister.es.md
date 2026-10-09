@@ -37,6 +37,7 @@ Generado el 2026-10-09 a partir de datos abiertos. Son puntos de partida, no res
 - Pigeon pea: ninguna variedad madura antes de la helada aquí.
 - Quinoa: 2 de 2 variedades maduran 8 años de cada 10, en 88–91 días. Sembrar del 12 de marzo al 27 de agosto.
 - Rapeseed (canola): 3 de 3 variedades maduran 8 años de cada 10, en 96–128 días. Sembrar del 5 de marzo al 30 de julio.
+- Rice: 42 de 55 variedades maduran 8 años de cada 10, en 122–190 días. Sembrar del 9 de abril al 2 de julio.
 - Safflower: 5 de 5 variedades maduran 8 años de cada 10, en 103–115 días. Sembrar del 9 de abril al 13 de agosto.
 - Sorghum: 51 de 55 variedades maduran 8 años de cada 10, en 113–191 días. Sembrar del 9 de abril al 9 de julio.
 - Soybean: 36 de 59 variedades maduran 8 años de cada 10, en 89–200 días. Sembrar del 9 de abril al 20 de agosto.
@@ -98,7 +99,7 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 - Sitka spruce (*Picea sitchensis*) — pH: suelo superficial 6,2, necesita 5,7 o menos: azufre
 - Yellow sweet clover (*Melilotus officinalis*) — pH: suelo superficial 6,2, necesita 6,5 o más: encalar
 
-## Se adapta, con advertencias (63)
+## Se adapta, con advertencias (64)
 
 - American plum (*Prunus americana*) — agua: 54 pulgadas de lluvia, más que su máximo de 40
 - Annual ryegrass (*Lolium multiflorum*) — catalogada como invasora o nociva en 1 estado(s) de EE. UU.: AK; temporada: PLANTS indica 225 días sin heladas y hay 207 (8 años de cada 10): algo corta
@@ -145,6 +146,7 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 - Pussy willow (*Salix discolor*) — agua: 54 pulgadas de lluvia, más que su máximo de 50
 - Rapeseed (canola) (*Brassica napus*) — catalogada como invasora o nociva en 1 estado(s) de EE. UU.: AK
 - Red raspberry (*Rubus idaeus*) — suelo: PLANTS la considera no adaptada a suelos de textura media
+- Rice (*Oryza sativa*) — agua: se cultiva inundado — necesita un campo que retenga la lámina (un subsuelo compacto, bordos) y agua para llenarlo; aquí la temporada no es el límite
 - Rosemary (*Salvia rosmarinus*) — agua: 54 pulgadas de lluvia, más que su máximo de 45
 - Rye (*Secale cereale*) — agua: 54 pulgadas de lluvia, más que su máximo de 50
 - Sainfoin (*Onobrychis viciifolia*) — agua: 54 pulgadas de lluvia, más que su máximo de 45
@@ -221,7 +223,7 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 ## Aún sin datos
 
-261 plantas de la lista aún no tienen datos en ninguna de las fuentes; sobre todo frutales, hierbas y flores.
+260 plantas de la lista aún no tienen datos en ninguna de las fuentes; sobre todo frutales, hierbas y flores.
 
 *Los nombres de las plantas están en inglés hasta que se añadan nombres multilingües de AGROVOC.*
 

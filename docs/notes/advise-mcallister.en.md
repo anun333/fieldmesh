@@ -37,6 +37,7 @@ Generated 2026-10-09 from open data. These are starting points, not answers: che
 - Pigeon pea: no cultivar matures before frost here.
 - Quinoa: 2 of 2 cultivars mature 8 years in 10, in 88–91 days. Sow March 12 to August 27.
 - Rapeseed (canola): 3 of 3 cultivars mature 8 years in 10, in 96–128 days. Sow March 5 to July 30.
+- Rice: 42 of 55 cultivars mature 8 years in 10, in 122–190 days. Sow April 9 to July 2.
 - Safflower: 5 of 5 cultivars mature 8 years in 10, in 103–115 days. Sow April 9 to August 13.
 - Sorghum: 51 of 55 cultivars mature 8 years in 10, in 113–191 days. Sow April 9 to July 9.
 - Soybean: 36 of 59 cultivars mature 8 years in 10, in 89–200 days. Sow April 9 to August 20.
@@ -98,7 +99,7 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 - Sitka spruce (*Picea sitchensis*) — pH: topsoil 6.2, needs 5.7 or less — sulfur
 - Yellow sweet clover (*Melilotus officinalis*) — pH: topsoil 6.2, needs 6.5 or more — lime
 
-## Suits, with cautions (63)
+## Suits, with cautions (64)
 
 - American plum (*Prunus americana*) — water: 54 in of rain, wetter than its 40 in maximum
 - Annual ryegrass (*Lolium multiflorum*) — listed as invasive or noxious in 1 US state(s): AK; season: PLANTS lists 225 frost-free days, has 207 (8 years in 10) — a little short
@@ -145,6 +146,7 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 - Pussy willow (*Salix discolor*) — water: 54 in of rain, wetter than its 50 in maximum
 - Rapeseed (canola) (*Brassica napus*) — listed as invasive or noxious in 1 US state(s): AK
 - Red raspberry (*Rubus idaeus*) — soil: PLANTS lists it as not adapted to medium-textured soil
+- Rice (*Oryza sativa*) — water: grown flooded — needs a field that holds a flood (a tight subsoil, levees) and water to fill it; the season is not the limit here
 - Rosemary (*Salvia rosmarinus*) — water: 54 in of rain, wetter than its 45 in maximum
 - Rye (*Secale cereale*) — water: 54 in of rain, wetter than its 50 in maximum
 - Sainfoin (*Onobrychis viciifolia*) — water: 54 in of rain, wetter than its 45 in maximum
@@ -221,7 +223,7 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 ## No data yet
 
-261 plants on the list have no data in either source yet — mostly fruit, herbs and flowers.
+260 plants on the list have no data in either source yet — mostly fruit, herbs and flowers.
 
 *Plant names are in English until multilingual names are added from AGROVOC.*
 

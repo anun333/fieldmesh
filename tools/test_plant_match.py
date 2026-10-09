@@ -128,6 +128,15 @@ class CropModelTest(unittest.TestCase):
         self.assertEqual(T.judge(plant(), None, SITE)["verdict"], "no data (not in USDA PLANTS)")
 
 
+class PaddyTest(unittest.TestCase):
+    def test_rice_s_season_fits_but_the_flood_is_a_caution(self):
+        rice = {**plant(category="cereal", name="Rice"), "scientific_name": "Oryza sativa"}
+        j = T.judge(rice, None, SITE, SEASON_OK)
+        self.assertEqual(j["verdict"], "suits, with cautions")
+        self.assertTrue(any("flooded" in c for c in j["caution"]))
+        self.assertEqual(T.judge(plant(), None, SITE, SEASON_OK)["verdict"], "suits (crop model)")
+
+
 class CoverTest(unittest.TestCase):
     def test_a_tunnel_lengthens_the_season(self):
         need = chars(**{"Frost Free Days, Minimum": "290"})

@@ -248,6 +248,38 @@ class CscerTest(unittest.TestCase):
         self.assertEqual((c["eco"], c["P1V"]), ("USWH01", 48.45))
 
 
+class RiceTest(unittest.TestCase):
+    CUL = {"P1": 200.0, "P2R": 0.0, "P5": 400.0, "P2O": 12.0, "PHINT": 83.0, "TCLDP": 15.0}
+    days = MaizeTest.days
+
+    def test_the_stages_by_hand(self):
+        # 19 a day at 28 °C, nothing on the sowing day. P8 = 150 e^(−0.055 x 28) = 32.2 met
+        # on day 2 (5.8 over); emergence at 10 x 3 + 20 = 50 on day 5 (12.8 over); juvenile
+        # to 200 on day 15, at 202.8; 19/136 of the index a day reaches 1 on day 23, at
+        # 354.8, so P3 = 5.5 x 83 + 0.135 x 354.8 = 504.4: heading on day 50 (8.6 over);
+        # grain fill from 120 on day 56 (2.6 over); 90% of P5 = 360 on day 75; maturity on
+        # day 77.
+        r = D.develop_rice(self.CUL, self.days(28.0), 0, 35.0)
+        self.assertEqual((r["flower"], r["maturity"]), (50, 77))
+
+    def test_long_days_hold_back_a_sensitive_variety(self):
+        neutral = D.develop_rice(self.CUL, self.days(28.0), 0, 35.0)
+        sensitive = D.develop_rice({**self.CUL, "P2R": 300.0}, self.days(28.0), 0, 35.0)
+        self.assertGreater(sensitive["flower"], neutral["flower"] + 10)
+
+    def test_too_cold_to_germinate(self):
+        self.assertIsNone(D.develop_rice(self.CUL, self.days(8.0), 0, 35.0)["maturity"])
+
+    def test_development_slows_above_the_optimum(self):
+        self.assertAlmostEqual(D.rice_dtt(28, 28, 20, 12, 12), 19.0)
+        self.assertLess(D.rice_dtt(40, 40, 20, 12, 12), D.rice_dtt(33, 33, 20, 12, 12))
+
+    def test_columns(self):
+        (c,) = D.parse_rice_cul("IB0003 IR 36                . IB0001 556.8 53.88 373.4 12.87 68.00 0.023  1.00 83.00  31.3  15.0  15.0  0.00  0.00  25.0")
+        self.assertEqual((c["name"], c["P1"], c["P2R"], c["P5"], c["P2O"], c["PHINT"], c["TCLDP"]),
+                         ("IR 36", 556.8, 53.88, 373.4, 12.87, 83.0, 15.0))
+
+
 class WindowTest(unittest.TestCase):
     def test_a_lone_week_is_not_a_window(self):
         swept = [(1, 0.0), (8, 0.9), (15, 0.0), (22, 0.9), (29, 0.9), (36, 0.0)]

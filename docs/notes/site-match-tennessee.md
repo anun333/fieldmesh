@@ -122,8 +122,9 @@ USDA PLANTS knows almost nothing about food crops, so a second source was brough
 **DSSAT** crop models (BSD-3-Clause), whose parameter files give each crop's cardinal
 temperatures for development, its response to day length, and — per cultivar — how long
 each phase takes. [dssat_crops.py](../../tools/dssat_crops.py) ports DSSAT's own response
-curves and the CROPGRO, CERES-Maize, CERES-Sorghum, CERES-Millet and Cropsim-CERES wheat and
-barley phenology, and runs every cultivar of 27 crops through the site's thirty years of
+curves and the CROPGRO, CERES-Maize, CERES-Sorghum, CERES-Millet, CERES-Rice and
+Cropsim-CERES wheat and barley phenology, and runs every cultivar of 28 crops through the
+site's thirty years of
 weather and day length: planted a week after each year's last frost (four weeks before it
 for cool-season crops, two weeks before the first fall frost for the winter cereals), does
 it reach physiological maturity before the first fall frost — or, for the winter cereals,
@@ -139,6 +140,7 @@ At McAllister Farm:
 | pearl millet (CERES-Millet) | 48 of 60 | 99–226 |
 | wheat, fall-sown (Cropsim-CERES) | 5 of 8 — the winter wheats | 229–248 |
 | barley, fall-sown (Cropsim-CERES) | 1 of 3 | 261 |
+| rice, drill-seeded (CERES-Rice) | 42 of 55 | 122–221 |
 | dry bean | 30 of 30 | 75–107 |
 | tomato | 4 of 4 | 120–131 |
 | pepper | 5 of 5 | 155–182 |
@@ -175,6 +177,14 @@ June-sown winter wheat wait out the summer for its cold. Five of the eight wheat
 winter ones, mature from a fall sowing 8 years in 10. Barley's three cultivars were
 calibrated in Syria and England; one matures, and its winter types flower in mid-March
 here, earlier than Tennessee barley heads. A local calibration would fix barley.
+
+**Rice** runs DSSAT's direct-seeded path, as Mid-South rice is drilled rather than
+transplanted: germination paced by the sowing day's warmth, a juvenile phase, a short-day
+phase that also waits out a spell of cold nights before panicle initiation, then heading and
+grain fill. Lemont, a southern long-grain, sown May 1 heads in about 98 days and matures in
+about 122, the end of August, as the region's rice does. The season is no obstacle at
+McAllister — 42 of 55 cultivars mature 8 years in 10 — but rice there is a question of
+water, a flooded field on silt loam, which no phenology model asks.
 
 **When to sow.** With `--windows` the tool sows every week of the year, with the fastest,
 a middle and the slowest of the cultivars that mature here 8 years in 10 (by simulated
@@ -349,13 +359,13 @@ buckwheat's photosensitisation — while "bloat: medium" on maize is another PLA
 
 ## Not checked yet
 
-For the 27 crops with a crop model, temperature, day length and time to maturity — and for
+For the 28 crops with a crop model, temperature, day length and time to maturity — and for
 wheat and barley, vernalization, winter kill, freeze after boot and heat at flowering — are
 checked together, by simulation; for 531 stone-fruit cultivars, winter chill, and for 132
 of them, bloom date and frost after it. Still not checked: chill and bloom for apples,
 pears and blueberries (no openly licensed table found), heat damage to fruit set beyond
-the development curve, rice (CERES-Rice, with its transplanting and its own thermal time;
-not ported yet), oats and rye (no DSSAT model), and everything for the 255 plants with
+the development curve, transplanted rice (the drill-seeded path is ported, as the
+Mid-South sows it), oats and rye (no DSSAT model), and everything for the 255 plants with
 neither source — most fruit, herbs and flowers.
 
 ## Reproducing

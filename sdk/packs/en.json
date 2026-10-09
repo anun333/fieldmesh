@@ -120,6 +120,7 @@
   "advise.why.texture_fine": "soil: PLANTS lists it as not adapted to fine-textured soil",
   "advise.why.waterlogging": "drainage: poorly drained soil, no tolerance of waterlogging",
   "advise.why.salt": "salt: topsoil {ec} dS/m, low salt tolerance",
+  "advise.why.paddy": "water: grown flooded — needs a field that holds a flood (a tight subsoil, levees) and water to fill it; the season is not the limit here",
   "advise.title": "What grows at {lat:.4f}, {lon:.4f}",
   "advise.preface": "Generated {date} from open data. These are starting points, not answers: check them against local knowledge, a soil test, and your own records.",
   "advise.section.site": "The site",
