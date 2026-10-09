@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: CC-BY-4.0
+group,common_name,scientific_name,kept_for,noted_for_to_verify
+honey bee,Italian honey bee,Apis mellifera ligustica,"honey, pollination","warm-temperate; prolific, builds early, uses more stores over winter"
+honey bee,Carniolan honey bee,Apis mellifera carnica,"honey, pollination","continental cold winters; frugal, gentle, fast spring build-up"
+honey bee,European dark bee,Apis mellifera mellifera,"honey, pollination","cool, damp northern Europe; frugal; native there"
+honey bee,Caucasian honey bee,Apis mellifera caucasica,"honey, pollination",mountain and cold climates; gentle; heavy propolis
+honey bee,Iberian honey bee,Apis mellifera iberiensis,"honey, pollination",Mediterranean
+honey bee,Tellian (North African) honey bee,Apis mellifera intermissa,"honey, pollination","hot, dry North Africa"
+honey bee,Arabian honey bee,Apis mellifera jemenitica,"honey, pollination",arid heat
+honey bee,East African lowland honey bee,Apis mellifera scutellata,"honey, pollination",tropical Africa; defensive; ancestor of Africanized bees in the Americas
+honey bee,Cape honey bee,Apis mellifera capensis,"honey, pollination",southern Africa
+honey bee,Buckfast bee,Apis mellifera (Buckfast line),"honey, pollination",bred hybrid line; damp temperate (UK)
+honey bee,Russian honey bee,Apis mellifera (Primorsky line),"honey, pollination",cold; selected for varroa resistance
+honey bee,Asian honey bee,Apis cerana,"honey, pollination",tropical and temperate Asia; tolerates varroa naturally; smaller colonies
+stingless bee,Xunan kab,Melipona beecheii,"honey, pollination",Mexico and Central America; Maya meliponiculture; frost-sensitive
+stingless bee,Jataí,Tetragonisca angustula,"honey, pollination",Central and South America
+stingless bee,Sugarbag bee,Tetragonula carbonaria,"honey, pollination",eastern Australia; macadamia pollination
+stingless bee,Itama stingless bee,Heterotrigona itama,"honey, pollination",Southeast Asia
+stingless bee,African stingless bee,Meliponula ferruginea,"honey, pollination",East Africa
+bumble bee,Buff-tailed bumble bee,Bombus terrestris,greenhouse pollination,"Europe; buzz-pollinates tomatoes; invasive where introduced (Chile, Argentina, Tasmania)"
+bumble bee,Common eastern bumble bee,Bombus impatiens,greenhouse and field pollination,eastern North America; the managed species there
+solitary bee,Blue orchard bee,Osmia lignaria,orchard pollination,North America; flies in cool early spring
+solitary bee,Horn-faced bee,Osmia cornifrons,orchard pollination,Japan; apples
+solitary bee,European orchard bee,Osmia cornuta,orchard pollination,Europe; early spring
+solitary bee,Red mason bee,Osmia bicornis,orchard pollination,Europe
+solitary bee,Alfalfa leafcutting bee,Megachile rotundata,alfalfa seed pollination,"warm, dry summers"
+solitary bee,Alkali bee,Nomia melanderi,alfalfa seed pollination,nests in alkaline soils; western US
+wild crop specialist,Squash bee,Xenoglossa pruinosa,squash and pumpkin pollination (wild),nests in the soil beneath cucurbits; deep tillage destroys nests
+wild crop specialist,Southeastern blueberry bee,Habropoda laboriosa,blueberry pollination (wild),southeastern US; buzz pollinator
+cattle,Holstein,Bos taurus,dairy,temperate; highest milk yield; heat-sensitive
+cattle,Jersey,Bos taurus,dairy,smaller; rich milk; more heat-tolerant than Holstein
+cattle,Brown Swiss,Bos taurus,dairy,hardy; long-lived
+cattle,Gir,Bos indicus,dairy,tropical zebu dairy
+cattle,Sahiwal,Bos indicus,dairy,tropical; heat- and tick-tolerant
+cattle,Angus,Bos taurus,meat,temperate
+cattle,Hereford,Bos taurus,meat,temperate; forage-efficient
+cattle,Highland,Bos taurus,meat,"cold, wet, rough grazing"
+cattle,Brahman,Bos indicus,meat,heat- and tick-tolerant
+cattle,Nelore,Bos indicus,meat,tropical pasture (Brazil)
+cattle,Senepol,Bos taurus,meat,heat-tolerant taurine (slick coat)
+cattle,N'Dama,Bos taurus,meat,West Africa; tolerant of trypanosomiasis (tsetse zones)
+large ruminant,Water buffalo,Bubalus bubalis,"dairy, meat, draft",hot and wet; needs water to wallow
+large ruminant,Yak,Bos grunniens,"dairy, meat, fibre","high altitude, cold"
+large ruminant,American bison,Bison bison,meat,temperate grassland; hardy
+sheep,Dorper,Ovis aries,meat,hair sheep; arid and hot
+sheep,Katahdin,Ovis aries,meat,hair sheep; parasite-resistant
+sheep,St. Croix,Ovis aries,meat,hair sheep; tropical; parasite-resistant
+sheep,Merino,Ovis aries,wool,dry climates
+sheep,East Friesian,Ovis aries,dairy,high-yielding dairy sheep; temperate
+sheep,Awassi,Ovis aries,"dairy, meat",fat-tailed; arid Middle East
+goat,Boer,Capra hircus,meat,fast-growing meat goat
+goat,Kiko,Capra hircus,meat,hardy; parasite-resistant
+goat,Saanen,Capra hircus,dairy,high yield; temperate
+goat,Anglo-Nubian,Capra hircus,dairy,heat-tolerant; rich milk
+goat,Alpine,Capra hircus,dairy,adaptable
+goat,Nigerian Dwarf,Capra hircus,dairy,small; rich milk
+goat,West African Dwarf,Capra hircus,meat,humid tropics; trypanotolerant
+pig,Large White (Yorkshire),Sus scrofa domesticus,meat,confinement and outdoor; prolific
+pig,Berkshire,Sus scrofa domesticus,meat,pasture; meat quality
+pig,Tamworth,Sus scrofa domesticus,meat,pasture and woodland; hardy
+pig,Large Black,Sus scrofa domesticus,meat,outdoor; dark skin resists sunburn
+pig,Mangalica,Sus scrofa domesticus,"meat, lard",cold-hardy; woolly coat
+pig,Kunekune,Sus scrofa domesticus,meat,small grazing pig
+chicken,White Leghorn,Gallus gallus domesticus,eggs,light; tolerates heat
+chicken,Rhode Island Red,Gallus gallus domesticus,"eggs, meat",dual-purpose; hardy
+chicken,Plymouth Rock,Gallus gallus domesticus,"eggs, meat",dual-purpose
+chicken,Australorp,Gallus gallus domesticus,"eggs, meat",strong layer
+chicken,Wyandotte,Gallus gallus domesticus,"eggs, meat",cold-hardy (rose comb)
+chicken,Chantecler,Gallus gallus domesticus,"eggs, meat",bred for Canadian winters
+chicken,Naked Neck,Gallus gallus domesticus,"eggs, meat",heat tolerance
+chicken,Fayoumi,Gallus gallus domesticus,eggs,Egypt; heat; disease resistance
+chicken,Cornish Cross,Gallus gallus domesticus,meat,fast-growing broiler; heat-sensitive
+waterfowl,Pekin duck,Anas platyrhynchos domesticus,meat,fast-growing
+waterfowl,Khaki Campbell duck,Anas platyrhynchos domesticus,eggs,prolific layer
+waterfowl,Indian Runner duck,Anas platyrhynchos domesticus,"eggs, pest control",forager; used in rice–duck systems
+waterfowl,Muscovy duck,Cairina moschata,"meat, pest control",tropical; quiet; eats flies
+waterfowl,Embden goose,Anser anser domesticus,meat,large
+waterfowl,Chinese goose,Anser cygnoides domesticus,"meat, weeding",grazes weeds; used in some crops
+other poultry,Turkey,Meleagris gallopavo,meat,heritage breeds forage; broad-breasted do not
+other poultry,Helmeted guineafowl,Numida meleagris,"meat, eggs, pest control",eats ticks and insects; hot climates
+other poultry,Japanese quail,Coturnix japonica,"eggs, meat",small space; fast maturity
+other poultry,Domestic pigeon (squab),Columba livia domestica,meat,small space
+small livestock,Domestic rabbit,Oryctolagus cuniculus,"meat, fibre",heat-sensitive; low-burn ("cold") manure
+small livestock,Guinea pig (cuy),Cavia porcellus,meat,Andean highlands
+camelid/equid,Dromedary camel,Camelus dromedarius,"dairy, meat, draft",hot arid
+camelid/equid,Bactrian camel,Camelus bactrianus,"dairy, meat, fibre, draft",cold arid
+camelid/equid,Llama,Lama glama,"fibre, pack, guarding",Andes; guards sheep and goats
+camelid/equid,Alpaca,Vicugna pacos,fibre,Andes
+camelid/equid,Donkey,Equus asinus,"draft, dairy, guarding",guards sheep and goats against canids
+camelid/equid,Horse,Equus caballus,draft (dairy and meat in Central Asia),wide
+cervid,Reindeer,Rangifer tarandus,"meat, dairy, draft",arctic and subarctic
+cervid,Red deer,Cervus elaphus,meat,farmed venison; temperate
+guardian,Livestock guardian dog,Canis familiaris,guarding,"breeds such as Great Pyrenees, Anatolian Shepherd"
+aquaculture,Nile tilapia,Oreochromis niloticus,meat,warm water; aquaponics
+aquaculture,Common carp,Cyprinus carpio,meat,rice–fish systems; temperate to warm
+aquaculture,Channel catfish,Ictalurus punctatus,meat,warm ponds
+aquaculture,Rainbow trout,Oncorhynchus mykiss,meat,"cold, oxygen-rich water"
+aquaculture,Giant river prawn,Macrobrachium rosenbergii,meat,warm fresh water
+insect,Black soldier fly,Hermetia illucens,"feed, waste processing",larvae feed poultry and fish; frass is a fertilizer
+insect,House cricket,Acheta domesticus,"food, feed",warm
+insect,Silkworm,Bombyx mori,silk,feeds on mulberry (in the plant list)

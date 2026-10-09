@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: CC-BY-4.0
+group,name,formula_or_source,typical_analysis,effect,us_organic_7cfr205_to_verify
+nitrogen,Anhydrous ammonia,NH3,82-0-0,injected gas; acidifies soil over time,prohibited (synthetic)
+nitrogen,Urea,CO(NH2)2,46-0-0,volatilizes as ammonia if left on the surface; acidifying,prohibited (synthetic)
+nitrogen,Ammonium nitrate,NH4NO3,34-0-0,"half fast nitrate, half ammonium; regulated in many countries",prohibited (synthetic)
+nitrogen,Urea ammonium nitrate (UAN),solution of urea and ammonium nitrate,28-0-0 to 32-0-0,liquid; fertigation and sprayers,prohibited (synthetic)
+nitrogen,Ammonium sulfate,(NH4)2SO4,21-0-0; 24% S,strongly acidifying; supplies sulfur,prohibited (synthetic)
+nitrogen,Calcium ammonium nitrate,NH4NO3 with CaCO3,26-0-0 to 27-0-0,near-neutral effect on pH,prohibited (synthetic)
+nitrogen,Calcium nitrate,Ca(NO3)2,15.5-0-0; 19% Ca,fast nitrate; calcium for fruit (blossom-end rot),prohibited (synthetic)
+nitrogen,Potassium nitrate,KNO3,13-0-44,chloride-free potassium and nitrate; fertigation,prohibited (synthetic)
+phosphorus,Monoammonium phosphate (MAP),NH4H2PO4,11-52-0,slightly acidifying near the granule,prohibited (synthetic)
+phosphorus,Diammonium phosphate (DAP),(NH4)2HPO4,18-46-0,can release ammonia near seed,prohibited (synthetic)
+phosphorus,Triple superphosphate (TSP),Ca(H2PO4)2,0-46-0; about 14% Ca,nitrogen-free phosphorus,prohibited (synthetic)
+phosphorus,Single superphosphate (SSP),Ca(H2PO4)2 with CaSO4,0-16-0 to 0-20-0; about 11% S,supplies sulfur and calcium,prohibited (synthetic)
+phosphorus,Rock phosphate,mined apatite,"25–35% total P2O5, little of it soluble",slow; works only in acid soils,allowed (mined)
+potassium,Muriate of potash,KCl,0-0-60 to 0-0-62,"cheapest potassium; chloride harms some crops (potato quality, tobacco, berries)",restricted (mined only; limit chloride build-up)
+potassium,Sulfate of potash,K2SO4,0-0-50; 17% S,chloride-free,allowed if mined
+potassium,Langbeinite (sul-po-mag),K2SO4·2MgSO4,0-0-22; 22% S; 11% Mg,"potassium, magnesium and sulfur, pH-neutral",allowed (mined)
+calcium/magnesium/pH,Calcitic limestone,CaCO3,about 38% Ca,raises pH,allowed
+calcium/magnesium/pH,Dolomitic limestone,CaMg(CO3)2,about 22% Ca; 12% Mg,raises pH; adds magnesium,allowed
+calcium/magnesium/pH,Gypsum,CaSO4·2H2O,about 23% Ca; 18% S,adds calcium and sulfur without changing pH; helps sodic soils,allowed if mined
+calcium/magnesium/pH,Epsom salt,MgSO4·7H2O,about 10% Mg; 13% S,fast magnesium,restricted (documented deficiency)
+calcium/magnesium/pH,Elemental sulfur,S,90–99% S,lowers pH slowly — blueberries and other acid-lovers,allowed
+micronutrient,Zinc sulfate,ZnSO4·H2O,about 35% Zn,"maize, rice and pecan are sensitive to zinc shortage",restricted (documented deficiency)
+micronutrient,Borax,Na2B4O7·10H2O,about 11% B,narrow margin between enough and toxic,restricted (documented deficiency)
+micronutrient,Solubor,Na2B8O13·4H2O,about 20.5% B,soluble boron for sprays,restricted (documented deficiency)
+micronutrient,Manganese sulfate,MnSO4·H2O,about 32% Mn,shortage on high-pH soils,restricted (documented deficiency)
+micronutrient,Copper sulfate,CuSO4·5H2O,about 25% Cu,toxic to sheep at low doses,restricted (documented deficiency)
+micronutrient,Iron chelate (Fe-EDDHA),chelated iron,about 6% Fe,stays available in high-pH soils,restricted (documented deficiency)
+micronutrient,Sodium molybdate,Na2MoO4·2H2O,about 39% Mo,legumes need it to fix nitrogen,restricted (documented deficiency)
+manure,Cattle manure,cattle,"variable — test, or NRCS tables",slow; adds organic matter,"restricted (compost it, or apply 90/120 days before harvest)"
+manure,Poultry litter,"chickens, turkeys","variable, rich in N and P — test",easy to over-apply phosphorus,"restricted (compost it, or apply 90/120 days before harvest)"
+manure,Pig slurry,pigs,"variable, liquid — test",odour; nitrogen mostly ammonium,"restricted (compost it, or apply 90/120 days before harvest)"
+manure,Horse manure,horses,variable — test,often weedy; bedding raises carbon,"restricted (compost it, or apply 90/120 days before harvest)"
+manure,Sheep and goat manure,"sheep, goats",variable — test,dry pellets,"restricted (compost it, or apply 90/120 days before harvest)"
+manure,Rabbit manure,rabbits,variable — test,low-burn pellets,"restricted (compost it, or apply 90/120 days before harvest)"
+organic,Compost,composted residues and manure,"variable, about 1-1-1 — test",organic matter; slow nutrients,allowed (if made to the standard)
+organic,Vermicompost,worm-processed organic matter,variable — test,fine texture; seed-starting mixes,allowed
+organic,Biogas digestate,anaerobic digester output,"variable, nitrogen-rich — test",liquid and solid fractions,depends on feedstock
+organic,Blood meal,slaughter by-product,about 12-0-0,fast organic nitrogen,allowed
+organic,Feather meal,poultry by-product,about 12-0-0 to 13-0-0,slow organic nitrogen,allowed
+organic,Bone meal,slaughter by-product,about 3-15-0,phosphorus and calcium,allowed
+organic,Fish emulsion or hydrolysate,fish by-product,about 2-4% N,liquid; quick,check stabilizers
+organic,Kelp or seaweed meal,seaweed,low NPK; potassium and trace elements,growth stimulant claims vary,allowed
+organic,Alfalfa meal,alfalfa (in the plant list),about 2.5-0.5-2,slow,allowed if not from GMO alfalfa
+organic,Cottonseed meal,cotton by-product,about 6-2-1,acidifying,check GMO and pesticide status
+organic,Soybean meal,soybean by-product,about 7-1-2,slow,check GMO status
+organic,Insect frass,black soldier fly larvae (in the animal list),variable — test,by-product of feed production,allowed
+organic,Wood ash,burned untreated wood,variable potassium; liming value,raises pH like lime,allowed (untreated wood)
+organic,Source-separated urine,human urine,"nitrogen-rich, variable",needs storage for sanitation; rules vary by country,prohibited (human waste)
+organic,Biochar,pyrolysed biomass,not a nutrient source,soil carbon and structure; check pH,allowed with conditions
+organic,Green manure,legume cover crops (in the plant list),"nitrogen from fixation, variable",grown and turned in or terminated,allowed
+biological,Soybean inoculant,Bradyrhizobium japonicum,nitrogen fixation,soybean only,allowed (non-GMO)
+biological,Pea and vetch group inoculant,Rhizobium leguminosarum bv. viciae,nitrogen fixation,"pea, lentil, vetch, faba bean, sweet pea",allowed (non-GMO)
+biological,Clover inoculant,Rhizobium leguminosarum bv. trifolii,nitrogen fixation,true clovers (Trifolium),allowed (non-GMO)
+biological,Bean inoculant,Rhizobium leguminosarum bv. phaseoli; R. tropici,nitrogen fixation,common bean and relatives,allowed (non-GMO)
+biological,Alfalfa inoculant,Sinorhizobium meliloti,nitrogen fixation,"alfalfa, sweet clover",allowed (non-GMO)
+biological,Cowpea group inoculant,Bradyrhizobium spp.,nitrogen fixation,"cowpea, peanut, pigeon pea, mung bean, lablab, sunn hemp",allowed (non-GMO)
+biological,Chickpea inoculant,Mesorhizobium ciceri,nitrogen fixation,chickpea only,allowed (non-GMO)
+biological,Birdsfoot trefoil inoculant,Mesorhizobium loti,nitrogen fixation,birdsfoot trefoil,allowed (non-GMO)
+biological,Mycorrhizal inoculant,"arbuscular mycorrhizal fungi, e.g. Rhizophagus irregularis",phosphorus uptake,benefit uncertain where native fungi are present,allowed (non-GMO)
+biological,Azospirillum,Azospirillum brasilense,"growth promotion, some nitrogen",cereals and grasses,allowed (non-GMO)
