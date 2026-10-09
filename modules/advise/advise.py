@@ -311,7 +311,7 @@ def projection_preface(r: "Report", d: dict) -> str:
     tmax, tmin, rain = get("tmax"), get("tmin"), get("rain")
     return r.tr("advise.future.preface_cmip6", models=", ".join(d["models"]),
                 hist=f"{d['historical'][0]}–{d['historical'][1]}",
-                fut=f"{d['future'][0]}–{d['future'][1]}", scenario=d["scenario"].upper(),
+                fut=f"{d['future'][0]}–{d['future'][1]}", scenario=cmip6.scenario_name(d["scenario"]),
                 dmax_lo=min(tmax), dmax_hi=max(tmax), dmin_lo=min(tmin), dmin_hi=max(tmin),
                 rain_lo=(min(rain) - 1) * 100, rain_hi=(max(rain) - 1) * 100)
 
@@ -441,7 +441,7 @@ def main(argv=None) -> int:
         projection = cmip6.deltas(args.lat, args.lon, os.path.join(args.cache, "cmip6"), args.cmip6)
         days2 = cmip6.shift_monthly(days, projection["median"])
         site2 = site_profile.profile(args.lat, args.lon, cache=power, days=days2)
-        args.future_label = args.future_label or f"{FUTURE_YEARS}, {args.cmip6.upper()}"
+        args.future_label = args.future_label or f"{FUTURE_YEARS}, {cmip6.scenario_name(args.cmip6)}"
     elif args.warm is not None:
         site2 = site_profile.profile(args.lat, args.lon, cache=power, warm_c=args.warm,
                                      rain_pct=args.rain_change)

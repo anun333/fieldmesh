@@ -277,6 +277,52 @@ days (the "warming hole" in summer maxima): with warmer nights and the same days
 would fall faster and heat stress at night rise faster than this shows. Rain is left
 unchanged because the record gives no defensible direction for it here.
 
+## The 2050s from CMIP6 models (since 2026-10-09)
+
+A uniform +1.0 °C keeps the level honest and loses the shape. `advise.py --cmip6 ssp245`
+replaces it ([cmip6.py](../cmip6.py)): five CMIP6 models from NASA's NEX-GDDP-CMIP6 (CC0;
+ACCESS-CM2, GFDL-ESM4, MPI-ESM1-2-HR, MRI-ESM2-0, NorESM2-MM), read for McAllister Farm's
+own grid cell, each model's 2041–2070 under SSP2-4.5 against its own 1991–2014, the median
+taken month by month and applied to the site's thirty years — days and nights separately.
+
+| month | highs | lows | rain |
+| --- | --- | --- | --- |
+| Jan | +2.5 °C | +1.8 °C | +14% |
+| Feb | +2.2 | +2.0 | +2% |
+| Mar | +1.7 | +0.9 | +10% |
+| Apr | +1.6 | +1.5 | +5% |
+| May | +1.7 | +1.5 | −1% |
+| Jun | +1.8 | +1.9 | +16% |
+| Jul | +1.5 | +1.1 | +19% |
+| Aug | +1.7 | +1.6 | +11% |
+| Sep | +1.7 | +1.5 | +8% |
+| Oct | +2.5 | +2.0 | +11% |
+| Nov | +2.6 | +2.2 | +11% |
+| Dec | +1.8 | +1.7 | +12% |
+
+Larger than +1 °C everywhere, and largest from October to January — the chill season. So
+the answers move further than the uniform shift said, and in a different place:
+
+| | today | +1.0 °C uniform | CMIP6, 2041–2070 |
+| --- | --- | --- | --- |
+| frost-free days, 8 years in 10 | 207 | 213 | 216 |
+| chill hours a winter | 1048 | 1023 | 964 |
+| days over 35 °C | 13 | 21 | 28 |
+| apples getting their chill | 55 of 78 | 39 | 26 |
+| cherries | 25 of 40 | 24 | 17 |
+| European apricots | 26 of 41 | 24 | 21 |
+| peaches | 115 of 126 | 108 | 108 |
+| barley cultivars maturing | 1 of 3 | 1 | 0 |
+| rice (drilled) | 42 of 55 | — | 52 |
+
+The uniform shift had said warming hardly touches chill here, because a warmer winter turns
+hours below freezing into chill hours nearly as fast as it lifts others above 7.2 °C. With
+the winter months warming by 2–2.5 °C rather than 1, that offset no longer holds: high-chill
+fruit — most apples, the later cherries — loses its chill. Bloom comes about a week earlier
+and frost after it holds steady or falls. Five models and one scenario, applied by the delta
+method, are a central estimate, not a range; the per-model numbers are written beside each
+report (`cmip6-deltas.json`) for anyone who wants the spread.
+
 ## Stone fruit by winter chill
 
 A peach, plum or cherry that does not get its winter chill flowers late and unevenly, and

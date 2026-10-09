@@ -40,6 +40,12 @@ HISTORICAL = (1991, 2014)
 FUTURE = (2041, 2070)
 
 
+def scenario_name(code: str) -> str:
+    """"ssp245" as it is written: SSP2-4.5."""
+    m = re.fullmatch(r"ssp(\d)(\d)(\d)", code.lower())
+    return f"SSP{m.group(1)}-{m.group(2)}.{m.group(3)}" if m else code.upper()
+
+
 def _get(url: str, retries: int = 4) -> str:
     for attempt in range(retries):
         try:

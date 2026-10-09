@@ -19,6 +19,12 @@ class ShiftTest(unittest.TestCase):
         self.assertEqual(days[0][1]["T2M_MAX"], 10.0, "the original weather is untouched")
 
 
+class NameTest(unittest.TestCase):
+    def test_scenarios_are_written_as_they_are_read(self):
+        self.assertEqual(C.scenario_name("ssp245"), "SSP2-4.5")
+        self.assertEqual(C.scenario_name("ssp585"), "SSP5-8.5")
+
+
 class DeltasTest(unittest.TestCase):
     def test_the_median_of_the_models_month_by_month(self):
         warming = {"A": 1.0, "B": 2.0, "C": 4.0}
