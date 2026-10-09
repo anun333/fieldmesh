@@ -1,5 +1,9 @@
-# The one third-party dependency. Everything else is the Python standard library.
+# The SDK's two third-party dependencies. Everything else is the Python standard library.
 #
 # cbor2 (MIT) encodes and decodes the CBOR wire format decided in open-questions Q5
 # (sdk/wire.py). On Debian and Ubuntu it is also packaged as python3-cbor2.
 cbor2>=5.4
+# cryptography (Apache-2.0 or BSD-3-Clause) seals personal text so it can be erased by
+# destroying a key (sdk/erasure.py; open-questions Q17). Imported only there. On Debian and
+# Ubuntu it is packaged as python3-cryptography.
+cryptography>=3.4

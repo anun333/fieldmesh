@@ -39,6 +39,7 @@ from uuid import UUID
 
 import vocab
 from model import (Calibration, Datastream, DatastreamKind, Device, evidence_problems,
+                   Grant, GrantRevocation,
                    Installation, Label, MaintenanceEvent, Observation,
                    QualityAssertion, Threshold, Usable)
 
@@ -399,6 +400,8 @@ class State:
     thresholds: dict = field(default_factory=dict)
     observations: list = field(default_factory=list)
     assertions: list = field(default_factory=list)
+    grants: dict = field(default_factory=dict)
+    revocations: list = field(default_factory=list)
     _by_datastream: dict = field(default_factory=dict, repr=False)
     _times_by_datastream: dict = field(default_factory=dict, repr=False)
     _superseded_obs: set = field(default_factory=set, repr=False)
@@ -957,6 +960,14 @@ class State:
         for assertion in self.assertions:
             for problem in evidence_problems(assertion):
                 problems.append(f"assertion {assertion.id}: {problem} (§3.3; Q19)")
+        for grant in self.grants.values():
+            for ds in grant.datastreams:
+                if ds not in self.datastreams:
+                    problems.append(f"grant {grant.id} shares unknown datastream {ds}")
+        for revocation in self.revocations:
+            if revocation.grant not in self.grants:
+                problems.append(f"revocation {revocation.id} revokes unknown grant "
+                                f"{revocation.grant}")
         return problems
 
 
@@ -970,6 +981,8 @@ _DISPATCH = {
     Threshold: ("thresholds", True),
     Observation: ("observations", False),
     QualityAssertion: ("assertions", False),
+    Grant: ("grants", True),
+    GrantRevocation: ("revocations", False),
 }
 
 

@@ -633,6 +633,70 @@ class Observation:
 
 
 @dataclass(frozen=True, slots=True)
+class Grant:
+    """§7.6: what data, to whom, for what purpose and until when — and whether it covers
+    observations that arrive after it was made, and whether the grantee may share on.
+
+    **By default a grant covers what has arrived when it is made, and nothing after**
+    (Q16, decided 2026-10-09). A grant that also covers future observations must say
+    when that stops: an open-ended stream of a farm's data to a third party is the one
+    grant a farmer should never make by accident, and an end date is what turns
+    "research sharing" into a season rather than forever. A standing grant renews by a
+    new grant, which is a decision someone makes again.
+    """
+
+    id: UUID
+    grantee: str
+    datastreams: tuple
+    purpose: str
+    issued_at: _dt.datetime
+    until: _dt.datetime | None = None
+    includes_future: bool = False
+    reshare: bool = False
+    issued_by: UUID | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _opt_uuid7(self.issued_by, "issued_by")
+        _utc(self.issued_at, "issued_at")
+        if self.until is not None:
+            _utc(self.until, "until")
+            if self.until <= self.issued_at:
+                raise ValueError("a grant must end after it begins")
+        streams = tuple(self.datastreams)
+        if not streams:
+            raise ValueError("a grant names the datastreams it shares (§7.6)")
+        for s in streams:
+            _uuid7(s, "datastreams")
+        object.__setattr__(self, "datastreams", streams)
+        if not (self.grantee or "").strip():
+            raise ValueError("a grant says to whom (§7.6)")
+        if not (self.purpose or "").strip():
+            raise ValueError("a grant says for what purpose (§7.6)")
+        if self.includes_future and self.until is None:
+            raise ValueError("a grant covering observations that arrive after it must say "
+                             "when it ends (§7.6; Q16)")
+
+
+@dataclass(frozen=True, slots=True)
+class GrantRevocation:
+    """§7.6: stops access from `at` on. It does not retract what was already delivered,
+    which the farmer is told when they grant."""
+
+    id: UUID
+    grant: UUID
+    at: _dt.datetime
+    revoked_by: UUID | None = None
+    reason: str | None = None
+
+    def __post_init__(self) -> None:
+        _uuid7(self.id, "id")
+        _uuid7(self.grant, "grant")
+        _opt_uuid7(self.revoked_by, "revoked_by")
+        _utc(self.at, "at")
+
+
+@dataclass(frozen=True, slots=True)
 class Threshold:
     """§4.2. Versioned, so an assertion can name the version it used and a retune
     cannot silently re-flag history."""

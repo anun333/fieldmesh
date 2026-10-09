@@ -306,7 +306,16 @@ sandy or very clayey soil.
 
 ## Q24. Flatline thresholds that know how deep the probe is
 
-**Status: causes false alarms on every deep probe today.** Raised 2026-10-08 by scoring
+**Status: DECIDED 2026-10-09 — learn from each series' history, as recommended below (the maintainer
+adopted the recommendation), with one change measurement forced: a series may learn up to
+twice its soil's default and never below it.** Built: `checks.learned_flat_seconds`,
+`checks.learn_threshold` (a new threshold version recording what it learned from), and
+[tools/ismn_learn.py](../../tools/ismn_learn.py), which learns from each probe's first year
+and scores the years after. On 30 Tennessee probes, allowed down to half the default most
+shallow probes learned a shorter threshold from one quiet year and raised false `stuck` runs
+from 0.04 to 0.42 per probe-year; floored at the default, false runs fell from 0.33 to 0.08
+over all depths (0.41 to 0.05 at 51 cm, 1.31 to 0.25 at 1 m). On 528 probes at 47 Southeast
+stations: 0.75 to 0.42, unchanged detection on 404. Was: causes false alarms on every deep probe today. Raised 2026-10-08 by scoring
 §4.2 against 2.8 million real readings from the three Tennessee SCAN stations in ISMN
 (see [notes/ismn-scoring.md](../notes/ismn-scoring.md)).
 
@@ -708,15 +717,15 @@ Recorded so each decision can be revisited with its alternatives intact.
 | --- | --- | --- |
 | Q14 | Which record fields must never resolve a conflict silently? (see Q7) | Blocks the pilot |
 | Q15 | Time-series downsampling and retention defaults — what is kept at full resolution, for how long, and does a farmer ever lose raw data to a retention policy? If *Honest data* means anything, raw retention is probably forever | Blocks v0 |
-| Q16 | Default grant scope: does a new grant include observations that arrive after it was made? Safer default is no, but it makes research sharing tedious | Blocks the pilot |
-| Q17 | Crypto-shredding key management for erasure (§7.3): per-subject keys, where they live, and what happens to a backup taken before the shred | Blocks the pilot |
+| Q16 | Default grant scope: does a new grant include observations that arrive after it was made? Safer default is no, but it makes research sharing tedious | **Decided 2026-10-09** — no by default; yes only with an end date. Built: `model.Grant`, `sdk/sharing.py` |
+| Q17 | Crypto-shredding key management for erasure (§7.3): per-subject keys, where they live, and what happens to a backup taken before the shred | **Decided 2026-10-09** — per-person keys wrapped by a farm key kept out of backups; erasure rotates the farm key. Built: `sdk/erasure.py` |
 | Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | **Done 2026-10-07** — posted as a comment on [#174](https://github.com/opengeospatial/sensorthings/issues/174#issuecomment-6050541663); see [notes/q18-ogc-issue-draft.md](../notes/q18-ogc-issue-draft.md) |
 | Q19 | Should an assertion's `evidence` object be normative, and what shape? | **Decided 2026-10-09** — normative minimum |
 | Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | **Decided 2026-10-09** — an `aggregate` kind |
 | Q21 | What unit does a *raw* datastream declare? | **Decided 2026-10-09** — `1` |
 | Q22 | Does the maintenance vocabulary need a battery replacement? | **Decided 2026-10-09** — `serviced` |
 | Q23 | A rate-of-change limit that works at any sampling interval | **Decided 2026-10-08** |
-| Q24 | Flatline thresholds that know the probe's depth, soil and climate | False alarms on deep probes today |
+| Q24 | Flatline thresholds that know the probe's depth, soil and climate | **Decided 2026-10-09** — learned, floored at the soil's default |
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
 | Q26 | How does a weather forecast enter layer zero? | **Built as recommended 2026-10-09** — open to revisit |
 

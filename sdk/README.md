@@ -1,7 +1,7 @@
 # `sdk/` — layer zero as code
 
 Build-order step 1 from [docs/VIRTUAL_FARM.md](../docs/VIRTUAL_FARM.md): the data
-model and the log, with no devices at all. Apache-2.0. One dependency, `cbor2`, for the CBOR wire format in `wire.py`; everything
+model and the log, with no devices at all. Apache-2.0. Two dependencies: `cbor2`, for the CBOR wire format in `wire.py`, and `cryptography`, only in `erasure.py`; everything
 else is the standard library.
 
 ```sh
@@ -29,6 +29,8 @@ python3 demo.py --json                        # the served Observations collecti
 | `gateway.py` | §5.1, §5.4, §8.1 | Ingest: decode, quarantine, dedup, gaps, reboots, raw, derive, assess |
 | `checks.py` | §4.2 | The four health checks, writing assertions and never mutations. One assertion per run carrying the union of flags |
 | `sensorthings.py` | §10, §3.2 | The SensorThings out-adapter. Serves **live observations only**, which is the compatibility promise v0 would have broken. Validated against FROST-Server |
+| `sharing.py` | §7.6; Q16 | Sharing grants: what a grantee may read at a moment. A grant covers what had arrived when it was made unless it asks for more and says when that ends; revoking stops access from then on |
+| `erasure.py` | §7.3; Q17 | Erasure by key destruction: personal text sealed to a per-person key, wrapped by a farm key kept out of backups; erasing destroys the person's key and rotates the farm key |
 | `forecast.py` | §3.1, §3.2, §10; Q26 | Weather forecasts as input data: runs onto a `forecast` datastream with `issued_at`, the latest issue live, every run kept and scored against the farm's sensors by lead time |
 | `demo.py` | — | One command that exercises the whole chain, no hardware and no site data |
 | `spool.py` | §5.2 | Gateway-side store-and-forward: retry, auth, spool, drain |

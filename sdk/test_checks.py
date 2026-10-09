@@ -285,6 +285,61 @@ class TestEvidenceFloor(unittest.TestCase):
         self.assertEqual(evidence_problems(person), [])
 
 
+class TestLearnedFlatline(unittest.TestCase):
+    """Q24: a series learns its flatline from its own history, inside bounds its soil sets."""
+
+    def _series(self, days, run_hours, *, every_h=1.0, stuck_from=None):
+        ds = fx.raw_datastream(expected_interval=every_h * 3600.0)
+        out, value = [], 0.20
+        n = int(days * 24 / every_h)
+        for i in range(n):
+            if stuck_from is None or i < stuck_from:
+                if i % run_hours == 0:
+                    value = round(value + 0.001, 3)
+            out.append(fx.observation(ds, result=value, measured_at=fx.at(i * every_h * 60), seq=i % 65536))
+        return ds, out
+
+    def test_runs_are_measured_as_the_check_measures_them(self):
+        ds, obs = self._series(1, 6)
+        self.assertEqual(set(C.dwell_runs(obs)), {5 * 3600.0})
+
+    def test_nothing_is_learned_before_a_season(self):
+        ds, obs = self._series(30, 6)
+        self.assertIsNone(C.learned_flat_seconds(obs, 18 * 3600.0))
+
+    def test_twice_the_healthy_dwell_inside_the_bounds(self):
+        ds, obs = self._series(100, 12)                     # runs of 11 h
+        value, basis = C.learned_flat_seconds(obs, 18 * 3600.0)
+        self.assertEqual(value, 22 * 3600.0)
+        self.assertIsNone(basis["bounded"])
+
+    def test_a_quiet_deep_probe_is_capped_at_twice_its_soils_default(self):
+        ds, obs = self._series(100, 60)                     # runs of 59 h
+        value, basis = C.learned_flat_seconds(obs, 18 * 3600.0)
+        self.assertEqual((value, basis["bounded"]), (36 * 3600.0, "cap"))
+
+    def test_a_quiet_year_never_shortens_the_soils_default(self):
+        """Measured: a threshold learned shorter from one year raised ten times the false
+        alarms in the drought years after."""
+        ds, obs = self._series(100, 8)
+        value, basis = C.learned_flat_seconds(obs, 18 * 3600.0)
+        self.assertEqual((value, basis["bounded"]), (18 * 3600.0, "floor"))
+
+    def test_a_new_threshold_supersedes_and_ignores_stuck_readings(self):
+        ds, obs = self._series(100, 12)
+        old = fx.threshold(ds, flat_seconds=18 * 3600.0, max=0.55)
+        frozen = [fx.observation(ds, result=0.5, measured_at=fx.at((2400 + i) * 60), seq=i)
+                  for i in range(120)]
+        stuck = [fx.assertion(o.id, flags=[QualityFlag.STUCK]) for o in frozen]
+        state = _state(ds, old, *obs, *frozen, *stuck)
+        new = C.learn_threshold(state, ds.id, 18 * 3600.0, created_at=fx.at(200 * 1440))
+        self.assertEqual(new.supersedes, old.id)
+        self.assertEqual(new.values["max"], 0.55, "other values are kept")
+        self.assertEqual(new.values["flat_seconds"], 22 * 3600,
+                         "the five-day freeze, already flagged, taught it nothing")
+        self.assertEqual(new.values["flat_seconds_learned"]["runs"], len(C.dwell_runs(obs)))
+
+
 SOIL_SHAPE = {"spike_step": 0.05, "max_fall_per_s": 0.05 / 3600}
 
 

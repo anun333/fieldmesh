@@ -503,6 +503,98 @@ def spike_assertions(state: P.State, obs: Observation, *,
     return out
 
 
+# ------------------------------------------------- a flatline learned per series
+
+#: Q24, decided 2026-10-09: each series learns its own flatline from its history, and a
+#: default from the probe's depth, soil texture and climate (tools/soil_survey.py) bounds
+#: what it may learn. The factor matches the default's own: twice the healthy 99.9th
+#: percentile dwell.
+LEARN_FACTOR = 2.0
+#: A season, before a series' own dwell is trusted over its soil's.
+LEARN_MIN_DAYS = 90.0
+#: How far from the default a series may learn: **up to twice, never below it.** Measured
+#: on 30 Tennessee SCAN probes, learning from each one's first year and scoring the years
+#: after (tools/ismn_learn.py): allowed to go down to half, most shallow probes learned a
+#: shorter threshold from one quiet year and then raised ten times the false `stuck` runs
+#: in a drought; held at the default from below, false runs fell from 0.33 to 0.08 per
+#: probe-year — 0.41 to 0.05 at 51 cm, 1.31 to 0.25 at 1 m — and detection was unchanged
+#: on 23 of the 30. The cap is twice because texture and climate move the measured dwell by
+#: about that within a depth band, and so a probe stuck since installation cannot teach
+#: itself that stuck is normal.
+LEARN_BOUNDS = (1.0, 2.0)
+
+
+def dwell_runs(observations, *, max_gap_s: float | None = None) -> list[float]:
+    """Seconds each run of one identical value lasted, first reading to last — the span
+    the flatline check measures. A gap longer than `max_gap_s` ends a run, since a
+    silence is not a reading that stayed the same."""
+    rows = [o for o in P.order_observations(observations) if o.result is not None]
+    out, start, prev = [], None, None
+    for o in rows:
+        gap = (o.measured_at - prev.measured_at).total_seconds() if prev else None
+        if prev is not None and o.result == prev.result and (
+                max_gap_s is None or gap <= max_gap_s):
+            prev = o
+            continue
+        if start is not None:
+            out.append((prev.measured_at - start.measured_at).total_seconds())
+        start = prev = o
+    if start is not None:
+        out.append((prev.measured_at - start.measured_at).total_seconds())
+    return out
+
+
+def learned_flat_seconds(observations, default_s: float, *,
+                         max_gap_s: float | None = None) -> tuple[float, dict] | None:
+    """`(flat_seconds, basis)` learned from a series' own healthy history, or None
+    before a season of it. `basis` says what it was learned from, so the threshold
+    record that carries it can be audited (§3.3)."""
+    rows = list(observations)
+    if len(rows) < 2:
+        return None
+    times = [o.measured_at for o in rows]
+    days = (max(times) - min(times)).total_seconds() / 86400.0
+    if days < LEARN_MIN_DAYS:
+        return None
+    runs = sorted(dwell_runs(rows, max_gap_s=max_gap_s))
+    p999 = runs[min(len(runs) - 1, int(len(runs) * 0.999))]
+    lo, hi = LEARN_BOUNDS[0] * default_s, LEARN_BOUNDS[1] * default_s
+    raw = LEARN_FACTOR * p999
+    value = min(max(raw, lo), hi)
+    return value, {"p999_dwell_s": p999, "runs": len(runs), "days": round(days, 1),
+                   "default_s": default_s, "factor": LEARN_FACTOR,
+                   "bounded": "floor" if raw < lo else "cap" if raw > hi else None}
+
+
+def learn_threshold(state: P.State, datastream_id: UUID, default_s: float, *,
+                    created_at: _dt.datetime | None = None) -> Threshold | None:
+    """A new versioned threshold for one series with its learned flatline, superseding
+    the live one and keeping its other values — or None before a season of history.
+
+    Learns only from readings the checks did not already call `stuck`: a series that
+    froze last month must not learn that freezing is how it behaves. Appending a
+    threshold rather than editing one is what makes the change auditable — every later
+    assertion names the version it used (§3.3)."""
+    ds = state.datastreams[datastream_id]
+    healthy = []
+    for o in state.live_observations_of(datastream_id):
+        a = state.live_assertion_for(o.id)
+        if a is None or QualityFlag.STUCK not in a.flags:
+            healthy.append(o)
+    gap = 3.0 * ds.expected_interval if ds.expected_interval else None
+    learned = learned_flat_seconds(healthy, default_s, max_gap_s=gap)
+    if learned is None:
+        return None
+    value, basis = learned
+    live = P.live([t for t in state.thresholds.values() if t.datastream == datastream_id])
+    current = max(live, key=lambda t: t.id.int) if live else None
+    values = dict(current.values if current else {})
+    values.update(flat_seconds=round(value), flat_seconds_learned=basis)
+    return Threshold(id=uuid7(), datastream=datastream_id, values=values,
+                     created_at=created_at or _dt.datetime.now(tz=_dt.timezone.utc),
+                     supersedes=current.id if current else None)
+
+
 # --------------------------------------------------------------- the assessor
 
 def _lookback(datastream, values) -> int:

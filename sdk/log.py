@@ -24,9 +24,8 @@ Durability is deliberately plain. One JSONL line per event, opened append-only, 
 and skipped rather than taking the whole log down with it — a truncated final line
 after a power cut is the expected case on a farm gateway, not an exception.
 
-What is *not* here yet: erasure by key destruction (§7.3), which needs the key
-management in open-questions Q17, and the sharing grants of §7.6. Both append like
-anything else when they arrive.
+Sharing grants (§7.6) append like anything else; see sharing.py. Erasure by key
+destruction (§7.3) is erasure.py.
 """
 from __future__ import annotations
 
@@ -53,6 +52,8 @@ RECORD_KINDS = {
     "Observation": "observation",
     "Threshold": "threshold",
     "QualityAssertion": "quality_assertion",
+    "Grant": "grant",
+    "GrantRevocation": "grant_revocation",
 }
 
 CORRECTION = "correction"

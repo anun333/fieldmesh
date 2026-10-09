@@ -24,8 +24,8 @@ from enum import Enum
 from uuid import UUID
 
 from model import (Assertor, Calibration, ClockQuality, Datastream,
-                   DatastreamKind, Device, DeviceKind, Installation, Label,
-                   MaintenanceAction, MaintenanceEvent, Observation,
+                   DatastreamKind, Device, DeviceKind, Grant, GrantRevocation,
+                   Installation, Label, MaintenanceAction, MaintenanceEvent, Observation,
                    QualityAssertion, QualityFlag, Threshold, Usable)
 
 TYPE_KEY = "_t"
@@ -72,6 +72,14 @@ def _same(v):
     return v
 
 
+def _enc_uuids(v):
+    return [str(x) for x in v]
+
+
+def _dec_uuids(v):
+    return tuple(_dec_uuid(x) for x in v)
+
+
 # ----------------------------------------------------------- per-type tables
 
 _CONVERTERS = {
@@ -89,6 +97,24 @@ _CONVERTERS = {
         "thresholds": (_same, _same),
         "buffer_policy": (_same, _same),
         "window_s": (_same, _same),
+    },
+    Grant: {
+        "id": (_enc_uuid, _dec_uuid),
+        "grantee": (_same, _same),
+        "datastreams": (_enc_uuids, _dec_uuids),
+        "purpose": (_same, _same),
+        "issued_at": (_enc_time, _dec_time),
+        "until": (_enc_time, _dec_time),
+        "includes_future": (_same, _same),
+        "reshare": (_same, _same),
+        "issued_by": (_enc_uuid, _dec_uuid),
+    },
+    GrantRevocation: {
+        "id": (_enc_uuid, _dec_uuid),
+        "grant": (_enc_uuid, _dec_uuid),
+        "at": (_enc_time, _dec_time),
+        "revoked_by": (_enc_uuid, _dec_uuid),
+        "reason": (_same, _same),
     },
     Label: {
         "id": (_enc_uuid, _dec_uuid),
