@@ -10,7 +10,8 @@ import checks as C
 import fixtures as fx
 import log as L
 import project as P
-from model import Assertor, QualityFlag, Threshold, Usable
+from model import (Assertor, MaintenanceAction, MaintenanceEvent, QualityFlag,
+                   Threshold, Usable, evidence_problems)
 from ids import uuid7
 
 UTC = _dt.timezone.utc
@@ -198,6 +199,90 @@ class TestRateOfChange(unittest.TestCase):
         ds = fx.raw_datastream(thresholds={"max_rate_per_s": 0.0000001})
         obs = fx.observation(ds, result=0.3)
         self.assertEqual(_flags(C.assess(_state(ds, obs), obs)), [])
+
+
+class TestMaintenanceExplainsAStep(unittest.TestCase):
+    """Q22: a battery change lifts a node's voltage in one reading. The rate check reads
+    the device's maintenance log before calling that a fault, and keeps what it would
+    have said in the evidence."""
+
+    def _battery(self, *events_at, device=None):
+        ds = fx.raw_datastream(thresholds={"max_rate_per_s": 0.0001})   # 0.36 V an hour
+        before = fx.observation(ds, result=3.31, measured_at=fx.at(0), seq=0)
+        after = fx.observation(ds, result=4.12, measured_at=fx.at(60), seq=1)
+        events = [MaintenanceEvent(id=uuid7(), device=device or ds.sensor, at=fx.at(m),
+                                   action=MaintenanceAction.SERVICED, note="new 18650 cell")
+                  for m in events_at]
+        state = _state(ds, before, after, *events)
+        return C.assess(state, after)
+
+    def test_a_logged_battery_change_explains_the_step(self):
+        a = self._battery(30)
+        self.assertEqual(_flags(a), [])
+        explained = a.evidence["explained"]["rate"]
+        self.assertEqual(explained["params"]["action"], "serviced")
+        self.assertIn("/s", explained["params"]["finding"], "what the check would have said is kept")
+        self.assertIn("rate", a.evidence["checks_run"])
+        self.assertNotIn("rate", a.evidence["fired"])
+
+    def test_without_the_log_entry_it_is_still_a_step(self):
+        self.assertEqual(_flags(self._battery()), ["rate_exceeded"])
+
+    def test_maintenance_before_the_previous_reading_explains_nothing(self):
+        self.assertEqual(_flags(self._battery(-10)), ["rate_exceeded"])
+
+    def test_another_device_is_maintenance_on_something_else(self):
+        self.assertEqual(_flags(self._battery(30, device=uuid7())), ["rate_exceeded"])
+
+    def test_a_probe_lifted_out_to_clean_is_not_a_spike(self):
+        ds = fx.raw_datastream(thresholds=SOIL_SHAPE, expected_interval=3600.0)
+        values = [0.25, 0.25, 0.25, 0.02, 0.25, 0.25]
+        obs = [fx.observation(ds, result=v, measured_at=fx.at(i * 60), seq=i)
+               for i, v in enumerate(values)]
+        cleaned = MaintenanceEvent(id=uuid7(), device=ds.sensor, at=fx.at(170),
+                                   action=MaintenanceAction.CLEANED)
+        state = _state(ds, cleaned)
+        late = []
+        for o in obs:
+            state.add(o)
+            state.add(C.assess(state, o))
+            late += C.spike_assertions(state, o)
+        self.assertEqual(late, [])
+        self.assertEqual(_flags(state.live_assertion_for(obs[3].id)), [],
+                         "the drop to air while out of the ground is explained too")
+
+
+class TestEvidenceFloor(unittest.TestCase):
+    """Q19: a machine's assertion says what looked at the reading and what objected."""
+
+    def test_every_assessment_meets_the_floor(self):
+        ds, obs, state = TestRateOfChange()._pair(0.30, 0.90, 1, limit=0.001)
+        a = C.assess(state, obs)
+        self.assertEqual(evidence_problems(a), [])
+        self.assertEqual(set(a.evidence["fired"]), {"rate"})
+        self.assertTrue(set(a.evidence["fired"]) <= set(a.evidence["checks_run"]))
+
+    def test_a_bare_machine_assertion_is_reported(self):
+        ds = fx.raw_datastream()
+        obs = fx.observation(ds)
+        bare = fx.assertion(obs.id, flags=[QualityFlag.STUCK], evidence={})
+        problems = _state(ds, obs, bare).validate()
+        self.assertTrue(any("checks_run" in p for p in problems), problems)
+        self.assertTrue(any("names no check" in p for p in problems), problems)
+
+    def test_fired_must_be_among_what_ran(self):
+        ds = fx.raw_datastream()
+        obs = fx.observation(ds)
+        odd = fx.assertion(obs.id, flags=[QualityFlag.STUCK],
+                           evidence={"checks_run": ["range"], "fired": {"flatline": "x"}})
+        self.assertIn("did not run: flatline", " ".join(evidence_problems(odd)))
+
+    def test_a_persons_override_needs_none(self):
+        ds = fx.raw_datastream()
+        obs = fx.observation(ds)
+        person = fx.assertion(obs.id, assertor=Assertor.PERSON, usable=Usable.GOOD,
+                              check="manual-review", evidence={})
+        self.assertEqual(evidence_problems(person), [])
 
 
 SOIL_SHAPE = {"spike_step": 0.05, "max_fall_per_s": 0.05 / 3600}

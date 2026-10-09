@@ -337,9 +337,11 @@ def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
     sensor_id = (sibling.device.id if sibling else
                  device.id if device is not None else (sensor_id or uuid7()))
     thing = farm.features[feature]["thing"]
+    # Q21: a node sending scaled integers sends numbers, not cm3/cm3; the scale is the
+    # calibration's. A series sent in its own unit (scale 1) keeps that unit.
     raw = Datastream(id=uuid7(), thing=thing, sensor=sensor_id,
                      observed_property=prop, feature=farm.features[feature]["id"],
-                     kind=DatastreamKind.RAW, unit=unit,
+                     kind=DatastreamKind.RAW, unit=V.RAW_COUNT if scale != 1.0 else unit,
                      expected_interval=interval, max_latency=latency)
     derived = Datastream(id=uuid7(), thing=thing, sensor=sensor_id,
                          observed_property=prop,

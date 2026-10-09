@@ -363,6 +363,20 @@ DEFAULT_CHECKS = (check_range, check_flatline, check_rate, check_fall, check_cro
 FORECAST_CHECKS = (check_range,)
 
 
+#: Checks whose finding is a step between two readings, which work done on the device in
+#: between can explain (Q22). Flatline, range and cross-check judge the reading itself.
+STEP_CHECKS = ("rate", "fall")
+
+
+def maintenance_between(state: P.State, datastream: Datastream, start: _dt.datetime,
+                        end: _dt.datetime):
+    """The latest maintenance event on the datastream's own device in `(start, end]`, or
+    None (Q22). Only the device the series comes from: a node's battery change explains
+    a step in the node's battery voltage, not in the soil moisture of a probe it carries."""
+    events = [e for e in state.maintenance_of(datastream.sensor) if start < e.at <= end]
+    return events[-1] if events else None
+
+
 def checks_for(datastream: Datastream) -> tuple:
     return FORECAST_CHECKS if datastream.kind is DatastreamKind.FORECAST else DEFAULT_CHECKS
 
@@ -381,6 +395,9 @@ def _spike_containing(state: P.State, obs: Observation, values) -> Finding | Non
         run = _spike_run(rows, end, values)
         if run is not None and any(r.id == obs.id for r in run):
             base = rows[end - len(run) - 1]
+            datastream = state.datastreams[obs.datastream]
+            if maintenance_between(state, datastream, base.measured_at, rows[end].measured_at):
+                return None
             return _spike_finding(run, base.result, values)
     return None
 
@@ -412,6 +429,8 @@ def spike_assertions(state: P.State, obs: Observation, *,
     if run is None:
         return []
     base = rows[len(rows) - len(run) - 2]
+    if maintenance_between(state, datastream, base.measured_at, rows[-1].measured_at):
+        return []          # a probe lifted out to clean and put back: explained (Q22)
     finding = _spike_finding(run, base.result, values)
     out = []
     for reading in run:
@@ -565,6 +584,21 @@ def assess(state: P.State, obs: Observation, *,
 
     findings = [f for f in (c(obs, series, values, peers) for c in checks)
                 if f is not None]
+    # A step the maintenance log explains is not a fault (Q22): a new battery lifts the
+    # voltage in one reading, a cleaned probe reads differently after. The finding is
+    # kept in the evidence, as explained, so the judgement can still be audited.
+    explained = {}
+    previous = _previous(series, obs) if not forecast else None
+    if previous is not None and any(f.check in STEP_CHECKS for f in findings):
+        event = maintenance_between(state, datastream, previous.measured_at, obs.measured_at)
+        if event is not None:
+            for f in [f for f in findings if f.check in STEP_CHECKS]:
+                findings.remove(f)
+                explained[f.check] = {"key": "check.explained.maintenance",
+                                      "params": {"action": event.action.value,
+                                                 "at": event.at.isoformat(),
+                                                 "finding": f.reason},
+                                      "maintenance": str(event.id)}
     frozen_ran, frozen = (False, None) if forecast else _frozen(state, obs, datastream, values)
     if frozen is not None:
         findings.append(frozen)
@@ -587,6 +621,8 @@ def assess(state: P.State, obs: Observation, *,
                      for f in findings if f.key},
         "thresholds": {k: v for k, v in values.items() if v is not None},
     }
+    if explained:
+        evidence["explained"] = explained
     return QualityAssertion(
         id=uuid7(),
         observation=obs.id,

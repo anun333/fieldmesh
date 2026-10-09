@@ -149,7 +149,10 @@ redirect to a 404 helps nobody. Until then the single `LOCAL` constant in
 
 ## Q21. What unit does a *raw* datastream declare?
 
-**Status: blocks v0 — it is a §3.1 data-model question, not an implementation detail.**
+**Status: DECIDED 2026-10-09 — `1`, with the scale in the calibration, as recommended below
+(the maintainer adopted the recommendation).** Built: `vocab.RAW_COUNT`, accepted for any term on a raw
+series; Harrow Bend's scaled series declare it; `State.validate` reports a raw series a
+calibration scales by a power of ten while it declares the calibrated unit. Was: blocks v0 — it is a §3.1 data-model question, not an implementation detail.
 Raised 2026-10-07 by pointing a third-party SensorThings client at the HTTP service and
 looking at what it made of Harrow Bend.
 
@@ -189,7 +192,11 @@ fixed — it changes the canonical farm.
 
 ## Q22. Does the maintenance vocabulary need a battery replacement?
 
-**Status: blocks nothing; a small gap in §4.1 with a real consequence.** Raised 2026-10-08
+**Status: DECIDED 2026-10-09 — add `serviced`, and the step checks read the maintenance log,
+as recommended below (the maintainer adopted the recommendation).** Built: `MaintenanceAction.SERVICED`;
+`checks.maintenance_between`; rate and fall findings explained by a maintenance event on the
+series' own device between the two readings, and spikes spanning one, are dropped and kept in
+`evidence.explained`. Was: blocks nothing; a small gap in §4.1 with a real consequence. Raised 2026-10-08
 by implementing §4.1's maintenance log.
 
 §4.1 names four actions — cleaned, moved, replaced, recalibrated — and
@@ -704,10 +711,10 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q16 | Default grant scope: does a new grant include observations that arrive after it was made? Safer default is no, but it makes research sharing tedious | Blocks the pilot |
 | Q17 | Crypto-shredding key management for erasure (§7.3): per-subject keys, where they live, and what happens to a backup taken before the shred | Blocks the pilot |
 | Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | **Done 2026-10-07** — posted as a comment on [#174](https://github.com/opengeospatial/sensorthings/issues/174#issuecomment-6050541663); see [notes/q18-ogc-issue-draft.md](../notes/q18-ogc-issue-draft.md) |
-| Q19 | Should an assertion's `evidence` object be normative, and what shape? | Blocks third parties |
+| Q19 | Should an assertion's `evidence` object be normative, and what shape? | **Decided 2026-10-09** — normative minimum |
 | Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | Blocks v0 node firmware |
-| Q21 | What unit does a *raw* datastream declare? | Blocks v0 |
-| Q22 | Does the maintenance vocabulary need a battery replacement? | Blocks nothing |
+| Q21 | What unit does a *raw* datastream declare? | **Decided 2026-10-09** — `1` |
+| Q22 | Does the maintenance vocabulary need a battery replacement? | **Decided 2026-10-09** — `serviced` |
 | Q23 | A rate-of-change limit that works at any sampling interval | **Decided 2026-10-08** |
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | False alarms on deep probes today |
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
@@ -737,7 +744,9 @@ On **Q18 — yes, and soon.** The 2.0 draft (23-019) has no `resultQuality` attr
 
 ## Q19. Should `evidence` on a quality assertion be normative?
 
-**Status: blocks third parties.** Added by the §17 amendment of 2026-10-07. The
+**Status: DECIDED 2026-10-09 — normative minimum, open extension, as recommended below (the maintainer
+adopted the recommendation).** The checks it waited on exist. Built: `model.evidence_problems`,
+reported by `State.validate`; the siting check now writes the floor too. Was: blocks third parties. Added by the §17 amendment of 2026-10-07. The
 field exists and is populated; whether a conforming implementation must produce it,
 and in what shape, is undecided.
 

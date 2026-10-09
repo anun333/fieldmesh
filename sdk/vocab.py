@@ -154,8 +154,17 @@ ACCEPTED_UNITS: dict[str, frozenset] = {
 }
 
 
-def check(observed_property: str, unit: str | None) -> list[str]:
+#: What a raw series of scaled integers declares (Q21, decided 2026-10-09). A probe's
+#: `280` is not 280 cm3/cm3 and not 0.280 either until the calibration says so; it is a
+#: number, and UCUM's dimensionless `1` is the only unit true of it. The scale lives in
+#: the calibration, the record that is allowed to change.
+RAW_COUNT = "1"
+
+
+def check(observed_property: str, unit: str | None, *, raw: bool = False) -> list[str]:
     """What is wrong with declaring a datastream of this term in this unit (§3.4).
+
+    A raw datastream may also declare `RAW_COUNT` whatever its term (Q21).
 
     **Offline on purpose.** §3.4 says a declared URI must resolve, but layer zero runs
     on a gateway that may not see the internet for days, so it cannot fetch anything
@@ -174,6 +183,8 @@ def check(observed_property: str, unit: str | None) -> list[str]:
             f"term got in before (§3.4)")
         return problems
     accepted = ACCEPTED_UNITS.get(observed_property, frozenset({TERMS[observed_property][0]}))
+    if raw:
+        accepted = accepted | {RAW_COUNT}
     if unit is None:
         problems.append(f"{observed_property} is a measured quantity and needs a unit; "
                         f"accepted: {sorted(accepted)}")

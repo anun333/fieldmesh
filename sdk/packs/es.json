@@ -23,6 +23,7 @@
  },
  "strings": {
   "check.cross.disagrees": "difiere de un sensor redundante en {difference:.6g} (tolerancia {tolerance:.6g})",
+  "check.explained.maintenance": "explicado por mantenimiento ({action}, {at}): {finding}",
   "check.flatline.stuck": "{count} lecturas de {value} sin cambios durante {span:.0f} s (límite {limit:.0f} s)",
   "check.flatline.stuck_count": "{count} lecturas de {value} sin cambios durante {span:.0f} s (límite {limit} muestras; sin flat_seconds definido, este umbral cambia con la frecuencia de muestreo)",
   "check.flatline.stuck_count_floor": "{count} lecturas de {value} sin cambios durante al menos {span:.0f} s (límite {limit} muestras; sin flat_seconds definido, este umbral cambia con la frecuencia de muestreo)",
@@ -53,6 +54,7 @@
   "enum.MaintenanceAction.moved": "reubicado",
   "enum.MaintenanceAction.recalibrated": "recalibrado",
   "enum.MaintenanceAction.replaced": "reemplazado",
+  "enum.MaintenanceAction.serviced": "revisado",
   "enum.QualityFlag.out_of_range": "fuera de rango",
   "enum.QualityFlag.rate_exceeded": "cambió demasiado rápido",
   "enum.QualityFlag.stuck": "estancada",

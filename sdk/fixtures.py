@@ -51,19 +51,12 @@ def raw_datastream(*, thing=None, sensor=None, feature=None,
 
 
 def derived_datastream(raw: Datastream, **kw) -> Datastream:
-    return Datastream(
-        id=uuid7(),
-        thing=raw.thing,
-        sensor=raw.sensor,
-        observed_property=raw.observed_property,
-        feature=raw.feature,
-        kind=DatastreamKind.DERIVED,
-        derived_from=raw.id,
-        unit=raw.unit,
-        expected_interval=raw.expected_interval,
-        max_latency=raw.max_latency,
-        **kw,
-    )
+    fields = dict(id=uuid7(), thing=raw.thing, sensor=raw.sensor,
+                  observed_property=raw.observed_property, feature=raw.feature,
+                  kind=DatastreamKind.DERIVED, derived_from=raw.id, unit=raw.unit,
+                  expected_interval=raw.expected_interval, max_latency=raw.max_latency)
+    fields.update(kw)
+    return Datastream(**fields)
 
 
 def observation(datastream: Datastream, *, result=0.23, measured_at=None,
@@ -110,6 +103,10 @@ def assertion(observation_id, *, flags=(), check="flatline", check_version="1",
               assertor=Assertor.FOUNDATION, usable=None, supersedes=None,
               **kw) -> QualityAssertion:
     flags = frozenset(flags)
+    if assertor is Assertor.FOUNDATION and "evidence" not in kw:
+        # The normative floor (Q19): this check ran, and objected if it flagged.
+        kw["evidence"] = {"checks_run": [check],
+                          "fired": {check: "fixture"} if flags else {}}
     return QualityAssertion(
         id=uuid7(),
         observation=observation_id,

@@ -31,13 +31,14 @@ not; across nodes, observations whose uncertainty intervals overlap are genuinel
 from __future__ import annotations
 
 import datetime as _dt
+import math
 from bisect import bisect_right
 from dataclasses import dataclass, field
 from enum import Enum
 from uuid import UUID
 
 import vocab
-from model import (Calibration, Datastream, DatastreamKind, Device,
+from model import (Calibration, Datastream, DatastreamKind, Device, evidence_problems,
                    Installation, Label, MaintenanceEvent, Observation,
                    QualityAssertion, Threshold, Usable)
 
@@ -844,6 +845,30 @@ class State:
                 return ds
         return None
 
+    def _raw_unit_problems(self) -> list[str]:
+        """A raw series whose calibration scales it by a power of ten cannot be in the
+        unit its derived series is in (Q21). Declaring both `cm3/cm3` while the raw one
+        carries `280` is the plausible-looking declaration no other check falsifies. A
+        coefficient near 1 is a correction, not a scale, and passes."""
+        out = []
+        for cal in self.calibrations.values():
+            raw = self.datastreams.get(cal.datastream)
+            a = (cal.coefficients or {}).get("a")
+            if raw is None or raw.kind is not DatastreamKind.RAW or raw.unit == vocab.RAW_COUNT \
+                    or not isinstance(a, (int, float)) or a <= 0:
+                continue
+            exponent = math.log10(a)
+            if abs(exponent) < 0.5 or abs(exponent - round(exponent)) > 1e-9:
+                continue
+            for ds in self.datastreams.values():
+                if ds.derived_from == raw.id and ds.unit == raw.unit:
+                    out.append(f"datastream {raw.id} declares {raw.unit!r} but its calibration "
+                               f"{cal.id} scales it by {a:g} to reach {ds.unit!r}, so its values "
+                               f"are not in that unit; a raw series of scaled integers declares "
+                               f"{vocab.RAW_COUNT!r} (Q21)")
+                    break
+        return out
+
     def validate(self) -> list[str]:
         """Every spec violation the state can see. Empty list means clean.
 
@@ -866,8 +891,11 @@ class State:
             except ValueError as exc:
                 problems.append(f"observation {obs.id}: {exc}")
         for ds in self.datastreams.values():
-            for problem in vocab.check(ds.observed_property, ds.unit):
+            for problem in vocab.check(ds.observed_property, ds.unit,
+                                       raw=ds.kind is DatastreamKind.RAW):
                 problems.append(f"datastream {ds.id}: {problem}")
+        for problem in self._raw_unit_problems():
+            problems.append(problem)
         for ds in self.datastreams.values():
             if ds.kind is DatastreamKind.DERIVED and ds.derived_from not in self.datastreams:
                 problems.append(f"datastream {ds.id} derives from unknown "
@@ -912,6 +940,9 @@ class State:
             if event.device not in self.devices:
                 problems.append(f"maintenance event {event.id} references unknown "
                                 f"device {event.device}")
+        for assertion in self.assertions:
+            for problem in evidence_problems(assertion):
+                problems.append(f"assertion {assertion.id}: {problem} (§3.3; Q19)")
         return problems
 
 

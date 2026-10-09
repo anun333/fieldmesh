@@ -103,20 +103,23 @@ class DeviceKind(str, Enum):
 
 
 class MaintenanceAction(str, Enum):
-    """§4.1's maintenance log, with exactly the four actions the spec names.
+    """§4.1's maintenance log, with exactly the five actions the spec names.
 
     Closed on purpose. A vocabulary that grows by whoever needs a word next is how
     a log becomes unqueryable, so a missing action is a **spec** change rather than
-    a code change — and there is at least one missing. A battery replacement on a
-    solar or primary-cell node is a real field event that explains a step
-    discontinuity in the §4.3 battery datastream, and none of these four covers it.
-    Recorded as Q22 rather than quietly added here.
+    a code change. The fifth, `serviced`, was one (Q22, decided 2026-10-09): a battery
+    changed, a solar panel cleaned, a desiccant pack swapped — routine work on a device
+    that is neither a replacement nor a recalibration, with the detail in `note`. It
+    matters because it explains a step: a new cell lifts the §4.3 battery series in one
+    reading, and the rate check reads the log before calling that a fault
+    (checks.maintenance_between).
     """
 
     CLEANED = "cleaned"
     MOVED = "moved"
     REPLACED = "replaced"
     RECALIBRATED = "recalibrated"
+    SERVICED = "serviced"
 
 
 #: §3.3 precedence: a person outranks the foundation.
@@ -588,6 +591,31 @@ class Threshold:
             _utc(self.created_at, "created_at")
 
 
+def evidence_problems(assertion) -> list[str]:
+    """Where a foundation assertion's `evidence` falls short of the normative minimum
+    (§3.3; Q19): `checks_run` a list of check names, `fired` a mapping from the checks
+    that objected to their reasons, every one of which ran, and a flag only when
+    something fired. Reported by `State.validate` rather than refused at construction,
+    so a log written before the rule still reads."""
+    if assertion.assertor is not Assertor.FOUNDATION:
+        return []
+    ev = assertion.evidence or {}
+    run, fired = ev.get("checks_run"), ev.get("fired")
+    out = []
+    if not isinstance(run, list) or not all(isinstance(c, str) for c in run):
+        out.append("evidence.checks_run must list the checks that ran")
+        run = []
+    if not isinstance(fired, dict):
+        out.append("evidence.fired must map each check that objected to its reason")
+        fired = {}
+    stray = sorted(set(fired) - set(run))
+    if stray:
+        out.append(f"evidence.fired names checks that did not run: {', '.join(stray)}")
+    if assertion.flags and not fired:
+        out.append("flags are set but evidence.fired names no check")
+    return out
+
+
 @dataclass(frozen=True, slots=True)
 class QualityAssertion:
     """§3.3. A claim about an observation, by a named assessment, under a named
@@ -606,8 +634,11 @@ class QualityAssertion:
     union, is the only reading under which §3.3's precedence rule is coherent.
 
     `evidence` then records which individual checks fired and why, so collapsing
-    them into one assertion loses no provenance. It is additive and optional;
-    whether it should be normative is open (see the spec's open questions).
+    them into one assertion loses no provenance. A machine's assertion MUST carry
+    the floor of it (Q19, decided 2026-10-09): `checks_run`, the checks that looked,
+    and `fired`, each one that objected with its reason — "what looked at this
+    reading, and what objected". Anything else in it is extension. A person's
+    override needs none; their judgement is the evidence. See `evidence_problems`.
     """
 
     id: UUID

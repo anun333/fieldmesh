@@ -740,7 +740,11 @@ def suspect_assertions(state: P.State, finding, *, datastreams=None,
             messages = dict(evidence.get("messages", {}))
             messages["siting"] = {"key": finding.key, "params": dict(finding.params)}
             evidence.update({"siting": dict(finding.evidence), "messages": messages,
-                             "siting_device": str(finding.device)})
+                             "siting_device": str(finding.device),
+                             # The normative floor (Q19): what looked, what objected.
+                             "checks_run": list(evidence.get("checks_run", [])) + [SITING_CHECK],
+                             "fired": dict(evidence.get("fired", {}),
+                                           **{SITING_CHECK: finding.reason})})
             note = finding.reason if current is None or not current.note \
                 else f"{current.note}; siting: {finding.reason}"
             out.append(QualityAssertion(

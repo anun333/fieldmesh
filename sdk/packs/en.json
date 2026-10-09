@@ -15,6 +15,7 @@
  },
  "strings": {
   "check.cross.disagrees": "differs from a redundant sensor by {difference:.6g} (tolerance {tolerance:.6g})",
+  "check.explained.maintenance": "explained by maintenance ({action} at {at}): {finding}",
   "check.flatline.stuck": "{count} readings of {value} unchanged over {span:.0f}s (limit {limit:.0f}s)",
   "check.flatline.stuck_count": "{count} readings of {value} unchanged over {span:.0f}s (limit {limit} samples; no flat_seconds set, so this threshold moves with the sample rate)",
   "check.flatline.stuck_count_floor": "{count} readings of {value} unchanged over at least {span:.0f}s (limit {limit} samples; no flat_seconds set, so this threshold moves with the sample rate)",
@@ -45,6 +46,7 @@
   "enum.MaintenanceAction.moved": "moved",
   "enum.MaintenanceAction.recalibrated": "recalibrated",
   "enum.MaintenanceAction.replaced": "replaced",
+  "enum.MaintenanceAction.serviced": "serviced",
   "enum.QualityFlag.out_of_range": "out of range",
   "enum.QualityFlag.rate_exceeded": "changed too fast",
   "enum.QualityFlag.stuck": "stuck",

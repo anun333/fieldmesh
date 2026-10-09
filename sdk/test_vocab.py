@@ -106,6 +106,47 @@ class TestTheGate(unittest.TestCase):
         self.assertTrue(any("not a unit of" in p for p in problems), problems)
 
 
+class TestRawUnits(unittest.TestCase):
+    """Q21: a raw series of scaled integers declares `1`; the scale is the calibration's."""
+
+    def _farm(self, raw_unit, a):
+        import fixtures as fx
+        import log as L
+        import project as P
+        raw = fx.raw_datastream(unit=raw_unit, observed_property=V.SOIL_TEMPERATURE)
+        derived = fx.derived_datastream(raw, unit="Cel")
+        from dataclasses import replace
+        cal = replace(fx.calibration(raw.sensor, a=a), datastream=raw.id)
+        log = L.Log()
+        for r in (raw, derived, cal):
+            log.append_record(r)
+        return P.state_from_log(log).validate()
+
+    def test_a_raw_count_may_declare_one_whatever_its_term(self):
+        self.assertEqual(V.check(V.SOIL_TEMPERATURE, "1", raw=True), [])
+        self.assertTrue(V.check(V.SOIL_TEMPERATURE, "1"), "a derived series is in Celsius")
+
+    def test_a_scaled_raw_series_claiming_the_calibrated_unit_is_reported(self):
+        problems = self._farm("Cel", a=0.1)          # node sends 215 for 21.5 C
+        self.assertTrue(any("(Q21)" in p for p in problems), problems)
+
+    def test_declaring_one_satisfies_it(self):
+        self.assertEqual([p for p in self._farm("1", a=0.1) if "Q21" in p], [])
+
+    def test_a_small_correction_is_not_a_scale(self):
+        self.assertEqual([p for p in self._farm("Cel", a=1.02) if "Q21" in p], [])
+
+    def test_harrow_bend_declares_its_raw_counts_as_one(self):
+        import sys
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "sim"))
+        import harrow_bend as hb
+        farm = hb.build(seed=1)
+        soil = [s.raw for s in farm.series.values() if s.raw.observed_property == V.SOIL_WATER]
+        self.assertTrue(soil)
+        self.assertEqual({r.unit for r in soil}, {V.RAW_COUNT})
+        self.assertEqual([p for p in farm.state.validate() if "Q21" in p], [])
+
+
 class TestNoPlaceholdersAnywhere(unittest.TestCase):
 
     def test_no_example_org_vocabulary_uris_survive_in_the_repository(self):
