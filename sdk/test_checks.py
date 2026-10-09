@@ -200,6 +200,129 @@ class TestRateOfChange(unittest.TestCase):
         self.assertEqual(_flags(C.assess(_state(ds, obs), obs)), [])
 
 
+SOIL_SHAPE = {"spike_step": 0.05, "max_fall_per_s": 0.05 / 3600}
+
+
+def _hourly(values, *, minutes=60, thresholds=SOIL_SHAPE):
+    ds = fx.raw_datastream(thresholds=thresholds, expected_interval=minutes * 60.0)
+    obs = [fx.observation(ds, result=v, measured_at=fx.at(i * minutes), seq=i)
+           for i, v in enumerate(values)]
+    return ds, obs
+
+
+class TestSpikeByShape(unittest.TestCase):
+    """Q23: a glitch goes out and comes straight back; the soil does not."""
+
+    def arrive(self, values, **kw):
+        """Readings arriving one at a time, as through the gateway: each assessed on
+        arrival, and each arrival allowed to settle what came before it."""
+        ds, obs = _hourly(values, **kw)
+        log = L.Log()
+        log.append_record(ds)
+        state = P.state_from_log(log)
+        late = []
+        for o in obs:
+            state.add(o)
+            state.add(C.assess(state, o))
+            for a in C.spike_assertions(state, o):
+                state.add(a)
+                late.append(a)
+        return state, obs, late
+
+    def flags_of(self, state, o):
+        return sorted(f.value for f in state.live_assertion_for(o.id).flags)
+
+    def test_out_and_back_in_one_reading_is_a_spike_judged_one_reading_late(self):
+        state, obs, late = self.arrive([0.25, 0.25, 0.25, 0.40, 0.25, 0.25])
+        self.assertEqual([a.observation for a in late], [obs[3].id])
+        self.assertEqual(self.flags_of(state, obs[3]), ["rate_exceeded"])
+        self.assertEqual(state.live_assertion_for(obs[3].id).usable, Usable.QUESTIONABLE)
+        self.assertEqual(self.flags_of(state, obs[4]), [], "the way back is a good reading")
+
+    def test_a_dropout_is_a_spike(self):
+        """The drop is a fall too fast for soil when it arrives (`suspect`); the next
+        reading shows it was a glitch (`rate_exceeded`), added rather than replacing
+        what was already said. Its return is neither."""
+        state, obs, _ = self.arrive([0.27, 0.27, 0.27, 0.10, 0.27])
+        self.assertEqual(self.flags_of(state, obs[3]), ["rate_exceeded", "suspect"])
+        self.assertEqual(self.flags_of(state, obs[4]), [],
+                         "and its return is not a fall")
+
+    def test_rain_rises_and_holds(self):
+        state, obs, late = self.arrive([0.15, 0.15, 0.26, 0.27, 0.265, 0.26, 0.255])
+        self.assertEqual(late, [])
+        self.assertTrue(all(self.flags_of(state, o) == [] for o in obs))
+
+    def test_two_readings_out_at_15_minutes_is_still_a_spike(self):
+        """The simulator's spike lasts half an hour: two readings at 15-minute sampling."""
+        state, obs, late = self.arrive([0.25, 0.25, 0.45, 0.45, 0.25, 0.25], minutes=15)
+        self.assertEqual({a.observation for a in late}, {obs[2].id, obs[3].id})
+
+    def test_two_readings_out_at_hourly_is_not(self):
+        """At hourly sampling the same shape spans an hour — longer than a glitch, and
+        on ISMN's record the two-reading version doubled the false flags."""
+        state, obs, late = self.arrive([0.25, 0.25, 0.45, 0.45, 0.25, 0.25])
+        self.assertEqual(late, [])
+
+    def test_a_backfilled_spike_is_judged_when_assessed(self):
+        """A reading assessed after its successor arrived — a backfill or a batch
+        re-run — is judged straight away."""
+        ds, obs = _hourly([0.25, 0.25, 0.40, 0.25])
+        state = _state(ds, *obs)
+        self.assertEqual(_flags(C.assess(state, obs[2])), ["rate_exceeded"])
+        self.assertIn("spike", C.assess(state, obs[2]).evidence["checks_run"])
+
+    def test_the_check_is_not_claimed_before_it_could_run(self):
+        ds, obs = _hourly([0.25, 0.25, 0.40])
+        state = _state(ds, *obs)
+        self.assertNotIn("spike", C.assess(state, obs[2]).evidence["checks_run"])
+
+    def test_the_flag_is_added_and_a_person_is_not_overruled(self):
+        ds, obs = _hourly([0.25, 0.25, 0.25, 0.40, 0.25])
+        state = _state(ds, *obs[:4])
+        stuck = C.assess(state, obs[3])
+        state.add(stuck)
+        mine = fx.assertion(obs[3].id, flags=(), check="manual",
+                            assertor=Assertor.PERSON, asserted_at=fx.at(500))
+        state.add(mine)
+        state.add(obs[4])
+        self.assertEqual(C.spike_assertions(state, obs[4]), [])
+
+    def test_judging_twice_changes_nothing(self):
+        state, obs, late = self.arrive([0.25, 0.25, 0.25, 0.40, 0.25])
+        self.assertEqual(len(late), 1)
+        self.assertEqual(C.spike_assertions(state, obs[4]), [])
+
+    def test_off_unless_configured(self):
+        state, obs, late = self.arrive([0.25, 0.25, 0.40, 0.25], thresholds={})
+        self.assertEqual(late, [])
+
+
+class TestFall(unittest.TestCase):
+    """Q23: soil fills fast and empties slowly, so falls get a tight cap and rises none."""
+
+    def test_a_fast_fall_from_a_steady_level_is_suspect(self):
+        ds, obs = _hourly([0.30, 0.30, 0.22, 0.22])
+        state = _state(ds, *obs)
+        a = C.assess(state, obs[2])
+        self.assertEqual(_flags(a), ["suspect"])
+        self.assertIn("fall", a.evidence["fired"])
+
+    def test_a_fast_rise_is_not(self):
+        ds, obs = _hourly([0.15, 0.15, 0.32, 0.32])
+        self.assertEqual(_flags(C.assess(_state(ds, *obs), obs[2])), [])
+
+    def test_the_allowance_scales_with_the_gap(self):
+        ds, obs = _hourly([0.30, 0.22], minutes=120)
+        self.assertEqual(_flags(C.assess(_state(ds, *obs), obs[1])), [], "0.04 per hour")
+        ds, obs = _hourly([0.30, 0.18], minutes=120)
+        self.assertEqual(_flags(C.assess(_state(ds, *obs), obs[1])), ["suspect"])
+
+    def test_beyond_three_hours_nothing_is_decided(self):
+        ds, obs = _hourly([0.30, 0.05], minutes=240)
+        self.assertEqual(_flags(C.assess(_state(ds, *obs), obs[1])), [])
+
+
 class TestCrossCheck(unittest.TestCase):
     """§4.2 Cross-check → `suspect` only, because it cannot say which probe lies."""
 
@@ -318,7 +441,7 @@ class TestOneAssertionPerRun(unittest.TestCase):
         clean = fx.observation(self.ds, result=0.3, measured_at=fx.at(99), seq=99)
         a = C.assess(_state(self.ds, clean), clean)
         self.assertEqual(a.evidence["fired"], {})
-        self.assertEqual(len(a.evidence["checks_run"]), 4)
+        self.assertEqual(len(a.evidence["checks_run"]), 5)
 
     def test_a_clean_assessment_still_produces_an_assertion(self):
         """"Checked, no objection" is not the same as never having looked."""

@@ -15,7 +15,7 @@ import siting as S
 import vocab as V
 from ids import uuid7
 from model import (Calibration, Datastream, DatastreamKind, Device, DeviceKind,
-                   Installation, QualityFlag)
+                   Installation, MaintenanceAction, MaintenanceEvent, QualityFlag)
 
 UTC = _dt.timezone.utc
 T0 = _dt.datetime(2026, 6, 10, tzinfo=UTC)
@@ -40,7 +40,8 @@ class _Farm:
 
     def __init__(self, recorded: dict, physical: dict | None = None,
                  damping: dict | None = None, hours: int = 49,
-                 episode: dict | None = None, noise_c: float = 0.0):
+                 episode: dict | None = None, noise_c: float = 0.0,
+                 silent: dict | None = None):
         """`episode` = {name: (from_hour, to_hour, depth)}: where a probe physically
         was for a while, with no record of it — an unlogged move, or a bad day."""
         self.log = L.Log()
@@ -66,6 +67,9 @@ class _Farm:
             for record in (device, raw, derived, cal, install):
                 self.log.append_record(record)
             for hour in range(hours):
+                if silent and name in silent and \
+                        silent[name][0] <= hour < silent[name][1]:
+                    continue
                 when = T0 + _dt.timedelta(hours=hour)
                 z = physical[name]
                 if episode and name in episode and \
@@ -586,6 +590,68 @@ class TestWeekly(unittest.TestCase):
         self.assertAlmostEqual(weekly.implied_depth_m, 0.30, delta=0.03)
         self.assertEqual(weekly.evidence["persistence"]["count"], 4)
         self.assertEqual(weekly.evidence["window_h"], 14 * 24 + 3 * 7 * 24)
+
+
+class TestAttribution(unittest.TestCase):
+    """Q25: a two-peer alarm names the probe whose records changed.
+
+    McAllister Farm, 2023: a replacement 10 cm probe went in about 4 cm shallow, and
+    the daily check — two peers, nothing to outvote — called the 20 cm probe
+    displaced, because it is read off a line through the 5 and 10 cm probes."""
+
+    PROFILE = {"p05": 0.05, "p10": 0.10, "p20": 0.20, "p55": 0.55}
+
+    def farm(self, hours=24 * 8 + 1, **kw):
+        return _Farm(self.PROFILE, physical={**self.PROFILE, "p10": 0.06},
+                     hours=hours, noise_c=0.05, **kw)
+
+    def judge(self, farm):
+        return S.assess_siting_persistent(farm.state, farm.ids["p20"], farm.at)
+
+    def test_the_probe_whose_records_changed_is_named(self):
+        farm = self.farm()
+        event = MaintenanceEvent(id=uuid7(), device=farm.ids["p10"],
+                                 at=T0 - _dt.timedelta(days=3),
+                                 action=MaintenanceAction.REPLACED)
+        farm.log.append_record(event)
+        farm.state.add(event)
+        finding = self.judge(farm)
+        self.assertEqual(finding.verdict, S.DISPLACED, "something did move")
+        self.assertEqual(finding.key, "siting.profile_named")
+        self.assertEqual(finding.evidence["attribution"]["named"], str(farm.ids["p10"]))
+        self.assertEqual(finding.params["change"], "replaced")
+        self.assertIn("cannot tell which moved", finding.reason)
+        self.assertEqual(finding.evidence["displacement"]["key"], "siting.deeper",
+                         "what the arithmetic said is kept")
+
+    def test_with_no_record_to_go_on_it_says_so(self):
+        finding = self.judge(self.farm())
+        self.assertEqual(finding.verdict, S.DISPLACED)
+        self.assertEqual(finding.key, "siting.profile_unnamed")
+        self.assertIsNone(finding.evidence["attribution"]["named"])
+        self.assertEqual(len(finding.evidence["attribution"]["profile"]), 3)
+
+    def test_a_silence_in_a_probes_readings_counts_as_a_change(self):
+        """At both Tennessee stations the 10 cm record went quiet for 18 months before
+        its replacement; the silence is itself a record."""
+        farm = self.farm(hours=24 * 18 + 1, silent={"p10": (24, 24 * 9)})
+        finding = self.judge(farm)
+        self.assertEqual(finding.key, "siting.profile_named")
+        self.assertEqual(finding.params["change"], "readings resumed")
+
+    def test_a_robust_finding_needs_no_attribution(self):
+        farm = _Farm(STANDARD, physical={**STANDARD, "a20": 0.05}, hours=24 * 8 + 1)
+        finding = S.assess_siting_persistent(farm.state, farm.ids["a20"], farm.at)
+        self.assertTrue(finding.evidence["robust"])
+        self.assertNotIn("attribution", finding.evidence)
+        self.assertEqual(finding.key, "siting.shallower")
+
+    def test_the_message_reads_in_spanish(self):
+        import i18n
+        farm = self.farm()
+        finding = self.judge(farm)
+        text = str(i18n.Translator("es").text(finding.key, **finding.params))
+        self.assertIn("perfil", text)
 
 
 if __name__ == "__main__":

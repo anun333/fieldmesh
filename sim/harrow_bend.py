@@ -88,18 +88,19 @@ _DEPTHS = {"shallow": 0.20, "deep": 0.40}
 
 #: Soil thresholds, each derived from something physical rather than picked.
 #:
-#: `max_rate_per_s` is the one worth explaining. At a 900 s sample interval, the
-#: first value tried here was 0.0004/s — which permits a jump of 0.36 in one
-#: interval, nearly the entire physical range of the measurand. The check could
-#: never fire, and a threshold that cannot fire is worse than none because it looks
-#: like protection. The real bound comes from the fastest *legitimate* process: 25 mm
-#: of irrigation over a 300 mm root zone is 0.083, about 0.00009/s, so 0.00015/s
-#: leaves headroom above irrigation and still catches a jump no process could make.
+#: Spikes and falls are judged by shape, not by `max_rate_per_s` (Q23, decided
+#: 2026-10-08). A rate allowance grows with the gap: the first value tried here,
+#: 0.0004/s, permitted a jump of 0.36 per 15-minute interval, and the later 0.00015/s
+#: still allows 0.54 at hourly sampling, where ISMN's record showed it catching
+#: nothing. What tells a glitch from irrigation is that it comes back (`spike_step`);
+#: what tells a fault from drainage is that soil empties slowly (`max_fall_per_s`,
+#: 0.05 per hour, from 27.7 million healthy falls on SCAN). Rises get no cap: an
+#: irrigation event and a fault rise alike.
 #:
 #: `flat_seconds` is 18 h because a probe at three decimals genuinely repeats for
 #: about 8 h overnight when evapotranspiration is near zero (§4.2).
 SOIL_THRESHOLDS = {"min": 0.02, "max": 0.46, "flat_seconds": 18 * 3600,
-                   "flat_n": 4, "max_rate_per_s": 0.00015,
+                   "flat_n": 4, "spike_step": 0.05, "max_fall_per_s": 0.05 / 3600,
                    "cross_tolerance": 0.04}
 #: A float-regulated level is constant by design, so flatline is switched off and
 #: range is what catches a stuck float (§4.2).

@@ -426,6 +426,10 @@ class Gateway:
         threshold = self._threshold_for(datastream.id)
         assertion = C.assess(self.state, observation, threshold=threshold)
         self._append(assertion)
+        # A spike is only known once the series has come back from it, so this
+        # arrival may settle the readings just before it (Q23).
+        for late in C.spike_assertions(self.state, observation, threshold=threshold):
+            self._append(late)
         return assertion
 
     def _threshold_for(self, datastream_id: UUID):

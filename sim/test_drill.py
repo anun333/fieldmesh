@@ -104,24 +104,34 @@ class TestCatchableFaults(unittest.TestCase):
 class TestOneProbeIsBlindToThreeFaultModes(unittest.TestCase):
     """The drill's headline finding, measured rather than argued.
 
-    A feature with a single sensor cannot detect drift, bias or noise at all: every
-    reading is individually plausible and the series looks healthy, so no check that
-    looks at one series has anything to go on. Drift is the commonest real failure of
-    the three.
+    A feature with a single sensor cannot detect drift or bias at all: every reading
+    is individually plausible and the series looks healthy, so no check that looks at
+    one series has anything to go on. Drift is the commonest real failure.
+
+    Noise was in that list until Q23 (2026-10-08). The rate check could not see it;
+    the shape checks can, because noise makes readings fall faster than soil drains
+    and jump out and back. The class keeps its name because the measurement it records
+    was true, and the test below says what changed.
     """
 
-    BLIND = (F.Drifting(per_day=0.05), F.Biased(offset=0.08),
-             F.Noisy(sigma=0.03, seed=5))
+    BLIND = (F.Drifting(per_day=0.05), F.Biased(offset=0.08))
+    HARD = BLIND + (F.Noisy(sigma=0.03, seed=5),)
 
-    def test_alone_it_sees_none_of_them(self):
+    def test_alone_it_sees_neither_drift_nor_bias(self):
         for fault in self.BLIND:
             with self.subTest(fault.kind):
                 result = D.drill(D._fresh(fault), days=4.0, redundant=False)
                 self.assertEqual(result.recall, 0.0)
                 self.assertEqual(result.flags_seen, set())
 
+    def test_alone_it_now_sees_noise_by_its_shape(self):
+        result = D.drill(D._fresh(F.Noisy(sigma=0.03, seed=5)), days=4.0, redundant=False)
+        self.assertGreater(result.recall, 0.3)
+        self.assertEqual(result.precision, 1.0)
+        self.assertLessEqual(result.flags_seen, {"rate_exceeded", "suspect"})
+
     def test_a_redundant_probe_sees_all_three(self):
-        for fault in self.BLIND:
+        for fault in self.HARD:
             with self.subTest(fault.kind):
                 result = D.drill(D._fresh(fault), days=4.0, redundant=True)
                 self.assertGreater(result.recall, 0.1)

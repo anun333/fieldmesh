@@ -440,6 +440,27 @@ class State:
         out.reverse()
         return out
 
+    def following(self, datastream_id: UUID, observation, limit: int):
+        """Up to `limit` live readings straight after `observation`, in display order.
+
+        The mirror of `ordered_upto`, for the one check that needs the future: a spike
+        is only a spike once the series has come back from it."""
+        keys, rows = self._ordered.get(datastream_id, ([], []))
+        key = _display_key(observation)
+        at = bisect_right(keys, key) - 1
+        while at >= 0 and rows[at].id != observation.id:
+            at -= 1
+        if at < 0:
+            return []
+        out = []
+        index = at + 1
+        while index < len(rows) and len(out) < limit:
+            row = rows[index]
+            if row.id not in self._superseded_obs:
+                out.append(row)
+            index += 1
+        return out
+
     def nearest(self, datastream_id: UUID, when: _dt.datetime, within_s: float):
         """The live reading of a series closest to `when`, if one is within `within_s`.
 

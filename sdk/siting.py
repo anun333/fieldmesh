@@ -100,6 +100,13 @@ WEEKLY_COUNT = 4
 WEEKLY_REQUIRED = 3
 WEEKLY_EVERY = _dt.timedelta(days=7)
 
+#: How far back from the onset of a non-robust alarm to look for a record change on
+#: any probe in the profile, and how long a silence in a probe's readings counts as
+#: one (Q25). At McAllister Farm the replacement went in on 17 January and winter
+#: hid the change until April — eleven weeks — so the window is generous.
+ATTRIBUTION_LOOKBACK = _dt.timedelta(days=120)
+ATTRIBUTION_GAP = _dt.timedelta(days=7)
+
 CONSISTENT = "consistent"
 DISPLACED = "displaced"
 INDETERMINATE = "indeterminate"
@@ -305,6 +312,7 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
 
     # --- calibrate on the peers ---------------------------------------------
     peers = []
+    peer_devices = []
     for other_id in state.devices:
         if other_id == device_id:
             continue
@@ -320,6 +328,7 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
         if other_fit is None or other_fit.amplitude < peer_floor:
             continue
         peers.append((other_install.depth_m, other_fit))
+        peer_devices.append(other_id)
 
     depths = {round(z, 3) for z, _ in peers}
     # Two peers at two depths is the minimum: they fix the depth-to-phase line, and the
@@ -380,6 +389,10 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
         # and a flag here may mean "something in this profile moved" rather than "this
         # probe moved".
         "robust": robust,
+        # Which probes calibrated the line: when the fit is not robust, a displaced
+        # verdict may belong to any of them (Q25), and the persistent assessment
+        # looks through their records to say which.
+        "peer_devices": [str(d) for d in peer_devices],
         "tolerance_m": round(tol, 3),
         "window_h": window.total_seconds() / 3600.0,
     }
@@ -441,13 +454,96 @@ def assess_siting_persistent(state: P.State, device_id: UUID, at: _dt.datetime, 
                                              / 3600.0))
         span_h = window_h + (at - displaced[-1].at).total_seconds() / 3600.0
         evidence = dict(latest.evidence, persistence=persistence, window_h=span_h)
-        return replace(latest, at=at, evidence=evidence)
+        found = replace(latest, at=at, evidence=evidence)
+        if latest.evidence.get("robust", True):
+            return found
+        return _attribute(state, found, onset=displaced[-1].at,
+                          prop=kwargs.get("prop", V.SOIL_TEMPERATURE))
     if today.verdict == DISPLACED:
         params = {"days": len(displaced), "of": count, "required": required}
         return replace(today, verdict=INDETERMINATE, key="siting.unconfirmed",
                        params=params, reason=i18n.english("siting.unconfirmed", **params),
                        evidence=dict(today.evidence, persistence=persistence))
     return replace(today, evidence=dict(today.evidence, persistence=persistence))
+
+
+def _record_changes(state: P.State, device_id: UUID, since: _dt.datetime,
+                    until: _dt.datetime, prop: str,
+                    profile_start: _dt.datetime) -> list:
+    """What changed in one probe's records between `since` and `until`: a new
+    installation, a maintenance event, a recalibration, or its readings resuming
+    after a silence of ATTRIBUTION_GAP or more. Each as `(when, what)`.
+
+    An installation or calibration made with the rest of the profile — within a day
+    of its first installation — is how the profile began, not a change in it; a later
+    one is a replacement, a move or a recalibration."""
+    changes = []
+    for inst in state.installations_of(device_id):
+        if (since <= inst.installed_at <= until
+                and inst.installed_at > profile_start + _dt.timedelta(days=1)):
+            changes.append((inst.installed_at, "installed"))
+    for event in state.maintenance_of(device_id):
+        if since <= event.at <= until:
+            changes.append((event.at, event.action.value))
+    for cal in state.calibrations.values():
+        if (cal.sensor == device_id and since <= cal.valid_from <= until
+                and cal.valid_from > profile_start + _dt.timedelta(days=1)):
+            changes.append((cal.valid_from, "recalibrated"))
+    stream = _temperature_stream(state, device_id, prop)
+    if stream is not None:
+        times = sorted(o.measured_at for o in state.live_observations_of(stream.id)
+                       if since - ATTRIBUTION_GAP <= o.measured_at <= until)
+        for before, after in zip(times, times[1:]):
+            if after - before >= ATTRIBUTION_GAP and since <= after <= until:
+                changes.append((after, "readings resumed"))
+    return sorted(changes)
+
+
+def _name(state: P.State, device_id: UUID) -> str:
+    label = state.label_for(device_id)
+    return label.name if label is not None else str(device_id)[:8]
+
+
+def _attribute(state: P.State, found: SitingFinding, *, onset: _dt.datetime,
+               prop: str) -> SitingFinding:
+    """A persistent displacement from a two-peer fit: say *which* probe (Q25).
+
+    With two peers the line is exact, so any one probe's move fits the readings
+    equally well, and an error in a peer is amplified in the probe extrapolated from
+    it. At McAllister Farm a replacement 10 cm probe went in about 4 cm shallow and
+    the check blamed the 20 cm probe. So the finding reports the profile, and names
+    the probe whose own records changed before the alarm began — exactly right at both
+    stations where it happened. If none or several did, it says so rather than guess.
+    The verdict stays `displaced`: something in the profile moved.
+    """
+    profile = [found.device] + [UUID(d) for d in found.evidence.get("peer_devices", [])]
+    since = onset - ATTRIBUTION_LOOKBACK
+    starts = [i.installed_at for d in profile for i in state.installations_of(d)]
+    profile_start = min(starts) if starts else since
+    changed = []
+    for device_id in profile:
+        for when, what in _record_changes(state, device_id, since, onset, prop,
+                                          profile_start):
+            changed.append({"device": str(device_id), "at": when.isoformat(),
+                            "change": what})
+    devices = {c["device"] for c in changed}
+    named = UUID(devices.pop()) if len(devices) == 1 else None
+    attribution = {"profile": [str(d) for d in profile], "changed": changed,
+                   "named": str(named) if named is not None else None}
+    evidence = dict(found.evidence, attribution=attribution,
+                    displacement={"key": found.key, "params": found.params})
+    if named is not None and named != found.device:
+        last = [c for c in changed if c["device"] == str(named)][-1]
+        key = "siting.profile_named"
+        params = {"device": _name(state, named), "change": last["change"],
+                  "date": last["at"][:10]}
+    elif named is None:
+        key = "siting.profile_unnamed"
+        params = {"count": len(profile)}
+    else:
+        return replace(found, evidence=evidence)     # its own records changed
+    return replace(found, key=key, params=params, evidence=evidence,
+                   reason=i18n.english(key, **params))
 
 
 def assess_siting_weekly(state: P.State, device_id: UUID, at: _dt.datetime,

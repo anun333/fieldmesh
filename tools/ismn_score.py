@@ -73,9 +73,9 @@ ISMN_FLAGS = {
     "D03": ("ancillary", None),     # modelled soil temperature below zero
     "D04": ("ancillary", None),     # rise without precipitation (in situ)
     "D05": ("ancillary", None),     # rise without precipitation (modelled)
-    "D06": ("spike", QualityFlag.RATE_EXCEEDED),
-    "D07": ("break", QualityFlag.RATE_EXCEEDED),    # negative break
-    "D08": ("break", QualityFlag.RATE_EXCEEDED),    # positive break
+    "D06": ("spike", QualityFlag.RATE_EXCEEDED),    # the shape spike check (Q23)
+    "D07": ("fall", QualityFlag.SUSPECT),           # negative jump: the fall check
+    "D08": ("rise", None),                          # positive jump: no rise cap, by design
     "D09": ("plateau", QualityFlag.STUCK),          # low constant values
     "D10": ("plateau", QualityFlag.STUCK),          # saturated plateau
 }
@@ -83,7 +83,7 @@ ISMN_FLAGS = {
 #: Our thresholds, not ISMN's. Scoring the range check with their own 0 and 0.6 would
 #: make range agreement true by construction and tell us nothing.
 OUR_THRESHOLDS = {"min": 0.02, "max": 0.46, "flat_seconds": 18 * 3600, "flat_n": 4,
-                  "max_rate_per_s": 0.00015}
+                  "spike_step": 0.05, "max_fall_per_s": 0.05 / 3600}
 
 
 def families(flag_text: str) -> set[str]:
@@ -129,6 +129,7 @@ def score_series(rows, *, interval_s: float = 3600.0,
     state = P.state_from_log(log)
     score = Score()
     received = _dt.datetime.now(tz=UTC)
+    arrived = []
     for when, value, flag_text in sorted(rows, key=lambda r: r[0]):
         if value is None:
             continue
@@ -136,7 +137,14 @@ def score_series(rows, *, interval_s: float = 3600.0,
                           measured_at_uncertainty=interval_s / 2, received_at=received,
                           result=value, clock_quality=ClockQuality.NETWORK)
         state.add(obs)
-        ours = C.assess(state, obs, asserted_at=received).flags
+        state.add(C.assess(state, obs, asserted_at=received))
+        # A spike is judged when the series comes back from it, one reading late.
+        for late in C.spike_assertions(state, obs, asserted_at=received):
+            state.add(late)
+        arrived.append((obs, flag_text))
+    # Scored on each reading's final judgement, after the late verdicts are in.
+    for obs, flag_text in arrived:
+        ours = state.live_assertion_for(obs.id).flags
         score.readings += 1
         for family in families(flag_text):
             score.by_family[family] += 1

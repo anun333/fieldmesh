@@ -23,7 +23,8 @@ class TestFamilies(unittest.TestCase):
     def test_known_flags_map_to_families(self):
         self.assertEqual(S.families("G"), {"good"})
         self.assertEqual(S.families("C02"), {"range"})
-        self.assertEqual(S.families("D06,D08"), {"spike", "break"})
+        self.assertEqual(S.families("D06,D08"), {"spike", "rise"})
+        self.assertEqual(S.families("D07"), {"fall"})
 
     def test_an_unknown_flag_is_visible_not_counted_as_good(self):
         self.assertEqual(S.families("Z99"), {"unknown:Z99"})
@@ -38,27 +39,30 @@ class TestScoring(unittest.TestCase):
         self.assertEqual(score.by_family["range"], 1)
         self.assertEqual(score.agreement("range"), 1.0)
 
-    def test_at_hourly_sampling_the_rate_check_cannot_see_a_spike(self):
-        """A measured limitation of our check, found by writing this test — not a
-        property of the scorer.
-
-        The rate limit is 0.00015/s, derived from drip irrigation at 15-minute sampling.
-        ISMN is hourly, and an hour at that rate permits a jump of 0.54 m3/m3: nearly
-        the whole physical range. A spike from 0.25 to 0.40 passes. A per-second limit
-        times an interval grows without bound, while the thing that is physically
-        bounded is the size of one jump — the same trap `flat_n` fell into, reversed.
-        Recorded as Q23 rather than fixed, because a cap must still allow a storm over
-        a long gap.
-        """
+    def test_at_hourly_sampling_a_spike_is_now_seen_by_its_shape(self):
+        """This test used to record the opposite. The rate limit, 0.00015/s, permitted a
+        jump of 0.54 m3/m3 in an hour — nearly the whole physical range — so a spike
+        from 0.25 to 0.40 passed, and on ISMN's Tennessee record the check caught none
+        of 1,849 spikes and jumps. Q23 replaced it for soil water with the shape: out
+        and straight back, judged when the series returns."""
         rows = hourly([(0.25, "G")] * 5 + [(0.40, "D06")] + [(0.25, "G")] * 3)
-        self.assertEqual(S.score_series(rows).agreement("spike"), 0.0)
-        self.assertAlmostEqual(S.OUR_THRESHOLDS["max_rate_per_s"] * 3600, 0.54)
+        self.assertEqual(S.score_series(rows).agreement("spike"), 1.0)
+        self.assertNotIn("max_rate_per_s", S.OUR_THRESHOLDS)
 
-    def test_at_the_sampling_rate_it_was_derived_for_it_does(self):
+    def test_and_at_15_minutes_too(self):
         rows = [(T0 + _dt.timedelta(minutes=15 * i), v, f) for i, (v, f) in
                 enumerate([(0.25, "G")] * 5 + [(0.40, "D06")] + [(0.25, "G")] * 3)]
         self.assertEqual(S.score_series(rows, interval_s=900.0).agreement("spike"),
                          1.0)
+
+    def test_a_negative_jump_that_holds_is_caught_as_a_fall(self):
+        rows = hourly([(0.30, "G")] * 5 + [(0.20, "D07")] + [(0.20, "G")] * 3)
+        self.assertEqual(S.score_series(rows).agreement("fall"), 1.0)
+
+    def test_a_positive_jump_has_no_counterpart_by_design(self):
+        """A rise cannot be told from rain without a rain gauge, so no rise cap."""
+        rows = hourly([(0.20, "G")] * 5 + [(0.30, "D08")] + [(0.30, "G")] * 3)
+        self.assertEqual(S.score_series(rows).agreement("rise"), 0.0)
 
     def test_our_flags_on_readings_ismn_calls_good_are_counted(self):
         """Disagreement, not error: reported as such."""

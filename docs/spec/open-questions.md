@@ -221,8 +221,11 @@ than a patch.
 
 ## Q23. A rate-of-change limit that works at any sampling interval
 
-**Status: blocks scoring against hourly data; affects every farm that samples slower
-than every 15 minutes.** Raised 2026-10-08 while building `tools/ismn_score.py`.
+**Status: DECIDED 2026-10-08 — for soil water, the shape spike check, a cap on falls, and
+no cap on rises, as recommended below.** Built into `sdk/checks.py` (`spike_step`,
+`spike_max_s`, `max_fall_per_s`, `shape_max_gap_s`; `spike_assertions` for the verdict
+one reading late) and recorded in v0.1 §4.2. Raised 2026-10-08 while building
+`tools/ismn_score.py`.
 
 §4.2's rate check allows a change of `max_rate_per_s × elapsed`. Harrow Bend's soil limit,
 0.00015/s, was derived from drip irrigation at 15-minute sampling — about 0.135 per step,
@@ -373,9 +376,14 @@ flag — which is why every number here is a 99.9th percentile, not a maximum.
 
 ## Q25. When a two-peer siting check fires, which probe moved?
 
-**Status: partly answered by measurement; how a non-robust alarm is reported is still
-open.** Raised 2026-10-08, when the siting check found a real unlogged depth change in
-ISMN's data and attributed it to the wrong probe (see
+**Status: DECIDED 2026-10-08 — run both schedules; a non-robust daily alarm reports the
+profile and names the probe whose records changed before it began, or says it cannot
+tell.** Built into `sdk/siting.py`: findings record the peers that calibrated them, and
+`assess_siting_persistent` attributes a non-robust displacement by looking back
+`ATTRIBUTION_LOOKBACK` (120 days) from its onset for an installation, maintenance event,
+recalibration or a week-long silence on any probe in the profile — changes made when the
+profile was set up do not count. Raised 2026-10-08, when the siting check found a real
+unlogged depth change in ISMN's data and attributed it to the wrong probe (see
 [notes/siting-real-soil.md](../notes/siting-real-soil.md)).
 
 A real station is one profile with one probe per depth, and over two days only the top
@@ -700,9 +708,9 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | Blocks v0 node firmware |
 | Q21 | What unit does a *raw* datastream declare? | Blocks v0 |
 | Q22 | Does the maintenance vocabulary need a battery replacement? | Blocks nothing |
-| Q23 | A rate-of-change limit that works at any sampling interval | Measured; recommendation awaits a decision |
+| Q23 | A rate-of-change limit that works at any sampling interval | **Decided 2026-10-08** |
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | False alarms on deep probes today |
-| Q25 | When a two-peer siting check fires, which probe moved? | Partly measured; reporting open |
+| Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and

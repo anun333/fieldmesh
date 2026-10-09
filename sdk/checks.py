@@ -73,6 +73,17 @@ DEFAULTS = {
     "min": None,             # no range check unless configured
     "max": None,
     "max_rate_per_s": None,  # no rate check unless configured
+    # The shape of a spike, for series where a rate cannot tell a fault from the
+    # weather (Q23). `spike_step`: readings that leave their level by at least this,
+    # stay out no longer than `spike_max_s`, and come back. Rain rises and holds; a
+    # glitch comes back. Off unless configured.
+    "spike_step": None,
+    "spike_max_s": 1800.0,
+    # Falls faster than this are `suspect`. Soil fills fast and empties slowly, so a
+    # cap on falls can be tight where one on rises cannot. Off unless configured.
+    "max_fall_per_s": None,
+    # Neighbours further apart than this leave the shape and the fall undecided.
+    "shape_max_gap_s": 3 * 3600.0,
     "cross_tolerance": None,  # no cross-check unless configured
     # A soil-moisture reading taken while the same probe's soil was below this is
     # `suspect`: capacitance and impedance probes sense liquid water only, so frozen
@@ -260,7 +271,163 @@ def check_cross(obs: Observation, series, values, peers) -> Finding | None:
     return None
 
 
-DEFAULT_CHECKS = (check_range, check_flatline, check_rate, check_cross)
+#: How close to its starting level a spike must come back, as a share of how far it
+#: went out. 0.3: most of the way, which a rain rise draining over days does not do.
+SPIKE_RETURN_SHARE = 0.3
+#: The longest run of readings a spike may span, whatever the sampling interval.
+_SPIKE_MAX_READINGS = 12
+
+
+def _spike_run(rows, end: int, values) -> list | None:
+    """The run of readings that spiked and came back at `rows[end]`, or None.
+
+    `rows` is a stretch of one series in display order, and `rows[end]` the reading
+    that would be the return. Walks back over runs of one to `_SPIKE_MAX_READINGS`
+    readings, shortest first: every reading in the run displaced from the level before
+    it by at least `spike_step`, in one direction; the run lasting no longer than
+    `spike_max_s`; no gap longer than `shape_max_gap_s`; and the return within
+    `SPIKE_RETURN_SHARE` of the excursion of the starting level.
+    """
+    step = values.get("spike_step")
+    if step is None or end < 2:
+        return None
+    max_gap = values.get("shape_max_gap_s") or float("inf")
+    max_span = values.get("spike_max_s") or 0.0
+    back = rows[end]
+    if not _numeric(back.result):
+        return None
+    for length in range(1, min(_SPIKE_MAX_READINGS, end - 1) + 1):
+        run = rows[end - length:end]
+        base = rows[end - length - 1]
+        if not all(_numeric(r.result) for r in run) or not _numeric(base.result):
+            return None
+        stretch = [base] + run + [back]
+        if any((b.measured_at - a.measured_at).total_seconds() > max_gap
+               for a, b in zip(stretch, stretch[1:])):
+            return None
+        if (run[-1].measured_at - run[0].measured_at).total_seconds() > max_span:
+            return None
+        offsets = [r.result - base.result for r in run]
+        if not all(abs(o) >= step for o in offsets):
+            continue
+        if not (all(o > 0 for o in offsets) or all(o < 0 for o in offsets)):
+            return None
+        smallest = min(abs(o) for o in offsets)
+        if abs(back.result - base.result) <= SPIKE_RETURN_SHARE * smallest:
+            return run
+    return None
+
+
+def _spike_finding(run, base_value, values) -> Finding:
+    peak = max(run, key=lambda r: abs(r.result - base_value))
+    return _finding(QualityFlag.RATE_EXCEEDED, "spike", "check.spike.excursion",
+                    out=peak.result - base_value, readings=len(run),
+                    step=values.get("spike_step"))
+
+
+def check_fall(obs: Observation, series, values, peers) -> Finding | None:
+    """A fall faster than soil can drain → `suspect` (Q23).
+
+    The allowance scales with the gap up to `shape_max_gap_s`, beyond which nothing is
+    decided — drainage is a rate, so a longer gap genuinely allows more, but past a few
+    hours the reading before says too little. The way back from a spike is not a fall:
+    the spike check judges that excursion, and flagging its return as well would
+    blame a good reading for a bad one."""
+    limit = values.get("max_fall_per_s")
+    if limit is None or not _numeric(obs.result):
+        return None
+    earlier = _upto(series, obs)
+    if not earlier or not _numeric(earlier[0].result):
+        return None
+    previous = earlier[0]
+    seconds = (obs.measured_at - previous.measured_at).total_seconds()
+    if seconds <= 0 or seconds > (values.get("shape_max_gap_s") or float("inf")):
+        return None
+    fall = previous.result - obs.result
+    if fall <= limit * seconds:
+        return None
+    window = list(reversed(earlier[:_SPIKE_MAX_READINGS + 1])) + [obs]
+    if _spike_run(window, len(window) - 1, values) is not None:
+        return None
+    return _finding(QualityFlag.SUSPECT, "fall", "check.fall.fast",
+                    fall=fall, hours=seconds / 3600.0, limit=limit * 3600.0)
+
+
+DEFAULT_CHECKS = (check_range, check_flatline, check_rate, check_fall, check_cross)
+
+
+def _spike_containing(state: P.State, obs: Observation, values) -> Finding | None:
+    """Whether `obs` is inside a spike the series has already come back from — known
+    when a reading is assessed after its successors arrived: a backfill, or a batch
+    re-assessment."""
+    if values.get("spike_step") is None:
+        return None
+    before = state.ordered_upto(obs.datastream, obs, _SPIKE_MAX_READINGS + 2)
+    after = state.following(obs.datastream, obs, _SPIKE_MAX_READINGS + 1)
+    rows = before + after
+    here = len(before) - 1
+    for end in range(here + 1, len(rows)):
+        run = _spike_run(rows, end, values)
+        if run is not None and any(r.id == obs.id for r in run):
+            base = rows[end - len(run) - 1]
+            return _spike_finding(run, base.result, values)
+    return None
+
+
+def spike_assertions(state: P.State, obs: Observation, *,
+                     threshold: Threshold | None = None,
+                     asserted_at: _dt.datetime | None = None) -> list:
+    """The late half of the spike check: assertions for readings that `obs` shows to
+    have been a spike, now that the series has come back.
+
+    A spike cannot be judged when it arrives — only the next reading says whether it
+    was a change in the soil or a glitch — so it is judged **one reading late**, the
+    same pattern the siting check uses to flag readings already in the log. The rules
+    are the siting check's too, each for the same reason: the flag is added to the
+    reading's live judgement rather than replacing it; a person's judgement is never
+    superseded; and a reading already judged a spike is left alone, so running this on
+    every arrival is safe.
+
+    Pure: returns the assertions; the caller appends them.
+    """
+    datastream = state.datastreams.get(obs.datastream)
+    if datastream is None:
+        return []
+    values = thresholds_for(datastream, threshold)
+    if values.get("spike_step") is None:
+        return []
+    rows = state.ordered_upto(obs.datastream, obs, _SPIKE_MAX_READINGS + 2)
+    run = _spike_run(rows, len(rows) - 1, values)
+    if run is None:
+        return []
+    base = rows[len(rows) - len(run) - 2]
+    finding = _spike_finding(run, base.result, values)
+    out = []
+    for reading in run:
+        current = state.live_assertion_for(reading.id)
+        if current is not None and current.assertor is Assertor.PERSON:
+            continue
+        evidence = dict(current.evidence) if current is not None else {
+            "checks_run": [], "fired": {}, "messages": {},
+            "thresholds": {k: v for k, v in values.items() if v is not None}}
+        if "spike" in evidence.get("fired", {}):
+            continue
+        evidence["checks_run"] = list(evidence.get("checks_run", [])) + ["spike"]
+        evidence["fired"] = dict(evidence.get("fired", {}), spike=finding.reason)
+        evidence["messages"] = dict(evidence.get("messages", {}),
+                                    spike={"key": finding.key, "params": finding.params})
+        flags = frozenset(current.flags if current is not None else ()) | {finding.flag}
+        notes = [n for n in ((current.note if current is not None else None),
+                             f"spike: {finding.reason}") if n]
+        out.append(QualityAssertion(
+            id=uuid7(), observation=reading.id, flags=flags,
+            usable=derive_usable(flags), check=SUITE, check_version=SUITE_VERSION,
+            threshold_version=threshold.id if threshold is not None else None,
+            asserted_at=asserted_at or _dt.datetime.now(tz=_dt.timezone.utc),
+            assertor=Assertor.FOUNDATION,
+            supersedes=current.id if current is not None else None,
+            note="; ".join(notes), evidence=evidence))
+    return out
 
 
 # --------------------------------------------------------------- the assessor
@@ -388,10 +555,19 @@ def assess(state: P.State, obs: Observation, *,
     frozen_ran, frozen = _frozen(state, obs, datastream, values)
     if frozen is not None:
         findings.append(frozen)
+    # Only decidable here when the readings after this one are already in: otherwise
+    # `spike_assertions` decides it when they arrive, and the evidence must not claim
+    # the check ran.
+    spike_ran = (values.get("spike_step") is not None
+                 and bool(state.following(obs.datastream, obs, 1)))
+    spike = _spike_containing(state, obs, values) if spike_ran else None
+    if spike is not None:
+        findings.append(spike)
     flags = frozenset(f.flag for f in findings)
     evidence = {
         "checks_run": [c.__name__.removeprefix("check_") for c in checks]
-                      + (["frozen"] if frozen_ran else []),
+                      + (["frozen"] if frozen_ran else [])
+                      + (["spike"] if spike_ran else []),
         "fired": {f.check: f.reason for f in findings},
         # What any language renders from, years later, from this same record.
         "messages": {f.check: {"key": f.key, "params": f.params}

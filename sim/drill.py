@@ -62,7 +62,7 @@ START = _dt.datetime(2026, 7, 1, 0, 0, tzinfo=ph.UTC)
 SOIL_THRESHOLDS = {
     "min": 0.02, "max": 0.46,
     "flat_seconds": 18 * 3600, "flat_n": 4,
-    "max_rate_per_s": 0.0004,
+    "spike_step": 0.05, "max_fall_per_s": 0.05 / 3600,
     "cross_tolerance": 0.04,
 }
 
