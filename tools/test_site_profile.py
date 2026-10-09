@@ -79,5 +79,15 @@ class DaysTest(unittest.TestCase):
         self.assertEqual(days[1][1], {"RH2M": 60.0})
 
 
+class ShiftTest(unittest.TestCase):
+    def test_delta_method(self):
+        days = [(dt.date(2020, 1, 1), {"T2M": 1.0, "T2M_MAX": 5.0, "T2M_MIN": -2.0, "PRECTOTCORR": 10.0, "RH2M": 80.0})]
+        (d, v), = T.shift(days, 1.5, -10)
+        self.assertEqual((v["T2M"], v["T2M_MAX"], v["T2M_MIN"]), (2.5, 6.5, -0.5))
+        self.assertAlmostEqual(v["PRECTOTCORR"], 9.0)
+        self.assertEqual(v["RH2M"], 80.0)
+        self.assertEqual(days[0][1]["T2M"], 1.0, "the original is untouched")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -86,6 +86,23 @@ def days_of(doc: dict) -> list:
     return out
 
 
+def shift(days: list, warm_c: float = 0.0, rain_pct: float = 0.0) -> list:
+    """The same days in a changed climate, by the delta method: every temperature moved by
+    `warm_c`, every day's rain scaled by `rain_pct`. Today's variability is kept and its
+    level moved — the simplest defensible projection, and a uniform one: it does not
+    model nights warming faster than days, which the Mid-South's record shows."""
+    out = []
+    for d, v in days:
+        w = dict(v)
+        for k in ("T2M", "T2M_MAX", "T2M_MIN"):
+            if k in w:
+                w[k] += warm_c
+        if "PRECTOTCORR" in w:
+            w["PRECTOTCORR"] *= 1.0 + rain_pct / 100.0
+        out.append((d, w))
+    return out
+
+
 # --------------------------------------------------------------- the numbers
 
 def day_length_h(lat: float, day_of_year: int) -> float:
@@ -97,6 +114,11 @@ def day_length_h(lat: float, day_of_year: int) -> float:
     if x <= -1:
         return 24.0
     return 2 * math.degrees(math.acos(x)) / 15.0
+
+
+#: A winter (Nov–Feb, or May–Aug south of the equator) counts for chill only if nearly all
+#: of its 120-odd days are in the record.
+FULL_WINTER_DAYS = 115
 
 
 def hours_below(tmin: float, tmax: float, threshold: float) -> float:
@@ -258,6 +280,7 @@ def climate(days: list, lat: float) -> dict:
 
     gdd_year = collections.defaultdict(float)
     chill = collections.defaultdict(float)
+    chill_days = collections.defaultdict(int)
     heat_days = collections.defaultdict(int)
     heat_days_mean = collections.defaultdict(int)
     hot_days = collections.defaultdict(int)
@@ -267,6 +290,7 @@ def climate(days: list, lat: float) -> dict:
             winter = (d.month in (11, 12, 1, 2)) if north else (d.month in (5, 6, 7, 8))
             if winter:
                 chill[season(d)] += hours_below(v["T2M_MIN"], v["T2M_MAX"], CHILL_BELOW_C)
+                chill_days[season(d)] += 1
             if "RH2M" in v and thi(v["T2M_MAX"], v["RH2M"]) >= THI_DAIRY_ONSET:
                 heat_days[d.year] += 1
             if "RH2M" in v and "T2M" in v and thi(v["T2M"], v["RH2M"]) >= THI_DAIRY_ONSET:
@@ -274,6 +298,9 @@ def climate(days: list, lat: float) -> dict:
             if v["T2M_MAX"] >= 35:
                 hot_days[d.year] += 1
     full = [y for y in years if sum(1 for d, _ in days if d.year == y) >= 360]
+    # A record starting in January and ending in December holds half a winter at each
+    # end; counting them would pull the chill figure down by a few percent.
+    winters = sorted(chill[s] for s in chill if chill_days[s] >= FULL_WINTER_DAYS)
     annual_rain = [sum(month_totals[(y, m)] for m in range(1, 13)) for y in full]
     annual_mean = {y: statistics.mean(v["T2M"] for d, v in days if d.year == y and "T2M" in v)
                    for y in full}
@@ -295,7 +322,8 @@ def climate(days: list, lat: float) -> dict:
         "frost_free_days_median": int(statistics.median(ffd)) if ffd else 365,
         "frost_free_days_8_in_10": int(sorted(ffd)[int(0.2 * len(ffd))]) if ffd else 365,
         "growing_degree_days_c": round(statistics.mean(gdd_year[y] for y in full), 0),
-        "chill_hours_est": round(statistics.mean(chill.values()), 0) if chill else 0,
+        "chill_hours_est": round(statistics.mean(winters), 0) if winters else 0,
+        "chill_hours_8_in_10": round(winters[int(0.2 * len(winters))], 0) if winters else 0,
         "heat_stress_days_dairy_est": {
             "low": round(statistics.mean(heat_days_mean.get(y, 0) for y in full), 0),
             "high": round(statistics.mean(heat_days.get(y, 0) for y in full), 0)},
@@ -343,10 +371,11 @@ def soil_and_erosion(lat: float, lon: float, annual_rain_mm: float) -> dict:
 
 
 def profile(lat: float, lon: float, start: int = 1991, end: int = 2020,
-            cache: str | None = None, soil: bool = True) -> dict:
+            cache: str | None = None, soil: bool = True,
+            warm_c: float = 0.0, rain_pct: float = 0.0) -> dict:
     doc = fetch_power(lat, lon, start, end, cache)
     out = {"lat": lat, "lon": lon,
-           "climate": climate(days_of(doc), lat),
+           "climate": climate(shift(days_of(doc), warm_c, rain_pct), lat),
            "sources": {"climate": "NASA POWER daily agroclimatology, CC BY 4.0"}}
     if soil:
         out.update(soil_and_erosion(lat, lon, out["climate"]["annual_rain_mm"]))

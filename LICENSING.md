@@ -23,10 +23,16 @@ in the file's own header:
 | `plant-characteristics-usda.csv` | USDA NRCS PLANTS Database | CC0-1.0 |
 | `plant-bees-globi.csv`, `plant-bees-globi-sources.txt` | GloBI, and the 49 datasets it cites | CC-BY-4.0 |
 | `crop-parameters-dssat.csv` | DSSAT Cropping System Model genotype files | BSD-3-Clause, with DSSAT's notice in `crop-parameters-dssat-LICENSE.txt` |
+| `chill-requirements.csv` | Fadón et al. 2020, *Agronomy* 10:409, doi:10.3390/agronomy10030409 — the tables, re-keyed | CC-BY-4.0 (the version of record's licence) |
+| `interactions.csv` | USDA PLANTS (CC0), GloBI (CC-BY-4.0), and curated rows citing their sources | CC-BY-4.0 |
 
 Figures quoted in notes from NASA POWER (CC-BY-4.0), ISMN (CC-BY-4.0) and the USDA soil
 survey (public domain) are attributed where they appear. FAO's ECOCROP is **not** used:
-its licence is non-commercial (see `docs/notes/fao-ecocrop-request-draft.md`).
+its licence is non-commercial (see `docs/notes/fao-ecocrop-request-draft.md`). Nor is CITA
+Aragón's dataset of fruit-tree chill requirements (CC BY-NC-ND). The chill tables come from
+the 2020 review as MDPI published it under CC BY 4.0; CITA's repository files its copy of
+the same article as CC BY-NC-ND 3.0 ES, but a CC BY grant cannot be withdrawn, and the
+version of record is what is cited.
 
 ## Why not one license
 

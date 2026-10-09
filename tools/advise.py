@@ -73,7 +73,49 @@ def plant_line(row: dict) -> str:
     return f"{row['common_name']} (*{row['scientific_name']}*)"
 
 
-def render(site: dict, rows: list, cal: dict, language: str, today: str) -> str:
+#: The crops of docs/notes/chill-requirements.csv, in report order, and their pack keys.
+FRUIT = (("almond", "almond"), ("European apricot", "apricot_eu"), ("Japanese apricot", "apricot_jp"),
+         ("peach", "peach"), ("nectarine", "nectarine"), ("flat peach", "flat_peach"),
+         ("European plum", "plum_eu"), ("Japanese plum", "plum_jp"), ("cherry (sweet or sour)", "cherry"))
+
+
+def need_upper(value: str):
+    """The top of a published chill requirement: a range's upper end, a mean plus its
+    spread, the bound of "<300". None where there is none, or it is open (">1100")."""
+    v = value.strip().replace("−", "-")
+    if v in ("", "-", "–") or v.startswith(">"):
+        return None
+    if v.startswith("<"):
+        return float(v[1:].strip())
+    if m := re.fullmatch(r"([\d.]+)\s*±\s*([\d.]+)", v):
+        return float(m.group(1)) + float(m.group(2))
+    if m := re.fullmatch(r"([\d.]+)\s*[–-]\s*([\d.]+)", v):
+        return float(m.group(2))
+    try:
+        return float(v)
+    except ValueError:
+        return None
+
+
+def chill_fit(requirements: list, site_chill: float) -> list:
+    """Per crop: (pack key, cultivars with a chill-hour requirement, how many this site's
+    chill meets). A cultivar measured in several studies is held to the highest."""
+    need = {}
+    for r in requirements:
+        top = need_upper(r["chill_hours"])
+        if top is not None:
+            k = (r["crop"], r["cultivar"])
+            need[k] = max(top, need.get(k, 0.0))
+    out = []
+    for crop, key in FRUIT:
+        tops = [v for (c, _), v in need.items() if c == crop]
+        if tops:
+            out.append((key, len(tops), sum(1 for v in tops if v <= site_chill)))
+    return out
+
+
+def render(site: dict, rows: list, cal: dict, language: str, today: str,
+           chill: list | None = None) -> str:
     r = Report(language)
     c = site["climate"]
     out = [f"# {r.tr('advise.title', lat=site['lat'], lon=site['lon'])}", "",
@@ -83,7 +125,8 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str) -> str:
     out.append("- " + r.tr("advise.site.frost", last=r.date(c["last_spring_frost_median"]),
                            first=r.date(c["first_fall_frost_median"]),
                            ffd=c["frost_free_days_8_in_10"]))
-    out.append("- " + r.tr("advise.site.heat", gdd=c["growing_degree_days_c"], chill=c["chill_hours_est"]))
+    out.append("- " + r.tr("advise.site.heat", gdd=c["growing_degree_days_c"], chill=c["chill_hours_est"],
+                           chill8=c.get("chill_hours_8_in_10", c["chill_hours_est"])))
     out.append("- " + r.tr("advise.site.trend", change=c["trend"]["mean_c_change"]))
     soil = site.get("soil")
     if soil:
@@ -114,6 +157,13 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str) -> str:
                 out.append("- " + r.tr("advise.crop.fits_nowindow", crop=row["common_name"], fit=fit,
                                        total=s["cultivars"], fast=s["best_days_to_maturity"],
                                        slow=s["longest_days_to_maturity"]))
+        out.append("")
+
+    if chill:
+        out += [f"## {r.tr('advise.section.chill')}", "",
+                r.tr("advise.chill.preface", chill=c["chill_hours_8_in_10"]), ""]
+        for key, known, fit in chill_fit(chill, c["chill_hours_8_in_10"]):
+            out.append("- " + r.tr("advise.chill.crop", crop=r.tr(f"advise.fruit.{key}"), fit=fit, known=known))
         out.append("")
 
     def reasons(row, kinds):
@@ -152,6 +202,54 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str) -> str:
     return "\n".join(out)
 
 
+def render_future(site: dict, rows: list, site2: dict, rows2: list, language: str,
+                  label: str, warm: float, rain: float, source: str, chill: list | None = None) -> str:
+    """Now against then: the site's numbers, the plants whose verdict changes, and each
+    modelled crop's cultivars and sowing windows."""
+    r = Report(language)
+    c, c2 = site["climate"], site2["climate"]
+    out = [f"# {r.tr('advise.future.title', label=label)}", "",
+           r.tr("advise.future.preface", warm=warm, rain=rain, source=source or "—"), "",
+           f"## {r.tr('advise.section.site')}", ""]
+    for key, a, b in (("advise.future.ffd", c["frost_free_days_8_in_10"], c2["frost_free_days_8_in_10"]),
+                      ("advise.future.zone", c["hardiness_zone"], c2["hardiness_zone"]),
+                      ("advise.future.gdd", round(c["growing_degree_days_c"]), round(c2["growing_degree_days_c"])),
+                      ("advise.future.chill", round(c["chill_hours_est"]), round(c2["chill_hours_est"])),
+                      ("advise.future.heat", round(c["heat_stress_days_dairy_est"]["high"]),
+                       round(c2["heat_stress_days_dairy_est"]["high"])),
+                      ("advise.future.hot", round(c["days_over_35c"]), round(c2["days_over_35c"]))):
+        out.append("- " + r.tr(key, now=a, then=b))
+    out.append("")
+    good = lambda v: v.startswith("suits")
+    then = {x["scientific_name"]: x for x in rows2}
+    gains = [x for x in rows if not good(x["verdict"]) and good(then[x["scientific_name"]]["verdict"])]
+    losses = [x for x in rows if good(x["verdict"]) and not good(then[x["scientific_name"]]["verdict"])]
+    for key, chosen in (("advise.future.gains", gains), ("advise.future.losses", losses)):
+        out += [f"## {r.tr(key, count=len(chosen))}", ""]
+        out += [f"- {plant_line(x)}" for x in sorted(chosen, key=lambda y: y["common_name"])] or ["—"]
+        out.append("")
+    modelled = [x for x in rows if x.get("_season")]
+    if modelled:
+        out += [f"## {r.tr('advise.section.crops')}", ""]
+        for x in sorted(modelled, key=lambda y: y["common_name"]):
+            s, s2 = x["_season"], then[x["scientific_name"]].get("_season") or {}
+            win = lambda w: r.windows(w) if w and w != "none" else "—"
+            out.append("- " + r.tr("advise.future.crop", crop=x["common_name"],
+                                   now=s["cultivars_maturing_8_in_10"], then=s2.get("cultivars_maturing_8_in_10", "—"),
+                                   total=s["cultivars"], now_window=win(s.get("sowing_windows_8_in_10")),
+                                   then_window=win(s2.get("sowing_windows_8_in_10"))))
+        out.append("")
+    if chill:
+        out += [f"## {r.tr('advise.section.chill')}", ""]
+        now = chill_fit(chill, c["chill_hours_8_in_10"])
+        then = {k: fit for k, _, fit in chill_fit(chill, c2["chill_hours_8_in_10"])}
+        for key, known, fit in now:
+            out.append("- " + r.tr("advise.future.fruit", crop=r.tr(f"advise.fruit.{key}"),
+                                   now=fit, then=then[key], known=known))
+        out.append("")
+    return "\n".join(out)
+
+
 def read_csv(path: str) -> list:
     with open(path, encoding="utf-8") as h:
         return list(csv.DictReader(line for line in h if not line.startswith("#")))
@@ -166,6 +264,10 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True, help="directory for the report and its data")
     ap.add_argument("--lang", default="en", help="report language(s), comma-separated")
     ap.add_argument("--windows", action="store_true", help="also find sowing windows (slower)")
+    ap.add_argument("--warm", type=float, help="also compare a climate this many °C warmer (delta method)")
+    ap.add_argument("--rain-change", type=float, default=0.0, help="with --warm: rain change, percent")
+    ap.add_argument("--future-label", help="with --warm: what to call it, e.g. '2050s'")
+    ap.add_argument("--future-source", default="", help="with --warm: where the change comes from")
     args = ap.parse_args(argv)
     os.makedirs(args.out, exist_ok=True)
     power = os.path.join(args.cache, "power")
@@ -184,11 +286,27 @@ def main(argv=None) -> int:
             w.writeheader()
             w.writerows(data)
     today = _dt.date.today().isoformat()
+    chill = read_csv(os.path.join(NOTES, "chill-requirements.csv"))
     for lang in args.lang.split(","):
         path = os.path.join(args.out, f"report.{lang}.md")
         with open(path, "w", encoding="utf-8") as h:
-            h.write(render(site, rows, cal, lang, today))
+            h.write(render(site, rows, cal, lang, today, chill))
         print(f"wrote {path}")
+    if args.warm is not None:
+        site2 = site_profile.profile(args.lat, args.lon, cache=power, warm_c=args.warm,
+                                     rain_pct=args.rain_change)
+        days2 = site_profile.shift(days, args.warm, args.rain_change)
+        seasons2, _ = dssat_crops.seasons_for(args.lat, args.lon, args.cache, args.windows, days=days2)
+        rows2, _ = plant_match.match(read_csv(os.path.join(NOTES, "plant-list.csv")),
+                                     read_csv(os.path.join(NOTES, "plant-characteristics-usda.csv")),
+                                     site2, [{k: str(v) for k, v in s.items()} for s in seasons2])
+        label = args.future_label or f"{args.warm:+.1f} °C"
+        for lang in args.lang.split(","):
+            path = os.path.join(args.out, f"future.{lang}.md")
+            with open(path, "w", encoding="utf-8") as h:
+                h.write(render_future(site, rows, site2, rows2, lang, label, args.warm,
+                                      args.rain_change, args.future_source, chill))
+            print(f"wrote {path}")
     return 0
 
 

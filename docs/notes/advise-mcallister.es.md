@@ -7,7 +7,7 @@ Generado el 2026-10-08 a partir de datos abiertos. Son puntos de partida, no res
 
 - Clima Cfa; media de 15,4 °C; 1376 mm de lluvia al año; zona de rusticidad del USDA en torno a 8a.
 - Última helada de primavera hacia el 31 de marzo y primera de otoño hacia el 3 de noviembre; al menos 207 días sin heladas 8 años de cada 10.
-- 2774 grados-día de crecimiento al año (°C, base 10); unas 1592 horas frío en invierno.
+- 2774 grados-día de crecimiento al año (°C, base 10); unas 1648 horas frío en invierno.
 - En el registro, los quince años más recientes fueron +0,5 °C más cálidos que los quince anteriores.
 - Suelo: Dickson silt loam, 2 to 5 percent slopes — Moderately well drained, pendiente del 4,0%; pH del suelo superficial 6,2, materia orgánica 2,8%.
 - Descubierto, este suelo se erosionaría unas 26 veces más de lo que tolera: manténgalo cubierto con cultivos de cobertura, forraje perenne o franjas de protección.
@@ -17,28 +17,44 @@ Generado el 2026-10-08 a partir de datos abiertos. Son puntos de partida, no res
 ## Cultivos alimentarios, simulados con el tiempo de este sitio
 
 - Bambara groundnut: 2 de 2 variedades maduran 8 años de cada 10, en 136–141 días. Sembrar del 9 de abril al 18 de junio.
-- Bell and chili pepper: 5 de 5 variedades maduran 8 años de cada 10, en 155–182 días. Sembrar del 9 de abril al 21 de mayo.
+- Bell and chili pepper: 5 de 5 variedades maduran 8 años de cada 10, en 155–182 días. Sembrar del 9 de abril al 28 de mayo.
 - Cabbage: 3 de 3 variedades maduran 8 años de cada 10, en 116–150 días. Sembrar del 12 de marzo al 6 de agosto.
 - Chickpea: 32 de 32 variedades maduran 8 años de cada 10, en 96–153 días. Sembrar del 19 de febrero al 27 de agosto.
 - Common bean: 30 de 30 variedades maduran 8 años de cada 10, en 75–107 días. Sembrar del 9 de abril al 13 de agosto.
 - Cotton: 17 de 17 variedades maduran 8 años de cada 10, en 118–172 días. Sembrar del 9 de abril al 16 de julio.
-- Cowpea: 10 de 12 variedades maduran 8 años de cada 10, en 136–197 días. Sembrar del 9 de abril al 9 de julio.
+- Cowpea: 10 de 12 variedades maduran 8 años de cada 10, en 136–197 días. Sembrar del 9 de abril al 2 de julio.
 - Faba bean: 2 de 2 variedades maduran 8 años de cada 10, en 119–121 días. Sembrar del 12 de febrero al 6 de agosto.
 - Flax (linseed): 1 de 1 variedades maduran 8 años de cada 10, en 87–87 días. Sembrar del 5 de marzo al 13 de agosto.
 - Grain amaranth: 2 de 2 variedades maduran 8 años de cada 10, en 87–91 días. Sembrar del 12 de febrero al 13 de agosto.
 - Guar: 2 de 2 variedades maduran 8 años de cada 10, en 182–182 días. Sembrar del 9 de abril al 4 de junio.
 - Hemp: 6 de 7 variedades maduran 8 años de cada 10, en 59–238 días. Sembrar del 9 de abril al 17 de septiembre.
 - Lentil: 6 de 6 variedades maduran 8 años de cada 10, en 100–113 días. Sembrar en cualquier época del año.
-- Maize (corn): 166 de 166 variedades maduran 8 años de cada 10, en 86–148 días. Sembrar del 9 de abril al 23 de julio.
+- Maize (corn): 166 de 166 variedades maduran 8 años de cada 10, en 86–148 días. Sembrar del 9 de abril al 30 de julio.
 - Peanut: 38 de 38 variedades maduran 8 años de cada 10, en 133–178 días. Sembrar del 9 de abril al 2 de julio.
+- Pearl millet: 48 de 60 variedades maduran 8 años de cada 10, en 99–176 días. Sembrar del 9 de abril al 30 de julio.
 - Pigeon pea: ninguna variedad madura antes de la helada aquí.
 - Quinoa: 2 de 2 variedades maduran 8 años de cada 10, en 88–91 días. Sembrar del 12 de marzo al 27 de agosto.
 - Rapeseed (canola): 3 de 3 variedades maduran 8 años de cada 10, en 96–128 días. Sembrar del 5 de marzo al 30 de julio.
 - Safflower: 5 de 5 variedades maduran 8 años de cada 10, en 103–115 días. Sembrar del 9 de abril al 13 de agosto.
-- Soybean: 36 de 59 variedades maduran 8 años de cada 10, en 89–200 días. Sembrar del 9 de abril al 6 de agosto.
+- Sorghum: 51 de 55 variedades maduran 8 años de cada 10, en 113–191 días. Sembrar del 9 de abril al 9 de julio.
+- Soybean: 36 de 59 variedades maduran 8 años de cada 10, en 89–200 días. Sembrar del 9 de abril al 20 de agosto.
 - Sunflower: 11 de 11 variedades maduran 8 años de cada 10, en 81–128 días. Sembrar en cualquier época del año.
 - Tomato: 4 de 4 variedades maduran 8 años de cada 10, en 120–131 días. Sembrar del 9 de abril al 2 de julio.
 - Velvet bean: ninguna variedad madura antes de la helada aquí.
+
+## Frutales de hueso según el frío invernal
+
+Los inviernos aquí dan al menos 1414 horas frío (horas a 7,2 °C o menos, de noviembre a febrero) 8 años de cada 10. Frente a las necesidades por variedad que recopilan Fadón y colaboradores (2020) —medidas en una docena de países, sobre todo en España, y por varios métodos, así que orientan, no garantizan—, estas variedades de cada especie cubrirían su frío. Solo el frío: no se juzgan aquí las heladas tardías en floración ni el calor para madurar.
+
+- Almendro: 68 de 68 variedades
+- Albaricoquero europeo: 39 de 41 variedades
+- Albaricoquero japonés (ume): 8 de 8 variedades
+- Melocotonero: 126 de 126 variedades
+- Nectarina: 10 de 10 variedades
+- Paraguayo: 7 de 7 variedades
+- Ciruelo europeo: 9 de 9 variedades
+- Ciruelo japonés: 16 de 16 variedades
+- Cerezo: 40 de 40 variedades
 
 ## Se adapta al sitio (90)
 
@@ -199,4 +215,4 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 ## Fuentes
 
-Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita.
+Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita. Frío de frutales: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0).

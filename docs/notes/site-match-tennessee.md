@@ -14,6 +14,7 @@ knows best — McAllister Farm, Allen Farms and Eastview Farm, south-central Ten
 | match and bloom calendar | [plant_match.py](../../tools/plant_match.py) | per plant: which condition decides |
 | bees per plant | [globi_bees.py](../../tools/globi_bees.py) | bee records from GloBI |
 | what mixes with what | [interactions.py](../../tools/interactions.py) | [interactions.csv](interactions.csv) |
+| fruit chill requirements | [chill_requirements.py](../../tools/chill_requirements.py) | [chill-requirements.csv](chill-requirements.csv) (CC BY 4.0) |
 
 ## The three sites
 
@@ -121,7 +122,7 @@ USDA PLANTS knows almost nothing about food crops, so a second source was brough
 **DSSAT** crop models (BSD-3-Clause), whose parameter files give each crop's cardinal
 temperatures for development, its response to day length, and — per cultivar — how long
 each phase takes. [dssat_crops.py](../../tools/dssat_crops.py) ports DSSAT's own response
-curves and the CROPGRO and CERES-Maize phenology, and runs every cultivar of 23 crops through the site's
+curves and the CROPGRO, CERES-Maize, CERES-Sorghum and CERES-Millet phenology, and runs every cultivar of 25 crops through the site's
 thirty years of weather and day length: planted a week after each year's last frost (four
 weeks before it for cool-season crops), does it reach physiological maturity before the
 first fall frost? [crop-parameters-dssat.csv](crop-parameters-dssat.csv) carries the
@@ -132,6 +133,8 @@ At McAllister Farm:
 | crop | cultivars maturing 8 years in 10 | days to maturity |
 | --- | --- | --- |
 | maize (CERES-Maize) | 166 of 166 hybrids | 86–148 |
+| sorghum (CERES-Sorghum) | 51 of 55 | 113–194 |
+| pearl millet (CERES-Millet) | 48 of 60 | 99–226 |
 | dry bean | 30 of 30 | 75–107 |
 | tomato | 4 of 4 | 120–131 |
 | pepper | 5 of 5 | 155–182 |
@@ -147,11 +150,14 @@ At McAllister Farm:
 | **velvet bean** | **0 of 20** | likewise |
 
 **When to sow.** With `--windows` the tool sows every week of the year, with the fastest,
-a middle and the slowest cultivar, and ends each season at the first freeze below that
+a middle and the slowest of the cultivars that mature here 8 years in 10 (by simulated
+days, not by the size of their requirement, which ignores day length and once picked a
+short-day sorghum that never flowers in summer), and ends each season at the first freeze below that
 crop's own damage threshold (DSSAT's FREEZ1: −2.2 °C for tomato and beans, −6 for cabbage,
 −9 for faba bean, −29 for lentil). Sowing windows that mature 8 years in 10 at McAllister
-Farm: tomato Apr 9–Jul 2; pepper Apr 9–May 21; maize Apr 9–Jul 23; soybean Apr 9–Aug 6
-(the late end is the double crop after wheat); peanut Apr 9–Jul 2; dry bean Apr 9–Aug 13;
+Farm: tomato Apr 9–Jul 2; pepper Apr 9–May 28; maize Apr 9–Jul 30; sorghum Apr 9–Jul 9;
+pearl millet Apr 9–Jul 30; soybean Apr 9–Aug 20 (the late end is the double crop after
+wheat); peanut Apr 9–Jul 2; dry bean Apr 9–Aug 13;
 cabbage Mar 12–Aug 6, spring and fall; chickpea Feb 19–Aug 27; canola Mar 5–Jul 30. The
 dates are sowing, not transplanting. Lentil and sunflower come out "all year" because
 DSSAT gives them damage thresholds of −29 and −15 °C; lentil's is a modern winter-hardy
@@ -167,7 +173,8 @@ temperature is taken as the air's, and water and nutrient stress are not simulat
 ## One command, in any language
 
 `tools/advise.py LAT LON --lang en,es --windows` runs all of the above for a point and
-writes a report a farmer can read — the site, food crops with sowing windows, what suits,
+writes a report a farmer can read — the site, food crops with sowing windows, stone fruit
+by winter chill, what suits,
 what needs lime, sulfur or water, what does not suit and why, what is refused as invasive,
 bees, livestock heat — plus the data behind it. Its words come from the language packs, so
 the same report renders in Spanish (dates, decimal commas and the reasons included) and in
@@ -182,6 +189,69 @@ refused; one listed elsewhere carries a caution naming the states. So the report
 water spinach (a federal noxious weed) and kudzu (on the project's do-not-plant list), and
 flags paulownia as listed in Alabama, Connecticut, North Carolina and Wisconsin. The
 Tennessee Invasive Plant Council's list would close the local gap; its terms are to check.
+
+## The 2050s
+
+`advise.py --warm 1.0 --future-label 2050s` runs everything twice, the second time on the
+same thirty years of weather with every day 1.0 °C warmer (the delta method), and writes
+what changes: [advise-mcallister-2050s.en.md](advise-mcallister-2050s.en.md),
+[advise-mcallister-2050s.es.md](advise-mcallister-2050s.es.md).
+
+**Why +1.0 °C.** The Berkeley Earth series for Tennessee in `~/dev/climate-analysis` puts
+the 2050 level at +1.89 °C against 1951–1980 and 2060 at +2.18 °C. The 2011–2020 mean sits at
++1.149 °C and the trend runs at 0.264 °C a decade, so the 1991–2020 baseline this record
+represents (centred near 2005) is about +0.89; 1.89 − 0.89 ≈ +1.0 °C for the 2050s (and
+≈ +1.3 °C for the 2060s). The figure comes from that repository's data and method; none of
+its code is imported.
+
+**What moves at McAllister.** Frost-free days 8 years in 10 go from 207 to 213, growing
+degree days from 2774 to 2985, days over 35 °C from 13 to 21, and the dairy heat-stress
+upper estimate from 172 to 183 days; the hardiness zone stays 8a (1.8 °F is under half a
+zone). Every modelled crop's sowing window opens about two weeks earlier (maize and soybean
+from April 9 to March 26), and many close a week later. The longer season lets more
+sorghum (51 → 52 of 55) and pearl millet (48 → 53 of 60) cultivars mature; no crop loses
+one. The plant matcher moves one plant (saltmeadow cordgrass now fits). Chill falls by about a
+tenth (1648 to 1497 hours on average) — see below.
+
+**What the delta method cannot say.** It moves today's weather and keeps its variability,
+so it says nothing about wetter springs, longer droughts or stronger storms. It is uniform
+over the day and the year, while the Mid-South's record shows nights warming faster than
+days (the "warming hole" in summer maxima): with warmer nights and the same days, chill
+would fall faster and heat stress at night rise faster than this shows. Rain is left
+unchanged because the record gives no defensible direction for it here.
+
+## Stone fruit by winter chill
+
+A peach, plum or cherry that does not get its winter chill flowers late and unevenly, and
+chill was the one condition for fruit trees with no open source behind it. FAO ECOCROP is
+non-commercial, and CITA Aragón's 143-cultivar dataset is CC BY-NC-ND. The source that
+works is the review by Fadón, Herrera, Guerrero, Guerra and Rodrigo (2020, *Agronomy*
+10:409, CC BY 4.0), which tabulates every published requirement it found:
+**[chill-requirements.csv](chill-requirements.csv)**, 662 requirements for 531 cultivars of
+almond, European and Japanese apricot, peach, nectarine, flat peach, European and Japanese
+plum, and sweet and sour cherry. Each row carries its model (chill hours, Utah units,
+chill portions, and growing degree hours for heat), method, place, and the original study.
+
+Re-keying it was the work: the tables centre each cultivar's name across its rows, which
+text extraction cannot follow (a four-row cultivar's name lands beside its third row).
+[chill_requirements.py](../../tools/chill_requirements.py) reads the PDF's word positions
+instead and splits each page's rows so every name sits nearest its rows' midpoint. The
+result reproduces the review's own cultivar count for every crop. One cherry is extra
+because the review's Table 8 itself is one short. Every one of the 658 rows a text
+extraction shows is present, plus 4 rows the PDF prints with no location.
+
+The site's chill is now counted over full winters only — the record's half-winters at
+each end had pulled the mean down by a few percent — and given 8 years in 10, which is what
+a tree needs. The advisor compares that with each cultivar's chill-hour requirement, taking
+the top of a published range and holding a cultivar measured twice to the higher figure.
+At McAllister, 1414 chill hours 8 years in 10 satisfy every cultivar but two European
+apricots. In the 2050s run the figure falls to 1276 (1234 for the 2060s' +1.3 °C), and
+three more European apricots, two Japanese apricots, two peaches and a European plum fall
+short — the high-chill end of the list, the first place a warming winter shows. The
+section matters more where winters are already mild. The requirements were measured in a dozen countries —
+Spain for 43% of rows, then China, the US and Korea — by methods that do not always agree,
+so the report calls them a guide. Late frost at
+bloom, the fruit grower's commoner loss here, is not judged yet.
 
 ## Bees per plant, from GloBI
 
@@ -204,22 +274,30 @@ its pests and diseases, and apple came back with no bees at all.
 
 ## What mixes with what
 
-[interactions.csv](interactions.csv): **502 records** of one thing affecting another, each
-with its mechanism and source. 150 come from USDA PLANTS fields that already encode a link
-— 38 palatable forages, 33 browses, 31 toxic plants, 28 nitrogen fixers, 15 marked
-allelopathic, 5 bloat risks; 327 from GloBI's bee records; 25 curated from the plan,
-marked *to cite*. The PLANTS toxicity flags line up with known agronomy — sorghum's
-prussic acid, black cherry and chokecherry's cyanide, sweet clover's dicoumarol,
-leucaena's mimosine, buckwheat's photosensitisation — while "bloat: medium" on maize is
-another PLANTS oddity.
+[interactions.csv](interactions.csv): **506 records** of one thing affecting another, each
+with its mechanism and source. 154 come from USDA PLANTS fields that already encode a link
+— 40 palatable forages, 35 browses, 31 toxic plants, 28 nitrogen fixers, 15 marked
+allelopathic, 5 bloat risks; 327 from GloBI's bee records; 25 curated from the plan, each
+now carrying its own citation (a paper, an extension guide or a regulation) and worded to
+what that source supports. Checking them changed five: poultry following cattle is
+`unproven` (a controlled trial found broilers left dung pats and face-fly larvae alone);
+ducks in rice are `mixed` (weeds down, planthoppers up, because the ducks eat the spiders
+too); squash bees *prefer* tilled soil, so it is deep tillage over nests already dug that
+harms them; nothing supported "pigs tolerate acorns" as a toxicology claim; and kudzu and
+mowing during bloom were dropped where no source carried them.
+
+The PLANTS toxicity flags line up with known agronomy — sorghum's prussic acid, black
+cherry and chokecherry's cyanide, sweet clover's dicoumarol, leucaena's mimosine,
+buckwheat's photosensitisation — while "bloat: medium" on maize is another PLANTS oddity.
 
 ## Not checked yet
 
-For the 23 crops with a crop model, temperature, day length and time to maturity are now
-checked together, by simulation. Still not checked: chill hours against a fruit tree's
-requirement (no open source found yet), heat damage to fruit set beyond the development
-curve, fall plantings of cool-season crops, the other cereals (sorghum, millet, wheat, barley
-and rice each have their own DSSAT phenology, not ported yet), and everything for the 255 plants with neither
+For the 25 crops with a crop model, temperature, day length and time to maturity are now
+checked together, by simulation; for 531 stone-fruit cultivars, winter chill. Still not
+checked: chill for apples, pears and blueberries (no openly licensed table found), late
+frost at bloom, heat damage to fruit set beyond the development
+curve, fall plantings of cool-season crops, wheat, barley and rice (DSSAT's CERES-Wheat/Barley
+needs vernalization and CERES-Rice transplanting and its own thermal time; not ported yet), and everything for the 255 plants with neither
 source — most fruit, herbs and flowers.
 
 ## Reproducing

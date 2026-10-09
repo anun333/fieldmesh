@@ -110,4 +110,11 @@ from USDA PLANTS' noxious and invasive status by state; worldwide, from GRIIS.
 1. Add K and T to the `tools/soil_survey.py` query; slope from elevation.
 2. An erosion-risk map per farm field: R × K × LS, against T.
 3. Plantings per purpose, filtered by the site's conditions and by regional invasiveness.
-4. For trees, check every recommendation against the climate of its harvest decade.
+4. For trees, check every recommendation against the climate of its harvest decade. The
+   machinery now exists: `tools/advise.py --warm` re-runs the whole match on the site's
+   weather shifted to a later decade ([site-match-tennessee.md](site-match-tennessee.md),
+   "The 2050s"; +1.0 °C for the 2050s and about +1.3 °C for the 2060s at the Tennessee
+   farms, from `~/dev/climate-analysis`). It is a uniform shift: species limited by summer
+   nights or by drought need the seasonal and variability changes a CMIP6 downscale gives.
+   For fruit trees, chill is now checked by cultivar for stone fruit, and the 2050s run
+   reports how many cultivars keep their chill.

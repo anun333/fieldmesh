@@ -7,7 +7,7 @@ Generated 2026-10-08 from open data. These are starting points, not answers: che
 
 - Climate class Cfa; average 15.4 °C; 1376 mm of rain a year; USDA hardiness zone about 8a.
 - Last spring frost around March 31 and first fall frost around November 3; at least 207 frost-free days in 8 years of 10.
-- 2774 growing degree days a year (°C, base 10); about 1592 chill hours in winter.
+- 2774 growing degree days a year (°C, base 10); about 1648 chill hours in winter.
 - Over the record, the later fifteen years were +0.5 °C warmer than the earlier fifteen.
 - Soil: Dickson silt loam, 2 to 5 percent slopes — Moderately well drained, 4.0% slope; topsoil pH 6.2, organic matter 2.8%.
 - Left bare, this soil would erode at about 26 times the rate it can tolerate: keep it covered — cover crops, perennial forage, buffers.
@@ -17,28 +17,44 @@ Generated 2026-10-08 from open data. These are starting points, not answers: che
 ## Food crops, simulated on this site's weather
 
 - Bambara groundnut: 2 of 2 cultivars mature 8 years in 10, in 136–141 days. Sow April 9 to June 18.
-- Bell and chili pepper: 5 of 5 cultivars mature 8 years in 10, in 155–182 days. Sow April 9 to May 21.
+- Bell and chili pepper: 5 of 5 cultivars mature 8 years in 10, in 155–182 days. Sow April 9 to May 28.
 - Cabbage: 3 of 3 cultivars mature 8 years in 10, in 116–150 days. Sow March 12 to August 6.
 - Chickpea: 32 of 32 cultivars mature 8 years in 10, in 96–153 days. Sow February 19 to August 27.
 - Common bean: 30 of 30 cultivars mature 8 years in 10, in 75–107 days. Sow April 9 to August 13.
 - Cotton: 17 of 17 cultivars mature 8 years in 10, in 118–172 days. Sow April 9 to July 16.
-- Cowpea: 10 of 12 cultivars mature 8 years in 10, in 136–197 days. Sow April 9 to July 9.
+- Cowpea: 10 of 12 cultivars mature 8 years in 10, in 136–197 days. Sow April 9 to July 2.
 - Faba bean: 2 of 2 cultivars mature 8 years in 10, in 119–121 days. Sow February 12 to August 6.
 - Flax (linseed): 1 of 1 cultivars mature 8 years in 10, in 87–87 days. Sow March 5 to August 13.
 - Grain amaranth: 2 of 2 cultivars mature 8 years in 10, in 87–91 days. Sow February 12 to August 13.
 - Guar: 2 of 2 cultivars mature 8 years in 10, in 182–182 days. Sow April 9 to June 4.
 - Hemp: 6 of 7 cultivars mature 8 years in 10, in 59–238 days. Sow April 9 to September 17.
 - Lentil: 6 of 6 cultivars mature 8 years in 10, in 100–113 days. Sow any time of year.
-- Maize (corn): 166 of 166 cultivars mature 8 years in 10, in 86–148 days. Sow April 9 to July 23.
+- Maize (corn): 166 of 166 cultivars mature 8 years in 10, in 86–148 days. Sow April 9 to July 30.
 - Peanut: 38 of 38 cultivars mature 8 years in 10, in 133–178 days. Sow April 9 to July 2.
+- Pearl millet: 48 of 60 cultivars mature 8 years in 10, in 99–176 days. Sow April 9 to July 30.
 - Pigeon pea: no cultivar matures before frost here.
 - Quinoa: 2 of 2 cultivars mature 8 years in 10, in 88–91 days. Sow March 12 to August 27.
 - Rapeseed (canola): 3 of 3 cultivars mature 8 years in 10, in 96–128 days. Sow March 5 to July 30.
 - Safflower: 5 of 5 cultivars mature 8 years in 10, in 103–115 days. Sow April 9 to August 13.
-- Soybean: 36 of 59 cultivars mature 8 years in 10, in 89–200 days. Sow April 9 to August 6.
+- Sorghum: 51 of 55 cultivars mature 8 years in 10, in 113–191 days. Sow April 9 to July 9.
+- Soybean: 36 of 59 cultivars mature 8 years in 10, in 89–200 days. Sow April 9 to August 20.
 - Sunflower: 11 of 11 cultivars mature 8 years in 10, in 81–128 days. Sow any time of year.
 - Tomato: 4 of 4 cultivars mature 8 years in 10, in 120–131 days. Sow April 9 to July 2.
 - Velvet bean: no cultivar matures before frost here.
+
+## Stone fruit by winter chill
+
+Winters here give at least 1414 chill hours (hours at or below 7.2 °C, November to February) 8 years in 10. Against the cultivar requirements compiled by Fadón and others (2020) — measured in a dozen countries, Spain most of all, and by several methods, so a guide, not a guarantee — this many cultivars of each would get their chill. Chill only: late frost at bloom and the heat to ripen are not judged here.
+
+- Almond: 68 of 68 cultivars
+- European apricot: 39 of 41 cultivars
+- Japanese apricot (ume): 8 of 8 cultivars
+- Peach: 126 of 126 cultivars
+- Nectarine: 10 of 10 cultivars
+- Flat peach: 7 of 7 cultivars
+- European plum: 9 of 9 cultivars
+- Japanese plum: 16 of 16 cultivars
+- Cherry: 40 of 40 cultivars
 
 ## Suits the site (90)
 
@@ -199,4 +215,4 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 ## Sources
 
-Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites.
+Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0).
