@@ -444,6 +444,16 @@ it still would not. Pepper and bean were considered and left out: the pepper stu
 constant 33 °C, which no field's day is, and the bean threshold could not be read from an
 open copy of its study.
 
+**The plants with neither source, tried against NRCS Plant Guides (2026-10-09).** The
+guides are public domain and written for exactly these questions, so they were the
+recommended next source. Of the 285 plants with no PLANTS characteristics, 22 have a guide
+(lentil, pea, faba bean, sesame, camelina, taro, goldenseal, ginseng, milkweed and others),
+and their prose gives a pH, rainfall or hardiness range that a pattern can find for 4 —
+lentil with two different pH ranges in one guide. That is not a source to judge a plant by,
+so they stay as the report lists them, not judged, rather than judged on a guess. What
+would change it is a tabulated source: ECOCROP, if FAO answers the request drafted in
+[fao-ecocrop-request-draft.md](fao-ecocrop-request-draft.md).
+
 **Blueberries, looked for and not found (2026-10-09).** No openly licensed table of chill
 by cultivar turned up — not in MDPI or Frontiers, where the apple and stone-fruit tables
 came from; extension guides carry figures (southern highbush 150–800 hours, rabbiteye
