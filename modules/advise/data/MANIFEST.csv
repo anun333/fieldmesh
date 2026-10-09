@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# The advisor's data: every file, where it came from, its licence, when it was taken, and its
+# SHA-256. modules/advise/module.py checks it in the tests; regenerate a line when its file
+# changes, so a report's data version (the manifest's own hash) changes with it.
+file,source,licence,retrieved,sha256
+plant-list.csv,"compiled by this project: 473 plants with category, family, cycle and habit",CC-BY-4.0,2026-10-08,7704122e22b90dc0b51bd3734b216fea277d69ace97cead65463310ee0ddbcdf
+plant-characteristics-usda.csv,"USDA NRCS PLANTS Database characteristics, plantsservices.sc.egov.usda.gov/api",CC0-1.0,2026-10-08,dbc98674e5182e794f8cc8a082c469d260a13e4bd32be7cb94996683913252ac
+crop-parameters-dssat.csv,"DSSAT CSM genotype files, github.com/DSSAT/dssat-csm-os at 25c93b9a2f73f8ec45bf441b198dac5fb7b22849",BSD-3-Clause,2026-10-08,515c583419f91158164dbdc4a5126408b625768e8e6303e15bc24b89bcb5621d
+crop-parameters-dssat-LICENSE.txt,"DSSAT's licence and copyright notice, which must travel with the CSV above",BSD-3-Clause,2026-10-08,34fca5149d6f41deaf27e995d373e66f2adf223897df1760a7888a6e2f877f4c
+plant-bees-globi.csv,"GloBI, globalbioticinteractions.org, and the datasets listed in plant-bees-globi-sources.txt",CC-BY-4.0,2026-10-08,f089158249a645948770fa0bc9004174be333166e894e14a109c591bede5d904
+plant-bees-globi-sources.txt,"the datasets GloBI cites for the bee records, with record counts",CC-BY-4.0,2026-10-08,a832d9a3fd3f8f3e76e1c39b0ebf624d517b4304d0a7e9dbd854e8819417a835
+interactions.csv,"USDA PLANTS (CC0), GloBI (CC BY 4.0) and curated rows each citing its source",CC-BY-4.0,2026-10-09,298c45133997833b36fb83d28626821b1e5cd813b0185a6ec54fa28d09f3b728
+chill-requirements.csv,"Fadón et al. 2020, Agronomy 10:409, doi:10.3390/agronomy10030409, the tables re-keyed",CC-BY-4.0,2026-10-08,7c416e6b442fadfbcdcbff774b2d042fe757438f62ce6e6b28ef1efa8ef30a94
+chill-requirements-pome.csv,"González Noguer et al. 2023, Front. Hortic. 2:1217689, Table 2; Fadón et al. 2023, Agronomy 13:518, Table 2",CC-BY-4.0,2026-10-09,f5ac2e584e6147eca2f6946f59ea0181ec3ca278793637554c3f374160be6b80
+animal-list.csv,"compiled by this project: livestock, poultry, bees, aquaculture, guardians",CC-BY-4.0,2026-10-08,7a024d8352c611e0cdaa8fcdc99e3ec8f9411644690ea24c4cdc1ffdc119b38d
+fertilizer-list.csv,"compiled by this project: fertilizers, manures and inoculants",CC-BY-4.0,2026-10-08,d549ffdf5afe675252ffcff40cd62421422f8f17a7e993684794644ec7fd6452
+nursery-list.csv,compiled by this project: nursery item types,CC-BY-4.0,2026-10-08,f54c1ba0e41ba8c7fedadcd233f40955c61a9714dd7a1bbfc7d7d376d18bbbbf
+structures-list.csv,compiled by this project: farm structures such as tunnels,CC-BY-4.0,2026-10-08,4963a6241b3ecd19136637d32927f1c2608aebe8761baf334a0bd0cd2ddb7d50

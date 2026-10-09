@@ -16,7 +16,7 @@ python3 irrigation_drill.py                             # watering by timer, for
 
 | Module | What it is |
 | --- | --- |
-| `physics.py` | Ground truth: a seeded seasonal climate — or `RecordedClimate`, a real place's daily weather replayed at the 5-minute tick — a soil water balance, a trough with a float valve, an unheated tunnel (tested by tools/tunnel_gain.py) |
+| `physics.py` | Ground truth: a seeded seasonal climate — or `RecordedClimate`, a real place's daily weather replayed at the 5-minute tick — a soil water balance, a trough with a float valve, an unheated tunnel (tested by modules/advise/tunnel_gain.py) |
 | `data/` | Recorded weather from NASA POWER (CC BY 4.0): McAllister Farm's spring of 2007, the Easter freeze in it, and its summer of 2013, the wettest of thirty. `tools/weather_csv.py` writes any site's years |
 | `forecaster.py` | Forecast runs read from the world's own future, with an error of declared size that grows with lead time |
 | `forecast_drill.py` | Forecasts through layer zero (Q26) on recorded weather: scored against the farm's station by lead day, and a frost watch scored on the alert standing 12 h before each frost and on false alert episodes; `--springs` over many years |

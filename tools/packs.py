@@ -21,8 +21,21 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, "sdk"))
 import i18n  # noqa: E402
 
+MODULES = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "modules")
+
+
+def register_modules() -> None:
+    """Every module's own packs, by path: read as data, never imported, so layer zero
+    still depends on no module."""
+    if os.path.isdir(MODULES):
+        for name in sorted(os.listdir(MODULES)):
+            packs = os.path.join(MODULES, name, "packs")
+            if os.path.isdir(packs):
+                i18n.register(packs, name)
+
 
 def report() -> int:
+    register_modules()
     rows = []
     failures = 0
     for tag in i18n.available():
@@ -60,6 +73,7 @@ def new(tag: str, name: str, native: str, rtl: bool) -> int:
 
 
 def missing(tag: str) -> int:
+    register_modules()
     source = i18n.load("en").strings
     _, _, keys = i18n.coverage(tag)
     for key in keys:

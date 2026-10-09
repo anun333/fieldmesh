@@ -47,9 +47,10 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [sdk/](sdk/) | The contract as code: model, append-only log, projection, quality checks, wire format, gateway, SensorThings view, export, subscriptions, siting checks, CSV and MQTT adapters, language packs |
 | [sim/](sim/) | **Harrow Bend**, a fictional farm on the prime meridian: soil water and heat physics, troughs, simulated nodes and radio links, fault injection, scored drills |
 | [server/](server/) | A read-only SensorThings 1.1 HTTP service — the reference implementation |
-| [tools/](tools/) | The measurements behind decisions, and the language-pack tool |
+| [tools/](tools/) | The measurements behind decisions, weather and forecast adapters, and the language-pack tool |
+| [modules/advise/](modules/advise/) | **The first module above layer zero** (layer 3, decision support): for any point, what grows and when to sow it, which fruit cultivars get their chill and how often frost follows bloom, what the soil needs, bees, livestock heat, and the 2050s — in English and Spanish |
 
-About 790 tests. The simulator runs a 180-day season in under eight minutes.
+About 1,130 tests. The simulator runs a 180-day season in under eight minutes.
 
 ## A few things this does that are easy to get wrong
 
@@ -80,6 +81,7 @@ Three licences, one per kind of artifact. The full reasoning is in
 | `docs/` — the spec and all prose | CC-BY-4.0 |
 | `sdk/`, `sim/`, `tools/` | Apache-2.0 — embeddable in firmware |
 | `server/` | AGPL-3.0-or-later — so a hosting vendor cannot enclose a farmer-owned stack |
+| `modules/advise/` | AGPL-3.0-or-later for code, the same reasoning; its data under each source's licence ([MANIFEST](modules/advise/data/MANIFEST.csv)) |
 
 Some of `sdk/` derives from **campus_twin**, by the same author. See
 [sdk/PROVENANCE.md](sdk/PROVENANCE.md).
@@ -88,16 +90,19 @@ Some of `sdk/` derives from **campus_twin**, by the same author. See
 
 Plainly, so nobody has to discover it:
 
-- **No hardware.** Build step 7 — one real radio and one real device driver — waits on
-  [Q6](docs/spec/open-questions.md), which link ships first.
-- **No pilot farm** ([Q1](docs/spec/open-questions.md)). Seasons do not reschedule.
+- **No hardware.** Build step 7 — one real radio and one real device driver — is decided
+  ([Q6](docs/spec/open-questions.md): Meshtastic first, a wired Modbus control) and waits
+  on the hardware itself.
+- **No pilot farm** ([Q1](docs/spec/open-questions.md)). The approach is decided and the
+  letters drafted; nobody has been asked yet. Seasons do not reschedule.
 - **No commands.** §6 is deferred until a season of field evidence exists. The
   irrigation controller, livestock water monitor and research logger — the three
   acceptance apps — are not built.
-- **Nothing above layer zero.** Layers 1–5 (rules, domain modules, decision support,
-  apps, ecosystem) are described in §11 and do not exist.
-- **Four rows of the completeness matrix are skipped**, each on a named decision:
-  offline-edit conflicts (Q7, Q14), sharing grants (Q16, Q17), and the two that need §6.
+- **Little above layer zero.** One module exists, the advisor (layer 3). Rules and
+  alerts (layer 1), domain modules (2), apps (4) and the ecosystem (5) are described in §11
+  and do not; the frost watch and irrigation rules in `sim/` are their stand-ins.
+- **Three rows of the completeness matrix are skipped**: offline-edit conflicts (Q14 named
+  the fields; the records they belong to are not built) and the two that need §6.
 - **The Spanish language pack is an unreviewed draft.** It needs a native-speaking
   agronomist before farmers see it.
 - **Not hardened for a network.** The HTTP server is single-threaded and read-only by

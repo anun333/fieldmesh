@@ -493,7 +493,7 @@ class Tunnel:
 
     The sides go up when the inside passes `vent_at_c` and down below `close_at_c`, as
     a grower would; `vent_at_c=None` is a tunnel nobody opens, which overheats. The
-    numbers are plausible, not measured: they are what tools/tunnel_gain.py has to
+    numbers are plausible, not measured: they are what modules/advise/tunnel_gain.py has to
     recover, which is the point of having them written down.
     """
 

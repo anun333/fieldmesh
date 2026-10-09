@@ -27,6 +27,7 @@ test:
 	@cd tools && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd sim && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd server && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
+	@cd modules/advise && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 
 demo:
 	@cd sdk && python3 demo.py

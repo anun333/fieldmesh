@@ -18,7 +18,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import site_profile  # noqa: E402
+import nasa_power  # noqa: E402
 
 COLUMNS = ("T2M_MIN", "T2M_MAX", "T2M", "PRECTOTCORR", "RH2M", "ALLSKY_SFC_SW_DWN")
 
@@ -45,8 +45,8 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", required=True)
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
-    doc = site_profile.fetch_power(args.lat, args.lon, args.start, args.end, os.path.join(args.cache, "power"))
-    rows = write(site_profile.days_of(doc), args.lat, args.lon, args.out)
+    doc = nasa_power.fetch_power(args.lat, args.lon, args.start, args.end, os.path.join(args.cache, "power"))
+    rows = write(nasa_power.days_of(doc), args.lat, args.lon, args.out)
     print(f"wrote {rows} days to {args.out}")
     return 0
 

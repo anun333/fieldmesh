@@ -9,25 +9,20 @@ licenses, because the three kinds of artifact here have three different jobs.
 | The specification and all prose in `docs/` | **CC-BY-4.0** | [LICENSE-CC-BY-4.0](LICENSE-CC-BY-4.0) | A contract nobody may implement is not a contract. Anyone — including a competitor — may implement this, with attribution. |
 | `sdk/`, `sim/`, `tools/` — the SDK, the wire format and the conformance suite | **Apache-2.0** | [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) | A sensor manufacturer must be able to put this in firmware without consulting a lawyer, and the explicit patent grant matters in agriculture. This is the part we most want adopted, so it carries the fewest conditions. |
 | `server/` — the reference implementation | **AGPL-3.0-or-later** | [LICENSE-AGPL-3.0](LICENSE-AGPL-3.0) | The project's premise is that the farmer owns the data. A hosting vendor running this as a closed service, with the farmer's data inside it, would defeat that premise specifically. The network clause is the only license term that reaches that case. |
+| `modules/advise/` — the advisor, a layer-3 module | **AGPL-3.0-or-later** for code; each data file its source's licence | [modules/advise/LICENSE](modules/advise/LICENSE), [data/MANIFEST.csv](modules/advise/data/MANIFEST.csv) | Decided 2026-10-09: an advisor is the piece most likely to be run as a hosted service, so the server's reasoning applies to it too. |
 
 Every file carries an `SPDX-License-Identifier` line. The file is authoritative; this
 table explains it.
 
-## Third-party data in `docs/notes/`
+## Third-party data
 
-Some notes carry data derived from other projects, each under its source's terms, stated
-in the file's own header:
+The advisor's data — USDA PLANTS (CC0), GloBI (CC BY 4.0), DSSAT genotype files
+(BSD-3-Clause, with DSSAT's notice), and the chill-requirement tables re-keyed from three
+CC BY 4.0 articles — is listed file by file, with source, licence, retrieval date and
+checksum, in [modules/advise/data/MANIFEST.csv](modules/advise/data/MANIFEST.csv). A test
+fails if a file changes without its line.
 
-| file | from | licence |
-| --- | --- | --- |
-| `plant-characteristics-usda.csv` | USDA NRCS PLANTS Database | CC0-1.0 |
-| `plant-bees-globi.csv`, `plant-bees-globi-sources.txt` | GloBI, and the 49 datasets it cites | CC-BY-4.0 |
-| `crop-parameters-dssat.csv` | DSSAT Cropping System Model genotype files | BSD-3-Clause, with DSSAT's notice in `crop-parameters-dssat-LICENSE.txt` |
-| `chill-requirements.csv` | Fadón et al. 2020, *Agronomy* 10:409, doi:10.3390/agronomy10030409 — the tables, re-keyed | CC-BY-4.0 (the version of record's licence) |
-| `chill-requirements-pome.csv` | González Noguer et al. 2023, *Front. Hortic.* 2:1217689, doi:10.3389/fhort.2023.1217689, Table 2 (apples); Fadón et al. 2023, *Agronomy* 13:518, doi:10.3390/agronomy13020518, Table 2 (pears) — re-keyed | CC-BY-4.0 (both articles') |
-| `interactions.csv` | USDA PLANTS (CC0), GloBI (CC-BY-4.0), and curated rows citing their sources | CC-BY-4.0 |
-
-And test fixtures outside `docs/notes/`: `sim/data/mcallister-2007-spring.csv` and
+Test fixtures: `sim/data/mcallister-2007-spring.csv` and
 `sim/data/mcallister-2013-summer.csv`, NASA POWER daily weather (CC-BY-4.0, credited in
 their headers), and
 `tools/fixtures/nws-gridpoint-HUN-62-57.json`, a trimmed National Weather Service forecast
@@ -35,7 +30,7 @@ their headers), and
 
 Figures quoted in notes from NASA POWER (CC-BY-4.0), ISMN (CC-BY-4.0) and the USDA soil
 survey (public domain) are attributed where they appear. FAO's ECOCROP is **not** used:
-its licence is non-commercial (see `docs/notes/fao-ecocrop-request-draft.md`). Nor is CITA
+its licence is non-commercial (see `modules/advise/notes/fao-ecocrop-request-draft.md`). Nor is CITA
 Aragón's dataset of fruit-tree chill requirements (CC BY-NC-ND). The chill tables come from
 the 2020 review as MDPI published it under CC BY 4.0; CITA's repository files its copy of
 the same article as CC BY-NC-ND 3.0 ES, but a CC BY grant cannot be withdrawn, and the
@@ -55,7 +50,9 @@ Apache-2.0 is one-way compatible with GPLv3-family licenses, so Apache code may 
 combined into an AGPL work. **The reverse is not true** — nothing in `sdk/`, `sim/` or
 `tools/` may import from `server/`, or the SDK's Apache-2.0 promise is broken for
 everyone who embeds it. That constraint is architectural, not merely legal: the SDK
-has no business depending on a server.
+has no business depending on a server. The same holds for modules: `modules/advise/`
+(AGPL) imports layer zero, and nothing in layer zero imports it —
+`tools/test_layering.py` checks.
 
 `-or-later` on the AGPL is deliberate. farmOS sits on Drupal, which is GPLv2-or-later;
 the "or later" on both sides is what keeps a future combination possible at v3. Under
@@ -71,14 +68,15 @@ copyright.
 
 ## Dependencies
 
-Two third-party libraries, both installed rather than vendored:
+Three third-party libraries, all installed rather than vendored:
 
 | library | licence | used by | file |
 | --- | --- | --- | --- |
 | `cbor2` | MIT | `sdk/wire.py` — the CBOR wire format (Q5) | `requirements.txt` |
+| `cryptography` | Apache-2.0 OR BSD-3-Clause | `sdk/erasure.py` only — sealing personal text so it can be erased by destroying a key (Q17) | `requirements.txt` |
 | `protobuf` | BSD-3-Clause | `tools/q5_encoding.py` only — the measurement that sized Protocol Buffers against CBOR | `requirements-tools.txt` |
 
-Both combine with Apache-2.0 and AGPL-3.0 without condition beyond keeping their notices.
+All combine with Apache-2.0 and AGPL-3.0 without condition beyond keeping their notices.
 Nothing in `sdk/`, `sim/` or `server/` needs protobuf.
 
 ## Inherited code

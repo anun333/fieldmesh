@@ -115,8 +115,19 @@ rather than translating from scratch — your farmers' extension materials proba
 already use its words. The CF names for physical measurements have no official
 translations, which is why packs carry them.
 
+## Modules have their own packs
+
+A module above layer zero ships its own strings, in its own `packs/<tag>.json`, every key
+starting with the module's name — the advisor's are all `advise.*`, in
+[modules/advise/packs/](../modules/advise/packs/). They are merged over layer zero's pack
+of the same language when the module loads, and a module key can never replace one of
+layer zero's. `make packs` checks both. A translator can take on layer zero's ~100 strings
+— the ones a farmer meets in every quality flag and unit — without also taking on a crop
+report, and the other way round.
+
 ## Licence
 
 Packs live in `sdk/` and are Apache-2.0 like the SDK, so a device maker can ship your
-translation inside a product without a second licence. JSON cannot carry a comment, so
-the licence is the `_meta.license` field. See [LICENSING.md](../LICENSING.md).
+translation inside a product without a second licence. A module's packs carry the module's
+licence — the advisor's are AGPL-3.0-or-later. JSON cannot carry a comment, so the licence
+is the `_meta.license` field. See [LICENSING.md](../LICENSING.md).

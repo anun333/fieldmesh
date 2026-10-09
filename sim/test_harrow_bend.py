@@ -25,6 +25,7 @@ import harrow_bend as hb
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "sdk"))
 import project as P  # noqa: E402
+from ids import uuid7  # noqa: E402
 from model import (Assertor, ClockQuality,  # noqa: E402
                    DatastreamKind, MaintenanceAction, Observation,
                    QualityFlag)
@@ -392,14 +393,39 @@ class TestStorage(Matrix):
     def test_an_offline_edit_conflict_resolved_by_hlc(self):
         self.skipTest(
             "§7.4's HLC exists in sdk/hlc.py and the log stamps every event with "
-            "it, but there is no record type a second writer could edit "
-            "concurrently and no conflict-event projection. Needs Q14 — which "
-            "fields must never resolve silently — before it can be built.")
+            "it. Q14 now names the fields that must never resolve silently — inputs "
+            "applied, animal treatments, harvest lots, boundaries, anything an "
+            "interlock reads — but none of those records is in layer zero yet, so "
+            "there is nothing a second writer could edit concurrently.")
 
     def test_a_grant_issued_used_and_revoked(self):
-        self.skipTest(
-            "§7.6's sharing grants are not implemented. The scope and re-sharing "
-            "semantics are Q16, and the erasure mechanism Q17.")
+        """§7.6 on the farm: the research plot's two probes shared with a partner for a
+        study. The grant covers what had arrived when it was made (Q16's default); a
+        delivery is taken; the grant is revoked; nothing more can be read — and the
+        delivery already made is untouched, because revocation cannot reach it."""
+        import sharing as SH
+        from model import Grant, GrantRevocation
+        probes = tuple(self.farm.series[n].derived.id for n in ("plot_probe_a", "plot_probe_b"))
+        received = sorted(o.received_at for ds in probes for o in self.state.observations_of(ds))
+        issued = received[len(received) // 2]
+        grant = Grant(id=uuid7(), grantee="university soil lab", datastreams=probes,
+                      purpose="probe agreement study", issued_at=issued)
+        for record in (grant,):
+            self.log.append_record(record)
+            self.state.add(record)
+        later = received[-1] + _dt.timedelta(hours=1)
+        delivered = SH.shared(self.state, grant.grantee, later)
+        self.assertTrue(delivered)
+        self.assertTrue(all(o.received_at <= issued for o in delivered),
+                        "nothing that arrived after the grant (Q16)")
+        self.assertLess(len(delivered), len(received), "and the rest was not shared")
+        revoke = GrantRevocation(id=uuid7(), grant=grant.id, at=later + _dt.timedelta(hours=1),
+                                 reason="study complete")
+        self.log.append_record(revoke)
+        self.state.add(revoke)
+        self.assertEqual(SH.shared(self.state, grant.grantee, revoke.at), [])
+        self.assertTrue(delivered, "a delivery already made is not retracted")
+        self.assertEqual(P.state_from_log(self.log).validate(), [])
 
     def test_a_module_replayed_missed_events_from_its_cursor(self):
         """§7.5 on the farm: a module goes down partway, the farm keeps writing — and

@@ -82,6 +82,50 @@ class Pack:
 
 _CACHE: dict[str, Pack | None] = {}
 
+#: Module pack directories, each with the key prefix its strings must carry. A module
+#: (layer 1 and up) ships its own strings and registers them; layer zero never imports a
+#: module, it only reads the files a module points it to.
+_MODULES: list[tuple[str, str]] = []
+
+
+def register(directory: str, prefix: str) -> None:
+    """Merge a module's packs into every language that has one (§11).
+
+    Every key in them must start with `prefix.` — a module's strings are its own and
+    cannot shadow layer zero's, so a check message never changes because a module was
+    installed. Idempotent; registering clears the cache so the next load sees them."""
+    entry = (os.path.abspath(directory), prefix)
+    if entry in _MODULES:
+        return
+    _MODULES.append(entry)
+    _CACHE.clear()
+    global ENGLISH
+    try:
+        ENGLISH = Translator(SOURCE)
+    except ValueError:
+        # Refused, and not left half-registered: every later load would fail too.
+        _MODULES.remove(entry)
+        _CACHE.clear()
+        ENGLISH = Translator(SOURCE)
+        raise
+
+
+def _module_strings(tag: str, base: dict) -> dict:
+    out = {}
+    for directory, prefix in _MODULES:
+        path = os.path.join(directory, f"{tag}.json")
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as handle:
+            strings = json.load(handle).get("strings", {})
+        for key, value in strings.items():
+            if not key.startswith(prefix + "."):
+                raise ValueError(f"{path}: {key} is outside the module's prefix {prefix!r}")
+            if key in base:
+                raise ValueError(f"{path}: {key} would shadow layer zero's string")
+            out[key] = value
+    return out
+
 
 def available() -> list[str]:
     """Every pack on disk, by tag."""
@@ -106,7 +150,8 @@ def load(tag: str) -> Pack | None:
                 native_name=meta.get("native_name", tag),
                 direction=meta.get("direction", "ltr"),
                 status=meta.get("status", "draft"),
-                strings=dict(doc.get("strings", {})),
+                strings={**doc.get("strings", {}),
+                         **_module_strings(tag, doc.get("strings", {}))},
                 decimal_separator=meta.get("decimal_separator", "."),
                 regions=dict(meta.get("regions", {})),
                 maintainers=tuple(meta.get("maintainers", ())),
