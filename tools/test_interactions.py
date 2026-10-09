@@ -27,10 +27,14 @@ class RecordsTest(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIn("Peponapis", rows[0]["object"])
 
-    def test_curated_rows_are_marked_to_cite(self):
+    def test_every_curated_row_carries_its_source(self):
         rows = [r for r in T.records([], [], None) if r["source"].startswith("curated")]
         self.assertEqual(len(rows), len(T.CURATED))
-        self.assertTrue(all(r["source"] == "curated — to cite" for r in rows))
+        for r in rows:
+            cite = r["source"].removeprefix("curated: ")
+            self.assertNotIn("to cite", cite)
+            self.assertRegex(cite, r"doi:|https://|\(\d{4}\)|CFR|Decreto", r["subject"])
+        self.assertTrue({r["effect"] for r in rows} <= {"benefit", "harm", "mixed", "unproven"})
 
 
 if __name__ == "__main__":

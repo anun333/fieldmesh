@@ -35,10 +35,12 @@ What decides which bee, and whether bees thrive at all:
   of Agricultural Crops to Pollinating Bees* rates US crops for honey bees, bumble bees and
   solitary bees, nectar and pollen.
 - **Nesting.** Most native bees nest in the ground or in hollow stems. Squash bees nest in
-  the soil under the very plants they pollinate, so deep tillage there destroys them; mason
-  bees need tubes or stems; alkali bees need bare alkaline ground.
-- **Pesticides and mowing.** The largest conflicts are with the farm's own practices —
-  insecticide during bloom, and mowing a flowering cover crop while bees are on it.
+  the soil under the very plants they pollinate — and prefer tilled soil to dig in — so it
+  is deep tillage over nests already dug that harms them; mason bees need tubes or stems;
+  alkali bees need bare alkaline ground.
+- **Pesticides.** The largest conflicts are with the farm's own practices: insecticide on
+  bloom above all, which is why the extension advice is to mow flowering weeds *before*
+  spraying and to spray bloom, if at all, in the evening (PNW 591).
 
 ## Flowers
 
@@ -92,36 +94,44 @@ interactions already exist in the open: GloBI (Global Biotic Interactions, CC BY
 plant–pollinator and many other records. Farm-practice ones mostly do not, and would be
 this project's contribution.
 
-Well-known examples, each to be sourced before it is relied on:
+Well-known examples. Each is now sourced, row by row, in
+[interactions.csv](interactions.csv) (the citations live in `CURATED` in
+tools/interactions.py), and the tables below are worded to what the sources support.
 
 | mixes well | mechanism |
 | --- | --- |
-| maize, beans and squash (the "three sisters") | the bean climbs the maize and fixes nitrogen; the squash shades out weeds |
+| maize, beans and squash (the "three sisters") | more food energy and protein per hectare than the same crops grown apart |
 | a legume cover crop before a cereal | nitrogen left in the soil |
-| cattle with sheep or goats | they prefer different plants, and mostly do not share gut parasites, so grazing together dilutes each other's worm burden |
-| poultry following cattle | they scratch apart dung pats and eat fly larvae |
-| ducks in rice; fish in rice | pest and weed control; manure for the crop |
-| pigs in woodland | finishing on acorns and nuts |
-| donkeys, llamas or guardian dogs with sheep and goats | protection from canids |
+| cattle with sheep | most gut worms are specific to one host, so grazing together dilutes the larvae: about half the worm eggs, about 40 g a day more gain in the lambs |
+| fish in rice | fish eat rice pests; leftover fertilizer and feed cycle between them |
+| pigs in oak woodland | finishing on acorns and grass, at a stocking rate the trees can bear |
+| goats on multiflora rose and other invasive brush | they kill it where cattle barely dent it |
+| guardian dogs, llamas or donkeys with sheep and goats | protection from predators |
 | bees with orchards, cucurbits and almonds; clover, buckwheat and phacelia for the bees | pollination; forage |
-| black soldier fly on manure, feeding poultry | waste becomes feed, and frass becomes fertilizer |
-| silkworms and mulberry | the only food silkworms eat |
+| black soldier fly on manure, feeding poultry and fish | waste becomes feed, where the law allows what the larvae are grown on |
+| silkworms and mulberry | the silkworm's food |
+| windbreaks and livestock; riparian buffers and streams | shelter from cold wind; nitrate and sediment held back |
 
 | mixes badly | mechanism |
 | --- | --- |
-| insecticide or mowing during bloom, and bees | kills foragers |
-| deep tillage and squash bees | destroys nests in the soil under the crop |
+| insecticide on bloom, and bees | kills foragers |
+| deep tillage over squash bee nests | fewer bees emerge, and later |
 | chickens with turkeys | chickens carry blackhead (*Histomonas*), which kills turkeys |
 | sheep and copper | sheep are poisoned by copper levels other livestock tolerate — feeds, minerals, orchard copper sprays |
 | goats and young trees | they strip bark |
 | black walnut, and tomatoes and their relatives; black walnut shavings and horses | juglone |
 | wilted cherry and other *Prunus* leaves, and ruminants | cyanide |
 | lush legume pasture (alfalfa, clover) and cattle | bloat — a USDA PLANTS field |
-| acorns in quantity, and cattle or horses | tannin poisoning (pigs tolerate them) |
+| acorns in quantity, and cattle, sheep or horses | tannin poisoning (goats are relatively resistant) |
 | waterfowl alongside chickens | a reservoir for avian influenza |
 | *Bombus terrestris* outside its native range | invasive where introduced |
 | poultry litter applied repeatedly | phosphorus builds up and runs off |
-| fresh manure on food crops | pathogens — the organic rule's waiting interval exists for this |
+| raw manure on food crops | pathogens — the organic rule's 90/120-day interval exists for this |
+
+| claimed, not shown, or mixed | what the evidence says |
+| --- | --- |
+| poultry following cattle, to break up dung pats and eat fly larvae | in a controlled trial broilers never foraged in the pats and face-fly larvae survived as well (laying hens untested) |
+| ducks in rice | weeds controlled and income up, but planthoppers rose, because the ducks also cut the spiders that eat them |
 
 **USDA PLANTS already links the lists.** Its characteristics include *Bloat*, *Toxicity*,
 *Palatable Graze/Browse Animal*, *Nitrogen Fixation*, *Known Allelopath* and *Bloom
