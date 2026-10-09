@@ -57,12 +57,15 @@ def _query(endpoint: str, q: str, cache: str | None, tag: str) -> list:
             # waiting is the polite answer, and the cache means it is paid once.
             if exc.code != 429 or attempt == 5:
                 raise
-            time.sleep(int(exc.headers.get("Retry-After") or 65))
+            wait = min(int(exc.headers.get("Retry-After") or 65), 300)
+            print(f"  {tag}: asked to wait {wait} s", file=sys.stderr, flush=True)
+            time.sleep(wait)
     rows = [{**{k: v["value"] for k, v in b.items()},
              **({"lang": b["value"]["xml:lang"]} if "xml:lang" in b.get("value", {}) else {})}
             for b in doc["results"]["bindings"]]
     if path:
         json.dump(rows, open(path, "w", encoding="utf-8"), ensure_ascii=False)
+    print(f"  {tag}: {len(rows)} rows", file=sys.stderr, flush=True)
     time.sleep(1)
     return rows
 

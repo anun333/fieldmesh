@@ -423,9 +423,20 @@ For the 28 crops with a crop model, temperature, day length and time to maturity
 wheat and barley, vernalization, winter kill, freeze after boot and heat at flowering — are
 checked together, by simulation; for 531 stone-fruit cultivars, 78 apples and 16 pears,
 winter chill, and for 167 of them, bloom date and frost after it. Still not checked: chill
-and bloom for blueberries (no openly licensed table found), heat damage to fruit set beyond
+and bloom for blueberries, heat damage to fruit set beyond
 the development curve, a rice nursery raised under cover, oats and rye (no DSSAT model), and everything for the 255 plants with
 neither source — most fruit, herbs and flowers.
+
+**Blueberries, looked for and not found (2026-10-09).** No openly licensed table of chill
+by cultivar turned up — not in MDPI or Frontiers, where the apple and stone-fruit tables
+came from; extension guides carry figures (southern highbush 150–800 hours, rabbiteye
+350–650, northern highbush 800 and more) under terms that do not allow reuse. Two routes
+remain. **US plant patents** are public domain and each new blueberry's states its chill
+requirement, but the patent office serves them as scanned images, so a table needs OCR of
+each patent and a list of them. **USDA GRIN-Global** holds the national Vaccinium collection
+at Corvallis and may carry chill evaluations, public domain, but has no bulk download and
+its accession pages were down when tried. Until one of those is built, the advisor says
+nothing about blueberry chill rather than borrow numbers it cannot cite.
 
 ## Reproducing
 

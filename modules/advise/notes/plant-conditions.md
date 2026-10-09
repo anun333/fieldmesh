@@ -71,7 +71,7 @@ a non-commercial source cannot be redistributed in it.
 | **WorldClim** | climate normals | reported as non-commercial | avoid; CHELSA covers it |
 | **Fadón et al. 2020**, *Agronomy* 10:409 | chill and heat requirements of 531 stone-fruit cultivars, each with model, method, place and study | **CC BY 4.0** | **fruit chill, bloom and frost after bloom**, in [chill-requirements.csv](../data/chill-requirements.csv), `modules/advise/fruit_bloom.py` and the advisor |
 | **González Noguer et al. 2023**, *Front. Hortic.* 2:1217689 | 173 published apple requirements — dessert, cider, crab and rootstock — each with model, method, place and study | **CC BY 4.0** | apples, in [chill-requirements-pome.csv](../data/chill-requirements-pome.csv) and the advisor |
-| **Fadón et al. 2023**, *Agronomy* 13:518 | chill and heat of 16 European pears over twenty years at Zaragoza | **CC BY 4.0** | pears, likewise; blueberries still lack an open table |
+| **Fadón et al. 2023**, *Agronomy* 13:518 | chill and heat of 16 European pears over twenty years at Zaragoza | **CC BY 4.0** | pears, likewise; blueberries still lack an open table (routes in site-match-tennessee.md) |
 | CITA Aragón, *Agroclimatic requirements of temperate fruit trees* (2025) | 143 cultivars, three chill models | CC BY-NC-ND 3.0 ES | not used |
 | USDA GRIN-Global evaluation data | chill descriptors for a few crops (walnut, almond, some peach accessions) | public domain | sparse, and no bulk download; not used yet |
 | FAO-56 (crop coefficients) | water demand by growth stage, rooting depth, allowable depletion | an FAO publication (same licence question); the values are published facts | needs a decision: cite and tabulate facts, or ask |
