@@ -87,8 +87,8 @@ same tunnel with the sides never opened spends 507 hours above 35 °C; vented, n
 These numbers are the model's, not a tunnel's: what the test proves is that the tool reads
 a gain correctly, and what it cannot prove is what a real tunnel's gain is. The first
 instrumented tunnel replaces the table. (The Harrow Bend scenario's own hoop-house sensor
-read a flat outside + 6 °C until 2026-10-09; it now reads this model, and every scored
-drill gave the same results with it.)
+read a flat outside + 6 °C until 2026-10-09; it now reads this model, and the simulator's
+tests all pass with it.)
 
 **Alarms first, automation later.** Overheating and freezing are the fastest failures on a
 farm, so a tunnel is the strongest case for layer 1's alerting. Opening and closing roll-up
