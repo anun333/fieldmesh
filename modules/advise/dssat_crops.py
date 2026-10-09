@@ -1161,6 +1161,9 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
     models.append(("ML", "Cenchrus americanus", "CERES-Millet"))
     models.append(("WH", "Triticum aestivum", "CERES-Wheat"))
     models.append(("BA", "Hordeum vulgare", "CERES-Barley"))
+    # Rye has Cropsim-CERES genotype files of its own (RYCER048: a test cultivar and
+    # Palazzo), in the wheat and barley format, so the same port runs it.
+    models.append(("RY", "Secale cereale", "CERES-Rye"))
     models.append(("RI", "Oryza sativa", "CERES-Rice"))
     for code, scientific, model in models:
         dcache = os.path.join(cache, "dssat")
@@ -1201,7 +1204,7 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
             # The same cultivars raised in a nursery and transplanted (the nursery sown on
             # the date): how many mature in the field's season that way.
             transplanted = evaluate(rice_runners(culs, lat, RICE_TRANSPLANT_AGE), days, lat, cool=False)
-        elif model in ("CERES-Wheat", "CERES-Barley"):
+        elif model in ("CERES-Wheat", "CERES-Barley", "CERES-Rye"):
             culs = parse_cscer_cul(fetch(f"{code}CER048.CUL", dcache))
             ecos = parse_cscer_eco(fetch(f"{code}CER048.ECO", dcache))
             sp = parse_cscer_spe(fetch(f"{code}CER048.SPE", dcache))
@@ -1255,7 +1258,7 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
         if model == "CERES-Maize":
             cd = f"{min(e['P2O'] for e in ecos.values()):g}–{max(e['P2O'] for e in ecos.values()):g}"
             ps = f"P2 {min(c['P2'] for c in culs):g}–{max(c['P2'] for c in culs):g} days/h"
-        elif model in ("CERES-Wheat", "CERES-Barley"):
+        elif model in ("CERES-Wheat", "CERES-Barley", "CERES-Rye"):
             cd = f"{spe['cscer']['PPTHR']:g}"
             ps = (f"P1D {min(c['P1D'] for c in culs):g}–{max(c['P1D'] for c in culs):g}; "
                   f"vernalization P1V {min(c['P1V'] for c in culs):g}–{max(c['P1V'] for c in culs):g} d")

@@ -176,6 +176,12 @@ class MilletTest(unittest.TestCase):
 
 
 class CscerTest(unittest.TestCase):
+    def test_rye_reads_like_wheat(self):
+        """RYCER048 is in the wheat and barley format, so rye runs on the same port."""
+        (c,) = D.parse_cscer_cul("JR2020 Palazzo              . JKWR10    17   178   755    23    32   5.1    85")
+        self.assertEqual((c["name"], c["code"], c["eco"], c["P1V"], c["P1D"], c["P5"]),
+                         ("Palazzo", "JR2020", "JKWR10", 17.0, 178.0, 755.0))
+
     SPE = {"PGERM": 10.0, "PEMRG": 8.0, "P0": 0.0, "P6": 200.0, "PPFPE": 1.0, "PPTHR": 20.0,
            "PPEND": 2.0, "TKUH": -6.0, "HDUR": 10.0, "TRGEM": (1, 26, 50, 60), "TRDV1": (0, 26, 50, 60),
            "TRDV2": (0, 30, 50, 60), "TRVRN": (-5, 0, 7, 15), "TRHAR": (-5, 0, 5, 10)}

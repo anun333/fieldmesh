@@ -140,6 +140,7 @@ At McAllister Farm:
 | pearl millet (CERES-Millet) | 48 of 60 | 99–226 |
 | wheat, fall-sown (Cropsim-CERES) | 5 of 8 — the winter wheats | 229–248 |
 | barley, fall-sown (Cropsim-CERES) | 1 of 3 | 261 |
+| rye, fall-sown (Cropsim-CERES) | 2 of 2 | 217–251 |
 | rice, drill-seeded (CERES-Rice) | 42 of 55 | 122–221 |
 | rice, transplanted at 25 days (CERES-Rice) | 35 of 55 | from nursery sowing; median 174 |
 | dry bean | 30 of 30 | 75–107 |
@@ -186,6 +187,13 @@ grain fill. Lemont, a southern long-grain, sown May 1 heads in about 98 days and
 about 122, the end of August, as the region's rice does. The season is no obstacle at
 McAllister — 42 of 55 cultivars mature 8 years in 10 — but rice there is a question of
 water, a flooded field on silt loam, which no phenology model asks.
+
+**Rye** has Cropsim-CERES genotype files of its own (RYCER048: a test cultivar and the
+Italian Palazzo), in the wheat and barley format, so the same port runs it: both mature from
+a fall sowing at McAllister 9 years in 10 or better, in 217 and 251 days. Two cultivars is
+thin, and neither is a Southern cover-crop rye; it says the season fits, not which rye to
+buy. Oats have no DSSAT model at the pinned commit, and are left unchecked rather than run
+as barley.
 
 **Transplanted rice** is ported too, as DSSAT runs a nursery crop (RI_Transpl_p.for): the
 seedlings develop in the nursery on the same weather, transplanting at 25 days lengthens
@@ -424,7 +432,7 @@ wheat and barley, vernalization, winter kill, freeze after boot and heat at flow
 checked together, by simulation; for 531 stone-fruit cultivars, 78 apples and 16 pears,
 winter chill, and for 167 of them, bloom date and frost after it. Still not checked: chill
 and bloom for blueberries, heat damage to fruit set beyond
-the development curve, a rice nursery raised under cover, oats and rye (no DSSAT model), and everything for the 255 plants with
+the development curve, a rice nursery raised under cover, oats (no DSSAT model), and everything for the 255 plants with
 neither source — most fruit, herbs and flowers.
 
 **Blueberries, looked for and not found (2026-10-09).** No openly licensed table of chill
