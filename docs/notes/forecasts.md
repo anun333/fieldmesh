@@ -43,7 +43,7 @@ scores every stored run against a measured series by lead time.
 | **NWS**, api.weather.gov gridded forecast (NDFD: 2.5 km, about 7 days, updated about hourly) | the United States | public domain | yes |
 | **MET Norway**, api.met.no locationforecast 2.0 (ECMWF-based outside the Nordics, about 9 days) | the world | CC BY 4.0 / NLOD 2.0, commercial use allowed; requires a User-Agent with the caller's contact, and caching | yes — the contact is the user's to give, so none is sent by default |
 | Open-Meteo | the world | data CC BY 4.0, but the free API is non-commercial | no |
-| ECMWF open data | the world | CC BY 4.0 | not yet — GRIB2 needs a decoding library |
+| ECMWF open data | the world | CC BY 4.0 | skipped (decided 2026-10-09): MET Norway already serves ECMWF-based forecasts worldwide under CC BY, without GRIB2. If gridded fields are ever needed, ecCodes (Apache-2.0) decodes them |
 
 `tools/forecast_sources.py nws 35.0645 -86.5914` fetches McAllister Farm's grid cell (HUN
 62,57) and summarises it by local day; `--json` keeps the run. Values are kept as sent —
