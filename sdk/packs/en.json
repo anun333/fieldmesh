@@ -149,7 +149,7 @@
   "advise.nodata": "{count} plants on the list have no data in either source yet — mostly fruit, herbs and flowers.",
   "advise.names_note": "Plant names are in English until multilingual names are added from AGROVOC.",
   "advise.section.sources": "Sources",
-  "advise.sources": "Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0).",
+  "advise.sources": "Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill and heat: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0); bloom frost thresholds: Washington State University via Penn State Extension.",
   "advise.month.1": "January",
   "advise.month.2": "February",
   "advise.month.3": "March",
@@ -179,7 +179,7 @@
   "advise.future.losses": "No longer suits ({count})",
   "advise.future.crop": "{crop}: cultivars maturing {now} → {then} of {total}; sow {now_window} → {then_window}",
   "advise.section.chill": "Stone fruit by winter chill",
-  "advise.chill.preface": "Winters here give at least {chill:.0f} chill hours (hours at or below 7.2 °C, November to February) 8 years in 10. Against the cultivar requirements compiled by Fadón and others (2020) — measured in a dozen countries, Spain most of all, and by several methods, so a guide, not a guarantee — this many cultivars of each would get their chill. Chill only: late frost at bloom and the heat to ripen are not judged here.",
+  "advise.chill.preface": "Winters here give at least {chill:.0f} chill hours (hours between 0 and 7.2 °C, November to March) 8 years in 10. Against the cultivar requirements compiled by Fadón and others (2020) — measured in a dozen countries, Spain most of all, and by several methods, so a guide, not a guarantee — this many cultivars of each would get their chill.",
   "advise.chill.crop": "{crop}: {fit} of {known} cultivars",
   "advise.future.fruit": "{crop}: cultivars getting their chill {now} → {then} of {known}",
   "advise.fruit.almond": "Almond",
@@ -190,6 +190,10 @@
   "advise.fruit.flat_peach": "Flat peach",
   "advise.fruit.plum_eu": "European plum",
   "advise.fruit.plum_jp": "Japanese plum",
-  "advise.fruit.cherry": "Cherry"
+  "advise.fruit.cherry": "Cherry",
+  "advise.bloom.preface": "Bloom and frost: for {count} cultivar estimates whose studies also give a heat requirement, bloom is simulated on this site's own winters — chill from November 1, then heat — and a year counts as frosted when the minimum falls to −2.2 °C (28 °F) or below within two weeks after bloom. The grid's minimums are milder than an orchard floor's, so the counts err low.",
+  "advise.bloom.crop": "{crop}: blooms {early} to {late} (median {median}); frost after bloom in {frost} years of 10.",
+  "advise.bloom.crop_unmet": "{crop}: blooms {early} to {late} (median {median}); frost after bloom in {frost} years of 10. For {unmet} of its {count} estimates, chill falls short in more than 2 winters of 10.",
+  "advise.future.bloom": "{crop}: median bloom {now} → {then}; frost after bloom in {fnow} → {fthen} years of 10"
  }
 }

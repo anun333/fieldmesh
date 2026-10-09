@@ -105,9 +105,21 @@ class ChillTest(unittest.TestCase):
         en = A.render(SITE, ROWS, CAL, "en", "2026-10-08", CHILL)
         self.assertIn("## Stone fruit by winter chill", en)
         self.assertIn("at least 1400 chill hours", en)
+        self.assertIn("at least 1500 chill hours", A.render(SITE, ROWS, CAL, "en", "2026-10-08", CHILL, None, 1500.0))
         self.assertIn("- Peach: 2 of 2 cultivars", en)
         es = A.render(SITE, ROWS, CAL, "es", "2026-10-08", CHILL)
         self.assertIn("- Melocotonero: 2 de 2 variedades", es)
+
+    def test_bloom_and_frost_lines(self):
+        bloom = {"peach": {"estimates": 3, "bloom_early": 140, "bloom_median": 145, "bloom_late": 150,
+                           "frost_in_10": 2, "unmet": 0},
+                 "almond": {"estimates": 2, "bloom_early": 100, "bloom_median": 110, "bloom_late": 120,
+                            "frost_in_10": 8, "unmet": 1}}
+        en = A.render(SITE, ROWS, CAL, "en", "2026-10-08", CHILL, bloom)
+        self.assertIn("- Peach: blooms March 21 to March 31 (median March 26); frost after bloom in 2 years of 10.", en)
+        self.assertIn("For 1 of its 2 estimates, chill falls short", en)
+        es = A.render(SITE, ROWS, CAL, "es", "2026-10-08", CHILL, bloom)
+        self.assertIn("- Melocotonero: florece del 21 de marzo al 31 de marzo (mediana 26 de marzo)", es)
 
     def test_the_future_counts_the_loss(self):
         import copy

@@ -1,13 +1,13 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # What grows at 35.0645, -86.5914
 
-Generated 2026-10-08 from open data. These are starting points, not answers: check them against local knowledge, a soil test, and your own records.
+Generated 2026-10-09 from open data. These are starting points, not answers: check them against local knowledge, a soil test, and your own records.
 
 ## The site
 
 - Climate class Cfa; average 15.4 °C; 1376 mm of rain a year; USDA hardiness zone about 8a.
 - Last spring frost around March 31 and first fall frost around November 3; at least 207 frost-free days in 8 years of 10.
-- 2774 growing degree days a year (°C, base 10); about 1648 chill hours in winter.
+- 2774 growing degree days a year (°C, base 10); about 1048 chill hours in winter.
 - Over the record, the later fifteen years were +0.5 °C warmer than the earlier fifteen.
 - Soil: Dickson silt loam, 2 to 5 percent slopes — Moderately well drained, 4.0% slope; topsoil pH 6.2, organic matter 2.8%.
 - Left bare, this soil would erode at about 26 times the rate it can tolerate: keep it covered — cover crops, perennial forage, buffers.
@@ -17,7 +17,9 @@ Generated 2026-10-08 from open data. These are starting points, not answers: che
 ## Food crops, simulated on this site's weather
 
 - Bambara groundnut: 2 of 2 cultivars mature 8 years in 10, in 136–141 days. Sow April 9 to June 18.
+- Barley: 1 of 3 cultivars mature 8 years in 10, in 261–261 days. Sow October 15 to April 2.
 - Bell and chili pepper: 5 of 5 cultivars mature 8 years in 10, in 155–182 days. Sow April 9 to May 28.
+- Bread wheat: 5 of 8 cultivars mature 8 years in 10, in 229–248 days. Sow September 3 to March 19.
 - Cabbage: 3 of 3 cultivars mature 8 years in 10, in 116–150 days. Sow March 12 to August 6.
 - Chickpea: 32 of 32 cultivars mature 8 years in 10, in 96–153 days. Sow February 19 to August 27.
 - Common bean: 30 of 30 cultivars mature 8 years in 10, in 75–107 days. Sow April 9 to August 13.
@@ -44,17 +46,27 @@ Generated 2026-10-08 from open data. These are starting points, not answers: che
 
 ## Stone fruit by winter chill
 
-Winters here give at least 1414 chill hours (hours at or below 7.2 °C, November to February) 8 years in 10. Against the cultivar requirements compiled by Fadón and others (2020) — measured in a dozen countries, Spain most of all, and by several methods, so a guide, not a guarantee — this many cultivars of each would get their chill. Chill only: late frost at bloom and the heat to ripen are not judged here.
+Winters here give at least 1090 chill hours (hours between 0 and 7.2 °C, November to March) 8 years in 10. Against the cultivar requirements compiled by Fadón and others (2020) — measured in a dozen countries, Spain most of all, and by several methods, so a guide, not a guarantee — this many cultivars of each would get their chill.
 
 - Almond: 68 of 68 cultivars
-- European apricot: 39 of 41 cultivars
-- Japanese apricot (ume): 8 of 8 cultivars
-- Peach: 126 of 126 cultivars
+- European apricot: 26 of 41 cultivars
+- Japanese apricot (ume): 6 of 8 cultivars
+- Peach: 115 of 126 cultivars
 - Nectarine: 10 of 10 cultivars
 - Flat peach: 7 of 7 cultivars
-- European plum: 9 of 9 cultivars
+- European plum: 4 of 9 cultivars
 - Japanese plum: 16 of 16 cultivars
-- Cherry: 40 of 40 cultivars
+- Cherry: 25 of 40 cultivars
+
+Bloom and frost: for 145 cultivar estimates whose studies also give a heat requirement, bloom is simulated on this site's own winters — chill from November 1, then heat — and a year counts as frosted when the minimum falls to −2.2 °C (28 °F) or below within two weeks after bloom. The grid's minimums are milder than an orchard floor's, so the counts err low.
+
+- Almond: blooms February 4 to March 12 (median February 20); frost after bloom in 8 years of 10.
+- European apricot: blooms March 14 to April 15 (median March 23); frost after bloom in 3 years of 10. For 9 of its 32 estimates, chill falls short in more than 2 winters of 10.
+- Japanese apricot (ume): blooms December 18 to March 21 (median February 28); frost after bloom in 7 years of 10. For 2 of its 6 estimates, chill falls short in more than 2 winters of 10.
+- Peach: blooms March 19 to April 13 (median March 26); frost after bloom in 2 years of 10. For 5 of its 34 estimates, chill falls short in more than 2 winters of 10.
+- Nectarine: blooms March 16 to April 2 (median March 21); frost after bloom in 4 years of 10.
+- Japanese plum: blooms March 12 to April 5 (median March 27); frost after bloom in 2 years of 10.
+- Cherry: blooms March 29 to April 30 (median April 28); frost after bloom in 0 years of 10.
 
 ## Suits the site (90)
 
@@ -215,4 +227,4 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 ## Sources
 
-Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0).
+Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill and heat: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0); bloom frost thresholds: Washington State University via Penn State Extension.

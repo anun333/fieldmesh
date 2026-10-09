@@ -11,8 +11,10 @@ soil survey via `soil_survey.py`, in the United States only.
 
 Several numbers are estimates from daily data, and say so:
 
-* **chill hours** — hours below 7.2 °C (45 °F) in winter, from each day's minimum and
-  maximum on a sine curve; an hourly record would be better;
+* **chill hours** — hours between 0 and 7.2 °C (32–45 °F) in winter, the definition the
+  cultivar requirements in docs/notes/chill-requirements.csv were measured against
+  (hours below freezing do not count), from each day's minimum and maximum on a sine
+  curve; an hourly record would be better;
 * **heat-stress days** — two bounds: days whose *average* temperature–humidity index
   reaches the threshold (errs low), and days whose peak likely does, from the day's
   maximum with its mean humidity (errs high, since afternoon humidity is lower);
@@ -51,6 +53,7 @@ FILL = -999.0
 #: is PAR, at about 4.57 µmol per joule.
 DLI_PER_MJ = 2.1
 CHILL_BELOW_C = 7.2
+CHILL_ABOVE_C = 0.0
 THI_DAIRY_ONSET = 72.0
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -289,7 +292,8 @@ def climate(days: list, lat: float) -> dict:
             gdd_year[d.year] += gdd(v["T2M_MIN"], v["T2M_MAX"])
             winter = (d.month in (11, 12, 1, 2)) if north else (d.month in (5, 6, 7, 8))
             if winter:
-                chill[season(d)] += hours_below(v["T2M_MIN"], v["T2M_MAX"], CHILL_BELOW_C)
+                chill[season(d)] += (hours_below(v["T2M_MIN"], v["T2M_MAX"], CHILL_BELOW_C)
+                                     - hours_below(v["T2M_MIN"], v["T2M_MAX"], CHILL_ABOVE_C))
                 chill_days[season(d)] += 1
             if "RH2M" in v and thi(v["T2M_MAX"], v["RH2M"]) >= THI_DAIRY_ONSET:
                 heat_days[d.year] += 1

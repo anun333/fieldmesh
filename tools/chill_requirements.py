@@ -26,7 +26,7 @@ into one contiguous run per name, choosing the split that puts every name neares
 run's midpoint (least squares, by dynamic programming). The parse is checked against the
 review's own count of cultivars per crop (its Table 8).
 
-Units as published: chill hours (CH, hours at or below 7.2 °C), chill units (CU, Utah
+Units as published: chill hours (CH, hours between 0 and 7.2 °C), chill units (CU, Utah
 model, can be negative), chill portions (CP, Dynamic model), growing degree hours (GDH).
 Values are kept as printed — ranges, ± spreads, "<300", "Very high" — because flattening
 them would claim a precision the studies do not.
@@ -244,7 +244,7 @@ def main(argv=None) -> int:
         h.write("# SPDX-License-Identifier: CC-BY-4.0\n"
                 "# From Fadón E, Herrera S, Guerrero BI, Guerra ME, Rodrigo J (2020) Chilling and heat requirements of "
                 "temperate stone fruit trees (Prunus sp.). Agronomy 10(3):409, doi:10.3390/agronomy10030409, CC BY 4.0; "
-                "tables re-keyed by tools/chill_requirements.py, values as printed. CH = chill hours (<=7.2 C), "
+                "tables re-keyed by tools/chill_requirements.py, values as printed. CH = chill hours (0-7.2 C), "
                 "CU = Utah chill units, CP = Dynamic-model chill portions, GDH = growing degree hours.\n")
         w = csv.DictWriter(h, fieldnames=[k for k in rows[0] if k != "_seq"], extrasaction="ignore")
         w.writeheader()

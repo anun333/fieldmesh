@@ -8,7 +8,7 @@ The site's own thirty years of weather, every day +1.0 °C warmer and with +0% r
 - Frost-free days (8 years in 10): 207 → 213
 - Hardiness zone: 8a → 8a
 - Growing degree days: 2774 → 2985
-- Chill hours: 1648 → 1497
+- Chill hours: 1048 → 1023
 - Dairy heat-stress days (upper estimate): 172 → 183
 - Days over 35 °C: 13 → 21
 
@@ -23,7 +23,9 @@ The site's own thirty years of weather, every day +1.0 °C warmer and with +0% r
 ## Food crops, simulated on this site's weather
 
 - Bambara groundnut: cultivars maturing 2 → 2 of 2; sow April 9 to June 18 → March 26 to June 25
+- Barley: cultivars maturing 1 → 1 of 3; sow October 15 to April 2 → October 15 to March 19
 - Bell and chili pepper: cultivars maturing 5 → 5 of 5; sow April 9 to May 28 → March 26 to May 28
+- Bread wheat: cultivars maturing 5 → 5 of 8; sow September 3 to March 19 → August 27 to March 5
 - Cabbage: cultivars maturing 3 → 3 of 3; sow March 12 to August 6 → March 5 to August 13
 - Chickpea: cultivars maturing 32 → 32 of 32; sow February 19 to August 27 → February 12 to September 3
 - Common bean: cultivars maturing 30 → 30 of 30; sow April 9 to August 13 → March 26 to August 20
@@ -51,11 +53,19 @@ The site's own thirty years of weather, every day +1.0 °C warmer and with +0% r
 ## Stone fruit by winter chill
 
 - Almond: cultivars getting their chill 68 → 68 of 68
-- European apricot: cultivars getting their chill 39 → 36 of 41
-- Japanese apricot (ume): cultivars getting their chill 8 → 6 of 8
-- Peach: cultivars getting their chill 126 → 124 of 126
+- European apricot: cultivars getting their chill 26 → 24 of 41
+- Japanese apricot (ume): cultivars getting their chill 6 → 6 of 8
+- Peach: cultivars getting their chill 115 → 108 of 126
 - Nectarine: cultivars getting their chill 10 → 10 of 10
 - Flat peach: cultivars getting their chill 7 → 7 of 7
-- European plum: cultivars getting their chill 9 → 8 of 9
+- European plum: cultivars getting their chill 4 → 4 of 9
 - Japanese plum: cultivars getting their chill 16 → 16 of 16
-- Cherry: cultivars getting their chill 40 → 40 of 40
+- Cherry: cultivars getting their chill 25 → 25 of 40
+
+- Almond: median bloom February 20 → February 9; frost after bloom in 8 → 7 years of 10
+- European apricot: median bloom March 23 → March 17; frost after bloom in 3 → 2 years of 10
+- Japanese apricot (ume): median bloom February 28 → February 26; frost after bloom in 7 → 5 years of 10
+- Peach: median bloom March 26 → March 23; frost after bloom in 2 → 2 years of 10
+- Nectarine: median bloom March 21 → March 16; frost after bloom in 4 → 3 years of 10
+- Japanese plum: median bloom March 27 → March 21; frost after bloom in 2 → 2 years of 10
+- Cherry: median bloom April 28 → April 22; frost after bloom in 0 → 0 years of 10

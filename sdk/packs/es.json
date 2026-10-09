@@ -157,7 +157,7 @@
   "advise.nodata": "{count} plantas de la lista aún no tienen datos en ninguna de las fuentes; sobre todo frutales, hierbas y flores.",
   "advise.names_note": "Los nombres de las plantas están en inglés hasta que se añadan nombres multilingües de AGROVOC.",
   "advise.section.sources": "Fuentes",
-  "advise.sources": "Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita. Frío de frutales: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0).",
+  "advise.sources": "Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita. Frío y calor de frutales: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0); umbrales de helada en floración: Washington State University vía Penn State Extension.",
   "advise.month.1": "enero",
   "advise.month.2": "febrero",
   "advise.month.3": "marzo",
@@ -187,7 +187,7 @@
   "advise.future.losses": "Deja de adaptarse ({count})",
   "advise.future.crop": "{crop}: variedades que maduran {now} → {then} de {total}; sembrar {now_window} → {then_window}",
   "advise.section.chill": "Frutales de hueso según el frío invernal",
-  "advise.chill.preface": "Los inviernos aquí dan al menos {chill:.0f} horas frío (horas a 7,2 °C o menos, de noviembre a febrero) 8 años de cada 10. Frente a las necesidades por variedad que recopilan Fadón y colaboradores (2020) —medidas en una docena de países, sobre todo en España, y por varios métodos, así que orientan, no garantizan—, estas variedades de cada especie cubrirían su frío. Solo el frío: no se juzgan aquí las heladas tardías en floración ni el calor para madurar.",
+  "advise.chill.preface": "Los inviernos aquí dan al menos {chill:.0f} horas frío (horas entre 0 y 7,2 °C, de noviembre a marzo) 8 años de cada 10. Frente a las necesidades por variedad que recopilan Fadón y colaboradores (2020) —medidas en una docena de países, sobre todo en España, y por varios métodos, así que orientan, no garantizan—, estas variedades de cada especie cubrirían su frío.",
   "advise.chill.crop": "{crop}: {fit} de {known} variedades",
   "advise.future.fruit": "{crop}: variedades que cubren su frío {now} → {then} de {known}",
   "advise.fruit.almond": "Almendro",
@@ -198,6 +198,10 @@
   "advise.fruit.flat_peach": "Paraguayo",
   "advise.fruit.plum_eu": "Ciruelo europeo",
   "advise.fruit.plum_jp": "Ciruelo japonés",
-  "advise.fruit.cherry": "Cerezo"
+  "advise.fruit.cherry": "Cerezo",
+  "advise.bloom.preface": "Floración y helada: para {count} estimaciones de variedades cuyos estudios dan también una necesidad de calor, la floración se simula sobre los propios inviernos del sitio —frío desde el 1 de noviembre, luego calor— y un año cuenta como helado cuando la mínima baja a −2,2 °C (28 °F) o menos en las dos semanas tras la floración. Las mínimas de la malla son más suaves que las del suelo de un huerto, así que los recuentos se quedan cortos.",
+  "advise.bloom.crop": "{crop}: florece del {early} al {late} (mediana {median}); helada tras la floración en {frost} años de cada 10.",
+  "advise.bloom.crop_unmet": "{crop}: florece del {early} al {late} (mediana {median}); helada tras la floración en {frost} años de cada 10. En {unmet} de sus {count} estimaciones, el frío no alcanza en más de 2 inviernos de cada 10.",
+  "advise.future.bloom": "{crop}: floración mediana {now} → {then}; helada tras la floración en {fnow} → {fthen} años de cada 10"
  }
 }

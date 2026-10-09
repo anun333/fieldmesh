@@ -23,6 +23,12 @@ class TemperatureTest(unittest.TestCase):
         self.assertEqual(T.hours_below(10, 20, 7.2), 0.0)
         self.assertAlmostEqual(T.hours_below(2.2, 12.2, 7.2), 12.0)
 
+    def test_chill_hours_skip_hours_below_freezing(self):
+        days = [(dt.date(2019, 11, 1) + dt.timedelta(days=i), {"T2M": -5.0, "T2M_MAX": -1.0, "T2M_MIN": -9.0,
+                                                                "PRECTOTCORR": 1.0, "RH2M": 70.0})
+                for i in range(800)]
+        self.assertEqual(T.climate(days, 35.0)["chill_hours_est"], 0, "a frozen winter gives no chill")
+
     def test_growing_degree_days_86_50(self):
         self.assertEqual(T.gdd(5, 9), 0.0)
         self.assertEqual(T.gdd(15, 25), 10.0)

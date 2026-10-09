@@ -1,13 +1,13 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Qué crece en 35,0645; -86,5914
 
-Generado el 2026-10-08 a partir de datos abiertos. Son puntos de partida, no respuestas: contrástelos con el conocimiento local, un análisis de suelo y sus propios registros.
+Generado el 2026-10-09 a partir de datos abiertos. Son puntos de partida, no respuestas: contrástelos con el conocimiento local, un análisis de suelo y sus propios registros.
 
 ## El sitio
 
 - Clima Cfa; media de 15,4 °C; 1376 mm de lluvia al año; zona de rusticidad del USDA en torno a 8a.
 - Última helada de primavera hacia el 31 de marzo y primera de otoño hacia el 3 de noviembre; al menos 207 días sin heladas 8 años de cada 10.
-- 2774 grados-día de crecimiento al año (°C, base 10); unas 1648 horas frío en invierno.
+- 2774 grados-día de crecimiento al año (°C, base 10); unas 1048 horas frío en invierno.
 - En el registro, los quince años más recientes fueron +0,5 °C más cálidos que los quince anteriores.
 - Suelo: Dickson silt loam, 2 to 5 percent slopes — Moderately well drained, pendiente del 4,0%; pH del suelo superficial 6,2, materia orgánica 2,8%.
 - Descubierto, este suelo se erosionaría unas 26 veces más de lo que tolera: manténgalo cubierto con cultivos de cobertura, forraje perenne o franjas de protección.
@@ -17,7 +17,9 @@ Generado el 2026-10-08 a partir de datos abiertos. Son puntos de partida, no res
 ## Cultivos alimentarios, simulados con el tiempo de este sitio
 
 - Bambara groundnut: 2 de 2 variedades maduran 8 años de cada 10, en 136–141 días. Sembrar del 9 de abril al 18 de junio.
+- Barley: 1 de 3 variedades maduran 8 años de cada 10, en 261–261 días. Sembrar del 15 de octubre al 2 de abril.
 - Bell and chili pepper: 5 de 5 variedades maduran 8 años de cada 10, en 155–182 días. Sembrar del 9 de abril al 28 de mayo.
+- Bread wheat: 5 de 8 variedades maduran 8 años de cada 10, en 229–248 días. Sembrar del 3 de septiembre al 19 de marzo.
 - Cabbage: 3 de 3 variedades maduran 8 años de cada 10, en 116–150 días. Sembrar del 12 de marzo al 6 de agosto.
 - Chickpea: 32 de 32 variedades maduran 8 años de cada 10, en 96–153 días. Sembrar del 19 de febrero al 27 de agosto.
 - Common bean: 30 de 30 variedades maduran 8 años de cada 10, en 75–107 días. Sembrar del 9 de abril al 13 de agosto.
@@ -44,17 +46,27 @@ Generado el 2026-10-08 a partir de datos abiertos. Son puntos de partida, no res
 
 ## Frutales de hueso según el frío invernal
 
-Los inviernos aquí dan al menos 1414 horas frío (horas a 7,2 °C o menos, de noviembre a febrero) 8 años de cada 10. Frente a las necesidades por variedad que recopilan Fadón y colaboradores (2020) —medidas en una docena de países, sobre todo en España, y por varios métodos, así que orientan, no garantizan—, estas variedades de cada especie cubrirían su frío. Solo el frío: no se juzgan aquí las heladas tardías en floración ni el calor para madurar.
+Los inviernos aquí dan al menos 1090 horas frío (horas entre 0 y 7,2 °C, de noviembre a marzo) 8 años de cada 10. Frente a las necesidades por variedad que recopilan Fadón y colaboradores (2020) —medidas en una docena de países, sobre todo en España, y por varios métodos, así que orientan, no garantizan—, estas variedades de cada especie cubrirían su frío.
 
 - Almendro: 68 de 68 variedades
-- Albaricoquero europeo: 39 de 41 variedades
-- Albaricoquero japonés (ume): 8 de 8 variedades
-- Melocotonero: 126 de 126 variedades
+- Albaricoquero europeo: 26 de 41 variedades
+- Albaricoquero japonés (ume): 6 de 8 variedades
+- Melocotonero: 115 de 126 variedades
 - Nectarina: 10 de 10 variedades
 - Paraguayo: 7 de 7 variedades
-- Ciruelo europeo: 9 de 9 variedades
+- Ciruelo europeo: 4 de 9 variedades
 - Ciruelo japonés: 16 de 16 variedades
-- Cerezo: 40 de 40 variedades
+- Cerezo: 25 de 40 variedades
+
+Floración y helada: para 145 estimaciones de variedades cuyos estudios dan también una necesidad de calor, la floración se simula sobre los propios inviernos del sitio —frío desde el 1 de noviembre, luego calor— y un año cuenta como helado cuando la mínima baja a −2,2 °C (28 °F) o menos en las dos semanas tras la floración. Las mínimas de la malla son más suaves que las del suelo de un huerto, así que los recuentos se quedan cortos.
+
+- Almendro: florece del 4 de febrero al 12 de marzo (mediana 20 de febrero); helada tras la floración en 8 años de cada 10.
+- Albaricoquero europeo: florece del 14 de marzo al 15 de abril (mediana 23 de marzo); helada tras la floración en 3 años de cada 10. En 9 de sus 32 estimaciones, el frío no alcanza en más de 2 inviernos de cada 10.
+- Albaricoquero japonés (ume): florece del 18 de diciembre al 21 de marzo (mediana 28 de febrero); helada tras la floración en 7 años de cada 10. En 2 de sus 6 estimaciones, el frío no alcanza en más de 2 inviernos de cada 10.
+- Melocotonero: florece del 19 de marzo al 13 de abril (mediana 26 de marzo); helada tras la floración en 2 años de cada 10. En 5 de sus 34 estimaciones, el frío no alcanza en más de 2 inviernos de cada 10.
+- Nectarina: florece del 16 de marzo al 2 de abril (mediana 21 de marzo); helada tras la floración en 4 años de cada 10.
+- Ciruelo japonés: florece del 12 de marzo al 5 de abril (mediana 27 de marzo); helada tras la floración en 2 años de cada 10.
+- Cerezo: florece del 29 de marzo al 30 de abril (mediana 28 de abril); helada tras la floración en 0 años de cada 10.
 
 ## Se adapta al sitio (90)
 
@@ -215,4 +227,4 @@ Alfalfa (*Medicago sativa*), American basswood (*Tilia americana*), American bea
 
 ## Fuentes
 
-Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita. Frío de frutales: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0).
+Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita. Frío y calor de frutales: Fadón et al. 2020, Agronomy 10:409 (CC BY 4.0); umbrales de helada en floración: Washington State University vía Penn State Extension.

@@ -29,6 +29,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, os.pardir, "sdk"))
 import dssat_crops  # noqa: E402
 import i18n  # noqa: E402
+import fruit_bloom  # noqa: E402
 import plant_match  # noqa: E402
 import site_profile  # noqa: E402
 
@@ -114,8 +115,23 @@ def chill_fit(requirements: list, site_chill: float) -> list:
     return out
 
 
+def bloom_lines(r: "Report", bloom: dict, north: bool) -> list:
+    """Per crop with bloom estimates: when it blooms and how often frost follows."""
+    out = []
+    for crop, key in FRUIT:
+        s = bloom.get(crop)
+        if not s or s["bloom_median"] is None:
+            continue
+        when = {k: r.date(fruit_bloom.as_date(s[f"bloom_{k}"], north)) for k in ("early", "late", "median")}
+        args = dict(crop=r.tr(f"advise.fruit.{key}"), early=when["early"], late=when["late"],
+                    median=when["median"], frost=s["frost_in_10"], count=s["estimates"], unmet=s["unmet"])
+        out.append("- " + r.tr("advise.bloom.crop_unmet" if s["unmet"] else "advise.bloom.crop", **args))
+    return out
+
+
 def render(site: dict, rows: list, cal: dict, language: str, today: str,
-           chill: list | None = None) -> str:
+           chill: list | None = None, bloom: dict | None = None,
+           fruit_chill: float | None = None) -> str:
     r = Report(language)
     c = site["climate"]
     out = [f"# {r.tr('advise.title', lat=site['lat'], lon=site['lon'])}", "",
@@ -160,11 +176,16 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str,
         out.append("")
 
     if chill:
+        # The fruit's own season — chill to the end of March — unless none is given.
+        have = fruit_chill if fruit_chill is not None else c["chill_hours_8_in_10"]
         out += [f"## {r.tr('advise.section.chill')}", "",
-                r.tr("advise.chill.preface", chill=c["chill_hours_8_in_10"]), ""]
-        for key, known, fit in chill_fit(chill, c["chill_hours_8_in_10"]):
+                r.tr("advise.chill.preface", chill=have), ""]
+        for key, known, fit in chill_fit(chill, have):
             out.append("- " + r.tr("advise.chill.crop", crop=r.tr(f"advise.fruit.{key}"), fit=fit, known=known))
         out.append("")
+        if bloom:
+            out += [r.tr("advise.bloom.preface", count=sum(s["estimates"] for s in bloom.values())), ""]
+            out += bloom_lines(r, bloom, site["lat"] >= 0) + [""]
 
     def reasons(row, kinds):
         return "; ".join(r.tr(key, **params) for kind, key, params in row.get("_keys", [])
@@ -203,7 +224,9 @@ def render(site: dict, rows: list, cal: dict, language: str, today: str,
 
 
 def render_future(site: dict, rows: list, site2: dict, rows2: list, language: str,
-                  label: str, warm: float, rain: float, source: str, chill: list | None = None) -> str:
+                  label: str, warm: float, rain: float, source: str, chill: list | None = None,
+                  bloom: dict | None = None, bloom2: dict | None = None,
+                  fruit_chill: tuple | None = None) -> str:
     """Now against then: the site's numbers, the plants whose verdict changes, and each
     modelled crop's cultivars and sowing windows."""
     r = Report(language)
@@ -241,11 +264,23 @@ def render_future(site: dict, rows: list, site2: dict, rows2: list, language: st
         out.append("")
     if chill:
         out += [f"## {r.tr('advise.section.chill')}", ""]
-        now = chill_fit(chill, c["chill_hours_8_in_10"])
-        then = {k: fit for k, _, fit in chill_fit(chill, c2["chill_hours_8_in_10"])}
+        have, have2 = fruit_chill or (c["chill_hours_8_in_10"], c2["chill_hours_8_in_10"])
+        now = chill_fit(chill, have)
+        then = {k: fit for k, _, fit in chill_fit(chill, have2)}
         for key, known, fit in now:
             out.append("- " + r.tr("advise.future.fruit", crop=r.tr(f"advise.fruit.{key}"),
                                    now=fit, then=then[key], known=known))
+        out.append("")
+    if bloom and bloom2:
+        north = site["lat"] >= 0
+        for crop, key in FRUIT:
+            a, b = bloom.get(crop), bloom2.get(crop)
+            if not a or not b or a["bloom_median"] is None or b["bloom_median"] is None:
+                continue
+            out.append("- " + r.tr("advise.future.bloom", crop=r.tr(f"advise.fruit.{key}"),
+                                   now=r.date(fruit_bloom.as_date(a["bloom_median"], north)),
+                                   then=r.date(fruit_bloom.as_date(b["bloom_median"], north)),
+                                   fnow=a["frost_in_10"], fthen=b["frost_in_10"]))
         out.append("")
     return "\n".join(out)
 
@@ -287,10 +322,13 @@ def main(argv=None) -> int:
             w.writerows(data)
     today = _dt.date.today().isoformat()
     chill = read_csv(os.path.join(NOTES, "chill-requirements.csv"))
+    bloom = fruit_bloom.summarize(fruit_bloom.simulate(chill, days, args.lat))
+    eight = lambda xs: sorted(xs)[int(0.2 * len(xs))] if xs else 0.0
+    fruit_chill = eight(fruit_bloom.winter_chill(days, args.lat))
     for lang in args.lang.split(","):
         path = os.path.join(args.out, f"report.{lang}.md")
         with open(path, "w", encoding="utf-8") as h:
-            h.write(render(site, rows, cal, lang, today, chill))
+            h.write(render(site, rows, cal, lang, today, chill, bloom, fruit_chill))
         print(f"wrote {path}")
     if args.warm is not None:
         site2 = site_profile.profile(args.lat, args.lon, cache=power, warm_c=args.warm,
@@ -301,11 +339,14 @@ def main(argv=None) -> int:
                                      read_csv(os.path.join(NOTES, "plant-characteristics-usda.csv")),
                                      site2, [{k: str(v) for k, v in s.items()} for s in seasons2])
         label = args.future_label or f"{args.warm:+.1f} °C"
+        bloom2 = fruit_bloom.summarize(fruit_bloom.simulate(chill, days2, args.lat))
+        fruit_chill2 = eight(fruit_bloom.winter_chill(days2, args.lat))
         for lang in args.lang.split(","):
             path = os.path.join(args.out, f"future.{lang}.md")
             with open(path, "w", encoding="utf-8") as h:
                 h.write(render_future(site, rows, site2, rows2, lang, label, args.warm,
-                                      args.rain_change, args.future_source, chill))
+                                      args.rain_change, args.future_source, chill, bloom, bloom2,
+                                      (fruit_chill, fruit_chill2)))
             print(f"wrote {path}")
     return 0
 

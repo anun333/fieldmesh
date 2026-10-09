@@ -122,10 +122,12 @@ USDA PLANTS knows almost nothing about food crops, so a second source was brough
 **DSSAT** crop models (BSD-3-Clause), whose parameter files give each crop's cardinal
 temperatures for development, its response to day length, and — per cultivar — how long
 each phase takes. [dssat_crops.py](../../tools/dssat_crops.py) ports DSSAT's own response
-curves and the CROPGRO, CERES-Maize, CERES-Sorghum and CERES-Millet phenology, and runs every cultivar of 25 crops through the site's
-thirty years of weather and day length: planted a week after each year's last frost (four
-weeks before it for cool-season crops), does it reach physiological maturity before the
-first fall frost? [crop-parameters-dssat.csv](crop-parameters-dssat.csv) carries the
+curves and the CROPGRO, CERES-Maize, CERES-Sorghum, CERES-Millet and Cropsim-CERES wheat and
+barley phenology, and runs every cultivar of 27 crops through the site's thirty years of
+weather and day length: planted a week after each year's last frost (four weeks before it
+for cool-season crops, two weeks before the first fall frost for the winter cereals), does
+it reach physiological maturity before the first fall frost — or, for the winter cereals,
+survive the winter and mature? [crop-parameters-dssat.csv](crop-parameters-dssat.csv) carries the
 parameters, with DSSAT's notice.
 
 At McAllister Farm:
@@ -135,6 +137,8 @@ At McAllister Farm:
 | maize (CERES-Maize) | 166 of 166 hybrids | 86–148 |
 | sorghum (CERES-Sorghum) | 51 of 55 | 113–194 |
 | pearl millet (CERES-Millet) | 48 of 60 | 99–226 |
+| wheat, fall-sown (Cropsim-CERES) | 5 of 8 — the winter wheats | 229–248 |
+| barley, fall-sown (Cropsim-CERES) | 1 of 3 | 261 |
 | dry bean | 30 of 30 | 75–107 |
 | tomato | 4 of 4 | 120–131 |
 | pepper | 5 of 5 | 155–182 |
@@ -148,6 +152,29 @@ At McAllister Farm:
 | cotton | 17 of 17 | 118–172 |
 | **pigeon pea** | **0 of 3** | short-day: long summer days delay flowering until frost |
 | **velvet bean** | **0 of 20** | likewise |
+
+**Wheat and barley** carry what the other models do not: vernalization and winter
+hardiness. Development runs on thermal time scaled by a vernalization factor (cold days
+counted through a −5/0/7/15 °C response until the cultivar's requirement, P1V, is met)
+and a long-day factor; and a kill temperature hardens from −6 °C toward the ecotype's
+limit (−20 °C for the US soft red winter ecotype) through cool autumn days and softens on
+warm ones. Newton, a US winter wheat, sown two weeks before the median first frost
+(October 20 here) flowers about April 30 and matures in 230 days — early June, when
+Tennessee wheat is cut, which is what leaves room for the double-crop soybean sown into
+its stubble. NASA POWER carries no snow, so the crown is never insulated; that errs toward
+winter kill.
+
+Three rules go beyond DSSAT, each because a result was wrong without it. DSSAT stops
+counting cold once the spike grows, so a spring wheat sown in October "flowered" in late
+February and matured; now a daily minimum of −2.2 °C or below from boot on ends the season
+(K-State's C-646 puts injury at 28 °F at boot, 30 °F at heading), and the fall-sown spring
+wheats fail most years, as they would. A sowing swept through summer "matured" too, so a
+day over 31 °C while it flowers ends the season (above 31 °C pollination fails: Porter &
+Gawith 1999), and a season longer than nine months does not count — phenology alone lets a
+June-sown winter wheat wait out the summer for its cold. Five of the eight wheats, the
+winter ones, mature from a fall sowing 8 years in 10. Barley's three cultivars were
+calibrated in Syria and England; one matures, and its winter types flower in mid-March
+here, earlier than Tennessee barley heads. A local calibration would fix barley.
 
 **When to sow.** With `--windows` the tool sows every week of the year, with the fastest,
 a middle and the slowest of the cultivars that mature here 8 years in 10 (by simulated
@@ -174,7 +201,7 @@ temperature is taken as the air's, and water and nutrient stress are not simulat
 
 `tools/advise.py LAT LON --lang en,es --windows` runs all of the above for a point and
 writes a report a farmer can read — the site, food crops with sowing windows, stone fruit
-by winter chill, what suits,
+by winter chill with bloom dates and the frost after them, what suits,
 what needs lime, sulfur or water, what does not suit and why, what is refused as invasive,
 bees, livestock heat — plus the data behind it. Its words come from the language packs, so
 the same report renders in Spanish (dates, decimal commas and the reasons included) and in
@@ -210,8 +237,9 @@ upper estimate from 172 to 183 days; the hardiness zone stays 8a (1.8 °F is und
 zone). Every modelled crop's sowing window opens about two weeks earlier (maize and soybean
 from April 9 to March 26), and many close a week later. The longer season lets more
 sorghum (51 → 52 of 55) and pearl millet (48 → 53 of 60) cultivars mature; no crop loses
-one. The plant matcher moves one plant (saltmeadow cordgrass now fits). Chill falls by about a
-tenth (1648 to 1497 hours on average) — see below.
+one. The plant matcher moves one plant (saltmeadow cordgrass now fits). Chill barely moves
+(1048 to 1023 hours on average), because warming turns hours below freezing into chill
+hours about as fast as it lifts others above 7.2 °C — see below.
 
 **What the delta method cannot say.** It moves today's weather and keeps its variability,
 so it says nothing about wetter springs, longer droughts or stronger storms. It is uniform
@@ -240,18 +268,47 @@ result reproduces the review's own cultivar count for every crop. One cherry is 
 because the review's Table 8 itself is one short. Every one of the 658 rows a text
 extraction shows is present, plus 4 rows the PDF prints with no location.
 
-The site's chill is now counted over full winters only — the record's half-winters at
-each end had pulled the mean down by a few percent — and given 8 years in 10, which is what
-a tree needs. The advisor compares that with each cultivar's chill-hour requirement, taking
-the top of a published range and holding a cultivar measured twice to the higher figure.
-At McAllister, 1414 chill hours 8 years in 10 satisfy every cultivar but two European
-apricots. In the 2050s run the figure falls to 1276 (1234 for the 2060s' +1.3 °C), and
-three more European apricots, two Japanese apricots, two peaches and a European plum fall
-short — the high-chill end of the list, the first place a warming winter shows. The
-section matters more where winters are already mild. The requirements were measured in a dozen countries —
-Spain for 43% of rows, then China, the US and Korea — by methods that do not always agree,
-so the report calls them a guide. Late frost at
-bloom, the fruit grower's commoner loss here, is not judged yet.
+**Counting chill.** A chill hour is an hour between 0 and 7.2 °C — the review's definition,
+and chillR's — so hours below freezing do not count, though the site profile counted them
+at first. That correction cut McAllister's figure by a third (1648 to 1048 hours a winter,
+November to February). Chill is counted over full winters only (the record's half-winters
+at each end had pulled the mean down a few percent), and for fruit through the end of
+March, since a tree goes on gathering chill until it has enough: 1090 hours 8 years in 10.
+The advisor holds each cultivar's requirement to the top of its published range, and a
+cultivar measured twice to the higher figure. At McAllister that covers every almond,
+nectarine, flat peach and Japanese plum, 115 of 126 peaches, 26 of 41 European apricots,
+25 of 40 cherries and 4 of 9 European plums: the high-chill end of the list falls short.
+Warming hardly changes it (1047 in the 2050s; 108 peaches, 24 apricots), because a warmer
+winter here turns hours below freezing into chill hours nearly as fast as it lifts others
+above 7.2 °C — a mild-winter site would lose chill faster. The requirements were measured
+in a dozen countries — Spain for 43% of rows, then China, the US and Korea — by methods
+that do not always agree, so the report calls them a guide.
+
+**Bloom and frost.** Late frost at bloom is the commoner loss here, and 145 of the
+requirements come with a heat requirement too, so bloom can be simulated:
+[fruit_bloom.py](../../tools/fruit_bloom.py) counts chill from November 1 until the
+cultivar's requirement is met, then growing degree hours (Anderson et al. 1986: base 4,
+optimum 25, ceiling 36 °C) until its heat requirement is met — bloom — and calls a year
+frosted when the minimum reaches −2.2 °C (28 °F, 10% bud kill at full bloom for sweet
+cherry; 27 °F for peach and apricot, in Washington State's Prosser measurements) within two
+weeks after. At McAllister:
+
+| crop | bloom (median) | frost after bloom |
+| --- | --- | --- |
+| almond | Feb 4–Mar 12 (Feb 20) | 8 years in 10 |
+| Japanese apricot | Dec 18–Mar 21 (Feb 28) | 7 in 10 |
+| nectarine | Mar 16–Apr 2 (Mar 21) | 4 in 10 |
+| European apricot | Mar 14–Apr 15 (Mar 23) | 3 in 10 |
+| peach | Mar 19–Apr 13 (Mar 26) | 2 in 10 |
+| Japanese plum | Mar 12–Apr 5 (Mar 27) | 2 in 10 |
+| cherry | Mar 29–Apr 30 (Apr 28) | 0 in 10 |
+
+That is the shape growers know: almonds are not grown in Tennessee because they bloom into
+February frosts, peaches lose a crop to spring frost some years, late-blooming cherries
+escape. In the 2050s every crop blooms about a week earlier and the frost count holds or
+falls by one — the frosts move earlier too. The grid's minimums are milder than an orchard
+floor on a still night, so these counts err low, and an orchard on a slope will do better
+than one in a frost pocket.
 
 ## Bees per plant, from GloBI
 
@@ -292,13 +349,14 @@ buckwheat's photosensitisation — while "bloat: medium" on maize is another PLA
 
 ## Not checked yet
 
-For the 25 crops with a crop model, temperature, day length and time to maturity are now
-checked together, by simulation; for 531 stone-fruit cultivars, winter chill. Still not
-checked: chill for apples, pears and blueberries (no openly licensed table found), late
-frost at bloom, heat damage to fruit set beyond the development
-curve, fall plantings of cool-season crops, wheat, barley and rice (DSSAT's CERES-Wheat/Barley
-needs vernalization and CERES-Rice transplanting and its own thermal time; not ported yet), and everything for the 255 plants with neither
-source — most fruit, herbs and flowers.
+For the 27 crops with a crop model, temperature, day length and time to maturity — and for
+wheat and barley, vernalization, winter kill, freeze after boot and heat at flowering — are
+checked together, by simulation; for 531 stone-fruit cultivars, winter chill, and for 132
+of them, bloom date and frost after it. Still not checked: chill and bloom for apples,
+pears and blueberries (no openly licensed table found), heat damage to fruit set beyond
+the development curve, rice (CERES-Rice, with its transplanting and its own thermal time;
+not ported yet), oats and rye (no DSSAT model), and everything for the 255 plants with
+neither source — most fruit, herbs and flowers.
 
 ## Reproducing
 
