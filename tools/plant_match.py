@@ -20,6 +20,14 @@ opaque score:
   waterlogging it does not tolerate on a poorly drained soil, salt it does not tolerate,
   or a winter low within the 5 °F margin.
 
+**Under cover** (`--cover high-tunnel`), the site is changed only as far as is defensible:
+the frost-free season is lengthened by two weeks at each end — the low end of the two to
+four weeks extension services commonly give — and rainfall stops mattering, because
+nothing under cover gets rain and everything must be irrigated. How much warmer an
+unheated tunnel keeps a winter night varies by tunnel and by night, so the winter low is
+left as it is outside unless a measured gain is given (`--winter-gain-f`): a sensor
+inside and one outside measure it (docs/notes/hoop-houses.md).
+
 Plants on the do-not-plant list are refused before anything else. A plant PLANTS has no
 characteristics for is reported as such. Heat, chill hours and day length are not in
 PLANTS and are not checked yet — a known gap, listed in the output.
@@ -44,6 +52,13 @@ BLOOM = {"Late Winter": [2], "Winter": [12, 1, 2], "Early Spring": [3], "Mid Spr
          "Late Fall": [11]}
 PERENNIAL = {"perennial", "short-lived perennial"}
 COLD_MARGIN_F = 5.0
+#: Days a high tunnel adds to the frost-free season: two weeks at each end.
+COVER_SEASON_DAYS = {"high-tunnel": 28}
+#: What is grown under cover. Timber, pasture and windbreaks are not, whatever the
+#: arithmetic says — the first run happily put bur oak in a hoop house.
+COVER_CATEGORIES = {"vegetable", "spice/herb", "cut flower", "edible flower",
+                    "berry/vine fruit", "temperate fruit", "tropical/subtropical fruit",
+                    "root/tuber", "pulse", "pseudocereal", "beverage/stimulant"}
 #: PLANTS' frost-free days and minimum temperatures are conservation-planting guidance,
 #: not hard limits: it lists white clover as needing 250 frost-free days and dying below
 #: 22 °F, and both it and bermudagrass are staples of Tennessee pasture at 207 days and
@@ -74,6 +89,8 @@ def judge(plant: dict, chars: dict | None, site: dict) -> dict:
     out = {"rules_out": [], "fixable": [], "caution": []}
     if plant["category"].startswith("invasive"):
         return {**out, "verdict": "do not plant (invasive)"}
+    if site.get("cover") and plant["category"] not in COVER_CATEGORIES:
+        return {**out, "verdict": "not grown under cover"}
     if not chars or not chars.get("plants_symbol"):
         return {**out, "verdict": "no data (not in USDA PLANTS)"}
     if "characteristics" in (chars.get("match") or ""):
@@ -114,11 +131,11 @@ def judge(plant: dict, chars: dict | None, site: dict) -> dict:
             elif low - COLD_MARGIN_F < tmin:
                 out["caution"].append(f"winter: average low {low:.0f} °F is within {COLD_MARGIN_F:.0f} °F of its {tmin:.0f} °F limit")
 
-    rain = c["annual_rain_in"]
+    rain = c.get("annual_rain_in")
     lo, hi = number(chars.get("Precipitation, Minimum")), number(chars.get("Precipitation, Maximum"))
-    if lo is not None and rain < lo:
+    if rain is not None and lo is not None and rain < lo:
         out["fixable"].append(f"water: {rain:.0f} in of rain, needs {lo:.0f} — irrigate")
-    if hi is not None and rain > hi:
+    if rain is not None and hi is not None and rain > hi:
         out["caution"].append(f"water: {rain:.0f} in of rain, wetter than its {hi:.0f} in maximum")
 
     ph = soil.get("topsoil_ph")
@@ -147,6 +164,17 @@ def judge(plant: dict, chars: dict | None, site: dict) -> dict:
     else:
         verdict = "suits"
     return {**out, "verdict": verdict}
+
+
+def under_cover(site: dict, cover: str, winter_gain_f: float = 0.0) -> dict:
+    """The site as a crop under `cover` sees it. Rainfall becomes None — irrigated —
+    and the season is lengthened; the winter low moves only by a measured gain."""
+    covered = {**site, "cover": cover, "climate": dict(site["climate"])}
+    c = covered["climate"]
+    c["frost_free_days_8_in_10"] = min(365, c["frost_free_days_8_in_10"] + COVER_SEASON_DAYS[cover])
+    c["mean_annual_extreme_min_f"] = c["mean_annual_extreme_min_f"] + winter_gain_f
+    c["annual_rain_in"] = None
+    return covered
 
 
 def bloom_months(value: str | None, south: bool) -> list:
@@ -200,9 +228,15 @@ def main(argv=None) -> int:
     ap.add_argument("characteristics")
     ap.add_argument("site")
     ap.add_argument("--out")
+    ap.add_argument("--cover", choices=sorted(COVER_SEASON_DAYS),
+                    help="match for a crop under this cover instead of in the open")
+    ap.add_argument("--winter-gain-f", type=float, default=0.0,
+                    help="measured winter-night gain of the cover, °F (default 0: unmeasured)")
     args = ap.parse_args(argv)
     with open(args.site, encoding="utf-8") as h:
         site = json.load(h)
+    if args.cover:
+        site = under_cover(site, args.cover, args.winter_gain_f)
     rows, cal = match(read_csv(args.plant_list), read_csv(args.characteristics), site)
     if args.out:
         with open(args.out, "w", newline="", encoding="utf-8") as h:
@@ -210,7 +244,11 @@ def main(argv=None) -> int:
             w.writeheader()
             w.writerows(rows)
     verdicts = collections.Counter(r["verdict"] for r in rows)
-    print(f"{site['lat']}, {site['lon']}: " + ", ".join(f"{k} {v}" for k, v in verdicts.most_common()))
+    where = f" under {site['cover']}" if site.get("cover") else ""
+    print(f"{site['lat']}, {site['lon']}{where}: " + ", ".join(f"{k} {v}" for k, v in verdicts.most_common()))
+    if site.get("cover"):
+        print("  under cover: everything needs irrigation; crops that need pollinators need "
+              "bees let in or hand pollination")
     reasons = collections.Counter(x.split(":")[0] for r in rows for x in r["rules_out"].split("; ") if x)
     print("  ruled out by: " + ", ".join(f"{k} {v}" for k, v in reasons.most_common()))
     print("  in flower (suited plants): " + "  ".join(f"{m} {n}" for m, n in cal["in_flower"].items()))

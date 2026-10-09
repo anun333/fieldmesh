@@ -89,6 +89,31 @@ class JudgeTest(unittest.TestCase):
         self.assertTrue(j["verdict"].startswith("no data"))
 
 
+class CoverTest(unittest.TestCase):
+    def test_a_tunnel_lengthens_the_season(self):
+        need = chars(**{"Frost Free Days, Minimum": "290"})
+        self.assertEqual(T.judge(plant(), need, SITE)["verdict"], "unsuited")
+        tunnel = T.under_cover(SITE, "high-tunnel")
+        self.assertEqual(tunnel["climate"]["frost_free_days_8_in_10"], 235)
+        self.assertEqual(T.judge(plant(), need, tunnel)["verdict"], "suits, with cautions")
+
+    def test_rain_stops_mattering_under_cover(self):
+        wet = chars(**{"Precipitation, Maximum": "30"})
+        self.assertEqual(T.judge(plant(), wet, SITE)["verdict"], "suits, with cautions")
+        self.assertEqual(T.judge(plant(), wet, T.under_cover(SITE, "high-tunnel"))["verdict"], "suits")
+
+    def test_only_what_is_grown_under_cover_is_judged_there(self):
+        tunnel = T.under_cover(SITE, "high-tunnel")
+        self.assertEqual(T.judge(plant(category="timber", cycle="perennial"), chars(), tunnel)["verdict"],
+                         "not grown under cover")
+        self.assertEqual(T.judge(plant(category="vegetable"), chars(), tunnel)["verdict"], "suits")
+
+    def test_the_winter_low_moves_only_by_a_measured_gain(self):
+        self.assertEqual(T.under_cover(SITE, "high-tunnel")["climate"]["mean_annual_extreme_min_f"], 11.0)
+        self.assertEqual(T.under_cover(SITE, "high-tunnel", 6.0)["climate"]["mean_annual_extreme_min_f"], 17.0)
+        self.assertEqual(SITE["climate"]["frost_free_days_8_in_10"], 207, "the open site is untouched")
+
+
 class CalendarTest(unittest.TestCase):
     def test_bloom_months_shift_in_the_south(self):
         self.assertEqual(T.bloom_months("Early Spring", False), [3])
