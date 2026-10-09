@@ -108,7 +108,14 @@ from USDA PLANTS' noxious and invasive status by state; worldwide, from GRIIS.
 ## Build order
 
 1. Add K and T to the `tools/soil_survey.py` query; slope from elevation.
-2. An erosion-risk map per farm field: R × K × LS, against T.
+2. An erosion-risk map per farm field: R × K × LS, against T. *Built 2026-10-09:*
+   [erosion_map.py](../erosion_map.py) runs RUSLE on every 10 m cell — slope from USGS 3DEP,
+   K and T from the soil survey's own map-unit polygons, R from the site's rain or the
+   county's official value — and writes GeoJSON for a GIS. On a 0.8 km square at McAllister
+   Farm (Dickson, Mountview, Taft and Guthrie silt loams, slopes to 15%), clean-tilled row
+   crops lose more than the soil's tolerable rate on 99% of it; no-till on 81%; hay on none.
+   The slope length is one number for the whole field, and R from rain runs about a third
+   above Tennessee's published values, so the map says where to look, not what to do.
 3. Plantings per purpose, filtered by the site's conditions and by regional invasiveness.
 4. For trees, check every recommendation against the climate of its harvest decade. The
    machinery now exists: `modules/advise/advise.py --warm` re-runs the whole match on the site's
