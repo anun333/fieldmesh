@@ -76,11 +76,12 @@ stating: **FROST cannot be used to round-trip our ids without reconfiguration**,
 so it serves as an oracle for *document shape*, not as a store for layer-zero
 data. Nothing in the spec needs to change.
 
-## Still outstanding
+## Since done
 
-A GIS client — QGIS's SensorThings provider is the obvious one — has not yet read
-these documents. That needs the HTTP layer with `$filter`, `$expand`, `$top` and
-paging; the documents being right is necessary and not sufficient.
+What was outstanding here — a GIS client reading these documents, which needed the HTTP
+layer with `$filter`, `$expand`, `$top` and paging — has been done: QGIS 3.44 and
+Fraunhofer's client read the service and found five defects no internal test could reach
+([qgis-validation.md](qgis-validation.md)).
 
 ## Three more questions put to the oracle, 2026-10-07
 
