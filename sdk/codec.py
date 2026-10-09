@@ -88,6 +88,7 @@ _CONVERTERS = {
         "max_latency": (_same, _same),
         "thresholds": (_same, _same),
         "buffer_policy": (_same, _same),
+        "window_s": (_same, _same),
     },
     Label: {
         "id": (_enc_uuid, _dec_uuid),
@@ -188,7 +189,7 @@ _BY_NAME = {cls.__name__: cls for cls in _CONVERTERS}
 
 #: Fields added after logs existed, written only when set — so every log line written
 #: before them reads back, and is written again, byte for byte the same.
-_OMIT_WHEN_NONE = {(Observation, "issued_at")}
+_OMIT_WHEN_NONE = {(Observation, "issued_at"), (Datastream, "window_s")}
 
 
 def dump(record) -> dict:

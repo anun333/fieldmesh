@@ -13,8 +13,14 @@ rather than decorative: nothing here is self-describing, and that is the point.
       seq       : uint,        ; uint16, resets per boot, wraps (§1)
       base-age  : uint,        ; seconds before TRANSMIT, not before sampling (§2)
       dropped   : uint,        ; readings evicted since the last message (§5.3)
-      readings  : [+ (channel: uint, age-delta: uint, value: int)]
+      readings  : [+ (channel: uint, age-delta: uint, value: int / aggregate)]
     ]
+    aggregate = [n: uint, min: int, max: int, unchanged: uint]   ; Q20
+
+An aggregate is a window's summary from a node that samples often and reports seldom
+(Q20): how many samples, their extremes, and how long the value has been unchanged —
+enough for the gateway's range and flatline checks at the sampling resolution while
+paying the airtime of the reporting one. Its age is the window's end.
 
 `node` is a slot holding null rather than an omitted field, because positional
 decoding of an optional head is ambiguous and one byte is a cheap price for a
@@ -59,7 +65,8 @@ message = [
   dropped:  uint,
   readings: [+ reading-triple]
 ]
-reading-triple = (channel: uint, age-delta: uint, value: int)
+reading-triple = (channel: uint, age-delta: uint, value: int / aggregate)
+aggregate = [n: uint, min: int, max: int, unchanged: uint]
 """
 
 
@@ -71,13 +78,29 @@ class WireError(Exception):
 class Reading:
     channel: int
     age_delta: int      # seconds before `base_age`
-    value: int          # exactly as the node sampled it
+    #: Exactly as the node sampled it — or, on an aggregate channel, `(n, min, max,
+    #: unchanged_s)` for the window ending at this age (Q20).
+    value: int | tuple
 
     def __post_init__(self) -> None:
         if not 0 <= self.channel <= 0xFF:
             raise WireError("channel is one byte (§1)")
         if self.age_delta < 0:
             raise WireError("age_delta counts backwards from base_age; not negative")
+        if isinstance(self.value, (list, tuple)):
+            v = tuple(self.value)
+            if len(v) != 4 or not all(isinstance(x, int) and not isinstance(x, bool) for x in v):
+                raise WireError("an aggregate is four integers: n, min, max, unchanged (Q20)")
+            n, lo, hi, unchanged = v
+            if n < 1 or lo > hi or unchanged < 0:
+                raise WireError("an aggregate needs n >= 1, min <= max, unchanged >= 0")
+            object.__setattr__(self, "value", v)
+        elif not isinstance(self.value, int) or isinstance(self.value, bool):
+            raise WireError("a reading's value is an integer or an aggregate")
+
+    @property
+    def is_aggregate(self) -> bool:
+        return isinstance(self.value, tuple)
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +134,7 @@ class Message:
 def encode(message: Message) -> bytes:
     flat = []
     for r in message.readings:
-        flat += [r.channel, r.age_delta, r.value]
+        flat += [r.channel, r.age_delta, list(r.value) if r.is_aggregate else r.value]
     return cbor2.dumps([message.version, message.node, message.boot, message.seq,
                         message.base_age, message.dropped, flat])
 
@@ -139,8 +162,11 @@ def decode(payload: bytes) -> Message:
                         f"{VERSION})")
     if not isinstance(flat, list) or not flat or len(flat) % 3:
         raise WireError("readings must be a non-empty flat triple list")
-    readings = tuple(Reading(flat[i], flat[i + 1], flat[i + 2])
-                     for i in range(0, len(flat), 3))
+    try:
+        readings = tuple(Reading(flat[i], flat[i + 1], flat[i + 2])
+                         for i in range(0, len(flat), 3))
+    except TypeError as exc:
+        raise WireError(f"malformed reading: {exc}") from exc
     return Message(boot=boot, seq=seq, base_age=base_age, readings=readings,
                    node=node, dropped=dropped, version=version)
 
@@ -175,6 +201,41 @@ def pack(readings, *, boot: int, seq: int, base_age: int, max_payload: int,
             f"budget is too small for this format, which is a link-driver "
             f"configuration error, not a runtime condition")
     return best, count
+
+
+class Window:
+    """What a node keeps between reports to send an aggregate (Q20) — the reference
+    for firmware, and what the tests hold the gateway to.
+
+        w = Window()
+        w.add(281, t)          # every sample, as taken
+        n, lo, hi, unchanged = w.close()   # at each report
+
+    `unchanged` is how long the current value has stood, from the first sample that
+    had it to the latest, and it is **carried across windows**: a probe frozen since
+    yesterday reports a day in this morning's first window, which is what lets the
+    gateway see a flatline at the sampling resolution without the samples. The count
+    and the extremes restart each window.
+    """
+
+    def __init__(self) -> None:
+        self.n, self.lo, self.hi = 0, None, None
+        self.value, self.since, self.latest = None, None, None
+
+    def add(self, value: int, t_s: float) -> None:
+        self.n += 1
+        self.lo = value if self.lo is None else min(self.lo, value)
+        self.hi = value if self.hi is None else max(self.hi, value)
+        if value != self.value:
+            self.value, self.since = value, t_s
+        self.latest = t_s
+
+    def close(self) -> tuple[int, int, int, int]:
+        if not self.n:
+            raise WireError("an empty window has nothing to report")
+        out = (self.n, self.lo, self.hi, int(self.latest - self.since))
+        self.n, self.lo, self.hi = 0, None, None
+        return out
 
 
 def restamp(readings, *, now_s: float, sampled_at_s) -> tuple[int, list]:

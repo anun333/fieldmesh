@@ -16,6 +16,7 @@
  "strings": {
   "check.cross.disagrees": "differs from a redundant sensor by {difference:.6g} (tolerance {tolerance:.6g})",
   "check.explained.maintenance": "explained by maintenance ({action} at {at}): {finding}",
+  "check.window.unchanged": "unchanged at {value} for {span:.0f}s by the node's own count of {n} sample(s) this window (limit {limit:.0f}s)",
   "check.flatline.stuck": "{count} readings of {value} unchanged over {span:.0f}s (limit {limit:.0f}s)",
   "check.flatline.stuck_count": "{count} readings of {value} unchanged over {span:.0f}s (limit {limit} samples; no flat_seconds set, so this threshold moves with the sample rate)",
   "check.flatline.stuck_count_floor": "{count} readings of {value} unchanged over at least {span:.0f}s (limit {limit} samples; no flat_seconds set, so this threshold moves with the sample rate)",
@@ -36,6 +37,7 @@
   "enum.DatastreamKind.derived": "calibrated",
   "enum.DatastreamKind.raw": "raw",
   "enum.DatastreamKind.forecast": "forecast",
+  "enum.DatastreamKind.aggregate": "aggregate",
   "enum.DeviceKind.gateway": "gateway",
   "enum.DeviceKind.node": "node",
   "enum.DeviceKind.sensor": "sensor",

@@ -596,6 +596,11 @@ class Service:
     # ------------------------------------------------------------ internals
 
     def _phenomenon_time(self, obs: Observation) -> str:
+        ds = self.state.datastreams.get(obs.datastream)
+        if ds is not None and ds.window_s is not None:
+            # An aggregate covers its window, which O&M's phenomenonTime can say (Q20).
+            start = obs.measured_at - _dt.timedelta(seconds=ds.window_s)
+            return f"{iso(start)}/{iso(obs.measured_at)}"
         if not self.interval_times:
             return iso(obs.measured_at)
         lo, hi = obs.interval()
@@ -630,6 +635,8 @@ class Service:
         what unit a raw datastream should declare at all. See open-questions Q21; it
         is not this method's to answer.)
         """
+        if ds.window_s is not None:
+            return OM + "OM_ComplexObservation"      # n, min, max, unchanged_s (Q20)
         if ds.unit:
             return _OBSERVATION_TYPES[float]
         rows = self.state.observations_of(ds.id)

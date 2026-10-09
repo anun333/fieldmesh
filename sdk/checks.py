@@ -377,8 +377,51 @@ def maintenance_between(state: P.State, datastream: Datastream, start: _dt.datet
     return events[-1] if events else None
 
 
+def check_window_range(obs: Observation, series, values, peers) -> Finding | None:
+    """Range on an aggregate (Q20): the window's extremes, which hold every sample."""
+    lo, hi = values.get("min"), values.get("max")
+    r = obs.result
+    if not isinstance(r, dict) or (lo is None and hi is None):
+        return None
+    if lo is not None and r["min"] < lo:
+        return _finding(QualityFlag.OUT_OF_RANGE, "range", "check.range.below",
+                        value=r["min"], min=lo)
+    if hi is not None and r["max"] > hi:
+        return _finding(QualityFlag.OUT_OF_RANGE, "range", "check.range.above",
+                        value=r["max"], max=hi)
+    return None
+
+
+def check_window_flatline(obs: Observation, series, values, peers) -> Finding | None:
+    """Flatline on an aggregate (Q20): the node counted how long its samples have not
+    changed, at its own sampling resolution, so the gateway needs no samples to see it."""
+    limit = values.get("flat_seconds")
+    r = obs.result
+    if limit is None or not isinstance(r, dict) or r["unchanged_s"] < limit:
+        return None
+    return _finding(QualityFlag.STUCK, "flatline", "check.window.unchanged",
+                    value=r["max"], span=r["unchanged_s"], limit=limit, n=r["n"])
+
+
+check_window_range.check_name = "range"
+check_window_flatline.check_name = "flatline"
+
+#: An aggregate gets range and flatline, from the four numbers it carries (Q20). Rate,
+#: fall and spike need the readings' order inside the window, which the node did not
+#: send — the price of the airtime saved, and said here rather than guessed around.
+AGGREGATE_CHECKS = (check_window_range, check_window_flatline)
+
+
+def check_name(check) -> str:
+    return getattr(check, "check_name", check.__name__.removeprefix("check_"))
+
+
 def checks_for(datastream: Datastream) -> tuple:
-    return FORECAST_CHECKS if datastream.kind is DatastreamKind.FORECAST else DEFAULT_CHECKS
+    if datastream.kind is DatastreamKind.FORECAST:
+        return FORECAST_CHECKS
+    if datastream.window_s is not None:
+        return AGGREGATE_CHECKS
+    return DEFAULT_CHECKS
 
 
 def _spike_containing(state: P.State, obs: Observation, values) -> Finding | None:
@@ -612,7 +655,7 @@ def assess(state: P.State, obs: Observation, *,
         findings.append(spike)
     flags = frozenset(f.flag for f in findings)
     evidence = {
-        "checks_run": [c.__name__.removeprefix("check_") for c in checks]
+        "checks_run": [check_name(c) for c in checks]
                       + (["frozen"] if frozen_ran else [])
                       + (["spike"] if spike_ran else []),
         "fired": {f.check: f.reason for f in findings},

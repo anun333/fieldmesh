@@ -712,7 +712,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q17 | Crypto-shredding key management for erasure (§7.3): per-subject keys, where they live, and what happens to a backup taken before the shred | Blocks the pilot |
 | Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | **Done 2026-10-07** — posted as a comment on [#174](https://github.com/opengeospatial/sensorthings/issues/174#issuecomment-6050541663); see [notes/q18-ogc-issue-draft.md](../notes/q18-ogc-issue-draft.md) |
 | Q19 | Should an assertion's `evidence` object be normative, and what shape? | **Decided 2026-10-09** — normative minimum |
-| Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | Blocks v0 node firmware |
+| Q20 | May a node send an aggregate for a low-urgency series, when §5.1 says it applies nothing? | **Decided 2026-10-09** — an `aggregate` kind |
 | Q21 | What unit does a *raw* datastream declare? | **Decided 2026-10-09** — `1` |
 | Q22 | Does the maintenance vocabulary need a battery replacement? | **Decided 2026-10-09** — `serviced` |
 | Q23 | A rate-of-change limit that works at any sampling interval | **Decided 2026-10-08** |
@@ -766,7 +766,12 @@ window is between build-order steps 4 and 7.
 
 ## Q20. May a node send an aggregate instead of every sample?
 
-**Status: blocks v0 node firmware.** Raised by the power measurement in
+**Status: DECIDED 2026-10-09 — option 2, as a datastream kind, as recommended below (the maintainer
+adopted the recommendation).** Built: `DatastreamKind.AGGREGATE` and `Datastream.window_s`;
+the aggregate result `{n, min, max, unchanged_s}`; the wire value `[n, min, max, unchanged]`
+and `wire.Window`, the node-side reference; the gateway writes it and refuses a value of the
+wrong shape; `checks.AGGREGATE_CHECKS` (range, flatline); SensorThings serves the window as
+`phenomenonTime`. Was: blocks v0 node firmware. Raised by the power measurement in
 [notes/power-budget.md](../notes/power-budget.md).
 
 There is a tension between three clauses that only shows up once power is counted.

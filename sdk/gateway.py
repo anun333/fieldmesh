@@ -55,7 +55,7 @@ import checks as C
 import project as P
 import wire
 from ids import uuid7
-from model import Observation
+from model import AGGREGATE_FIELDS, DatastreamKind, Observation
 from registry import Registry
 
 #: Event kinds this writes besides the records themselves.
@@ -66,6 +66,9 @@ UNDECODABLE = "undecodable_frame"
 UNBOUND = "unbound_channel"
 UNDERIVABLE = "underivable_reading"
 COLLISION = "timestamp_collision"
+#: A value whose shape is not its channel's: an aggregate on a channel bound to a
+#: series of instants, or a single sample on an aggregate one (Q20).
+SHAPE = "reading_shape_mismatch"
 
 _MISSING = object()
 SEQ_RANGE = 1 << 16
@@ -348,6 +351,20 @@ class Gateway:
                    received_at) -> Observation | None:
         age = message.age_of(reading)
         measured_at = received_at - _dt.timedelta(seconds=age)
+        datastream = self.state.datastreams.get(datastream_id)
+        windowed = datastream is not None and datastream.kind is DatastreamKind.AGGREGATE
+        if windowed != reading.is_aggregate:
+            self.log.append(SHAPE, {
+                "node": binding.node, "channel": reading.channel,
+                "datastream": str(datastream_id), "boot": message.boot,
+                "seq": message.seq, "value": list(reading.value) if reading.is_aggregate
+                else reading.value, "measured_at": measured_at,
+                "reason": "an aggregate belongs on an aggregate datastream and a sample on "
+                          "a series of instants; recorded here rather than guessed into "
+                          "the wrong one (Q20)"})
+            return None
+        result = (dict(zip(AGGREGATE_FIELDS, reading.value)) if reading.is_aggregate
+                  else reading.value)
         if self._occupied(datastream_id, measured_at):
             self.log.append(COLLISION, {
                 "node": binding.node, "channel": reading.channel,
@@ -365,7 +382,7 @@ class Gateway:
             measured_at=measured_at,
             measured_at_uncertainty=binding.uncertainty_s,
             received_at=received_at,
-            result=reading.value,
+            result=result,
             clock_quality=binding.clock_quality,
             node=f"{binding.node:#x}",
             boot=message.boot,

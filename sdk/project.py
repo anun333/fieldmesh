@@ -263,6 +263,12 @@ def apply_calibration(raw_value, calibration: Calibration):
     `(raw value, calibration, driver version)` exactly as §3.2 requires. Omit it
     and nothing is rounded.
     """
+    if isinstance(raw_value, dict):
+        # An aggregate (Q20): its extremes are values and calibrate like any; the count
+        # and the unchanged run do not. Exact for a monotonic calibration, which a
+        # probe's is; a falling one swaps which end is the minimum.
+        ends = sorted(apply_calibration(raw_value[k], calibration) for k in ("min", "max"))
+        return dict(raw_value, min=ends[0], max=ends[1])
     method = (calibration.method or "").strip().lower()
     coefficients = calibration.coefficients or {}
     if method in ("identity", "none", "passthrough"):
@@ -900,6 +906,14 @@ class State:
             if ds.kind is DatastreamKind.DERIVED and ds.derived_from not in self.datastreams:
                 problems.append(f"datastream {ds.id} derives from unknown "
                                 f"{ds.derived_from}")
+            elif ds.kind is DatastreamKind.DERIVED:
+                source = self.datastreams[ds.derived_from]
+                if source.window_s != ds.window_s:
+                    problems.append(
+                        f"datastream {ds.id} has window_s {ds.window_s} but derives from "
+                        f"{source.id} with {source.window_s}: a series computed from an "
+                        f"aggregate summarises the same window, and one from instants none "
+                        f"(Q20)")
         scopes = {(c.sensor, c.datastream) for c in self.calibrations.values()}
         for sensor, datastream in scopes:
             for a, b in overlapping_calibrations(self.calibrations.values(), sensor,

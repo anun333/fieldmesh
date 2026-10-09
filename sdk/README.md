@@ -24,7 +24,7 @@ python3 demo.py --json                        # the served Observations collecti
 | `log.py` | §7.1, §7.3 | The append-only log. No update, no delete, by construction |
 | `project.py` | §2, §3.2, §3.3, §4.2, §7.1 | Derived state: live rows, quality precedence, calibration by `measured_at`, staleness, ordering |
 | `fixtures.py` | — | Record builders for tests, and the seed of the virtual farm's own |
-| `wire.py` | §5.2, §5.3 | The wire message: CBOR packed arrays, a CDDL schema, payload-budget-aware packing, and transmit-time restamping |
+| `wire.py` | §5.2, §5.3 | The wire message: CBOR packed arrays, a CDDL schema, payload-budget-aware packing, transmit-time restamping, and `Window`, a node's aggregate of a low-urgency series (Q20) |
 | `registry.py` | §1, §8.1, §9.1 | Short wire ids to full identities, plus each node's clock source and uncertainty budget |
 | `gateway.py` | §5.1, §5.4, §8.1 | Ingest: decode, quarantine, dedup, gaps, reboots, raw, derive, assess |
 | `checks.py` | §4.2 | The four health checks, writing assertions and never mutations. One assertion per run carrying the union of flags |

@@ -60,6 +60,10 @@ class DatastreamKind(str, Enum):
     #: `measured_at` and was issued at `issued_at`, and a later issue for the same
     #: valid time is the live one (§3.2; Q26).
     FORECAST = "forecast"
+    #: A node's summary of a window of samples rather than any one of them (Q20):
+    #: how many it took, their minimum and maximum, and how long the value has been
+    #: unchanged. Not raw — the node computed it — so labelled as what it is.
+    AGGREGATE = "aggregate"
 
 
 class QualityFlag(str, Enum):
@@ -169,6 +173,40 @@ def _utc(value, name: str) -> _dt.datetime:
 
 # --------------------------------------------------------------------- records
 
+#: The four numbers an aggregate observation carries (Q20). Enough for the checks that
+#: matter on a slow series: a flat run is `unchanged_s`, a value out of range is in
+#: `min` or `max`. `unchanged_s` is the length of the current run of one identical
+#: sample, carried by the node across windows, so a probe frozen since yesterday says
+#: so in today's first window.
+AGGREGATE_FIELDS = ("n", "min", "max", "unchanged_s")
+
+
+def aggregate_problems(result) -> list[str]:
+    """What is wrong with `result` as an aggregate (Q20); empty when it is one."""
+    if not isinstance(result, dict):
+        return [f"an aggregate result is an object with {', '.join(AGGREGATE_FIELDS)}"]
+    out = []
+    missing = [k for k in AGGREGATE_FIELDS if k not in result]
+    extra = sorted(set(result) - set(AGGREGATE_FIELDS))
+    if missing:
+        out.append(f"aggregate lacks {', '.join(missing)}")
+    if extra:
+        out.append(f"aggregate has unknown fields {', '.join(extra)}")
+    if missing:
+        return out
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
+    n = result["n"]
+    if not isinstance(n, int) or isinstance(n, bool) or n < 1:
+        out.append("aggregate n counts the samples summarised: a whole number, at least 1")
+    if not num(result["min"]) or not num(result["max"]):
+        out.append("aggregate min and max are numbers")
+    elif result["min"] > result["max"]:
+        out.append("aggregate min exceeds its max")
+    if not num(result["unchanged_s"]) or result["unchanged_s"] < 0:
+        out.append("aggregate unchanged_s is a duration in seconds, not negative")
+    return out
+
+
 @dataclass(frozen=True, slots=True)
 class Datastream:
     """§3.1. One sensor, one observed property, one unit, on one Thing.
@@ -200,6 +238,10 @@ class Datastream:
                                              # schedule and the battery (§5.3.1)
     thresholds: dict = field(default_factory=dict)
     buffer_policy: dict = field(default_factory=dict)
+    #: Seconds each observation summarises, ending at its `measured_at` (Q20). Set on
+    #: an `aggregate` datastream and on a derived one computed from it; absent on every
+    #: other, so the series of instants it has always been.
+    window_s: float | None = None
 
     def __post_init__(self) -> None:
         _uuid7(self.id, "id")
@@ -219,6 +261,18 @@ class Datastream:
                              "its source is its sensor, the forecast model (§3.1)")
         if self.kind is DatastreamKind.DERIVED and self.derived_from is None:
             raise ValueError("a derived datastream must name its derived_from (§3.1)")
+        if self.kind is DatastreamKind.AGGREGATE:
+            if self.derived_from is not None:
+                raise ValueError("an aggregate is what the node sent; it derives from no "
+                                 "series in the log (Q20)")
+            if self.window_s is None:
+                raise ValueError("an aggregate datastream declares window_s, the seconds "
+                                 "each observation summarises (Q20)")
+        elif self.window_s is not None and self.kind is not DatastreamKind.DERIVED:
+            raise ValueError("only an aggregate, or a series derived from one, has a "
+                             "window_s (Q20)")
+        if self.window_s is not None and self.window_s <= 0:
+            raise ValueError("window_s must be positive")
         if self.derived_from == self.id:
             raise ValueError("a datastream cannot derive from itself")
         if self.expected_interval is not None and self.expected_interval <= 0:
@@ -485,7 +539,7 @@ class Observation:
     measured_at: _dt.datetime
     measured_at_uncertainty: float          # seconds, half-width (§2)
     received_at: _dt.datetime
-    result: float | int | str | bool | None
+    result: float | int | str | bool | dict | None   # a dict only on an aggregate (Q20)
     clock_quality: ClockQuality
     node: str | None = None
     boot: int | None = None
@@ -557,7 +611,13 @@ class Observation:
         if self.issued_at is not None:
             raise ValueError("only a forecast has an issued_at; a measurement's "
                              "result time is not recorded (§3.2)")
-        if datastream.kind is DatastreamKind.RAW:
+        if datastream.window_s is not None:
+            problems = aggregate_problems(self.result)
+            if problems:
+                raise ValueError("; ".join(problems) + " (Q20)")
+        elif isinstance(self.result, dict):
+            raise ValueError("only an aggregate carries an object result (Q20)")
+        if datastream.kind in (DatastreamKind.RAW, DatastreamKind.AGGREGATE):
             if self.calibration is not None:
                 raise ValueError(
                     "a raw observation carries no calibration — raw is what the "

@@ -24,6 +24,7 @@
  "strings": {
   "check.cross.disagrees": "difiere de un sensor redundante en {difference:.6g} (tolerancia {tolerance:.6g})",
   "check.explained.maintenance": "explicado por mantenimiento ({action}, {at}): {finding}",
+  "check.window.unchanged": "sin cambio en {value} durante {span:.0f} s según el recuento del propio nodo, {n} muestra(s) en esta ventana (límite {limit:.0f} s)",
   "check.flatline.stuck": "{count} lecturas de {value} sin cambios durante {span:.0f} s (límite {limit:.0f} s)",
   "check.flatline.stuck_count": "{count} lecturas de {value} sin cambios durante {span:.0f} s (límite {limit} muestras; sin flat_seconds definido, este umbral cambia con la frecuencia de muestreo)",
   "check.flatline.stuck_count_floor": "{count} lecturas de {value} sin cambios durante al menos {span:.0f} s (límite {limit} muestras; sin flat_seconds definido, este umbral cambia con la frecuencia de muestreo)",
@@ -44,6 +45,7 @@
   "enum.DatastreamKind.derived": "calibrado",
   "enum.DatastreamKind.raw": "en bruto",
   "enum.DatastreamKind.forecast": "pronóstico",
+  "enum.DatastreamKind.aggregate": "agregado",
   "enum.DeviceKind.gateway": "pasarela",
   "enum.DeviceKind.node": "nodo",
   "enum.DeviceKind.sensor": "sensor",
