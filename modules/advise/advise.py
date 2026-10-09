@@ -37,6 +37,9 @@ import plant_match  # noqa: E402
 import plant_names  # noqa: E402
 import propagation as propagation_module  # noqa: E402
 import fruit_set  # noqa: E402
+import cmip6  # noqa: E402
+
+FUTURE_YEARS = f"{cmip6.FUTURE[0]}–{cmip6.FUTURE[1]}"
 import site_profile  # noqa: E402
 
 module.register_packs()
@@ -301,16 +304,29 @@ def stamp(r: "Report") -> str:
                       dssat=dssat_crops.COMMIT[:7]) + "*"
 
 
+def projection_preface(r: "Report", d: dict) -> str:
+    """What a CMIP6 future is, from the deltas that made it (cmip6.deltas)."""
+    m = d["median"]
+    get = lambda k: [m[str(i)][k] if str(i) in m else m[i][k] for i in range(1, 13)]
+    tmax, tmin, rain = get("tmax"), get("tmin"), get("rain")
+    return r.tr("advise.future.preface_cmip6", models=", ".join(d["models"]),
+                hist=f"{d['historical'][0]}–{d['historical'][1]}",
+                fut=f"{d['future'][0]}–{d['future'][1]}", scenario=d["scenario"].upper(),
+                dmax_lo=min(tmax), dmax_hi=max(tmax), dmin_lo=min(tmin), dmin_hi=max(tmin),
+                rain_lo=(min(rain) - 1) * 100, rain_hi=(max(rain) - 1) * 100)
+
+
 def render_future(site: dict, rows: list, site2: dict, rows2: list, language: str,
                   label: str, warm: float, rain: float, source: str, chill: list | None = None,
                   bloom: dict | None = None, bloom2: dict | None = None,
-                  fruit_chill: tuple | None = None) -> str:
+                  fruit_chill: tuple | None = None, projection: dict | None = None) -> str:
     """Now against then: the site's numbers, the plants whose verdict changes, and each
     modelled crop's cultivars and sowing windows."""
     r = Report(language)
     c, c2 = site["climate"], site2["climate"]
-    out = [f"# {r.tr('advise.future.title', label=label)}", "",
-           r.tr("advise.future.preface", warm=warm, rain=rain, source=source or "—"), "",
+    preface = (r.tr("advise.future.preface", warm=warm, rain=rain, source=source or "—")
+               if projection is None else projection_preface(r, projection))
+    out = [f"# {r.tr('advise.future.title', label=label)}", "", preface, "",
            f"## {r.tr('advise.section.site')}", ""]
     for key, a, b in (("advise.future.ffd", c["frost_free_days_8_in_10"], c2["frost_free_days_8_in_10"]),
                       ("advise.future.zone", c["hardiness_zone"], c2["hardiness_zone"]),
@@ -382,6 +398,9 @@ def main(argv=None) -> int:
     ap.add_argument("--rain-change", type=float, default=0.0, help="with --warm: rain change, percent")
     ap.add_argument("--future-label", help="with --warm: what to call it, e.g. '2050s'")
     ap.add_argument("--future-source", default="", help="with --warm: where the change comes from")
+    ap.add_argument("--cmip6", metavar="SCENARIO",
+                    help="compare 2041-2070 from five CMIP6 models' monthly changes (e.g. ssp245) "
+                         "instead of a uniform --warm")
     args = ap.parse_args(argv)
     os.makedirs(args.out, exist_ok=True)
     power = os.path.join(args.cache, "power")
@@ -417,24 +436,34 @@ def main(argv=None) -> int:
         with open(path, "w", encoding="utf-8") as h:
             h.write(render(site, rows, cal, lang, today, chill, bloom, fruit_chill, propagation, heat))
         print(f"wrote {path}")
-    if args.warm is not None:
+    projection = None
+    if args.cmip6:
+        projection = cmip6.deltas(args.lat, args.lon, os.path.join(args.cache, "cmip6"), args.cmip6)
+        days2 = cmip6.shift_monthly(days, projection["median"])
+        site2 = site_profile.profile(args.lat, args.lon, cache=power, days=days2)
+        args.future_label = args.future_label or f"{FUTURE_YEARS}, {args.cmip6.upper()}"
+    elif args.warm is not None:
         site2 = site_profile.profile(args.lat, args.lon, cache=power, warm_c=args.warm,
                                      rain_pct=args.rain_change)
         days2 = site_profile.shift(days, args.warm, args.rain_change)
+    if args.cmip6 or args.warm is not None:
         seasons2, _ = dssat_crops.seasons_for(args.lat, args.lon, args.cache, args.windows, days=days2)
         rows2, _ = plant_match.match(read_csv(os.path.join(DATA, "plant-list.csv")),
                                      read_csv(os.path.join(DATA, "plant-characteristics-usda.csv")),
                                      site2, [{k: str(v) for k, v in s.items()} for s in seasons2],
                                      state_lists)
         label = args.future_label or f"{args.warm:+.1f} °C"
+        if projection:
+            with open(os.path.join(args.out, "cmip6-deltas.json"), "w", encoding="utf-8") as h:
+                json.dump(projection, h, indent=1)
         bloom2 = fruit_bloom.summarize(fruit_bloom.simulate(chill, days2, args.lat))
         fruit_chill2 = eight(fruit_bloom.winter_chill(days2, args.lat))
         for lang in args.lang.split(","):
             path = os.path.join(args.out, f"future.{lang}.md")
             with open(path, "w", encoding="utf-8") as h:
-                h.write(render_future(site, rows, site2, rows2, lang, label, args.warm,
+                h.write(render_future(site, rows, site2, rows2, lang, label, args.warm or 0.0,
                                       args.rain_change, args.future_source, chill, bloom, bloom2,
-                                      (fruit_chill, fruit_chill2)))
+                                      (fruit_chill, fruit_chill2), projection))
             print(f"wrote {path}")
     return 0
 

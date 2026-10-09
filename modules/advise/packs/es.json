@@ -124,6 +124,7 @@
   "advise.propagation.sprigs": "Estolones y tepes ({count} plantas), con el suelo cálido: {windows}.",
   "advise.propagation.tubers": "Tubérculos ({count} plantas): {windows}.",
   "advise.fruitset.none": "El calor que impide su cuajado — {day:.0f}/{night:.0f} °C de día y de noche durante los {window} días antes de la floración ({source}) — no llega aquí: la racha de noches más cálida en treinta años promedió {warmest:.1f} °C.",
-  "advise.fruitset.days": "El calor que impide su cuajado — {day:.0f}/{night:.0f} °C de día y de noche durante los {window} días antes de la floración ({source}) — llega unos {days} días por verano, 8 años de cada 10: las flores que abren entonces cuajan poco."
+  "advise.fruitset.days": "El calor que impide su cuajado — {day:.0f}/{night:.0f} °C de día y de noche durante los {window} días antes de la floración ({source}) — llega unos {days} días por verano, 8 años de cada 10: las flores que abren entonces cuajan poco.",
+  "advise.future.preface_cmip6": "Los treinta años de tiempo del propio sitio, cada mes cambiado según la mediana de cinco modelos CMIP6 ({models}) entre {hist} y {fut} bajo {scenario}: máximas diurnas de {dmax_lo:+.1f} a {dmax_hi:+.1f} °C y mínimas nocturnas de {dmin_lo:+.1f} a {dmin_hi:+.1f} °C según el mes, lluvia de {rain_lo:+.0f}% a {rain_hi:+.0f}%. Se conservan las subidas y bajadas de hoy; su nivel se mueve por mes y por hora del día. Proyecciones: NASA NEX-GDDP-CMIP6 (CC0)."
  }
 }

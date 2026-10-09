@@ -124,6 +124,7 @@
   "advise.propagation.sprigs": "Sprigs and sod ({count} plants), in warm soil: {windows}.",
   "advise.propagation.tubers": "Tubers ({count} plants): {windows}.",
   "advise.fruitset.none": "Heat that stops its fruit set — {day:.0f}/{night:.0f} °C by day and night over the {window} days before flowering ({source}) — does not come here: the warmest such stretch of nights in thirty years averaged {warmest:.1f} °C.",
-  "advise.fruitset.days": "Heat that stops its fruit set — {day:.0f}/{night:.0f} °C by day and night over the {window} days before flowering ({source}) — comes on about {days} days a summer, 8 years in 10: flowers opening then set little."
+  "advise.fruitset.days": "Heat that stops its fruit set — {day:.0f}/{night:.0f} °C by day and night over the {window} days before flowering ({source}) — comes on about {days} days a summer, 8 years in 10: flowers opening then set little.",
+  "advise.future.preface_cmip6": "The site's own thirty years of weather, each month changed by the median of five CMIP6 models ({models}) between {hist} and {fut} under {scenario}: daytime highs {dmax_lo:+.1f} to {dmax_hi:+.1f} °C and nighttime lows {dmin_lo:+.1f} to {dmin_hi:+.1f} °C depending on the month, rain {rain_lo:+.0f}% to {rain_hi:+.0f}%. Today's ups and downs are kept; their level moves by month and by time of day. Projections: NASA NEX-GDDP-CMIP6 (CC0)."
  }
 }

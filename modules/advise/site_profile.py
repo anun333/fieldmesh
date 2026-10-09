@@ -346,10 +346,13 @@ def soil_and_erosion(lat: float, lon: float, annual_rain_mm: float) -> dict:
 
 def profile(lat: float, lon: float, start: int = 1991, end: int = 2020,
             cache: str | None = None, soil: bool = True,
-            warm_c: float = 0.0, rain_pct: float = 0.0) -> dict:
-    doc = fetch_power(lat, lon, start, end, cache)
+            warm_c: float = 0.0, rain_pct: float = 0.0, days: list | None = None) -> dict:
+    """`days`, when given, are the weather to profile — a future made some other way than a
+    uniform shift (modules/advise/cmip6.py) — and `warm_c` and `rain_pct` are ignored."""
+    if days is None:
+        days = shift(days_of(fetch_power(lat, lon, start, end, cache)), warm_c, rain_pct)
     out = {"lat": lat, "lon": lon,
-           "climate": climate(shift(days_of(doc), warm_c, rain_pct), lat),
+           "climate": climate(days, lat),
            "sources": {"climate": "NASA POWER daily agroclimatology, CC BY 4.0"}}
     if soil:
         out.update(soil_and_erosion(lat, lon, out["climate"]["annual_rain_mm"]))
