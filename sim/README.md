@@ -14,7 +14,7 @@ python3 world_demo.py --dr 3                            # a better link
 
 | Module | What it is |
 | --- | --- |
-| `physics.py` | Ground truth: a seeded seasonal climate, a soil water balance, a trough with a float valve |
+| `physics.py` | Ground truth: a seeded seasonal climate, a soil water balance, a trough with a float valve, an unheated tunnel (tested by tools/tunnel_gain.py) |
 | `node.py` | A duty-cycled node: sampling, buffering, transmit-time restamping, eviction, resend, reboot |
 | `link.py` | A radio that loses, delays, duplicates, drops acks and goes out — seeded |
 | `faults.py` | Injectable sensor faults: drift, sticking, bias, noise, death, out-of-range |

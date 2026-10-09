@@ -58,8 +58,37 @@ inside, one outside, a soil probe inside.
 | disease pressure | hours of high humidity and condensation |
 
 The first three are what `--winter-gain-f` and the season extension should come from once
-a tunnel is instrumented. A tool to compute them from a paired inside/outside series is
-the obvious next step; it needs a real tunnel's data to be worth calibrating.
+a tunnel is instrumented, and `tools/tunnel_gain.py` computes them from two `time,value`
+series (inside air, outside air):
+
+    python3 tools/tunnel_gain.py inside.csv outside.csv --limit-c 35
+
+It bins each night's gain by how cold the outside night was, hands `plant_match.py` the
+10th percentile of the gain on the coldest nights (below −5 °C, or below 0 °C if a winter
+had none) — so the figure errs cold, which is the safe side for a frost verdict — and
+reports the inside and outside frost-free seasons and the hours above the crop's limit.
+
+**Tested against the virtual farm, not yet against a tunnel.** sim/physics.py now has a
+`Tunnel`: inside air relaxing toward the outside plus trapped sun by day and the soil's
+stored heat by night, a night gain that falls from 3 °C on a mild night to 1 °C on a clear
+night at −5 °C, and sides that go up at 27 °C. A simulated year, sampled hourly the way a
+logger would, gives back:
+
+| outside night | nights | inside warmer by (median) |
+| --- | ---: | ---: |
+| below −5 °C | 111 | +1.1 °C |
+| −5 to 0 °C | 54 | +1.7 °C |
+| 0 to 5 °C | 50 | +2.7 °C |
+| above 5 °C | 151 | +3.1 °C |
+
+— the gain the physics was given, recovered without being told it, with
+`--winter-gain-f 2.0` for the matcher and a frost-free season 23 days longer inside. The
+same tunnel with the sides never opened spends 507 hours above 35 °C; vented, none.
+These numbers are the model's, not a tunnel's: what the test proves is that the tool reads
+a gain correctly, and what it cannot prove is what a real tunnel's gain is. The first
+instrumented tunnel replaces the table. (The Harrow Bend scenario's own hoop-house sensor
+still reads a flat outside + 6 °C; it predates the model and its drills are scored against
+it, so it is left as it is.)
 
 **Alarms first, automation later.** Overheating and freezing are the fastest failures on a
 farm, so a tunnel is the strongest case for layer 1's alerting. Opening and closing roll-up

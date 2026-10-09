@@ -357,6 +357,65 @@ class IrrigationRule:
         return self.millimetres / steps
 
 
+# ------------------------------------------------------------------ hoop house
+
+@dataclass
+class Tunnel:
+    """An unheated single-poly tunnel: ground truth for the air inside it.
+
+    The inside air is a small thermal mass, so it relaxes toward a target with a time
+    constant of under an hour. The target is the outside air plus:
+
+    * **by day**, the sun trapped under the plastic, scaled by daylight, cut by rain,
+      and cut again by the share the sides let out when they are up;
+    * **by night**, the heat the soil inside stored by day and gives back. Single poly
+      passes long-wave radiation, so a clear sky draws much of that heat away, and
+      clear nights are the cold ones: the gain shrinks from `night_gain_c` on a mild
+      night to `cold_night_gain_c` at `cold_night_c` and below. Under cloud (here,
+      rain) the full gain holds whatever the cold.
+
+    The sides go up when the inside passes `vent_at_c` and down below `close_at_c`, as
+    a grower would; `vent_at_c=None` is a tunnel nobody opens, which overheats. The
+    numbers are plausible, not measured: they are what tools/tunnel_gain.py has to
+    recover, which is the point of having them written down.
+    """
+
+    name: str
+    night_gain_c: float = 3.0
+    cold_night_gain_c: float = 1.0
+    cold_night_c: float = -5.0
+    solar_gain_c: float = 18.0
+    vent_at_c: float | None = 27.0
+    close_at_c: float = 20.0
+    vent_cut: float = 0.75
+    tau_h: float = 0.75
+    inside_c: float | None = None
+    sides_up: bool = False
+
+    def night_gain(self, outside_c: float, overcast: bool) -> float:
+        if overcast:
+            return self.night_gain_c
+        share = min(1.0, max(0.0, (outside_c - self.cold_night_c) / 10.0))
+        return self.cold_night_gain_c + share * (self.night_gain_c - self.cold_night_gain_c)
+
+    def step(self, weather: Weather, daylight: float) -> float:
+        outside = weather.air_temp_c
+        solar = self.solar_gain_c * daylight * (0.25 if weather.raining else 1.0)
+        if self.sides_up:
+            solar *= 1.0 - self.vent_cut
+        target = (outside + solar
+                  + (1.0 - daylight) * self.night_gain(outside, weather.raining))
+        if self.inside_c is None:
+            self.inside_c = target
+        self.inside_c += (target - self.inside_c) * (1.0 - math.exp(-HOURS_PER_STEP / self.tau_h))
+        if self.vent_at_c is not None:
+            if self.inside_c > self.vent_at_c:
+                self.sides_up = True
+            elif self.inside_c < self.close_at_c:
+                self.sides_up = False
+        return self.inside_c
+
+
 # ------------------------------------------------------------------- the world
 
 @dataclass(frozen=True, slots=True)
@@ -370,6 +429,7 @@ class Truth:
     trough_l: dict              # trough name -> litres
     trough_fraction: dict       # trough name -> 0..1
     soil_temp: dict = None      # bed name -> layer temperatures, top down
+    tunnel_temp: dict = None    # tunnel name -> inside air temperature
 
     def soil_temp_at(self, bed: str, depth_m: float) -> float:
         """What a temperature sensor at `depth_m` in `bed` would read now."""
@@ -394,11 +454,11 @@ class World:
     meaningful.
     """
 
-    __slots__ = ("climate", "beds", "troughs", "when", "start", "_pending_mm",
-                 "irrigation")
+    __slots__ = ("climate", "beds", "troughs", "tunnels", "when", "start",
+                 "_pending_mm", "irrigation")
 
     def __init__(self, *, start: _dt.datetime, climate: Climate | None = None,
-                 beds=(), troughs=()):
+                 beds=(), troughs=(), tunnels=()):
         if start.tzinfo is None or start.utcoffset() != _dt.timedelta(0):
             raise ValueError("start must be timezone-aware UTC (§2)")
         self.start = start
@@ -406,6 +466,7 @@ class World:
         self.climate = climate or Climate()
         self.beds = {b.name: b for b in beds}
         self.troughs = {t.name: t for t in troughs}
+        self.tunnels = {t.name: t for t in tunnels}
         self._pending_mm: dict[str, float] = {}
         #: Drip timers. Empty by default, so a world built without them behaves
         #: exactly as before.
@@ -436,6 +497,8 @@ class World:
             bed.step_heat(surface_c, deep_c)
         for trough in self.troughs.values():
             trough.step(self.when, weather)
+        for tunnel in self.tunnels.values():
+            tunnel.step(weather, daylight)
         truth = Truth(
             when=self.when,
             weather=weather,
@@ -445,6 +508,7 @@ class World:
             trough_fraction={n: round(t.level_fraction, 4)
                              for n, t in self.troughs.items()},
             soil_temp={n: tuple(b.temps) for n, b in self.beds.items()},
+            tunnel_temp={n: round(t.inside_c, 2) for n, t in self.tunnels.items()},
         )
         self.when = self.when + STEP
         return truth
