@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Derived from DSSAT CSM genotype files, github.com/DSSAT/dssat-csm-os at 25c93b9a2f73f8ec45bf441b198dac5fb7b22849. Copyright (c) 2021, DSSAT Foundation; see crop-parameters-dssat-LICENSE.txt.
+scientific_name,dssat_crop,dssat_code,vegetative_tb_to1_to2_tm_c,early_reproductive_c,late_reproductive_c,cultivars,critical_day_length_h,photoperiod_sensitivity
+Amaranthus cruentus,Amaranth,AM,7 30 35 40,8 30 35 40,8 30 35 40,2,16–16,0.001–0.001
+Vigna subterranea,Bambara Groundnut,BG,10 30 32 55,11 18 30 56,11 18 27 55,2,11.84–11.84,0–0
+Phaseolus vulgaris,Dry Bean,BN,5 27 37 45,5 24 34 44,6 25 37 60,30,12.17–13.5,0–0.05
+Brassica oleracea var. capitata,Cabbage,CB,0 18 28 45,0 18 28 45,-10 15 30 45,3,13.09–13.09,0–0
+Cicer arietinum,Chickpea,CH,0 23 32 50,0 24 26 50,0 24 26 50,32,10.9–11,-0.43–-0.143
+Brassica napus,Canola,CN,5 22 25 35,0 21 25 35,0 21 25 35,3,16–24,-0.03–-0.006
+Gossypium hirsutum,Cotton,CO,12 29 36 55,14 28 29 55,11 25 28 75,17,23–23,0.01–0.01
+Vigna unguiculata,Cowpea,CP,9 27 35 45,9 27 29 36,8.4 28 30 36,12,12.5–12.8,0.0545–0.3
+Vicia faba,Faba Bean,FB,0 27 30 40,0 22 26 45,0 22 35 45,2,24–24,-0.031–-0.031
+Linum usitatissimum,Flax,FX,5 15 20 30,5 20 25 36,5 17 22 32,1,14.57–14.57,-0.011–-0.011
+Cyamopsis tetragonoloba,Guar,GY,9 29 35 45,9 26.5 28.5 45,-5 24 26 45,2,13.59–13.59,0.249–0.249
+Cannabis sativa,Hemp,HM,3 24 29 40,4 20 30 40,4 22 31 40,7,12.45–13.55,0.32–0.96
+Lens culinaris,Lentil,LT,2 27 30 40,2 22 26 45,2 22 35 45,6,15.4–17,-0.19–-0.066
+Arachis hypogaea,Peanut,PN,11 28 30 55,11 28 28 55,5 26 26 55,38,11.84–11.84,0–0
+Cajanus cajan,Pigeonpea,PP,10 28 35 45,10 20 24 45,-15 24 34 45,3,11.6–12.94,0.26–0.74
+Capsicum annuum,Pepper,PR,5.5 21 28 55,10 28 28 55,10 28 28 55,5,12.33–12.33,0–0
+Chenopodium quinoa,Quinoa,QU,1 22 30 45,2 24 30 45,4 22 30 45,2,14.35–14.35,0.008–0.008
+Glycine max,Soybean,SB,7 28 35 45,6 26 30 45,-15 26 34 45,59,11.5–14.6,0.001–0.385
+Carthamus tinctorius,Safflower,SF,3 22 30 38,3 28 32 43,3 28 38 45,5,23–23,0.001–0.001
+Helianthus annuus,Sunflower,SU,5 25.6 34.3 46.9,2.6 27.5 29 39,2.8 24 35 80,11,15–15,-0.19–-0.086
+Solanum lycopersicum,Tomato,TM,7 22 28 48,7.2 22 28 48,5.2 26 28 48,4,12.33–12.33,0–0
+Mucuna pruriens,Velvetbean,VB,8 30 35 45,8 28 35 45,0 26 35 45,20,12–12,0.3864–0.6595

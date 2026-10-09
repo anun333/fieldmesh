@@ -38,8 +38,10 @@ At McAllister Farm, of the 253 plants that are grown under cover, **193 have no 
 PLANTS characteristics** — tomato, lettuce, spinach, peppers, potato, beans, peas,
 ranunculus, anemone, lisianthus among them. Only a handful change verdict (eggplant,
 claytonia, blueberry, rosemary). The machinery is right; the crops tunnels exist for are
-exactly the ones PLANTS does not cover. That is the second independent argument, after
-[site-match-tennessee.md](site-match-tennessee.md), for a food-crop source.
+exactly the ones PLANTS does not cover. Since then the DSSAT crop models cover tomato,
+pepper, cabbage and the beans in the open ([site-match-tennessee.md](site-match-tennessee.md));
+running them under a tunnel's measured climate is the natural next step once a tunnel is
+instrumented.
 
 ## Measure the tunnel instead
 

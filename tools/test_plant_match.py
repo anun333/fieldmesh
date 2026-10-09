@@ -89,6 +89,30 @@ class JudgeTest(unittest.TestCase):
         self.assertTrue(j["verdict"].startswith("no data"))
 
 
+SEASON_OK = {"dssat_crop": "Dry Bean", "cultivars": "30", "cultivars_maturing_8_in_10": "30",
+             "best_matures_before_frost": "1.0", "best_days_to_maturity": "75",
+             "longest_days_to_maturity": "107", "planting": "1 week after last frost"}
+SEASON_FAIL = {"dssat_crop": "Pigeonpea", "cultivars": "3", "cultivars_maturing_8_in_10": "0",
+               "best_matures_before_frost": "0.0", "best_days_to_maturity": "",
+               "longest_days_to_maturity": "", "planting": "1 week after last frost"}
+
+
+class CropModelTest(unittest.TestCase):
+    def test_a_crop_plants_knows_nothing_about_gets_a_verdict(self):
+        self.assertEqual(T.judge(plant(), None, SITE, SEASON_OK)["verdict"], "suits (crop model)")
+        j = T.judge(plant(), None, SITE, SEASON_FAIL)
+        self.assertEqual(j["verdict"], "unsuited")
+        self.assertIn("crop model", j["rules_out"][0])
+
+    def test_the_crop_model_outranks_plants_on_the_season(self):
+        """PLANTS says 365 frost-free days; the model ran thirty Tennessee seasons."""
+        j = T.judge(plant(cycle="perennial"), chars(**{"Frost Free Days, Minimum": "365"}), SITE, SEASON_OK)
+        self.assertEqual(j["verdict"], "suits")
+
+    def test_without_a_model_plants_still_decides(self):
+        self.assertEqual(T.judge(plant(), None, SITE)["verdict"], "no data (not in USDA PLANTS)")
+
+
 class CoverTest(unittest.TestCase):
     def test_a_tunnel_lengthens_the_season(self):
         need = chars(**{"Frost Free Days, Minimum": "290"})

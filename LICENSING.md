@@ -13,6 +13,21 @@ licenses, because the three kinds of artifact here have three different jobs.
 Every file carries an `SPDX-License-Identifier` line. The file is authoritative; this
 table explains it.
 
+## Third-party data in `docs/notes/`
+
+Some notes carry data derived from other projects, each under its source's terms, stated
+in the file's own header:
+
+| file | from | licence |
+| --- | --- | --- |
+| `plant-characteristics-usda.csv` | USDA NRCS PLANTS Database | CC0-1.0 |
+| `plant-bees-globi.csv`, `plant-bees-globi-sources.txt` | GloBI, and the 49 datasets it cites | CC-BY-4.0 |
+| `crop-parameters-dssat.csv` | DSSAT Cropping System Model genotype files | BSD-3-Clause, with DSSAT's notice in `crop-parameters-dssat-LICENSE.txt` |
+
+Figures quoted in notes from NASA POWER (CC-BY-4.0), ISMN (CC-BY-4.0) and the USDA soil
+survey (public domain) are attributed where they appear. FAO's ECOCROP is **not** used:
+its licence is non-commercial (see `docs/notes/fao-ecocrop-request-draft.md`).
+
 ## Why not one license
 
 A single permissive license would let a vendor take the farmer-owned stack and make it

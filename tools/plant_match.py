@@ -84,9 +84,29 @@ def texture_word(texture: str | None) -> str | None:
     return {"sandy": "Coarse", "loamy": "Medium", "clayey": "Fine"}.get(texture or "")
 
 
-def judge(plant: dict, chars: dict | None, site: dict) -> dict:
-    """-> {verdict, rules_out[], fixable[], caution[]}"""
+def season_note(season: dict) -> str:
+    return (f"{season['cultivars_maturing_8_in_10']}/{season['cultivars']} {season['dssat_crop'].lower()} "
+            f"cultivars mature before frost 8 years in 10"
+            + (f", {season['best_days_to_maturity']}–{season['longest_days_to_maturity']} days "
+               f"({season['planting']})" if season.get("longest_days_to_maturity") else ""))
+
+
+def judge(plant: dict, chars: dict | None, site: dict, season: dict | None = None) -> dict:
+    """-> {verdict, rules_out[], fixable[], caution[]}
+
+    `season` is the crop model's verdict for this site (`dssat_crops.py`), where there is
+    one. It outranks PLANTS on the season, because it runs the crop through the site's
+    own thirty years of weather and day length rather than comparing one number."""
     out = {"rules_out": [], "fixable": [], "caution": []}
+    if season is not None and not plant["category"].startswith("invasive") \
+            and not (site.get("cover") and plant["category"] not in COVER_CATEGORIES):
+        if int(season["cultivars_maturing_8_in_10"]) == 0:
+            out["rules_out"].append(f"season (crop model): no {season['dssat_crop'].lower()} cultivar "
+                                    f"matures before frost 8 years in 10 — the best in "
+                                    f"{float(season['best_matures_before_frost']):.0%} of years")
+        if not chars or not chars.get("plants_symbol") or "characteristics" in (chars.get("match") or ""):
+            verdict = "unsuited" if out["rules_out"] else "suits (crop model)"
+            return {**out, "verdict": verdict}
     if plant["category"].startswith("invasive"):
         return {**out, "verdict": "do not plant (invasive)"}
     if site.get("cover") and plant["category"] not in COVER_CATEGORIES:
@@ -101,6 +121,8 @@ def judge(plant: dict, chars: dict | None, site: dict) -> dict:
     need = number(chars.get("Frost Free Days, Minimum"))
     have = c["frost_free_days_8_in_10"]
     grown_as_annual = "annual" in plant["cycle"]
+    if season is not None:
+        need = None                 # the crop model has judged the season
     if need is not None and have < need:
         if grown_as_annual and need >= IMPLAUSIBLE_SEASON_DAYS:
             # PLANTS gives some crops a year-round frost-free need from their perennial
@@ -207,16 +229,19 @@ def read_csv(path: str) -> list:
         return list(csv.DictReader(line for line in h if not line.startswith("#")))
 
 
-def match(plants: list, chars: list, site: dict) -> tuple[list, dict]:
+def match(plants: list, chars: list, site: dict, seasons: list | None = None) -> tuple[list, dict]:
     by_name = {c["scientific_name"]: c for c in chars}
+    by_season = {s["scientific_name"]: s for s in seasons or []}
     rows = []
     for p in plants:
         c = by_name.get(p["scientific_name"])
-        j = judge(p, c, site)
+        s = by_season.get(p["scientific_name"])
+        j = judge(p, c, site, s)
         rows.append({"common_name": p["common_name"], "scientific_name": p["scientific_name"],
                      "category": p["category"], "verdict": j["verdict"],
                      "rules_out": "; ".join(j["rules_out"]), "fixable": "; ".join(j["fixable"]),
                      "caution": "; ".join(j["caution"]),
+                     "crop_model": season_note(s) if s else "",
                      "bloom": (c or {}).get("Bloom Period") or ""})
     return rows, calendar(rows, site)
 
@@ -230,6 +255,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out")
     ap.add_argument("--cover", choices=sorted(COVER_SEASON_DAYS),
                     help="match for a crop under this cover instead of in the open")
+    ap.add_argument("--crop-seasons", help="the crop model's seasons for this site, from dssat_crops.py")
     ap.add_argument("--winter-gain-f", type=float, default=0.0,
                     help="measured winter-night gain of the cover, °F (default 0: unmeasured)")
     args = ap.parse_args(argv)
@@ -237,7 +263,8 @@ def main(argv=None) -> int:
         site = json.load(h)
     if args.cover:
         site = under_cover(site, args.cover, args.winter_gain_f)
-    rows, cal = match(read_csv(args.plant_list), read_csv(args.characteristics), site)
+    seasons = read_csv(args.crop_seasons) if args.crop_seasons else None
+    rows, cal = match(read_csv(args.plant_list), read_csv(args.characteristics), site, seasons)
     if args.out:
         with open(args.out, "w", newline="", encoding="utf-8") as h:
             w = csv.DictWriter(h, fieldnames=list(rows[0]))
