@@ -25,7 +25,7 @@ Each question lists **all** options considered, not just the two in the original
 
 ## Q1. Who is the first pilot farm, and what crop or livestock?
 
-**Status: blocks the pilot and every reliability claim; no longer blocks the first release.** Code no longer waits on it. But a growing season is on the claims critical path and seasons do not reschedule: a decision in autumn 2026 buys a 2027 season, and a decision in spring 2027 costs a year. The simulated farm removes the pressure to pick badly — it does not remove the calendar.
+**Status: approach DECIDED 2026-10-09 — two sites, an extension or university plot and one working diversified farm with poor connectivity, chosen with Q12 (the maintainer adopted the recommendation).** Which farms is still to find, and the asking is the maintainer's: a farm that hosts an NRCS SCAN station is the strongest candidate, because the station is a reference instrument already in the ground; candidates and letters are kept privately until they have been asked. Decide by February 2027 to install before spring; Plan B is the plot alone in 2027 and the farm in 2028. Was: blocks the pilot and every reliability claim; no longer blocks the first release. Code no longer waits on it. But a growing season is on the claims critical path and seasons do not reschedule: a decision in autumn 2026 buys a 2027 season, and a decision in spring 2027 costs a year. The simulated farm removes the pressure to pick badly — it does not remove the calendar.
 
 | Option | For | Against |
 | --- | --- | --- |
@@ -121,7 +121,7 @@ Whatever is chosen, the rule in v0.1 §3.4 stands: a URI, never free text.
 
 ## Q4c. The durable namespace for local vocabulary terms
 
-**Status: blocks publication of the vocabulary; blocks nothing in code.** Raised by the
+**Status: DECIDED 2026-10-09 — w3id.org, with `vessel_fill_fraction` submitted to ODM2 in parallel, both when the repository goes public (the maintainer adopted the recommendation).** Nothing to do before then; `vocab.LOCAL` is still the whole migration surface. Plan B: a domain the project owns, with a promise its addresses always redirect. Was: blocks publication of the vocabulary; blocks nothing in code. Raised by the
 Q4 decision of 2026-10-07, which produced exactly one local term and therefore a
 namespace to put it in.
 
@@ -472,7 +472,7 @@ The hand-packed layout stays **documented as an escape hatch** for a node draini
 
 ## Q6. Which link ships first
 
-**Status: blocks v0.** It sets the airtime budget everything else is sized against.
+**Status: DECIDED 2026-10-09 — Meshtastic first, a wired Modbus driver kept in the test suite as the control, LoRaWAN second (the maintainer adopted the recommendation).** Since decided: `sdk/modbus_rtu.py` has its tests (CRC against the specification's example, a round trip over a pty). Plan B, if Meshtastic's firmware churn or airtime makes nodes unreliable: LoRaWAN first through a self-hosted ChirpStack. Was: blocks v0. It sets the airtime budget everything else is sized against.
 
 | Option | For | Against |
 | --- | --- | --- |
@@ -486,7 +486,7 @@ The hand-packed layout stays **documented as an escape hatch** for a node draini
 
 ## Q8. farmOS's role
 
-**Status: blocks v0.** It determines whether the append-only log is real. v0.1 §7.1 assumes option B; confirm or overrule it.
+**Status: DECIDED 2026-10-09 — B confirmed, with C as the end state (the maintainer adopted the recommendation).** Plan B, if the projector costs too much to keep correct: E, farmOS owning records while the log owns observations, commands and decisions. Was: blocks v0. It determines whether the append-only log is real. v0.1 §7.1 assumes option B; confirm or overrule it.
 
 | Option | For | Against |
 | --- | --- | --- |
@@ -519,7 +519,7 @@ If B's projector proves too much work for the first season, **take E deliberatel
 
 ## Q3b. Which standard the command contract aligns with
 
-**Status: blocks commands.** v0 assumed SensorThings Part 2 (Tasking). That remains available — note that tasking has never been in Part 1 in either version, so the 2.0 draft's silence on it is a matter of document scope, not a gap. What is new is that a published alternative now exists, and that nothing commits Part 2 to a 2.0 revision.
+**Status: DECIDED 2026-10-09 — our own contract, with an OGC API — Connected Systems adapter; Connected Systems Part 2 is read properly before §6 is frozen (the maintainer adopted the recommendation).** Plan B: SensorThings Part 2 Tasking, if Connected Systems stalls. Was: blocks commands. v0 assumed SensorThings Part 2 (Tasking). That remains available — note that tasking has never been in Part 1 in either version, so the 2.0 draft's silence on it is a matter of document scope, not a gap. What is new is that a published alternative now exists, and that nothing commits Part 2 to a 2.0 revision.
 
 | Option | For | Against |
 | --- | --- | --- |
@@ -534,7 +534,7 @@ If B's projector proves too much work for the first season, **take E deliberatel
 
 ## Q13. Command dedup persistence on a node
 
-**Status: blocks commands.** v0.1 §6.3 requires non-volatile dedup or a declared `dedup_volatile`; the mechanism is open.
+**Status: DECIDED 2026-10-09 — FRAM or a lazily written NVM ring where the hardware allows, and `dedup_volatile` declared honestly where it does not (the maintainer adopted the recommendation).** Plan B, for a fleet of volatile nodes: dedup at the hub by command id, and only commands that are safe to repeat (setpoints, not toggles) sent to them — which §6.3 already forces. Was: blocks commands. v0.1 §6.3 requires non-volatile dedup or a declared `dedup_volatile`; the mechanism is open.
 
 | Option | For | Against |
 | --- | --- | --- |
@@ -575,7 +575,7 @@ On the *Reimplement, don't copy* principle: it is satisfied by speaking HTTP to 
 
 ## Q10. Rule language for layer 1
 
-**Status: blocks third parties.** Not needed for v0, but it determines whether layer 1 can be trusted.
+**Status: DECIDED 2026-10-09 — CEL for conditions, Starlark for regimens (the maintainer adopted the recommendation).** Plan B, if Starlark's Python embedding is not ready when layer 1 is built: CEL only, with regimens as declarative step lists (step, wait, check) and no general control flow. Was: blocks third parties. Not needed for v0, but it determines whether layer 1 can be trusted.
 
 The binding constraint eliminates most options: v0.1 §11 requires rules to be backtestable on past seasons and decision events to be reproducible. That means **deterministic and side-effect-free**, which plain Python cannot promise.
 
@@ -595,7 +595,7 @@ The binding constraint eliminates most options: v0.1 §11 requires rules to be b
 
 ## Q11. How modules are packaged and isolated
 
-**Status: blocks third parties.** v0.1 §8.3 says the foundation enforces per-point permissions; the enforcement mechanism is open.
+**Status: DECIDED 2026-10-09 — processes under systemd with per-module capability tokens over a unix socket for v0, WASI as the stated target (the maintainer adopted the recommendation).** Plan B, if process isolation proves too weak before WASI is ready for Python: a rootless container per module. Was: blocks third parties. v0.1 §8.3 says the foundation enforces per-point permissions; the enforcement mechanism is open.
 
 | Option | For | Against |
 | --- | --- | --- |
@@ -614,7 +614,7 @@ The binding constraint eliminates most options: v0.1 §11 requires rules to be b
 
 ## Q7. Conflict rules for offline edits
 
-**Status: blocks the pilot.** The moment two people edit on two phones in one field, this is live.
+**Status: DECIDED 2026-10-09 — hybrid logical clocks plus resolution at projection time, union for set-like fields, a conflict event for the fields Q14 lists (the maintainer adopted the recommendation).** The records those fields belong to are not in layer zero yet; the list is normative now so they are built to it. Plan B, if conflict events pile up in practice: latest edit wins for low-stakes fields with a visible "edited on two devices" mark, and Q14's fields stay manual. Was: blocks the pilot. The moment two people edit on two phones in one field, this is live.
 
 | Option | For | Against |
 | --- | --- | --- |
@@ -632,7 +632,7 @@ The binding constraint eliminates most options: v0.1 §11 requires rules to be b
 
 ## Q9. Legal entity, liability coverage and sustainability
 
-**Status: blocks the pilot.** Putting software on someone else's farm without an answer to liability is the one item here with personal exposure.
+**Status: DECIDED 2026-10-09 — a fiscal host now, an own entity later; the safety stack and the funding mix as recommended (the maintainer adopted the recommendation).** Choosing and signing with a fiscal sponsor is the maintainer's to do. Until there is one, no grant application. Plan B: a SARE Farmer/Rancher grant with the pilot farmer as lead, which needs no entity. Was: blocks the pilot. Putting software on someone else's farm without an answer to liability is the one item here with personal exposure.
 
 ### Q9a. Legal entity
 
@@ -676,7 +676,7 @@ The binding constraint eliminates most options: v0.1 §11 requires rules to be b
 
 ## Q12. Which layer 2 module ships first
 
-**Status: blocks the pilot.** It determines what the pilot farm actually gets, and it interacts with Q1.
+**Status: DECIDED 2026-10-09 — livestock water monitoring or a soil-moisture advisory, whichever the pilot farm has, irrigation second (the maintainer adopted the recommendation).** Plan B, for a pilot with neither: a frost watch, read-only and already backtested — at McAllister Farm on NOAA's real forecasts it warned of all 38 frost nights of 2025–26 ([notes/forecasts.md](../notes/forecasts.md)). Was: blocks the pilot. It determines what the pilot farm actually gets, and it interacts with Q1.
 
 | Option | Needs commands? | For | Against |
 | --- | --- | --- | --- |
@@ -715,8 +715,8 @@ Recorded so each decision can be revisited with its alternatives intact.
 
 | # | Question | Status |
 | --- | --- | --- |
-| Q14 | Which record fields must never resolve a conflict silently? (see Q7) | Blocks the pilot |
-| Q15 | Time-series downsampling and retention defaults — what is kept at full resolution, for how long, and does a farmer ever lose raw data to a retention policy? If *Honest data* means anything, raw retention is probably forever | Blocks v0 |
+| Q14 | Which record fields must never resolve a conflict silently? (see Q7) | **Decided 2026-10-09** — see below |
+| Q15 | Time-series downsampling and retention defaults — what is kept at full resolution, for how long, and does a farmer ever lose raw data to a retention policy? If *Honest data* means anything, raw retention is probably forever | **Decided 2026-10-09** — raw kept forever; see below |
 | Q16 | Default grant scope: does a new grant include observations that arrive after it was made? Safer default is no, but it makes research sharing tedious | **Decided 2026-10-09** — no by default; yes only with an end date. Built: `model.Grant`, `sdk/sharing.py` |
 | Q17 | Crypto-shredding key management for erasure (§7.3): per-subject keys, where they live, and what happens to a backup taken before the shred | **Decided 2026-10-09** — per-person keys wrapped by a farm key kept out of backups; erasure rotates the farm key. Built: `sdk/erasure.py` |
 | Q18 | Should the missing `resultQuality` in the SensorThings 2.0 draft be raised with OGC? | **Done 2026-10-07** — posted as a comment on [#174](https://github.com/opengeospatial/sensorthings/issues/174#issuecomment-6050541663); see [notes/q18-ogc-issue-draft.md](../notes/q18-ogc-issue-draft.md) |
@@ -727,7 +727,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q23 | A rate-of-change limit that works at any sampling interval | **Decided 2026-10-08** |
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | **Decided 2026-10-09** — learned, floored at the soil's default |
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
-| Q26 | How does a weather forecast enter layer zero? | **Built as recommended 2026-10-09** — open to revisit |
+| Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
@@ -750,6 +750,37 @@ three months later without a quality model.
 The original framing, kept because the underlying facts are still true:
 
 On **Q18 — yes, and soon.** The 2.0 draft (23-019) has no `resultQuality` attribute: Table 17 lists `id`, `phenomenonTime`, `result`, `resultTime`, `validTime` and `properties`, and the string `resultQuality` appears nowhere in the document, nor does `DQ_Element`. SensorThings 1.1 had it, typed `DQ_Element` with multiplicity zero-to-many. The formal comment period closed on 18 January 2026, but the standard is unpublished and issues are still accepted in the OGC SensorThings GitHub repository, so there is a window. A farm data foundation that must distinguish a stuck sensor from a dry soil is a good concrete argument for keeping a structured quality field in the core, and "we are building on this and here is what we lose" is the kind of feedback a draft standard is for. Cost: an hour. Upside: the mapping in v0.1 §3.3 stops being a workaround.
+
+## Q14. Which record fields must never resolve a conflict silently?
+
+**Status: DECIDED 2026-10-09 (the maintainer adopted the recommendation).** Two people editing the same record on two phones
+offline is ordinary on a farm; §7.4 resolves most of it by HLC order and emits a conflict
+event "where that matters". These are where it matters — a silent loss in any of them is a
+compliance record, an animal, a harvest or a safety limit that is wrong without anyone
+knowing:
+
+* **inputs applied** — product, rate, area, date (organic and pesticide records);
+* **animal treatments** — product, dose, date, and the withdrawal period that follows;
+* **harvest lots** — what, where, when and how much (traceability);
+* **field and bed boundaries**;
+* **anything an interlock or a node-side limit reads** — capacities, limits, calibrations
+  of a series a command depends on.
+
+For these, both versions are kept and a conflict event asks a person. Everything else is
+latest-edit-wins in HLC order, and set-like fields (tags, animal groups, applied inputs as
+a list) merge by union. The records are not in layer zero yet; the list is normative now
+so they are built to it rather than retrofitted.
+
+## Q15. Retention: does a farmer ever lose raw data to a policy?
+
+**Status: DECIDED 2026-10-09 — no (the maintainer adopted the recommendation).** Raw observations are kept at full resolution
+for as long as the farm keeps its log. Downsampled series are derived views, rebuilt from
+the log, and may be dropped and rebuilt at will. Nothing deletes a raw observation except
+an explicit act by the farmer, recorded in the log like any correction. Where a hub's disk
+is the limit, raw older than a farmer-chosen age moves to farmer-owned cold storage,
+compressed and checksummed (§7.6's archive format), rather than being deleted. Measured
+scale, for the decision: a simulated week of a five-node farm is 3.4 MB compressed, so a
+decade is under 2 GB.
 
 ## Q19. Should `evidence` on a quality assertion be normative?
 
@@ -814,7 +845,7 @@ battery life matters most.
 
 ## Q26. How does a weather forecast enter layer zero?
 
-**Status: built as recommended 2026-10-09; open to revisit.** Raised when forecasts were
+**Status: DECIDED 2026-10-09 — A, confirmed after it was built (the maintainer adopted the recommendation).** Still open: probability forecasts and ensembles, below. Was: built as recommended 2026-10-09; open to revisit. Raised when forecasts were
 asked for as input data: a frost watch, an irrigation rule that skips a watering when rain
 is coming, a tunnel closed before a cold night all act on them, and §1 promises that any
 action can be traced to why it happened — so the forecast an action rested on belongs in
