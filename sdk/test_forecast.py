@@ -181,3 +181,55 @@ class IngestTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+POP = {"comparison": "ge", "threshold": 0.254, "unit": "mm", "period_s": 3600}
+
+
+def pop_datastream(**kw):
+    fields = dict(id=uuid7(), thing=uuid7(), sensor=uuid7(), feature=uuid7(),
+                  observed_property=V.PRECIPITATION_DEPTH, unit="%",
+                  kind=DatastreamKind.FORECAST, expected_interval=3600.0, max_latency=3600.0,
+                  probability_of=POP)
+    fields.update(kw)
+    return Datastream(**fields)
+
+
+class ProbabilityTest(unittest.TestCase):
+    """A chance of rain is a forecast of a probability, of a declared event (Q26)."""
+
+    def test_the_event_is_declared_and_checked(self):
+        ds = pop_datastream()
+        self.assertEqual(V.check(ds.observed_property, ds.unit, probability_of=ds.probability_of), [])
+        with self.assertRaises(ValueError):
+            pop_datastream(unit="mm")                          # a probability is not a depth
+        with self.assertRaises(ValueError):
+            pop_datastream(probability_of={"comparison": "about", "threshold": 1,
+                                           "unit": "mm", "period_s": 3600})
+        with self.assertRaises(ValueError):
+            F.raw_datastream(probability_of=POP)               # a measurement measures
+        self.assertTrue(V.check(ds.observed_property, "%",
+                                probability_of=dict(POP, unit="Cel")))
+
+    def test_round_trips_and_old_lines_are_unchanged(self):
+        ds = pop_datastream()
+        self.assertEqual(codec.load(codec.dump(ds)), ds)
+        self.assertNotIn("probability_of", codec.dump(forecast_datastream()))
+
+    def test_brier_scores_issues_against_the_gauge(self):
+        fc = pop_datastream()
+        gauge = F.raw_datastream(observed_property=V.PRECIPITATION_DEPTH, unit="mm",
+                                 expected_interval=3600.0)
+        issued = T0
+        probs = [10, 90, 50, 0]
+        rain = [0.0, 3.0, 0.2, 0.0]                             # wet only in the second hour
+        log = Log()
+        for r in [fc, gauge] + run(fc, issued, probs):
+            log.append_record(r)
+        for i, mm in enumerate(rain):
+            log.append_record(F.observation(gauge, result=mm, measured_at=issued + i * HOUR + dt.timedelta(minutes=30), seq=i))
+        state = P.state_from_log(log)
+        pairs = FC.brier(state, fc.id, gauge.id)
+        flat = [p for lead in sorted(pairs) for p in pairs[lead]]
+        self.assertEqual(flat, [(0.1, False), (0.9, True), (0.5, False), (0.0, False)])
+        self.assertAlmostEqual(FC.brier_score(flat), (0.01 + 0.01 + 0.25 + 0) / 4)

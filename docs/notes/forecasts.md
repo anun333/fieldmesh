@@ -193,5 +193,9 @@ is 2013, the wettest of the thirty.
 * The rules above are stand-ins for layer 1 and 2 modules; when those are built, these
   drills are their backtests (§11).
 * A forecast's quality: only the range check runs on a forecast, and every value is
-  assessed at ingest (Q26). Probabilistic forecasts — NOAA's frost-probability grids — have
-  no kind yet.
+  assessed at ingest (Q26).
+* **Probabilities, since built.** NWS's chance of rain is collected as a forecast that
+  declares its event — 0.254 mm within the hour — and `forecast.brier` scores every issue
+  against a rain gauge by lead time. Add `precipitation_probability` to the collector's
+  `--variables` to keep it, about 170 MB a year more at two runs a day. Ensembles are still
+  open.

@@ -96,6 +96,46 @@ def ingest(log, state: P.State, datastream_id: UUID, issued_at: _dt.datetime,
     return report
 
 
+def brier(state: P.State, forecast_id: UUID, measured_id: UUID) -> dict:
+    """Every stored issue of a probability forecast against what happened, by lead time:
+    `{lead_h: [(probability, happened), ...]}` — the pairs a Brier score and a reliability
+    diagram are made from. "Happened" is the measured series' sum over the event's period
+    reaching its threshold, so it needs a measured series of amounts (rain per reading)
+    in the event's unit. An hour with no measurement in it is left out, not scored as dry.
+    """
+    ds = state.datastreams[forecast_id]
+    event = ds.probability_of
+    if event is None:
+        raise ForecastError("not a probability forecast: it declares no probability_of")
+    scale = 0.01 if ds.unit == "%" else 1.0
+    period = _dt.timedelta(seconds=event["period_s"])
+    compare = {"gt": float.__gt__, "ge": float.__ge__, "lt": float.__lt__,
+               "le": float.__le__}[event["comparison"]]
+    measured = sorted((o.measured_at, o.result) for o in state.live_observations_of(measured_id)
+                      if isinstance(o.result, (int, float)))
+    times = [t for t, _ in measured]
+    import bisect
+    out: dict[int, list] = {}
+    for obs in state.observations_of(forecast_id):
+        if obs.issued_at is None or not isinstance(obs.result, (int, float)):
+            continue
+        lo = bisect.bisect_left(times, obs.measured_at)
+        hi = bisect.bisect_left(times, obs.measured_at + period)
+        if lo == hi:
+            continue
+        total = float(sum(v for _, v in measured[lo:hi]))
+        lead = int((obs.measured_at - obs.issued_at).total_seconds() // 3600)
+        out.setdefault(lead, []).append((obs.result * scale,
+                                         compare(total, float(event["threshold"]))))
+    return out
+
+
+def brier_score(pairs) -> float:
+    """Mean squared error of probability against outcome: 0 perfect, 0.25 a coin."""
+    pairs = list(pairs)
+    return sum((p - float(o)) ** 2 for p, o in pairs) / len(pairs)
+
+
 def verify(state: P.State, forecast_id: UUID, measured_id: UUID, *,
            within_s: float = 1800.0) -> dict:
     """Every stored issue of a forecast against what a sensor measured at its valid

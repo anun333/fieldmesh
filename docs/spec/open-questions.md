@@ -845,7 +845,7 @@ battery life matters most.
 
 ## Q26. How does a weather forecast enter layer zero?
 
-**Status: DECIDED 2026-10-09 — A, confirmed after it was built (the maintainer adopted the recommendation).** Still open: probability forecasts and ensembles, below. Was: built as recommended 2026-10-09; open to revisit. Raised when forecasts were
+**Status: DECIDED 2026-10-09 — A, confirmed after it was built (the maintainer adopted the recommendation).** Since: probability forecasts, as a declared event on a forecast series; ensembles still open, below. Was: built as recommended 2026-10-09; open to revisit. Raised when forecasts were
 asked for as input data: a frost watch, an irrigation rule that skips a watering when rain
 is coming, a tunnel closed before a cold night all act on them, and §1 promises that any
 action can be traced to why it happened — so the forecast an action rested on belongs in
@@ -888,6 +888,12 @@ bounds on its datastream, and has been collecting McAllister Farm's NWS forecast
 dusk since 2026-10-09; `tools/forecast_score.py` scores the collection against the farm's
 station.
 
-**Still open:** a forecast that is not a series — a probability of rain, an ensemble's
-spread, NOAA's frost-probability grids — has no term or kind yet.
+**Since built, 2026-10-09: probabilities.** A forecast of a probability is a forecast
+datastream whose unit is `%` or `1` and which declares `probability_of`, the event:
+comparison, threshold in the observed property's own unit, and the period it may happen
+within. NWS's probability of precipitation is "≥ 0.254 mm within the hour". No new kind and
+no new vocabulary term — the term is still the variable, and the declaration says what
+about it is being given a chance. `forecast.brier` scores every stored issue against a
+measured series by lead time. **Still open:** an ensemble's members and spread, which are
+several values per valid time per issue.
 

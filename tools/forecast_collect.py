@@ -70,7 +70,8 @@ def ensure_datastreams(log, state, run: FS.Run, source: str, *, thing=None, feat
         ds = Datastream(id=uuid7(), thing=thing or uuid7(), sensor=uuid7(), feature=feature or uuid7(),
                         observed_property=FS.VARIABLES[variable][0], unit=unit,
                         kind=DatastreamKind.FORECAST, expected_interval=3600.0, max_latency=3600.0,
-                        thresholds={"min": lo, "max": hi})
+                        thresholds={"min": lo, "max": hi},
+                        probability_of=run.events.get(variable))
         label = Label(id=uuid7(), entity=ds.id, name=name, set_at=now,
                       description=f"{run.source}, {run.where}")
         for record in (ds, label):
@@ -104,8 +105,9 @@ def main(argv=None) -> int:
     ap.add_argument("--source", choices=("nws", "metno"), default="nws")
     ap.add_argument("--user-agent", default="librefarm/0.1")
     ap.add_argument("--variables", default="air_temperature,precipitation",
-                    help="which to keep; each run re-forecasts some 185 hours, so every variable "
-                         "kept twice a day adds about 170 MB a year")
+                    help="which to keep, of air_temperature, precipitation, relative_humidity, "
+                         "wind_speed and precipitation_probability; each run re-forecasts some "
+                         "185 hours, so every variable kept twice a day adds about 170 MB a year")
     args = ap.parse_args(argv)
     fetch = FS.fetch_nws if args.source == "nws" else FS.fetch_metno
     run = fetch(args.lat, args.lon, args.user_agent)

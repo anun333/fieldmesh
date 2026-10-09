@@ -207,6 +207,30 @@ def aggregate_problems(result) -> list[str]:
     return out
 
 
+#: The comparisons an event may use, and what each means in a sentence.
+PROBABILITY_COMPARISONS = {"gt": ">", "ge": "≥", "lt": "<", "le": "≤"}
+
+
+def probability_problems(event: dict, unit: str | None) -> list[str]:
+    """What is wrong with a forecast probability's declared event (Q26)."""
+    out = []
+    if unit not in ("%", "1"):
+        out.append(f"a probability is in % or 1, not {unit!r}")
+    if not isinstance(event, dict):
+        return out + ["probability_of is an object: comparison, threshold, unit, period_s"]
+    if event.get("comparison") not in PROBABILITY_COMPARISONS:
+        out.append(f"probability_of.comparison is one of {sorted(PROBABILITY_COMPARISONS)}")
+    thr = event.get("threshold")
+    if not isinstance(thr, (int, float)) or isinstance(thr, bool):
+        out.append("probability_of.threshold is a number")
+    if not event.get("unit"):
+        out.append("probability_of.unit is the UCUM unit of the threshold")
+    period = event.get("period_s")
+    if not isinstance(period, (int, float)) or period <= 0:
+        out.append("probability_of.period_s is the seconds the event may happen within")
+    return out
+
+
 @dataclass(frozen=True, slots=True)
 class Datastream:
     """§3.1. One sensor, one observed property, one unit, on one Thing.
@@ -242,6 +266,11 @@ class Datastream:
     #: an `aggregate` datastream and on a derived one computed from it; absent on every
     #: other, so the series of instants it has always been.
     window_s: float | None = None
+    #: On a forecast of a probability, the event it is the probability of (Q26):
+    #: `{"comparison": "ge", "threshold": 0.254, "unit": "mm", "period_s": 3600}` reads
+    #: "the chance that `observed_property` reaches 0.254 mm within the hour". The series'
+    #: own unit is then `%` or `1`; the threshold's unit is the property's.
+    probability_of: dict | None = None
 
     def __post_init__(self) -> None:
         _uuid7(self.id, "id")
@@ -273,6 +302,12 @@ class Datastream:
                              "window_s (Q20)")
         if self.window_s is not None and self.window_s <= 0:
             raise ValueError("window_s must be positive")
+        if self.probability_of is not None:
+            if self.kind is not DatastreamKind.FORECAST:
+                raise ValueError("only a forecast is a probability of an event (Q26); a "
+                                 "measurement measures")
+            for problem in probability_problems(self.probability_of, self.unit):
+                raise ValueError(problem)
         if self.derived_from == self.id:
             raise ValueError("a datastream cannot derive from itself")
         if self.expected_interval is not None and self.expected_interval <= 0:

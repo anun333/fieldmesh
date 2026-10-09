@@ -901,7 +901,8 @@ class State:
                 problems.append(f"observation {obs.id}: {exc}")
         for ds in self.datastreams.values():
             for problem in vocab.check(ds.observed_property, ds.unit,
-                                       raw=ds.kind is DatastreamKind.RAW):
+                                       raw=ds.kind is DatastreamKind.RAW,
+                                       probability_of=ds.probability_of):
                 problems.append(f"datastream {ds.id}: {problem}")
         for problem in self._raw_unit_problems():
             problems.append(problem)

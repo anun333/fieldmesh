@@ -37,6 +37,20 @@ class CollectTest(unittest.TestCase):
         self.assertEqual(state.validate(), [])
         self.assertEqual(len(state.entities_named("NWS forecast: air temperature")), 1)
 
+    def test_a_chance_of_rain_is_collected_as_a_probability_of_its_event(self):
+        """NWS's probability of precipitation: the chance of 0.254 mm in each hour (Q26)."""
+        with open(os.path.join(HERE, "fixtures", "nws-gridpoint-HUN-62-57-pop.json"),
+                  encoding="utf-8") as h:
+            run = FS.nws_run(json.load(h))
+        self.assertEqual(run.units["precipitation_probability"], "%")
+        self.assertEqual(run.events["precipitation_probability"]["threshold"], 0.254)
+        C.collect(self.path, run, "nws", {"precipitation_probability"})
+        state = P.state_from_log(L.Log(self.path))
+        self.assertEqual(state.validate(), [])
+        [ds_id] = state.entities_named("NWS forecast: precipitation probability")
+        ds = state.datastreams[ds_id]
+        self.assertEqual((ds.unit, ds.probability_of["comparison"]), ("%", "ge"))
+        self.assertTrue(all(0 <= o.result <= 100 for o in state.observations_of(ds_id)))
 
     def test_scoring_a_collection_against_a_station(self):
         import datetime as dt

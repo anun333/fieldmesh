@@ -97,6 +97,7 @@ _CONVERTERS = {
         "thresholds": (_same, _same),
         "buffer_policy": (_same, _same),
         "window_s": (_same, _same),
+        "probability_of": (_same, _same),
     },
     Grant: {
         "id": (_enc_uuid, _dec_uuid),
@@ -215,7 +216,8 @@ _BY_NAME = {cls.__name__: cls for cls in _CONVERTERS}
 
 #: Fields added after logs existed, written only when set — so every log line written
 #: before them reads back, and is written again, byte for byte the same.
-_OMIT_WHEN_NONE = {(Observation, "issued_at"), (Datastream, "window_s")}
+_OMIT_WHEN_NONE = {(Observation, "issued_at"), (Datastream, "window_s"),
+                   (Datastream, "probability_of")}
 
 
 def dump(record) -> dict:

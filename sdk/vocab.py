@@ -161,7 +161,8 @@ ACCEPTED_UNITS: dict[str, frozenset] = {
 RAW_COUNT = "1"
 
 
-def check(observed_property: str, unit: str | None, *, raw: bool = False) -> list[str]:
+def check(observed_property: str, unit: str | None, *, raw: bool = False,
+          probability_of: dict | None = None) -> list[str]:
     """What is wrong with declaring a datastream of this term in this unit (§3.4).
 
     A raw datastream may also declare `RAW_COUNT` whatever its term (Q21).
@@ -183,6 +184,14 @@ def check(observed_property: str, unit: str | None, *, raw: bool = False) -> lis
             f"term got in before (§3.4)")
         return problems
     accepted = ACCEPTED_UNITS.get(observed_property, frozenset({TERMS[observed_property][0]}))
+    if probability_of is not None:
+        # A probability is in % or 1 whatever its term; the event's threshold is what
+        # must be in the term's unit (Q26).
+        event_unit = probability_of.get("unit") if isinstance(probability_of, dict) else None
+        if event_unit not in accepted:
+            problems.append(f"probability_of.unit {event_unit!r} is not a unit of "
+                            f"{observed_property}; accepted: {sorted(accepted)}")
+        return problems
     if raw:
         accepted = accepted | {RAW_COUNT}
     if unit is None:

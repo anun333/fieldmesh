@@ -51,6 +51,15 @@ VARIABLES = {
     "relative_humidity": ("http://vocab.nerc.ac.uk/standard_name/relative_humidity/", False),
     "wind_speed": ("http://vocab.nerc.ac.uk/standard_name/wind_speed/", False),
     "precipitation": ("http://vocab.nerc.ac.uk/standard_name/lwe_thickness_of_precipitation_amount/", True),
+    "precipitation_probability": ("http://vocab.nerc.ac.uk/standard_name/lwe_thickness_of_precipitation_amount/", False),
+}
+
+#: What a probability is the probability of (Q26). NWS's gridded probability of
+#: precipitation is the chance of a measurable amount — 0.01 inch, 0.254 mm — within
+#: each hour it is given for.
+EVENTS = {
+    "precipitation_probability": {"comparison": "ge", "threshold": 0.254, "unit": "mm",
+                                  "period_s": 3600},
 }
 
 
@@ -62,6 +71,7 @@ class Run:
     series: dict = field(default_factory=dict)      # variable -> [(valid_at, value)]
     units: dict = field(default_factory=dict)       # variable -> UCUM unit
     timezone: str | None = None                     # the place's own, when the source says
+    events: dict = field(default_factory=dict)      # variable -> its event, for a probability
 
     def provenance(self) -> dict:
         return {"source": self.source, "where": self.where}
@@ -101,7 +111,8 @@ def expand(values: list, issued: _dt.datetime, amount: bool) -> list:
 
 NWS_UNITS = {"wmoUnit:degC": "Cel", "wmoUnit:percent": "%", "wmoUnit:km_h-1": "km/h", "wmoUnit:mm": "mm"}
 NWS_FIELDS = {"temperature": "air_temperature", "relativeHumidity": "relative_humidity",
-              "windSpeed": "wind_speed", "quantitativePrecipitation": "precipitation"}
+              "windSpeed": "wind_speed", "quantitativePrecipitation": "precipitation",
+              "probabilityOfPrecipitation": "precipitation_probability"}
 
 
 def nws_run(grid_doc: dict) -> Run:
@@ -118,6 +129,8 @@ def nws_run(grid_doc: dict) -> Run:
             raise ValueError(f"{key}: unexpected unit {uom!r}")
         run.series[var] = expand(p[key]["values"], issued, VARIABLES[var][1])
         run.units[var] = NWS_UNITS[uom]
+        if var in EVENTS:
+            run.events[var] = dict(EVENTS[var])
     return run
 
 
