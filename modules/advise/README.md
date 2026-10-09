@@ -10,7 +10,10 @@ English and Spanish, and in any language a pack is added for.
 
 ```sh
 python3 modules/advise/advise.py 35.06445 -86.59137 --cache CACHE --out OUT --lang en,es --windows
-python3 modules/advise/advise.py 35.06445 -86.59137 --cache CACHE --out OUT --warm 1.0 --future-label 2050s
+python3 modules/advise/advise.py 35.06445 -86.59137 --cache CACHE --out OUT --cmip6 ssp245
+python3 modules/advise/nutrients.py --animals "dairy slurry:60:1375" --crops "corn silage:20:tons:40"
+python3 modules/advise/erosion_map.py field.geojson --cover row_crop --out field-erosion.geojson
+python3 modules/advise/protected_varieties.py --cache CACHE "Kizuri:Malus domestica"
 cd modules/advise && python3 -m unittest discover -p 'test_*.py'
 ```
 
@@ -62,4 +65,11 @@ packs' prose are CC BY 4.0 like the rest of the documentation.
 | `chill_requirements.py`, `chill_requirements_pome.py` | the openly licensed chill tables, re-keyed |
 | `plant_conditions.py`, `globi_bees.py`, `interactions.py` | USDA PLANTS data, bee records, what mixes with what |
 | `tunnel_gain.py` | a hoop house's measured warmth, from paired sensors |
+| `cmip6.py` | a site's climate change by month from five CMIP6 models (NASA NEX-GDDP-CMIP6, CC0), for `--cmip6` |
+| `fruit_set.py` | heat that stops fruit set, where a study gives a threshold a field can be held to (tomato) |
+| `propagation.py` | when to sow, plant bare root or container stock, take cuttings, sprig, by the site's frost dates |
+| `plant_names.py` | plant names in other languages from AGROVOC (CC BY 4.0) and Wikidata (CC0) |
+| `nutrients.py` | manure supplied against nutrients the harvests remove (NRCS handbook tables) |
+| `erosion_map.py` | RUSLE on every 10 m cell of a field, from USGS 3DEP and the soil survey's polygons |
+| `protected_varieties.py` | whether a variety is under Plant Variety Protection, before propagating it for sale |
 | `module.py` | version, data manifest, language packs |
