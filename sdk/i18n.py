@@ -179,7 +179,13 @@ class _Number:
 
     def __format__(self, spec):
         text = format(self.value, spec)
-        return text.replace(".", self.separator) if self.separator != "." else text
+        if self.separator == ".":
+            return text
+        # A template asking for thousands (`{n:,.0f}`) gets Python's comma, which in a
+        # language that writes decimals with a comma reads as a decimal point: "20,696" is
+        # twenty in Spain. Group with a point there, and the decimal is the comma.
+        grouping = "." if self.separator == "," else ","
+        return "".join(grouping if c == "," else self.separator if c == "." else c for c in text)
 
     def __str__(self):
         return self.__format__("")

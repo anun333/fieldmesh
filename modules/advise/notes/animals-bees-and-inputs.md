@@ -158,4 +158,14 @@ every plant it covers.
 2. **Bloom calendars** for a farm's plants, with the hunger gaps marked.
 3. **Heat stress** for a farm's animals from NASA POWER — hours above THI thresholds by month.
 4. **Fertilizer** from soil test + crop demand + manure available, with the organic rules
-   as a filter.
+   as a filter. *Built 2026-10-09 as a balance:* [nutrients.py](../nutrients.py) sets the
+   manure the farm's animals supply — as it leaves each handling system, per the NRCS
+   Agricultural Waste Management Field Handbook's Table 4-16(b) — against what the harvests
+   remove (its Table 6-6), and says how many acres the manure needs at the crops' nitrogen
+   removal, or their phosphate removal where a soil test reads phosphorus high. With
+   `--organic` it adds the federal rule for raw manure: 120 days before a harvest whose
+   eaten part touches the soil, 90 otherwise. It reproduces the handbook's worked example
+   (130 bu of corn removes 117 lb of nitrogen). It is not a recommendation: first-year
+   nitrogen availability and a soil test's interpretation are state-specific, and the
+   state's nutrient management plan governs. Both tables are public domain and were
+   transcribed by hand, every row checked against the handbook's other units.

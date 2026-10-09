@@ -131,6 +131,12 @@ class TestNumbersAreRegional(unittest.TestCase):
         text = i18n.Translator("es").text("check.range.above", value=0.52, max=0.46)
         self.assertIn("0,52", str(text))
 
+    def test_thousands_in_spain_group_with_a_point(self):
+        """'20,696' is twenty in Spain: grouped thousands follow the decimal convention."""
+        self.assertEqual(format(i18n._Number(20696.4, ","), ",.0f"), "20.696")
+        self.assertEqual(format(i18n._Number(20696.45, ","), ",.1f"), "20.696,5")
+        self.assertEqual(format(i18n._Number(20696.4, "."), ",.0f"), "20,696")
+
     def test_mexico_uses_a_point(self):
         text = i18n.Translator("es-MX").text("check.range.above", value=0.52, max=0.46)
         self.assertIn("0.52", str(text))

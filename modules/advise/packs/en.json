@@ -103,6 +103,16 @@
   "advise.bloom.crop": "{crop}: blooms {early} to {late} (median {median}); frost after bloom in {frost} years of 10.",
   "advise.bloom.crop_unmet": "{crop}: blooms {early} to {late} (median {median}); frost after bloom in {frost} years of 10. For {unmet} of its {count} estimates, chill falls short in more than 2 winters of 10.",
   "advise.future.bloom": "{crop}: median bloom {now} → {then}; frost after bloom in {fnow} → {fthen} years of 10",
-  "advise.stamp": "Made by librefarm advise {version}, data {data}, crop models DSSAT {dssat}."
+  "advise.stamp": "Made by librefarm advise {version}, data {data}, crop models DSSAT {dssat}.",
+  "advise.nutrients.title": "Manure and harvests",
+  "advise.nutrients.supply": "The animals' manure carries about {n:,.0f} lb of nitrogen, {p:,.0f} lb of phosphate (P2O5) and {k:,.0f} lb of potash (K2O) a year, as it leaves its handling system.",
+  "advise.nutrients.removed": "The harvests remove about {n:,.0f} lb of nitrogen, {p:,.0f} lb of phosphate and {k:,.0f} lb of potash a year from {acres:,.0f} acres:",
+  "advise.nutrients.crop": "{crop}: {n:,.0f} lb N, {p:,.0f} lb P2O5, {k:,.0f} lb K2O an acre",
+  "advise.nutrients.acres_n": "Spread at what the crops' nitrogen removal allows, the manure needs about {need:,.0f} acres; these crops have {have:,.0f}.",
+  "advise.nutrients.acres_p": "The soil test reads phosphorus high, so the plan is held to the crops' phosphate removal: the manure needs about {need:,.0f} acres; these crops have {have:,.0f}.",
+  "advise.nutrients.caveat": "A balance, not a recommendation: how much of the manure's nitrogen a crop gets in its first year depends on how and when it is spread, and what the soil needs depends on its own test. A state nutrient management plan governs.",
+  "advise.nutrients.organic": "Certified organic (7 CFR 205.203(c)): raw manure only on crops not for people, or worked into the soil at least this long before harvest:",
+  "advise.nutrients.organic_crop": "{crop}: {days} days",
+  "advise.nutrients.source": "Sources: USDA NRCS Agricultural Waste Management Field Handbook, chapter 4 table 4-16(b) and chapter 6 table 6-6 (public domain)."
  }
 }

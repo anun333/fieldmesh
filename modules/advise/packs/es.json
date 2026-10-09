@@ -103,6 +103,16 @@
   "advise.bloom.crop": "{crop}: florece del {early} al {late} (mediana {median}); helada tras la floración en {frost} años de cada 10.",
   "advise.bloom.crop_unmet": "{crop}: florece del {early} al {late} (mediana {median}); helada tras la floración en {frost} años de cada 10. En {unmet} de sus {count} estimaciones, el frío no alcanza en más de 2 inviernos de cada 10.",
   "advise.future.bloom": "{crop}: floración mediana {now} → {then}; helada tras la floración en {fnow} → {fthen} años de cada 10",
-  "advise.stamp": "Hecho con librefarm advise {version}, datos {data}, modelos de cultivo DSSAT {dssat}."
+  "advise.stamp": "Hecho con librefarm advise {version}, datos {data}, modelos de cultivo DSSAT {dssat}.",
+  "advise.nutrients.title": "Estiércol y cosechas",
+  "advise.nutrients.supply": "El estiércol de los animales lleva unas {n:,.0f} lb de nitrógeno, {p:,.0f} lb de fosfato (P2O5) y {k:,.0f} lb de potasa (K2O) al año, tal como sale de su sistema de manejo.",
+  "advise.nutrients.removed": "Las cosechas extraen unas {n:,.0f} lb de nitrógeno, {p:,.0f} lb de fosfato y {k:,.0f} lb de potasa al año de {acres:,.0f} acres:",
+  "advise.nutrients.crop": "{crop}: {n:,.0f} lb de N, {p:,.0f} lb de P2O5, {k:,.0f} lb de K2O por acre",
+  "advise.nutrients.acres_n": "Aplicado según el nitrógeno que extraen los cultivos, el estiércol necesita unos {need:,.0f} acres; estos cultivos tienen {have:,.0f}.",
+  "advise.nutrients.acres_p": "El análisis de suelo marca fósforo alto, así que el plan se limita al fosfato que extraen los cultivos: el estiércol necesita unos {need:,.0f} acres; estos cultivos tienen {have:,.0f}.",
+  "advise.nutrients.caveat": "Un balance, no una recomendación: cuánto del nitrógeno del estiércol aprovecha un cultivo el primer año depende de cómo y cuándo se aplica, y lo que el suelo necesita depende de su propio análisis. Manda el plan estatal de manejo de nutrientes.",
+  "advise.nutrients.organic": "Orgánico certificado (7 CFR 205.203(c)): estiércol crudo solo en cultivos que no son para consumo humano, o incorporado al suelo al menos este tiempo antes de la cosecha:",
+  "advise.nutrients.organic_crop": "{crop}: {days} días",
+  "advise.nutrients.source": "Fuentes: USDA NRCS, Agricultural Waste Management Field Handbook, capítulo 4, tabla 4-16(b), y capítulo 6, tabla 6-6 (dominio público)."
  }
 }

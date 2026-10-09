@@ -19,7 +19,7 @@ class ManifestTest(unittest.TestCase):
         for row in module.manifest():
             with self.subTest(file=row["file"]):
                 self.assertTrue(row["source"].strip())
-                self.assertRegex(row["licence"], r"^(CC0-1\.0|CC-BY-4\.0|BSD-3-Clause)$")
+                self.assertRegex(row["licence"], r"^(CC0-1\.0|CC-BY-4\.0|BSD-3-Clause|LicenseRef-PD-USGov)$")
                 self.assertRegex(row["retrieved"], r"^\d{4}-\d{2}-\d{2}$")
 
 
