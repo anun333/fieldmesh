@@ -58,7 +58,9 @@ def _query(endpoint: str, q: str, cache: str | None, tag: str) -> list:
             if exc.code != 429 or attempt == 5:
                 raise
             time.sleep(int(exc.headers.get("Retry-After") or 65))
-    rows = [{k: v["value"] for k, v in b.items()} for b in doc["results"]["bindings"]]
+    rows = [{**{k: v["value"] for k, v in b.items()},
+             **({"lang": b["value"]["xml:lang"]} if "xml:lang" in b.get("value", {}) else {})}
+            for b in doc["results"]["bindings"]]
     if path:
         json.dump(rows, open(path, "w", encoding="utf-8"), ensure_ascii=False)
     time.sleep(1)
@@ -86,17 +88,20 @@ SELECT ?name ?c ?prod ?p_en {' '.join('?p_' + l for l in langs)} WHERE {{
 def wikidata_names(names: list, langs: list, cache: str | None) -> list:
     out = []
     lang_list = ",".join(json.dumps(l) for l in langs)
-    for i in range(0, len(names), 60):
-        chunk = names[i:i + 60]
+    for i in range(0, len(names), 20):
+        chunk = names[i:i + 20]
         vals = " ".join(json.dumps(n) for n in chunk)
-        q = f"""SELECT ?name ?item ?kind ?lang ?value ?rank WHERE {{
+        # Each branch filters its own language, so the service never builds every label
+        # in every language first — the difference between seconds and a timeout.
+        q = f"""SELECT ?name ?item ?kind ?value ?rank ?src_en WHERE {{
   VALUES ?name {{ {vals} }}
   ?item wdt:P225 ?name ; wdt:P31 wd:Q16521 .
-  {{ ?item p:P1843 ?st . ?st ps:P1843 ?value ; wikibase:rank ?rank . BIND("common" AS ?kind) }}
-  UNION {{ ?item rdfs:label ?value . BIND("label" AS ?kind) }}
-  UNION {{ ?item wdt:P1672 ?src . ?src rdfs:label ?value . BIND("source_of" AS ?kind) }}
-  BIND(LANG(?value) AS ?lang) FILTER(?lang IN ({lang_list})) }}"""
-        out += _query(WIKIDATA, q, cache, f"wikidata-{'-'.join(langs)}-{i}")
+  {{ ?item p:P1843 ?st . ?st ps:P1843 ?value ; wikibase:rank ?rank .
+     FILTER(LANG(?value) IN ({lang_list})) BIND("common" AS ?kind) }}
+  UNION {{ ?item rdfs:label ?value FILTER(LANG(?value) IN ({lang_list})) BIND("label" AS ?kind) }}
+  UNION {{ ?item wdt:P1672 ?src . ?src rdfs:label ?value FILTER(LANG(?value) IN ({lang_list}))
+           ?src rdfs:label ?src_en FILTER(LANG(?src_en) = "en") BIND("source_of" AS ?kind) }} }}"""
+        out += _query(WIKIDATA, q, cache, f"wikidata2-{'-'.join(langs)}-{i}")
     return out
 
 
@@ -136,7 +141,11 @@ def choose(plants: list, agro: list, wiki: list, lang: str) -> dict:
             continue
         pref = {r["value"] for r in rs if r["kind"] == "common" and r.get("rank", "").endswith("PreferredRank")}
         labels = {r["value"] for r in rs if r["kind"] == "label" and not _latin(r["value"], sci)}
-        sources = {r["value"] for r in rs if r["kind"] == "source_of" and not _latin(r["value"], sci)}
+        # What a plant is the source of is often a by-product ("maicena" for maize), so it
+        # is taken only when its English name is the plant's own on our list.
+        mine = _norm(english.get(sci, ""))
+        sources = {r["value"] for r in rs if r["kind"] == "source_of" and not _latin(r["value"], sci)
+                   and _norm(r.get("src_en", "")) == mine}
         for found in (pref, labels, sources):
             if len(found) == 1:
                 item = rs[0]["item"]

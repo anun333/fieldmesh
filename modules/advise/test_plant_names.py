@@ -14,7 +14,10 @@ AGRO = [{"name": "Zea mays", "c": "c1", "prod": "p_maize", "p_en": "maize", "p_e
         {"name": "Zea mays", "c": "c1", "prod": "p_straw", "p_en": "maize straw", "p_es": "Barba del maíz"},
         {"name": "Pyrus communis", "c": "c2", "prod": "p_pears", "p_en": "pears", "p_es": "Pera"}]
 WIKI = [{"name": "Malus domestica", "item": "Q158657", "kind": "label", "lang": "es", "value": "Malus domestica"},
-        {"name": "Malus domestica", "item": "Q158657", "kind": "source_of", "lang": "es", "value": "manzana"},
+        {"name": "Malus domestica", "item": "Q158657", "kind": "source_of", "lang": "es", "value": "manzana",
+         "src_en": "apple"},
+        {"name": "Zea mays", "item": "Q11575", "kind": "source_of", "lang": "es", "value": "maicena",
+         "src_en": "cornstarch"},
         {"name": "Ilex paraguariensis", "item": "Q1", "kind": "label", "lang": "es", "value": "Ilex paraguayensis"},
         {"name": "Trifolium repens", "item": "Q2", "kind": "common", "lang": "es", "value": "Trébol blanco",
          "rank": "http://wikiba.se/ontology#PreferredRank"},
