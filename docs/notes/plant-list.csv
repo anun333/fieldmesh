@@ -380,3 +380,96 @@ bee forage,Anise hyssop,Agastache foeniculum,Lamiaceae,perennial,herb
 bee forage,Virginia mountain mint,Pycnanthemum virginianum,Lamiaceae,perennial,herb
 bee forage,Catmint,Nepeta × faassenii,Lamiaceae,perennial,herb
 bee forage,Sweet alyssum,Lobularia maritima,Brassicaceae,annual,herb
+timber,White oak,Quercus alba,Fagaceae,perennial,tree
+timber,Northern red oak,Quercus rubra,Fagaceae,perennial,tree
+timber,Black cherry,Prunus serotina,Rosaceae,perennial,tree
+timber,Shagbark hickory,Carya ovata,Juglandaceae,perennial,tree
+timber,Sweetgum,Liquidambar styraciflua,Altingiaceae,perennial,tree
+timber,Bald cypress,Taxodium distichum,Cupressaceae,perennial,tree
+timber,Eastern redcedar,Juniperus virginiana,Cupressaceae,perennial,tree
+timber,Osage orange,Maclura pomifera,Moraceae,perennial,tree
+timber,American chestnut,Castanea dentata,Fagaceae,perennial,tree
+timber,Eastern white pine,Pinus strobus,Pinaceae,perennial,tree
+timber,Shortleaf pine,Pinus echinata,Pinaceae,perennial,tree
+timber,Longleaf pine,Pinus palustris,Pinaceae,perennial,tree
+timber,Slash pine,Pinus elliottii,Pinaceae,perennial,tree
+timber,Ponderosa pine,Pinus ponderosa,Pinaceae,perennial,tree
+timber,Douglas-fir,Pseudotsuga menziesii,Pinaceae,perennial,tree
+timber,Western redcedar,Thuja plicata,Cupressaceae,perennial,tree
+timber,Sitka spruce,Picea sitchensis,Pinaceae,perennial,tree
+timber,Norway spruce,Picea abies,Pinaceae,perennial,tree
+timber,Scots pine,Pinus sylvestris,Pinaceae,perennial,tree
+timber,European larch,Larix decidua,Pinaceae,perennial,tree
+timber,Radiata pine,Pinus radiata,Pinaceae,perennial,tree
+timber,Cork oak,Quercus suber,Fagaceae,perennial,tree
+timber,Paulownia,Paulownia tomentosa,Paulowniaceae,perennial,tree
+timber,Big-leaf mahogany,Swietenia macrophylla,Meliaceae,perennial,tree
+timber,African mahogany,Khaya senegalensis,Meliaceae,perennial,tree
+timber,Spanish cedar,Cedrela odorata,Meliaceae,perennial,tree
+timber,Gmelina,Gmelina arborea,Lamiaceae,perennial,tree
+timber,Mangium,Acacia mangium,Fabaceae,perennial,tree
+timber,Caribbean pine,Pinus caribaea,Pinaceae,perennial,tree
+Christmas tree,Fraser fir,Abies fraseri,Pinaceae,perennial,tree
+Christmas tree,Balsam fir,Abies balsamea,Pinaceae,perennial,tree
+Christmas tree,Noble fir,Abies procera,Pinaceae,perennial,tree
+Christmas tree,Nordmann fir,Abies nordmanniana,Pinaceae,perennial,tree
+Christmas tree,Colorado blue spruce,Picea pungens,Pinaceae,perennial,tree
+Christmas tree,Virginia pine,Pinus virginiana,Pinaceae,perennial,tree
+Christmas tree,Leyland cypress,× Cuprocyparis leylandii,Cupressaceae,perennial,tree
+Christmas tree,Arizona cypress,Cupressus arizonica,Cupressaceae,perennial,tree
+biomass,Hybrid poplar,Populus × canadensis,Salicaceae,perennial,tree
+biomass,Giant miscanthus,Miscanthus × giganteus,Poaceae,perennial,grass
+syrup,Paper birch,Betula papyrifera,Betulaceae,perennial,tree
+forest farming,Goldenseal,Hydrastis canadensis,Ranunculaceae,perennial,herb
+forest farming,Ramps,Allium tricoccum,Amaryllidaceae,perennial,herb
+forest farming,Black cohosh,Actaea racemosa,Ranunculaceae,perennial,herb
+erosion: streambank,Black willow,Salix nigra,Salicaceae,perennial,tree
+erosion: streambank,Sandbar willow,Salix interior,Salicaceae,perennial,shrub
+erosion: streambank,Silky dogwood,Cornus amomum,Cornaceae,perennial,shrub
+erosion: streambank,Red osier dogwood,Cornus sericea,Cornaceae,perennial,shrub
+erosion: streambank,Buttonbush,Cephalanthus occidentalis,Rubiaceae,perennial,shrub
+erosion: streambank,Common ninebark,Physocarpus opulifolius,Rosaceae,perennial,shrub
+erosion: streambank,Northern spicebush,Lindera benzoin,Lauraceae,perennial,shrub
+erosion: streambank,Arrowwood viburnum,Viburnum dentatum,Viburnaceae,perennial,shrub
+erosion: streambank,False indigo bush,Amorpha fruticosa,Fabaceae,perennial,shrub
+erosion: streambank,Hazel alder,Alnus serrulata,Betulaceae,perennial,shrub
+erosion: streambank,Red alder,Alnus rubra,Betulaceae,perennial,tree
+erosion: streambank,River birch,Betula nigra,Betulaceae,perennial,tree
+erosion: streambank,American sycamore,Platanus occidentalis,Platanaceae,perennial,tree
+erosion: streambank,Fox sedge,Carex vulpinoidea,Cyperaceae,perennial,grass-like
+erosion: streambank,Soft rush,Juncus effusus,Juncaceae,perennial,grass-like
+erosion: streambank,Prairie cordgrass,Spartina pectinata,Poaceae,perennial,grass
+erosion: windbreak/hedgerow,American plum,Prunus americana,Rosaceae,perennial,shrub
+erosion: windbreak/hedgerow,Chokecherry,Prunus virginiana,Rosaceae,perennial,shrub
+erosion: windbreak/hedgerow,Common hackberry,Celtis occidentalis,Cannabaceae,perennial,tree
+erosion: windbreak/hedgerow,Bur oak,Quercus macrocarpa,Fagaceae,perennial,tree
+erosion: windbreak/hedgerow,Silver buffaloberry,Shepherdia argentea,Elaeagnaceae,perennial,shrub
+erosion: windbreak/hedgerow,New Jersey tea,Ceanothus americanus,Rhamnaceae,perennial,shrub
+erosion: slope/waterway,Fragrant sumac,Rhus aromatica,Anacardiaceae,perennial,shrub
+erosion: slope/waterway,Coralberry,Symphoricarpos orbiculatus,Caprifoliaceae,perennial,shrub
+erosion: slope/waterway,Virginia wildrye,Elymus virginicus,Poaceae,perennial,grass
+erosion: slope/waterway,Canada wildrye,Elymus canadensis,Poaceae,perennial,grass
+erosion: slope/waterway,Western wheatgrass,Pascopyrum smithii,Poaceae,perennial,grass
+erosion: slope/waterway,Blue grama,Bouteloua gracilis,Poaceae,perennial,grass
+erosion: slope/waterway,Buffalograss,Bouteloua dactyloides,Poaceae,perennial,grass
+erosion: slope/waterway,Creeping red fescue,Festuca rubra,Poaceae,perennial,grass
+erosion: dune/coastal,American beachgrass,Ammophila breviligulata,Poaceae,perennial,grass
+erosion: dune/coastal,Sea oats,Uniola paniculata,Poaceae,perennial,grass
+erosion: dune/coastal,Bitter panicum,Panicum amarum,Poaceae,perennial,grass
+erosion: dune/coastal,Saltmeadow cordgrass,Spartina patens,Poaceae,perennial,grass
+erosion: dune/coastal,Beach plum,Prunus maritima,Rosaceae,perennial,shrub
+erosion: dune/coastal,Northern bayberry,Morella pensylvanica,Myricaceae,perennial,shrub
+erosion: arid/saline,Fourwing saltbush,Atriplex canescens,Amaranthaceae,perennial,shrub
+erosion: arid/saline,Big sagebrush,Artemisia tridentata,Asteraceae,perennial,shrub
+invasive: do not plant (US),Kudzu,Pueraria montana var. lobata,Fabaceae,perennial,vine
+invasive: do not plant (US),Crownvetch,Securigera varia,Fabaceae,perennial,herb
+invasive: do not plant (US),Sericea lespedeza,Lespedeza cuneata,Fabaceae,perennial,herb
+invasive: do not plant (US),Multiflora rose,Rosa multiflora,Rosaceae,perennial,shrub
+invasive: do not plant (US),Autumn olive,Elaeagnus umbellata,Elaeagnaceae,perennial,shrub
+invasive: do not plant (US),Russian olive,Elaeagnus angustifolia,Elaeagnaceae,perennial,tree
+invasive: do not plant (US),Japanese honeysuckle,Lonicera japonica,Caprifoliaceae,perennial,vine
+invasive: do not plant (US),Chinese privet,Ligustrum sinense,Oleaceae,perennial,shrub
+invasive: do not plant (US),Saltcedar,Tamarix ramosissima,Tamaricaceae,perennial,shrub
+invasive: do not plant (US),Giant reed,Arundo donax,Poaceae,perennial,grass
+invasive: do not plant (US),Cogongrass,Imperata cylindrica,Poaceae,perennial,grass
+invasive: do not plant (US),Weeping lovegrass,Eragrostis curvula,Poaceae,perennial,grass

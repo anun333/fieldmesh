@@ -7,12 +7,16 @@ and match them against what a farm actually has, which librefarm already measure
 looks up. That is a layer-3 (decision support) module: "what grows well *here*, and what
 would grow well here in twenty years."
 
-The list is [plant-list.csv](plant-list.csv): **380 plants, 88 families** — cereals and
+The list is [plant-list.csv](plant-list.csv): **473 plants, 97 families** — cereals and
 pseudocereals, pulses, roots and tubers, vegetables, oilseeds, sugar, fibre,
 beverage crops, spices and herbs, temperate, berry and tropical fruit, nuts, forage
 grasses and legumes, cover crops, agroforestry trees, pollinator and beneficial plants,
-cut and edible flowers, and bee forage. Animals, bees, fertilizers, and what mixes with
-what, are in [animals-bees-and-inputs.md](animals-bees-and-inputs.md). Keyed by scientific name, because every data source below is. Each name is to be
+cut and edible flowers, bee forage, timber, Christmas trees and forest farming, plantings
+against erosion, and a do-not-plant list of invasives. Animals, bees, fertilizers, and
+what mixes with what, are in [animals-bees-and-inputs.md](animals-bees-and-inputs.md);
+tree farms and erosion control in
+[trees-and-conservation-planting.md](trees-and-conservation-planting.md); growing them as
+nursery stock in [nursery.md](nursery.md). Keyed by scientific name, because every data source below is. Each name is to be
 checked against USDA PLANTS when its conditions are pulled; the common name is a label,
 not a key, and multilingual names can come from AGROVOC (see Q4) rather than from here.
 

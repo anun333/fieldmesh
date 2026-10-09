@@ -10,7 +10,7 @@ but a set that suits the site *and each other*.
 
 | list | what is in it |
 | --- | --- |
-| [plant-list.csv](plant-list.csv) | 380 plants in 88 families — now including **cut flowers**, **edible flowers** and **bee forage** trees, shrubs and herbs |
+| [plant-list.csv](plant-list.csv) | 473 plants in 97 families — including **cut flowers**, **edible flowers** and **bee forage**; tree farms and erosion plantings are in [trees-and-conservation-planting.md](trees-and-conservation-planting.md) |
 | [animal-list.csv](animal-list.csv) | 99 entries — **bees** (honey bee races, stingless bees, bumble bees, managed solitary bees, wild crop specialists), **meat, egg and dairy** animals by breed, waterfowl, camelids, aquaculture, insects, guardian animals |
 | [fertilizer-list.csv](fertilizer-list.csv) | 60 — synthetic N, P and K, liming and pH, micronutrients, **manures by animal**, organic fertilizers, and **rhizobia inoculants matched to legume groups** |
 
