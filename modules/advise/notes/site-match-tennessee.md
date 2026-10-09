@@ -309,11 +309,11 @@ the answers move further than the uniform shift said, and in a different place:
 | chill hours a winter | 1048 | 1023 | 964 |
 | days over 35 °C | 13 | 21 | 28 |
 | apples getting their chill | 55 of 78 | 39 | 26 |
-| cherries | 25 of 40 | 24 | 17 |
+| cherries | 25 of 40 | 25 | 17 |
 | European apricots | 26 of 41 | 24 | 21 |
 | peaches | 115 of 126 | 108 | 108 |
 | barley cultivars maturing | 1 of 3 | 1 | 0 |
-| rice (drilled) | 42 of 55 | — | 52 |
+| rice (drilled) | 42 of 55 | 48 | 52 |
 
 The uniform shift had said warming hardly touches chill here, because a warmer winter turns
 hours below freezing into chill hours nearly as fast as it lifts others above 7.2 °C. With
