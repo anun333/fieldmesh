@@ -118,7 +118,74 @@ class MaizeTest(unittest.TestCase):
         self.assertIsNone(D.develop_maize(self.CUL, self.ECO, self.days(6.0), 0, 35.0)["maturity"])
 
 
+class SorghumTest(unittest.TestCase):
+    ECO = {"TBASE": 8.0, "TOPT": 34.0, "ROPT": 34.0, "GDDE": 6.0}
+    CUL = {"P1": 360.0, "P2": 102.0, "P2O": 12.5, "P2R": 0.0, "PANTH": 617.5, "P3": 152.5,
+           "P4": 81.5, "P5": 540.0, "PHINT": 49.0}
+    days = MaizeTest.days
+
+    def test_the_stages_by_hand(self):
+        # 20 thermal units a day at 28 °C. Emergence at 50 + 6 x 5 = 80 (day 3); juvenile
+        # 360 more (day 21); panicle initiation P2 = 102 later (day 27); flag leaf after
+        # PANTH − P3 = 465 (day 51, 15 over); anthesis at P3 = 152.5 (day 58); grain fill
+        # from P3 + P4 = 234 (day 62, 1 over); P5 = 540 (day 89); maturity the next day.
+        r = D.develop_sorghum(self.CUL, self.ECO, self.days(28.0), 0, 35.0)
+        self.assertEqual((r["flower"], r["maturity"]), (58, 90))
+
+    def test_long_days_hold_back_a_sensitive_cultivar(self):
+        neutral = D.develop_sorghum(self.CUL, self.ECO, self.days(28.0), 0, 35.0)
+        sensitive = D.develop_sorghum({**self.CUL, "P2O": 12.8, "P2R": 1800.0}, self.ECO,
+                                      self.days(28.0), 0, 35.0)
+        self.assertGreater(sensitive["flower"] or 999, neutral["flower"] + 30)
+
+    def test_columns(self):
+        line = ("IB0001 RIO                  . IB0001 430.0 102.0 11.60  24.0 617.5 152.5  81.5 "
+                "540.0 49.00    .0   6.0")
+        (c,) = D.parse_sorghum_cul(line)
+        self.assertEqual((c["name"], c["P1"], c["P2O"], c["P2R"], c["PANTH"], c["P5"], c["PHINT"]),
+                         ("RIO", 430.0, 11.6, 24.0, 617.5, 540.0, 49.0))
+        e = D.parse_sorghum_eco("IB0002 West Africa        11.0  34.0  34.0   6.0   3.8  0.85 3.000 0.200   1.0 6000.")
+        self.assertEqual(e["IB0002"], {"TBASE": 11.0, "TOPT": 34.0, "ROPT": 34.0, "GDDE": 6.0})
+
+
+class MilletTest(unittest.TestCase):
+    ECO = {"TBASE": 10.0, "TOPT": 34.0, "ROPT": 34.0, "DJTI": 68.0, "GDDE": 6.0}
+    CUL = {"P1": 120.0, "P2O": 20.0, "P2R": 125.0, "P5": 360.0, "PHINT": 43.0}
+    days = MaizeTest.days
+
+    def test_the_stages_by_hand(self):
+        # 18 a day at 28 °C. Emergence at 45 + 30 = 75 (day 4, 15 over); juvenile to 120
+        # (day 10, at 123); 18/68 of the index a day reaches 1 on day 14, at 195, so
+        # P3 = 370 + 0.135 x 195 = 396.3, counted from that day's 18 (day 36, 17.7 over);
+        # anthesis at 50 (day 38); grain fill from 150 (day 44, 11.7 over); P5 first met
+        # on day 64, P5 + 90 on days 69 and 70; maturity on day 71.
+        r = D.develop_millet(self.CUL, self.ECO, self.days(28.0), 0, 35.0)
+        self.assertEqual((r["flower"], r["maturity"]), (38, 71))
+
+    def test_long_days_hold_back_a_sensitive_variety(self):
+        neutral = D.develop_millet(self.CUL, self.ECO, self.days(28.0), 0, 35.0)
+        sensitive = D.develop_millet({**self.CUL, "P2O": 12.0, "P2R": 900.0}, self.ECO,
+                                     self.days(28.0), 0, 35.0)
+        self.assertGreater(sensitive["flower"] or 999, neutral["flower"] + 20)
+
+    def test_columns(self):
+        (c,) = D.parse_millet_cul("990001 NORTH VARIETY        . IB0001 120.0 12.00 125.0 360.0  2.00  0.50 43.00  1.00  11.0")
+        self.assertEqual((c["P1"], c["P2O"], c["P2R"], c["P5"], c["PHINT"]), (120.0, 12.0, 125.0, 360.0, 43.0))
+        e = D.parse_millet_eco("IB0001 GENERIC            10.0 34.0  34.0  68.0   6.0   4.0  0.85")
+        self.assertEqual(e["IB0001"], {"TBASE": 10.0, "TOPT": 34.0, "ROPT": 34.0, "DJTI": 68.0, "GDDE": 6.0})
+
+
 class WindowTest(unittest.TestCase):
+    def test_representatives_come_from_what_matures(self):
+        runners = [(n, n, "", 0, None) for n in "abcde"]
+        results = [{"code": "a", "matures_before_frost": 1.0, "days_to_maturity": 150},
+                   {"code": "b", "matures_before_frost": 0.0, "days_to_maturity": None},   # never flowers
+                   {"code": "c", "matures_before_frost": 0.9, "days_to_maturity": 100},
+                   {"code": "d", "matures_before_frost": 0.9, "days_to_maturity": 120},
+                   {"code": "e", "matures_before_frost": 0.5, "days_to_maturity": 90}]
+        picks = [r[1] for r in D.representatives(runners, lambda r: 0, results)]
+        self.assertEqual(picks, ["c", "d", "a"])
+
     def test_runs_of_good_weeks(self):
         swept = [(1, 0.0), (8, 0.9), (15, 0.9), (22, 0.5), (29, 0.85)]
         self.assertEqual(D.windows(swept), [("Jan 08", "Jan 15"), ("Jan 29", "Jan 29")])

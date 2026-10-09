@@ -24,3 +24,5 @@ Helianthus annuus,Sunflower,SU,CROPGRO,5 25.6 34.3 46.9,2.6 27.5 29 39,2.8 24 35
 Solanum lycopersicum,Tomato,TM,CROPGRO,7 22 28 48,7.2 22 28 48,5.2 26 28 48,4,12.33–12.33,0–0
 Mucuna pruriens,Velvetbean,VB,CROPGRO,8 30 35 45,8 28 35 45,0 26 35 45,20,12–12,0.3864–0.6595
 Zea mays,Maize,MZ,CERES-Maize,8 34 34 44,,,166,12.5–12.5,P2 0–2 days/h
+Sorghum bicolor,Sorghum,SG,CERES-Sorghum,8 34 34 44,,,55,11–16.5,P2R 1–1800 °C·d/h
+Cenchrus americanus,Pearl millet,ML,CERES-Millet,10 34 34 44,,,60,12–14.54,P2R 3–999.9 °C·d/h

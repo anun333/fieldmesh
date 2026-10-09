@@ -464,19 +464,223 @@ def maize_runners(cultivars: list, ecos: dict, lat: float) -> list:
     return runners
 
 
+# --------------------------------------------------------- CERES-Sorghum, ported
+
+def parse_sorghum_cul(text: str) -> list:
+    """SGCER048.CUL: VAR#, VRNAME, EXPNO, ECO#, then P1, P2, P2O, P2R, PANTH, P3, P4, P5,
+    PHINT, G1, G2 in six-character columns from column 37."""
+    out = []
+    names = ("P1", "P2", "P2O", "P2R", "PANTH", "P3", "P4", "P5", "PHINT")
+    for line in text.replace("\r", "").splitlines():
+        if not line.strip() or line[0] in "!*@" or len(line) < 90:
+            continue
+        code = line[0:6].strip()
+        if code in ("999991", "999992"):
+            continue
+        row = {"code": code, "name": line[7:23].strip(), "eco": line[30:36].strip()}
+        row.update({k: _f(line[36 + 6 * i:42 + 6 * i]) for i, k in enumerate(names)})
+        out.append(row)
+    return out
+
+
+def parse_sorghum_eco(text: str) -> dict:
+    """SG_CERES.for FORMAT 3100 (A6,1X,A16,1X,10(1X,F5.0)): TBASE, TOPT, ROPT, GDDE, ..."""
+    out = {}
+    for line in text.replace("\r", "").splitlines():
+        if not line.strip() or line[0] in "!*@" or len(line) < 48:
+            continue
+        out[line[0:6].strip()] = {"TBASE": _f(line[25:30]), "TOPT": _f(line[31:36]),
+                                  "ROPT": _f(line[37:42]), "GDDE": _f(line[43:48])}
+    return out
+
+
+def develop_sorghum(cul: dict, eco: dict, days: list, start: int, lat: float,
+                    stop: int | None = None) -> dict:
+    """SG_PHENOL.for and SG_PHASEI.for's stages from sowing. Thermal time as for maize
+    (the same CIMMYT rule, CTYPE 1), with ROPT as the optimum after flag leaf. Emergence
+    after 50 + GDDE x depth; juvenile to P1; panicle initiation once the thermal time
+    since the juvenile phase ended reaches P2, plus P2R per hour of twilight day length
+    over P2O; flag leaf PANTH − P3 later; anthesis at P3 (+ P2R per hour over P2O)
+    after that, grain fill from P4 more; maturity P5 after that, on the next day warm
+    enough to count. DSSAT's first-day carry-over into the photoperiod phase never
+    fires (its stress counter is already 2 that day), so none is carried here."""
+    out = {"flower": None, "maturity": None}
+    p9 = 50.0 + eco["GDDE"] * SOWING_DEPTH_CM
+    stage, sumdtt, cump2, since_emergence = 9, 0.0, 0.0, 0.0
+    end = min(len(days), stop if stop is not None else start + 365)
+    for i in range(start, end):
+        date, v = days[i]
+        if "T2M_MIN" not in v or "T2M_MAX" not in v:
+            continue
+        doy = date.timetuple().tm_yday
+        leafno = 1.0 + since_emergence / cul["PHINT"] if stage != 9 else 0.0
+        dopt = eco["ROPT"] if stage in (4, 5, 6) else eco["TOPT"]
+        dtt = maize_dtt(v["T2M_MIN"], v["T2M_MAX"], v.get("ALLSKY_SFC_SW_DWN", 15.0),
+                        site_profile.day_length_h(lat, doy), leafno, eco["TBASE"], dopt)
+        sumdtt += dtt
+        if stage != 9:
+            since_emergence += dtt
+        twilen = civil_day_length(lat, doy)
+        over = max(0.0, twilen - cul["P2O"])
+        if stage == 9 and sumdtt >= p9:
+            stage, sumdtt = 1, sumdtt - p9
+        elif stage == 1 and sumdtt >= cul["P1"]:
+            stage, cump2 = 2, 0.0
+        elif stage == 2:
+            cump2 += dtt
+            if cump2 >= cul["P2"] + cul["P2R"] * over:
+                stage, sumdtt = 3, 0.0                   # panicle initiation
+        elif stage == 3 and sumdtt >= cul["PANTH"] - cul["P3"]:
+            stage, sumdtt = 4, sumdtt - (cul["PANTH"] - cul["P3"])
+        elif stage == 4:
+            pflowr = cul["P3"] + cul["P2R"] * over
+            if out["flower"] is None and sumdtt >= pflowr:
+                out["flower"] = i                        # anthesis
+            if sumdtt >= pflowr + cul["P4"]:
+                stage, sumdtt = 5, sumdtt - (pflowr + cul["P4"])
+        elif stage == 5 and sumdtt >= cul["P5"]:
+            stage = 6
+        elif stage == 6 and dtt >= 2.0:
+            out["maturity"] = i
+            return out
+    return out
+
+
+def sorghum_runners(cultivars: list, ecos: dict, lat: float) -> list:
+    runners = []
+    for cul in cultivars:
+        eco = ecos.get(cul["eco"]) or ecos.get("DFAULT") or next(iter(ecos.values()))
+        if None in (cul["P1"], cul["P2"], cul["P2O"], cul["P2R"], cul["PANTH"], cul["P3"],
+                    cul["P4"], cul["P5"], cul["PHINT"]):
+            continue
+        runners.append((cul["name"], cul["code"], "short-day" if cul["P2R"] > 0 else "day-neutral",
+                        cul["P2O"], lambda days, start, stop, cul=cul, eco=eco:
+                        develop_sorghum(cul, eco, days, start, lat, stop)))
+    return runners
+
+
+# ----------------------------------------------------- CERES-Millet (pearl), ported
+
+def parse_millet_cul(text: str) -> list:
+    """MLCER048.CUL: VAR#, VRNAME, EXPNO, ECO#, then P1, P2O, P2R, P5, G1, G4, PHINT."""
+    out = []
+    names = ("P1", "P2O", "P2R", "P5", "G1", "G4", "PHINT")
+    for line in text.replace("\r", "").splitlines():
+        if not line.strip() or line[0] in "!*@" or len(line) < 78:
+            continue
+        code = line[0:6].strip()
+        if code in ("999991", "999992"):
+            continue
+        row = {"code": code, "name": line[7:23].strip(), "eco": line[30:36].strip()}
+        row.update({k: _f(line[36 + 6 * i:42 + 6 * i]) for i, k in enumerate(names)})
+        out.append(row)
+    return out
+
+
+def parse_millet_eco(text: str) -> dict:
+    """ML_CERES.for FORMAT 3100 (A6,1X,A16,1X,7(1X,F5.1)): TBASE, TOPT, ROPT, DJTI, GDDE, ..."""
+    out = {}
+    for line in text.replace("\r", "").splitlines():
+        if not line.strip() or line[0] in "!*@" or len(line) < 54:
+            continue
+        out[line[0:6].strip()] = {"TBASE": _f(line[25:30]), "TOPT": _f(line[31:36]),
+                                  "ROPT": _f(line[37:42]), "DJTI": _f(line[43:48]),
+                                  "GDDE": _f(line[49:54])}
+    return out
+
+
+def develop_millet(cul: dict, eco: dict, days: list, start: int, lat: float,
+                   stop: int | None = None) -> dict:
+    """ML_PHENOL.for and ML_PHASEI.for's stages from sowing. Thermal time as for maize
+    (CTYPE 1). Emergence after 45 + 6 x depth; juvenile to P1; panicle initiation when
+    the index reaches 1 at 1/(DJTI + P2R x (twilight day length − P2O)) per degree-day;
+    then leaf growth ends P3 = 370 + 0.135 x (thermal time so far) later, counted from
+    that day's own thermal time; anthesis 50 degree-days on, grain fill from 150; grain
+    fill ends once P5 + 90 has stood for two days; maturity on the next day warm enough
+    to count."""
+    out = {"flower": None, "maturity": None}
+    p9 = 45.0 + 6.0 * SOWING_DEPTH_CM
+    stage, sumdtt, sind, p3, since_emergence = 9, 0.0, 0.0, None, 0.0
+    reached, emat = False, 0
+    end = min(len(days), stop if stop is not None else start + 365)
+    for i in range(start, end):
+        date, v = days[i]
+        if "T2M_MIN" not in v or "T2M_MAX" not in v:
+            continue
+        doy = date.timetuple().tm_yday
+        leafno = 1.0 + since_emergence / cul["PHINT"] if stage != 9 else 0.0
+        dopt = eco["ROPT"] if stage in (4, 5, 6) else eco["TOPT"]
+        dtt = maize_dtt(v["T2M_MIN"], v["T2M_MAX"], v.get("ALLSKY_SFC_SW_DWN", 15.0),
+                        site_profile.day_length_h(lat, doy), leafno, eco["TBASE"], dopt)
+        sumdtt += dtt
+        if stage != 9:
+            since_emergence += dtt
+        if stage == 9 and sumdtt >= p9:
+            stage, sumdtt = 1, sumdtt - p9
+        elif stage == 1 and sumdtt >= cul["P1"]:
+            stage, sind = 2, 0.0
+        elif stage == 2:
+            twilen = civil_day_length(lat, doy)
+            rate = (1.0 / (eco["DJTI"] + cul["P2R"] * (twilen - cul["P2O"]))
+                    if twilen > cul["P2O"] else 1.0 / eco["DJTI"])
+            sind += rate * dtt
+            if sind >= 1.0:                              # panicle initiation
+                p3 = 370.0 + 0.135 * sumdtt
+                stage, sumdtt = 3, dtt
+        elif stage == 3 and sumdtt >= p3:
+            stage, sumdtt = 4, sumdtt - p3
+        elif stage == 4:
+            if out["flower"] is None and sumdtt >= 50.0:
+                out["flower"] = i                        # anthesis
+            if sumdtt >= 150.0:
+                stage, sumdtt, reached, emat = 5, sumdtt - 150.0, False, 0
+        elif stage == 5 and sumdtt >= cul["P5"]:
+            if not reached:
+                reached = True
+            elif sumdtt >= cul["P5"] + 90.0:
+                emat += 1
+                if emat >= 2:
+                    stage = 6
+        elif stage == 6 and dtt >= 2.0:
+            out["maturity"] = i
+            return out
+    return out
+
+
+def millet_runners(cultivars: list, ecos: dict, lat: float) -> list:
+    runners = []
+    for cul in cultivars:
+        eco = ecos.get(cul["eco"]) or ecos.get("DFAULT") or next(iter(ecos.values()))
+        if None in (cul["P1"], cul["P2O"], cul["P2R"], cul["P5"], cul["PHINT"]):
+            continue
+        runners.append((cul["name"], cul["code"], "short-day" if cul["P2R"] > 0 else "day-neutral",
+                        cul["P2O"], lambda days, start, stop, cul=cul, eco=eco:
+                        develop_millet(cul, eco, days, start, lat, stop)))
+    return runners
+
+
 # ------------------------------------------------------------- planting windows
 
-#: A killing-frost stand-in for maize, whose file gives none: the leaf-damage
+#: A killing-frost stand-in for maize, sorghum and millet, whose files give none: the leaf-damage
 #: threshold CROPGRO gives most warm-season crops (FREEZ1 = −2.22 °C). An assumption.
 MAIZE_FREEZE_C = -2.22
 WINDOW_SHARE = 0.8
 
 
-def representatives(runners: list, size) -> list:
-    """The fastest, a middle and the slowest cultivar by `size` (their total thermal or
-    photothermal requirement) — enough to find the windows without running every one."""
+def representatives(runners: list, size, results: list | None = None) -> list:
+    """The fastest, a middle and the slowest cultivar — enough to find the windows
+    without running every one. Chosen by simulated days to maturity among those that
+    mature 8 years in 10 when `results` has any: a requirement's size alone ignores day
+    length, and picked a short-day sorghum that never flowers in summer as "fastest".
+    Otherwise by `size`, the total thermal or photothermal requirement."""
     if len(runners) <= 3:
         return runners
+    fit = sorted((r for r in results or [] if r["matures_before_frost"] >= 0.8 and r["days_to_maturity"]),
+                 key=lambda r: r["days_to_maturity"])
+    by_code = {r[1]: r for r in runners}
+    if fit and all(r["code"] in by_code for r in fit):
+        picks = [fit[0], fit[len(fit) // 2], fit[-1]]
+        return list({r["code"]: by_code[r["code"]] for r in picks}.values())
     ordered = sorted(runners, key=size)
     return [ordered[0], ordered[len(ordered) // 2], ordered[-1]]
 
@@ -558,6 +762,8 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
     rows, params = [], []
     models = [(code, scientific, "CROPGRO") for code, scientific in CROPS.items()]
     models.append(("MZ", "Zea mays", "CERES-Maize"))
+    models.append(("SG", "Sorghum bicolor", "CERES-Sorghum"))
+    models.append(("ML", "Cenchrus americanus", "CERES-Millet"))
     for code, scientific, model in models:
         dcache = os.path.join(cache, "dssat")
         if model == "CERES-Maize":
@@ -569,6 +775,24 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
             runners = maize_runners(culs, ecos, lat)
             size = {c["code"]: c["P1"] + c["P5"] for c in culs}
             results = evaluate(runners, days, lat, cool=False)
+        elif model == "CERES-Sorghum":
+            culs = parse_sorghum_cul(fetch("SGCER048.CUL", dcache))
+            ecos = parse_sorghum_eco(fetch("SGCER048.ECO", dcache))
+            e = ecos.get("IB0001") or next(iter(ecos.values()))
+            spe = {"name": "Sorghum", "temps": {1: (e["TBASE"], e["TOPT"], e["ROPT"], 44.0)},
+                   "freeze": (MAIZE_FREEZE_C, None)}
+            runners = sorghum_runners(culs, ecos, lat)
+            size = {c["code"]: (c["P1"] or 0) + (c["PANTH"] or 0) + (c["P5"] or 0) for c in culs}
+            results = evaluate(runners, days, lat, cool=False)
+        elif model == "CERES-Millet":
+            culs = parse_millet_cul(fetch("MLCER048.CUL", dcache))
+            ecos = parse_millet_eco(fetch("MLCER048.ECO", dcache))
+            e = ecos.get("IB0001") or next(iter(ecos.values()))
+            spe = {"name": "Pearl millet", "temps": {1: (e["TBASE"], e["TOPT"], e["ROPT"], 44.0)},
+                   "freeze": (MAIZE_FREEZE_C, None)}
+            runners = millet_runners(culs, ecos, lat)
+            size = {c["code"]: (c["P1"] or 0) + (c["P5"] or 0) for c in culs}
+            results = evaluate(runners, days, lat, cool=False)
         else:
             spe, ecos, culs = load(code, dcache)
             runners = cropgro_runners(spe, culs, ecos, lat)
@@ -579,7 +803,7 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
             continue
         freeze_c = (spe.get("freeze") or (-2.22, None))[0]
         if windows_too:
-            swept = sweep(representatives(runners, lambda r: size.get(r[1], 0)), days, freeze_c)
+            swept = sweep(representatives(runners, lambda r: size.get(r[1], 0), results), days, freeze_c)
             sowing = "; ".join(f"{a}–{b}" for a, b in windows(swept)) or "none"
         else:
             sowing = ""
@@ -608,6 +832,9 @@ def seasons_for(lat: float, lon: float, cache: str, windows_too: bool = False,
         if model == "CERES-Maize":
             cd = f"{min(e['P2O'] for e in ecos.values()):g}–{max(e['P2O'] for e in ecos.values()):g}"
             ps = f"P2 {min(c['P2'] for c in culs):g}–{max(c['P2'] for c in culs):g} days/h"
+        elif model in ("CERES-Sorghum", "CERES-Millet"):
+            cd = f"{min(c['P2O'] for c in culs):g}–{max(c['P2O'] for c in culs):g}"
+            ps = f"P2R {min(c['P2R'] for c in culs):g}–{max(c['P2R'] for c in culs):g} °C·d/h"
         else:
             cd = f"{min(c['CSDL'] for c in culs):g}–{max(c['CSDL'] for c in culs):g}"
             ps = f"{min(c['PPSEN'] for c in culs):g}–{max(c['PPSEN'] for c in culs):g}"
