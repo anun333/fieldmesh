@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: CC-BY-4.0
+cff-version: 1.2.0
+message: "If you use librefarm, please cite it as below."
+title: "librefarm: layer zero of a farmer-owned farm stack"
+abstract: >-
+  The data and device contract underneath a farmer-owned farm stack: an OGC
+  SensorThings 1.1 view over an append-only log the farmer owns, quality judgements
+  that carry their provenance, a wire format for unreliable radio links, a simulated
+  farm that tests it, and a planting advisor built on top. Pre-release.
+type: software
+authors:
+  - alias: anun333
+repository-code: "https://github.com/anun333/librefarm"
+url: "https://anun333.github.io/librefarm/"
+license:
+  - Apache-2.0
+  - AGPL-3.0-or-later
+  - CC-BY-4.0
+keywords:
+  - agriculture
+  - farm data
+  - data sovereignty
+  - OGC SensorThings
+  - IoT
+  - soil moisture
+  - sensor data quality
+  - decision support

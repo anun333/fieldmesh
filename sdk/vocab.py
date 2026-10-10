@@ -38,9 +38,10 @@ CF = "http://vocab.nerc.ac.uk/standard_name/"
 #: ODM2 controlled vocabularies (the CUAHSI lineage).
 ODM2 = "http://vocabulary.odm2.org/variablename/"
 
-#: Local terms. Does not resolve yet — the repository is private — and the durable
-#: namespace is open as Q4c. One constant, so the move is a one-line change rather
-#: than a migration.
+#: Local terms. Each resolves to a page on the project site, which tools/pages.py
+#: writes at the path the URI names. The durable namespace is decided as w3id.org (Q4c)
+#: and not yet requested; one constant, so the move is a one-line change rather than a
+#: migration.
 LOCAL = "https://anun333.github.io/librefarm/vocab/"
 
 

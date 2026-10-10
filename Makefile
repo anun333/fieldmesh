@@ -1,6 +1,6 @@
 # librefarm — layer zero
 .POSIX:
-.PHONY: help test demo world drill siting forecast irrigation q5 q5-points power vocab vocab-resolve packs serve season export frost clean
+.PHONY: help pages test demo world drill siting forecast irrigation q5 q5-points power vocab vocab-resolve packs serve season export frost clean
 
 help:
 	@echo "test   run every test (sdk + tools + sim + server)"
@@ -20,6 +20,7 @@ help:
 	@echo "season how long a 180-day season takes to simulate"
 	@echo "export a season out in open formats, then verify it replays (§7.6)"
 	@echo "frost  stand up FROST-Server as a conformance oracle"
+	@echo "pages  build the project site into _site/ (needs markdown-it-py)"
 	@echo "clean  remove __pycache__"
 
 test:
@@ -80,6 +81,9 @@ export:
 
 frost:
 	@echo "See docs/notes/frost-validation.md for the two-container recipe."
+
+pages:
+	@python3 tools/pages.py _site
 
 clean:
 	@find . -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null || true

@@ -3,6 +3,7 @@
 # certification records. See docs/VIRTUAL_FARM.md.
 .site/
 
+_site/
 __pycache__/
 *.py[cod]
 .pytest_cache/

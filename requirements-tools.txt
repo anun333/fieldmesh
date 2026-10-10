@@ -1,5 +1,8 @@
-# Only for tools/q5_encoding.py, the measurement behind the Q5 encoding decision, which
-# sizes Protocol Buffers against CBOR using the real library rather than an estimate.
-# Nothing in sdk/, sim/ or server/ needs it. BSD-3-Clause.
+# protobuf: only for tools/q5_encoding.py, the measurement behind the Q5 encoding
+# decision, which sizes Protocol Buffers against CBOR using the real library rather than
+# an estimate. BSD-3-Clause.
+# markdown-it-py: only for tools/pages.py, which builds the project site. MIT.
+# Nothing in sdk/, sim/ or server/ needs either.
 -r requirements.txt
 protobuf>=4.21
+markdown-it-py>=3,<5

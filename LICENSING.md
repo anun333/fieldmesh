@@ -69,16 +69,17 @@ copyright.
 
 ## Dependencies
 
-Three third-party libraries, all installed rather than vendored:
+Four third-party libraries, all installed rather than vendored:
 
 | library | licence | used by | file |
 | --- | --- | --- | --- |
 | `cbor2` | MIT | `sdk/wire.py` — the CBOR wire format (Q5) | `requirements.txt` |
 | `cryptography` | Apache-2.0 OR BSD-3-Clause | `sdk/erasure.py` only — sealing personal text so it can be erased by destroying a key (Q17) | `requirements.txt` |
 | `protobuf` | BSD-3-Clause | `tools/q5_encoding.py` only — the measurement that sized Protocol Buffers against CBOR | `requirements-tools.txt` |
+| `markdown-it-py` | MIT | `tools/pages.py` only — renders the project site | `requirements-tools.txt` |
 
 All combine with Apache-2.0 and AGPL-3.0 without condition beyond keeping their notices.
-Nothing in `sdk/`, `sim/` or `server/` needs protobuf.
+Nothing in `sdk/`, `sim/` or `server/` needs protobuf or markdown-it-py.
 
 ## Inherited code
 

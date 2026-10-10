@@ -121,12 +121,12 @@ Whatever is chosen, the rule in v0.1 §3.4 stands: a URI, never free text.
 
 ## Q4c. The durable namespace for local vocabulary terms
 
-**Status: DECIDED 2026-10-09 — w3id.org, with `vessel_fill_fraction` submitted to ODM2 in parallel, both when the repository goes public (the maintainer adopted the recommendation).** Nothing to do before then; `vocab.LOCAL` is still the whole migration surface. Plan B: a domain the project owns, with a promise its addresses always redirect. Was: blocks publication of the vocabulary; blocks nothing in code. Raised by the
+**Status: DECIDED 2026-10-09 — w3id.org, with `vessel_fill_fraction` submitted to ODM2 in parallel, both when the repository goes public (the maintainer adopted the recommendation).** The repository went public on 2026-10-09, and the term pages now resolve: `tools/pages.py` writes one at each local term's path. The w3id request and the ODM2 submission are the maintainer's to send; until w3id answers, `vocab.LOCAL` is still the whole migration surface. Plan B: a domain the project owns, with a promise its addresses always redirect. Was: blocks publication of the vocabulary; blocks nothing in code. Raised by the
 Q4 decision of 2026-10-07, which produced exactly one local term and therefore a
 namespace to put it in.
 
-`sdk/vocab.py` currently uses `https://anun333.github.io/librefarm/vocab/`. It does not
-resolve, because the repository is private, and it is the wrong long-term answer anyway:
+`sdk/vocab.py` currently uses `https://anun333.github.io/librefarm/vocab/`. It did not
+resolve while the repository was private, and it is the wrong long-term answer anyway:
 a vocabulary namespace is supposed to outlive its hosting, and that one is pinned to a
 personal account name. Every URI changes if the project ever gets an organisation or a
 domain — and changing a published identifier is the thing identifiers exist to avoid.

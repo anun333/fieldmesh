@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: Apache-2.0
+# The project site at https://anun333.github.io/librefarm/: the repository's Markdown
+# rendered by tools/pages.py, the files crawlers and language models read, and a page
+# at each local vocabulary term's path so the URIs in sdk/vocab.py resolve (Q4c).
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # each page is dated by its last commit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install markdown-it-py
+        run: python -m pip install "markdown-it-py>=3,<5"
+      - name: Build
+        run: python tools/pages.py _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
