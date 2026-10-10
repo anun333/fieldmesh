@@ -728,6 +728,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | **Decided 2026-10-09** — learned, floored at the soil's default |
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
 | Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed |
+| Q27 | What crosses between librefarm and ERPNext, and who owns each fact? | Blocks nothing yet — the records most of it needs are not built; recorded so they are built to it |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
@@ -897,3 +898,54 @@ about it is being given a chance. `forecast.brier` scores every stored issue aga
 measured series by lead time. **Still open:** an ensemble's members and spread, which are
 several values per valid time per issue.
 
+## Q27. What crosses between librefarm and ERPNext, and who owns each fact?
+
+**Status: open; blocks nothing yet.** Raised 2026-10-09. Recorded now so that the records
+it needs — inputs applied, harvest lots, field boundaries, the ones Q14 names — are built
+to it rather than retrofitted, and so anyone reading the repository can see the surface.
+
+**Why ERPNext.** farmOS covers a farm's records; ERPNext (Frappe; GPL-3.0) covers a business:
+items, stock, purchasing, sales, accounting, assets. A small farm rarely runs an ERP. The
+cooperatives, processors, input suppliers and support organisations around it often do —
+the institutions the project means to reach farmers through — so ERPNext is where farm data
+meets the money and the stock.
+
+**The rule Q8 already learned applies unchanged: one owner per fact.** Two writers to one
+record is option D's trap — no single order, permanent drift. So:
+
+* **ERPNext owns money and stock** — items, purchases, sales, invoices, accounts.
+* **The log owns what happened in the field** — observations, devices and their siting,
+  maintenance, inputs applied, harvests, decisions.
+* Each side keeps the other's ids. Projection is one-way per kind of fact; an edit made on
+  the other side comes back as a compensating event (§7.3), never as an overwrite, and the
+  fields Q14 lists raise a conflict event rather than resolving silently.
+
+**The surface:**
+
+| librefarm | ERPNext | direction |
+| --- | --- | --- |
+| a field or bed and its boundary | Location (with geolocation), or the agriculture app's Land Unit | log → ERPNext |
+| a device | Asset; maintenance events as Asset Maintenance Log; moves as Asset Movement | log → ERPNext |
+| an input applied | Stock Entry (material issue) of the Item, costed to the field's accounting dimension | log → ERPNext |
+| a harvest lot | Stock Entry (receipt) with a Batch, for traceability | log → ERPNext |
+| a sale to a buyer | Sales Invoice and Customer | ERPNext → log, as a reference on the lot |
+| the products a farm buys | Item, Purchase Receipt | ERPNext → log: the catalogue an application names |
+| a soil or water test | the agriculture app's Soil / Water Analysis, or Quality Inspection | either, one owner per test |
+| an advisory decision (§7.7) | a Task or ToDo linking back to the decision event | log → ERPNext |
+| sensor readings | **none** — a time series does not belong in an ERP; at most a daily summary on the Asset | — |
+
+What it buys a farm: cost and return per field, from ERPNext's accounting dimensions — §11's
+"cost visibility early", the answer to the barrier farmers name most often.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **A. An adapter module over Frappe's REST API** (`/api/resource/<DocType>`, token auth) and ERPNext webhooks for the way back, living in `modules/erpnext/` | HTTP only, so ERPNext's GPL-3.0 and this project's licences never combine; removable like any module; testable against a Frappe container | One more projector to keep correct, as for farmOS |
+| B. A Frappe app running inside ERPNext | Native forms and reports; one install for the cooperative | Couples the release cycle to Frappe's; Python inside their process, under their licence; the log's guarantees end at a boundary we do not control |
+| C. CSV export and import only | No code to maintain; works with any ERP | Manual, late and error-prone; no traceability chain |
+| D. ERPNext as the farm-records store | One system | Abandons §7.1 — the same reason Q8 rejected farmOS as authority |
+
+**Recommendation: A, built when a pilot or partner runs ERPNext** — a cooperative is the
+likeliest first. Until then the mapping above is the design, and the records the left column
+needs are built so each carries the id ERPNext will need. To check before building: whether
+the agriculture doctypes are still maintained, now that ERPNext has moved agriculture out of
+its core into a separate app.
