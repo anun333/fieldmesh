@@ -248,4 +248,4 @@ Según las formas que USDA PLANTS indica para cada planta, en ventanas fijadas p
 
 Clima: NASA POWER (CC BY 4.0). Suelo: levantamiento de suelos del USDA NRCS (dominio público). Plantas: USDA PLANTS (CC0). Modelos de cultivo: DSSAT (BSD-3-Clause). Abejas: GloBI (CC BY 4.0) y los estudios que cita. Frío y calor de frutales: Fadón et al. 2020, Agronomy 10:409; González Noguer et al. 2023, Front. Hortic. 2:1217689; Fadón et al. 2023, Agronomy 13:518 (todos CC BY 4.0); umbrales de helada en floración: Washington State University vía Penn State Extension. Nombres de plantas: AGROVOC (FAO, CC BY 4.0) y Wikidata (CC0).
 
-*Hecho con librefarm advise 0.1.0, datos c61f00dace9b, modelos de cultivo DSSAT 25c93b9.*
+*Hecho con fieldmesh advise 0.1.0, datos c61f00dace9b, modelos de cultivo DSSAT 25c93b9.*

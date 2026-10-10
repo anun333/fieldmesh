@@ -452,7 +452,7 @@ class IrrigationRule:
     Spread rather than dumped, because the §4.2 rate threshold was derived from drip —
     25 mm across a 300 mm root zone over roughly a quarter of an hour — and a timer that
     delivered a whole event in one five-minute tick would be a physically impossible
-    jump that the rate check is right to flag. A farm's own timers, not librefarm
+    jump that the rate check is right to flag. A farm's own timers, not fieldmesh
     commands: §6 is deferred, and most farms irrigate on timers anyway.
     """
 

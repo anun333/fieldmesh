@@ -7,7 +7,7 @@
 modules/advise/notes/hoop-houses.md: how much warmer an unheated tunnel keeps a night varies by
 tunnel and by night, so the matcher leaves the winter low unchanged until it is measured.
 This measures it, from two air-temperature series of `time,value` rows (an export of two
-librefarm datastreams, or any logger's), and reports:
+fieldmesh datastreams, or any logger's), and reports:
 
 * **winter gain** — inside minus outside nightly minimum, binned by how cold the night was
   outside, because the gain shrinks on the coldest, clearest nights; and the figure to pass

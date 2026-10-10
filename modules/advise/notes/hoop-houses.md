@@ -3,7 +3,7 @@
 
 **2026-10-08.** A companion to [plant-conditions.md](plant-conditions.md). A hoop house —
 a high tunnel — is **a second site inside the farm**, with its own climate. It is also the
-place where librefarm's sensors pay off fastest, because a closed tunnel on a sunny day
+place where fieldmesh's sensors pay off fastest, because a closed tunnel on a sunny day
 can cook a crop in an afternoon, and an open one on a clear night can freeze it.
 [structures-list.csv](../data/structures-list.csv) lists ten kinds of cover, from floating row
 cover to heated greenhouses, and the livestock versions: hoop barns and mobile poultry
@@ -45,7 +45,7 @@ instrumented.
 
 ## Measure the tunnel instead
 
-The figures above are general. What a grower needs is *their* tunnel's, and librefarm
+The figures above are general. What a grower needs is *their* tunnel's, and fieldmesh
 already has everything needed to measure it: an air temperature and humidity sensor
 inside, one outside, a soil probe inside.
 

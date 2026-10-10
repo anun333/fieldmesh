@@ -49,7 +49,7 @@ dependencies point down, as v0 requires; layer zero never imports the advisor.
 | --- | --- | --- | --- |
 | **A** | stay in `tools/` (today) | no work | contradicts layer zero's scope; packs and licences stay mixed; nothing enforces "dependencies point down" |
 | **B** | **`modules/advise/` in this repository**, with its own README, LICENSE, pack, data manifest and tests in `make test` | one CI, one checkout, history kept; the move is mechanical; an import check in CI can enforce the direction | the repository grows; a module's release is still tied to the repository's |
-| **C** | a separate repository, `librefarm-advise` | the cleanest boundary; its own releases, licence and contributors; layer zero's repo returns to its scope | two CIs; cross-repo changes (a pack format change) need two PRs; premature while there is one maintainer |
+| **C** | a separate repository, `fieldmesh-advise` | the cleanest boundary; its own releases, licence and contributors; layer zero's repo returns to its scope | two CIs; cross-repo changes (a pack format change) need two PRs; premature while there is one maintainer |
 
 **Recommendation: B now, C when the advisor has a release cadence or a contributor of its
 own.** B fixes the scope, pack and licence problems at the cost of a few `git mv`s, and

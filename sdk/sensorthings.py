@@ -19,11 +19,11 @@ SensorThings is.
 
 Two mapping decisions worth stating, because both could reasonably go the other way:
 
-**Layer-zero fields are namespaced under `parameters/librefarm`.** 1.1 documents
+**Layer-zero fields are namespaced under `parameters/fieldmesh`.** 1.1 documents
 `parameters` as "key-value pairs showing the environmental conditions during
 measurement". `received_at`, `seq`, `boot` and `clock_quality` are not that, and
 scattering them at the top level would both misrepresent them and collide with a
-legitimate use. Nesting keeps `$filter` working — `parameters/librefarm/clock_quality
+legitimate use. Nesting keeps `$filter` working — `parameters/fieldmesh/clock_quality
 eq 'none'` is a valid path — and reduces the 2.0 migration to one key.
 
 **`resultTime` is null for a measurement.** 1.1 makes it mandatory-but-nullable, and it
@@ -525,7 +525,7 @@ class Service:
                 # 2.0 drops resultQuality (Table 17). Nothing standards-aware
                 # will look here, which is the argument in Q18.
                 extras["result_quality"] = quality
-        doc[d.extras_key] = {"librefarm": extras}
+        doc[d.extras_key] = {"fieldmesh": extras}
         doc[f"{d.feature_link}{d.nav_suffix}"] = (
             f"{self._link('Observations', obs.id)}/{d.feature_link}")
         doc[f"Datastream{d.nav_suffix}"] = (

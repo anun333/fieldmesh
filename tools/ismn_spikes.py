@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Spikes and jumps by shape: candidate §4.2 detectors scored on ISMN (open question Q23).
 
-    cd /tmp && python3 -I ~/dev/librefarm/tools/ismn_spikes.py \\
+    cd /tmp && python3 -I ~/dev/fieldmesh/tools/ismn_spikes.py \\
         ~/Downloads/ISMN_archive_20261008.zip --network SCAN --max-depth 0.21
 
 The §4.2 rate check allows `max_rate_per_s × gap`, which at hourly sampling is nearly the

@@ -21,7 +21,7 @@ Each call is idempotent — an hour already in the log is skipped — so it can 
 AWDB gives hours in the station's local standard time; the station's own offset is used,
 never the host's.
 
-    41 */6 * * *  cd ~/dev/librefarm && python3 tools/scan_collect.py ~/dev/librefarm-data/mcallister-scan.jsonl --station 2075:TN:SCAN --soil-cache ~/dev/librefarm-data/soil
+    41 */6 * * *  cd ~/dev/fieldmesh && python3 tools/scan_collect.py ~/dev/fieldmesh-data/mcallister-scan.jsonl --station 2075:TN:SCAN --soil-cache ~/dev/fieldmesh-data/soil
 """
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ SOIL_SHAPE = {"spike_step": 5.0, "max_fall_per_s": 5.0 / 3600.0}
 
 def fetch(path: str, **params) -> object:
     query = "&".join(f"{k}={v}" for k, v in params.items())
-    req = urllib.request.Request(f"{AWDB}/{path}?{query}", headers={"User-Agent": "librefarm/0.1"})
+    req = urllib.request.Request(f"{AWDB}/{path}?{query}", headers={"User-Agent": "fieldmesh/0.1"})
     with urllib.request.urlopen(req, timeout=120) as r:
         return json.load(r)
 

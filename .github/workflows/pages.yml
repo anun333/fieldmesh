@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# The project site at https://anun333.github.io/librefarm/: the repository's Markdown
+# The project site at https://anun333.github.io/fieldmesh/: the repository's Markdown
 # rendered by tools/pages.py, the files crawlers and language models read, and a page
 # at each local vocabulary term's path so the URIs in sdk/vocab.py resolve (Q4c).
 name: pages

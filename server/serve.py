@@ -32,7 +32,7 @@ import app as A  # noqa: E402
 
 class Handler(BaseHTTPRequestHandler):
 
-    server_version = "librefarm/0"
+    server_version = "fieldmesh/0"
     app: A.App
 
     def _respond(self):

@@ -1,10 +1,12 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
-# librefarm
+# fieldmesh
 
 **Layer zero of a farmer-owned farm stack:** the data and device contract underneath
 everything else. It covers what a reading is, what a device is, how a reading crosses an
 unreliable radio link, how its quality is judged, and how a farmer gets all of it back
 out.
+
+*Formerly librefarm; renamed on 2026-10-10.*
 
 Everything here is designed for the farm that cannot afford a good answer. That means
 intermittent connectivity, battery power, cheap radios, and a log the farmer owns

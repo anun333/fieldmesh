@@ -121,11 +121,11 @@ Whatever is chosen, the rule in v0.1 §3.4 stands: a URI, never free text.
 
 ## Q4c. The durable namespace for local vocabulary terms
 
-**Status: DECIDED 2026-10-09 — w3id.org, with `vessel_fill_fraction` submitted to ODM2 in parallel, both when the repository goes public (the maintainer adopted the recommendation).** The repository went public on 2026-10-09, and the term pages now resolve: `tools/pages.py` writes one at each local term's path. The w3id request and the ODM2 submission are the maintainer's to send; until w3id answers, `vocab.LOCAL` is still the whole migration surface. Plan B: a domain the project owns, with a promise its addresses always redirect. Was: blocks publication of the vocabulary; blocks nothing in code. Raised by the
+**Status: DECIDED 2026-10-09 — w3id.org, with `vessel_fill_fraction` submitted to ODM2 in parallel, both when the repository goes public (the maintainer adopted the recommendation).** The repository went public on 2026-10-09 as librefarm and was renamed fieldmesh the next day, so the namespace moved from `https://anun333.github.io/librefarm/vocab/` to `https://anun333.github.io/fieldmesh/vocab/` after one day and before anything outside this repository used it. That is the cost Q4c predicted for a namespace tied to hosting, paid while it was cheap; w3id now means `https://w3id.org/fieldmesh/`. The term pages now resolve: `tools/pages.py` writes one at each local term's path. The w3id request and the ODM2 submission are the maintainer's to send; until w3id answers, `vocab.LOCAL` is still the whole migration surface. Plan B: a domain the project owns, with a promise its addresses always redirect. Was: blocks publication of the vocabulary; blocks nothing in code. Raised by the
 Q4 decision of 2026-10-07, which produced exactly one local term and therefore a
 namespace to put it in.
 
-`sdk/vocab.py` currently uses `https://anun333.github.io/librefarm/vocab/`. It did not
+`sdk/vocab.py` currently uses `https://anun333.github.io/fieldmesh/vocab/`. It did not
 resolve while the repository was private, and it is the wrong long-term answer anyway:
 a vocabulary namespace is supposed to outlive its hosting, and that one is pinned to a
 personal account name. Every URI changes if the project ever gets an organisation or a
@@ -728,7 +728,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | **Decided 2026-10-09** — learned, floored at the soil's default |
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
 | Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed |
-| Q27 | What crosses between librefarm and ERPNext, and who owns each fact? | Blocks nothing yet — the records most of it needs are not built; recorded so they are built to it |
+| Q27 | What crosses between fieldmesh and ERPNext, and who owns each fact? | Blocks nothing yet — the records most of it needs are not built; recorded so they are built to it |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
@@ -898,7 +898,7 @@ about it is being given a chance. `forecast.brier` scores every stored issue aga
 measured series by lead time. **Still open:** an ensemble's members and spread, which are
 several values per valid time per issue.
 
-## Q27. What crosses between librefarm and ERPNext, and who owns each fact?
+## Q27. What crosses between fieldmesh and ERPNext, and who owns each fact?
 
 **Status: open; blocks nothing yet.** Raised 2026-10-09. Recorded now so that the records
 it needs — inputs applied, harvest lots, field boundaries, the ones Q14 names — are built
@@ -922,7 +922,7 @@ record is option D's trap — no single order, permanent drift. So:
 
 **The surface:**
 
-| librefarm | ERPNext | direction |
+| fieldmesh | ERPNext | direction |
 | --- | --- | --- |
 | a field or bed and its boundary | Location (with geolocation), or the agriculture app's Land Unit | log → ERPNext |
 | a device | Asset; maintenance events as Asset Maintenance Log; moves as Asset Movement | log → ERPNext |

@@ -66,7 +66,7 @@ def managed_in(taxa) -> list:
             found.append(label)
     return found
 PAUSE_S = 0.5
-USER_AGENT = "librefarm-tools/0.1 (globi_bees.py; open-source farm data research)"
+USER_AGENT = "fieldmesh-tools/0.1 (globi_bees.py; open-source farm data research)"
 
 
 def query_name(scientific: str) -> str:

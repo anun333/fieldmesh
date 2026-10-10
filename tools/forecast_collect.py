@@ -18,7 +18,7 @@ acts on the forecast at dusk, and every run kept costs log space: some 185 hours
 variable, each with its range-check assertion, about 470 KB a run for two variables, so
 about 350 MB a year at two runs a day:
 
-    17 6,18 * * *  cd ~/dev/librefarm && python3 tools/forecast_collect.py ~/farm/log.jsonl --lat 35.0645 --lon -86.5914
+    17 6,18 * * *  cd ~/dev/fieldmesh && python3 tools/forecast_collect.py ~/farm/log.jsonl --lat 35.0645 --lon -86.5914
 
 Nothing is scheduled by this tool itself; adding that line is the farm's decision.
 """
@@ -103,7 +103,7 @@ def main(argv=None) -> int:
     ap.add_argument("--lat", type=float, required=True)
     ap.add_argument("--lon", type=float, required=True)
     ap.add_argument("--source", choices=("nws", "metno"), default="nws")
-    ap.add_argument("--user-agent", default="librefarm/0.1")
+    ap.add_argument("--user-agent", default="fieldmesh/0.1")
     ap.add_argument("--variables", default="air_temperature,precipitation",
                     help="which to keep, of air_temperature, precipitation, relative_humidity, "
                          "wind_speed and precipitation_probability; each run re-forecasts some "

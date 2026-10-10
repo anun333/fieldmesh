@@ -135,7 +135,7 @@ def main() -> int:
 
     print("served observations")
     for doc in served["value"]:
-        extras = doc[dialect.extras_key]["librefarm"]
+        extras = doc[dialect.extras_key]["fieldmesh"]
         quality = doc.get("resultQuality") or extras.get("result_quality")
         mark = ""
         if quality:

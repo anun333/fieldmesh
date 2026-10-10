@@ -4,7 +4,7 @@
 **2026-10-08. A plan, saved for later — nothing here is built yet.** The companion to
 [plant-conditions.md](plant-conditions.md). The same idea, extended: every living thing
 on a farm, and every input, has conditions it does best in, and the farm has conditions
-librefarm can measure or look up. And they interact — some combinations help each other,
+fieldmesh can measure or look up. And they interact — some combinations help each other,
 some harm each other — so the useful answer is not a list of things that suit the site
 but a set that suits the site *and each other*.
 

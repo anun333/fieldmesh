@@ -42,7 +42,7 @@ ODM2 = "http://vocabulary.odm2.org/variablename/"
 #: writes at the path the URI names. The durable namespace is decided as w3id.org (Q4c)
 #: and not yet requested; one constant, so the move is a one-line change rather than a
 #: migration.
-LOCAL = "https://anun333.github.io/librefarm/vocab/"
+LOCAL = "https://anun333.github.io/fieldmesh/vocab/"
 
 
 # ------------------------------------------------------------------ measurands
@@ -212,7 +212,7 @@ def resolve(timeout: float = 20.0) -> dict[str, int | str]:
     for uri in TERMS:
         try:
             request = urllib.request.Request(uri, method="GET",
-                                             headers={"User-Agent": "librefarm-vocab"})
+                                             headers={"User-Agent": "fieldmesh-vocab"})
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 out[uri] = response.status
         except Exception as exc:              # noqa: BLE001 — reported per term

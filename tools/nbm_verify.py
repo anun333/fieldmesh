@@ -132,7 +132,7 @@ def scan_hourly(triplet: str, start: _dt.date, end: _dt.date, utc_offset_h: floa
     else:
         url = (f"{AWDB}?stationTriplets={triplet}&elements=TOBS&duration=HOURLY"
                f"&beginDate={start}%2000:00&endDate={end}%2023:00")
-        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "librefarm"}), timeout=120) as r:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "fieldmesh"}), timeout=120) as r:
             doc = json.load(r)
         with open(path, "w", encoding="utf-8") as h:
             json.dump(doc, h)

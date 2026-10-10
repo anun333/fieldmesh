@@ -8,7 +8,7 @@ has been received and expanded into observations, it still has to reach the log,
 the log may be on a machine that is briefly unreachable. A reading dropped here is
 indistinguishable from a reading the sensor never took, and §5.4 forbids guessing.
 
-  * AUTH    Bearer $LIBREFARM_TOKEN (or an explicit `token=`) when set.
+  * AUTH    Bearer $FIELDMESH_TOKEN (or an explicit `token=`) when set.
   * RETRY   network errors and 5xx retry with exponential backoff; 4xx returns
             immediately, because a malformed batch will never succeed.
   * SPOOL   after retries are exhausted, `spool=<path>` appends the batch as one
@@ -35,7 +35,7 @@ import urllib.request
 
 
 DEFAULT_PATH = "/api/ingest"
-TOKEN_ENV = "LIBREFARM_TOKEN"
+TOKEN_ENV = "FIELDMESH_TOKEN"
 
 
 def post_json(base_url, path, doc, *, timeout=10, retries=3, backoff=1.5, token=None):

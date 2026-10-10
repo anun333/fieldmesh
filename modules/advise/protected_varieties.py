@@ -47,7 +47,7 @@ def fetch(cache: str) -> str:
     os.makedirs(cache, exist_ok=True)
     path = os.path.join(cache, "USPVPApplicationStatusReport.xlsx")
     if not os.path.exists(path):
-        req = urllib.request.Request(URL, headers={"User-Agent": "Mozilla/5.0 librefarm/0.1"})
+        req = urllib.request.Request(URL, headers={"User-Agent": "Mozilla/5.0 fieldmesh/0.1"})
         with urllib.request.urlopen(req, timeout=120) as r, open(path, "wb") as h:
             h.write(r.read())
     return path

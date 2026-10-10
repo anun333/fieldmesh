@@ -8,7 +8,7 @@
   "decimal_separator": ".",
   "regions": {},
   "maintainers": [
-   "librefarm"
+   "fieldmesh"
   ],
   "license": "Apache-2.0",
   "note": "The source every other pack is checked against. A key added here is a string every translation now lacks."
@@ -95,7 +95,7 @@
   "term.http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil_at_wilting_point/": "volume fraction of condensed water in soil at wilting point",
   "term.http://vocabulary.odm2.org/variablename/batteryVoltage/": "battery voltage",
   "term.http://vocabulary.odm2.org/variablename/receivedSignalStrenghtIndication/": "received signal strenght indication",
-  "term.https://anun333.github.io/librefarm/vocab/vessel_fill_fraction/": "vessel fill fraction",
+  "term.https://anun333.github.io/fieldmesh/vocab/vessel_fill_fraction/": "vessel fill fraction",
   "unit.%": "percent",
   "unit.1": "fraction",
   "unit.Cel": "degree Celsius",

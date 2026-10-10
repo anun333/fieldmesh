@@ -103,7 +103,7 @@
   "advise.bloom.crop": "{crop}: florece del {early} al {late} (mediana {median}); helada tras la floración en {frost} años de cada 10.",
   "advise.bloom.crop_unmet": "{crop}: florece del {early} al {late} (mediana {median}); helada tras la floración en {frost} años de cada 10. En {unmet} de sus {count} estimaciones, el frío no alcanza en más de 2 inviernos de cada 10.",
   "advise.future.bloom": "{crop}: floración mediana {now} → {then}; helada tras la floración en {fnow} → {fthen} años de cada 10",
-  "advise.stamp": "Hecho con librefarm advise {version}, datos {data}, modelos de cultivo DSSAT {dssat}.",
+  "advise.stamp": "Hecho con fieldmesh advise {version}, datos {data}, modelos de cultivo DSSAT {dssat}.",
   "advise.nutrients.title": "Estiércol y cosechas",
   "advise.nutrients.supply": "El estiércol de los animales lleva unas {n:,.0f} lb de nitrógeno, {p:,.0f} lb de fosfato (P2O5) y {k:,.0f} lb de potasa (K2O) al año, tal como sale de su sistema de manejo.",
   "advise.nutrients.removed": "Las cosechas extraen unas {n:,.0f} lb de nitrógeno, {p:,.0f} lb de fosfato y {k:,.0f} lb de potasa al año de {acres:,.0f} acres:",

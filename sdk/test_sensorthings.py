@@ -144,13 +144,13 @@ class TestTimeMapping(unittest.TestCase):
         obs = fx.observation(self.ds, measured_at=fx.at(0), received_at=fx.at(4320))
         doc = st.Service(_state(self.ds, obs)).observation(obs)
         self.assertIsNone(doc["resultTime"])
-        self.assertEqual(doc["parameters"]["librefarm"]["received_at"],
+        self.assertEqual(doc["parameters"]["fieldmesh"]["received_at"],
                          st.iso(obs.received_at))
 
     def test_the_other_four_time_fields_travel_in_parameters(self):
         obs = fx.observation(self.ds, uncertainty=600, boot=3, seq=77,
                              clock_quality=ClockQuality.NONE)
-        extras = st.Service(_state(self.ds, obs)).observation(obs)["parameters"]["librefarm"]
+        extras = st.Service(_state(self.ds, obs)).observation(obs)["parameters"]["fieldmesh"]
         self.assertEqual(extras["measured_at_uncertainty_s"], 600)
         self.assertEqual(extras["clock_quality"], "none")
         self.assertEqual((extras["boot"], extras["seq"]), (3, 77))
@@ -158,7 +158,7 @@ class TestTimeMapping(unittest.TestCase):
     def test_extras_are_namespaced_so_they_do_not_pose_as_environmental_params(self):
         obs = fx.observation(self.ds)
         params = st.Service(_state(self.ds, obs)).observation(obs)["parameters"]
-        self.assertEqual(list(params), ["librefarm"])
+        self.assertEqual(list(params), ["fieldmesh"])
 
     def test_interval_times_expose_the_uncertainty_window(self):
         """Opt-in: standards-native honesty, but many clients assume an instant."""
@@ -180,7 +180,7 @@ class TestTimeMapping(unittest.TestCase):
         obs = [fx.observation(self.ds, node="!bed01", boot=1, seq=n,
                               measured_at=fx.at(n)) for n in (2, 0, 1)]
         served = st.Service(_state(self.ds, *obs)).observations(self.ds.id)["value"]
-        seqs = [o["parameters"]["librefarm"]["seq"] for o in served]
+        seqs = [o["parameters"]["fieldmesh"]["seq"] for o in served]
         self.assertEqual(seqs, [0, 1, 2])
 
 
@@ -352,7 +352,7 @@ class TestValidatedAgainstFrost(unittest.TestCase):
     """Findings from running FROST-Server as a conformance oracle.
 
     FROST accepted a deep insert of these documents (HTTP 201) and round-tripped
-    `resultQuality` — nested `evidence` included — and `parameters/librefarm`
+    `resultQuality` — nested `evidence` included — and `parameters/fieldmesh`
     intact, so both extension decisions hold in the reference implementation.
     These tests pin the two places where its output and ours differed.
     """
@@ -413,7 +413,7 @@ class TestDialectSeam(unittest.TestCase):
 
     def test_the_2_0_draft_renames_parameters_to_properties(self):
         doc = st.Service(self.state, dialect=st.SensorThings20Draft).observation(self.obs)
-        self.assertIn("librefarm", doc["properties"])
+        self.assertIn("fieldmesh", doc["properties"])
         self.assertNotIn("parameters", doc)
 
     def test_quality_has_nowhere_standard_to_go_in_2_0(self):
@@ -421,13 +421,13 @@ class TestDialectSeam(unittest.TestCase):
         nothing standards-aware will look — the argument in Q18."""
         doc = st.Service(self.state, dialect=st.SensorThings20Draft).observation(self.obs)
         self.assertNotIn("resultQuality", doc)
-        self.assertEqual(doc["properties"]["librefarm"]["result_quality"][0]["usable"],
+        self.assertEqual(doc["properties"]["fieldmesh"]["result_quality"][0]["usable"],
                          "bad")
 
     def test_1_1_keeps_quality_in_its_standard_place(self):
         doc = st.Service(self.state, dialect=st.SensorThings11).observation(self.obs)
         self.assertEqual(doc["resultQuality"][0]["usable"], "bad")
-        self.assertNotIn("result_quality", doc["parameters"]["librefarm"])
+        self.assertNotIn("result_quality", doc["parameters"]["fieldmesh"])
 
     def test_the_model_knows_nothing_about_sensorthings(self):
         import model

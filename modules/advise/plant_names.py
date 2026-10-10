@@ -36,7 +36,7 @@ import urllib.request
 
 AGROVOC = "https://agrovoc.fao.org/sparql"
 WIKIDATA = "https://query.wikidata.org/sparql"
-UA = "librefarm/0.1 (farm data stack; plant names for a crop advisor)"
+UA = "fieldmesh/0.1 (farm data stack; plant names for a crop advisor)"
 FIELDS = ["scientific_name", "language", "name", "source", "concept"]
 
 

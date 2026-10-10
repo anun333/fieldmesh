@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: CC-BY-4.0
 cff-version: 1.2.0
-message: "If you use librefarm, please cite it as below."
-title: "librefarm: layer zero of a farmer-owned farm stack"
+message: "If you use fieldmesh, please cite it as below."
+title: "fieldmesh: layer zero of a farmer-owned farm stack"
 abstract: >-
   The data and device contract underneath a farmer-owned farm stack: an OGC
   SensorThings 1.1 view over an append-only log the farmer owns, quality judgements
@@ -10,8 +10,8 @@ abstract: >-
 type: software
 authors:
   - alias: anun333
-repository-code: "https://github.com/anun333/librefarm"
-url: "https://anun333.github.io/librefarm/"
+repository-code: "https://github.com/anun333/fieldmesh"
+url: "https://anun333.github.io/fieldmesh/"
 license:
   - Apache-2.0
   - AGPL-3.0-or-later

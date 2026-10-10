@@ -103,7 +103,7 @@
   "advise.bloom.crop": "{crop}: blooms {early} to {late} (median {median}); frost after bloom in {frost} years of 10.",
   "advise.bloom.crop_unmet": "{crop}: blooms {early} to {late} (median {median}); frost after bloom in {frost} years of 10. For {unmet} of its {count} estimates, chill falls short in more than 2 winters of 10.",
   "advise.future.bloom": "{crop}: median bloom {now} → {then}; frost after bloom in {fnow} → {fthen} years of 10",
-  "advise.stamp": "Made by librefarm advise {version}, data {data}, crop models DSSAT {dssat}.",
+  "advise.stamp": "Made by fieldmesh advise {version}, data {data}, crop models DSSAT {dssat}.",
   "advise.nutrients.title": "Manure and harvests",
   "advise.nutrients.supply": "The animals' manure carries about {n:,.0f} lb of nitrogen, {p:,.0f} lb of phosphate (P2O5) and {k:,.0f} lb of potash (K2O) a year, as it leaves its handling system.",
   "advise.nutrients.removed": "The harvests remove about {n:,.0f} lb of nitrogen, {p:,.0f} lb of phosphate and {k:,.0f} lb of potash a year from {acres:,.0f} acres:",

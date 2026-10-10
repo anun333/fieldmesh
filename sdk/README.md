@@ -85,7 +85,7 @@ way, so they are stated rather than buried:
    the log forever; serving both would put two observations at one
    `phenomenonTime` and double every client's chart. This is the single most
    important line in the adapter.
-2. **Layer-zero fields are namespaced under `parameters/librefarm`.** 1.1
+2. **Layer-zero fields are namespaced under `parameters/fieldmesh`.** 1.1
    documents `parameters` as environmental conditions during measurement;
    `received_at`, `boot` and `seq` are not that. Nesting keeps `$filter` paths
    working and reduces the 2.0 migration (`parameters` → `properties`) to one key.
@@ -98,7 +98,7 @@ way, so they are stated rather than buried:
 
 Validated against the reference implementation: FROST-Server accepted a deep
 insert of these documents (`201`), round-tripped `resultQuality` with nested
-`evidence` and `parameters/librefarm` intact, and after one fix the Datastream and
+`evidence` and `parameters/fieldmesh` intact, and after one fix the Datastream and
 Observation documents are at full key parity with its own. The findings are pinned
 in `TestValidatedAgainstFrost` so they survive without the container; the method
 and what it caught are in [frost-validation.md](../docs/notes/frost-validation.md).

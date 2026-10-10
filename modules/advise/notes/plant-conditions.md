@@ -3,7 +3,7 @@
 
 **2026-10-08. A plan, saved for later — nothing here is built yet.** The idea: for each
 plantable plant, dig out the conditions it grows best in — soil, water, climate, light —
-and match them against what a farm actually has, which librefarm already measures or
+and match them against what a farm actually has, which fieldmesh already measures or
 looks up. That is a layer-3 (decision support) module: "what grows well *here*, and what
 would grow well here in twenty years."
 
@@ -30,7 +30,7 @@ site side is mostly in reach already.
 | --- | --- | --- |
 | **Soil texture** | adapted to coarse / medium / fine soils | sand, silt and clay at each depth — `tools/soil_survey.py` (USDA SSURGO) in the US; ISRIC SoilGrids worldwide |
 | **Soil chemistry** | pH range; tolerance of salinity, lime (CaCO₃) | the same surveys; a farm's own soil test beats both |
-| **Drainage** | anaerobic (waterlogging) tolerance; rooting depth | survey drainage class and depth to a restrictive layer; librefarm soil-moisture probes show how long the soil stays saturated |
+| **Drainage** | anaerobic (waterlogging) tolerance; rooting depth | survey drainage class and depth to a restrictive layer; fieldmesh soil-moisture probes show how long the soil stays saturated |
 | **Water** | annual rainfall range; drought tolerance; moisture use; seasonal water demand | rainfall from NASA POWER (daily, any point, 1981 on) or CHELSA normals; available water capacity (field capacity − wilting point) from the soil survey; irrigation availability from the farm |
 | **Cold** | minimum temperature survived; frost-free days needed; for fruit trees, chill hours | daily minima from NASA POWER → last and first frost dates, frost-free days, chill hours |
 | **Heat and season** | temperature range for growth (minimum, optimum, maximum); growing degree days to maturity, with a base temperature | daily temperatures → growing degree days and season length |

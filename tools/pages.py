@@ -45,9 +45,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = Path(__file__).resolve().parent / "pages_assets"
 
-BASE = "https://anun333.github.io/librefarm/"
-REPO = "https://github.com/anun333/librefarm"
-NAME = "librefarm"
+BASE = "https://anun333.github.io/fieldmesh/"
+REPO = "https://github.com/anun333/fieldmesh"
+NAME = "fieldmesh"
 TAGLINE = "Layer zero of a farmer-owned farm stack"
 SUMMARY = ("The data and device contract underneath everything else: what a reading is, "
            "what a device is, how a reading crosses an unreliable radio link, how its "
@@ -351,7 +351,7 @@ def listing_page(directory: str, pages: list[Page], dirs: dict[str, str]) -> Pag
 
 
 def _load_vocab():
-    spec = importlib.util.spec_from_file_location("librefarm_site_vocab",
+    spec = importlib.util.spec_from_file_location("fieldmesh_site_vocab",
                                                   ROOT / "sdk" / "vocab.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -432,7 +432,7 @@ def vocab_pages(md, links: Links) -> tuple[list[Page], dict]:
                   "name": label, "termCode": code, "description": definition,
                   "url": absolute(out), "inDefinedTermSet": {
                       "@type": "DefinedTermSet", "@id": vocab.LOCAL,
-                      "name": "librefarm local vocabulary", "url": absolute(index_out)}}
+                      "name": "fieldmesh local vocabulary", "url": absolute(index_out)}}
         pages.append(Page(out=out, title=label, description=shorten(definition), body=body,
                           licence=licence, modified=modified, kind="term", jsonld=jsonld))
         concept = {"@id": uri, "@type": "skos:Concept", "skos:notation": code,
@@ -455,7 +455,7 @@ def vocab_pages(md, links: Links) -> tuple[list[Page], dict]:
                      f"<td><code>{esc(unit)}</code></td><td>{esc(src)}</td></tr>")
     body = (
         '<h1 id="top">Vocabulary</h1>\n'
-        '<p class="lede">Every observed-property term librefarm uses, by URI, with the '
+        '<p class="lede">Every observed-property term fieldmesh uses, by URI, with the '
         "UCUM unit it is normally reported in. Measurands come from the CF Standard Names "
         "and sensor-plumbing terms from ODM2. A local term exists only for a gap in both, "
         "says why, and is owed upstream — so the local list is short on purpose.</p>\n"
@@ -470,13 +470,13 @@ def vocab_pages(md, links: Links) -> tuple[list[Page], dict]:
         f'decision is <a href="{esc(relative(q4c, index_out))}#q4-unit-system-and-'
         f'observed-property-vocabulary">Q4</a>.</p>\n')
     pages.insert(0, Page(out=index_out, title="Vocabulary", description=shorten(
-        "Every observed-property term librefarm uses, with its unit and source: CF "
+        "Every observed-property term fieldmesh uses, with its unit and source: CF "
         "Standard Names, ODM2, and the few local terms owed upstream."), body=body,
         licence=licence, modified=modified, kind="listing"))
     skos = {"@context": {"skos": "http://www.w3.org/2004/02/skos/core#",
                          "dct": "http://purl.org/dc/terms/"},
             "@graph": [{"@id": vocab.LOCAL, "@type": "skos:ConceptScheme",
-                        "dct:title": "librefarm local vocabulary",
+                        "dct:title": "fieldmesh local vocabulary",
                         "dct:license": {"@id": LICENCES.get(licence, licence)},
                         "dct:source": {"@id": f"{REPO}/blob/main/sdk/vocab.py"},
                         "skos:hasTopConcept": [{"@id": c["@id"]} for c in concepts]},
@@ -805,7 +805,7 @@ def card(path: Path) -> None:
         else:
             line = trial
     d.text((80, y), line, font=f, fill=muted)
-    d.text((80, 580), "anun333.github.io/librefarm  ·  OGC SensorThings 1.1  ·  "
+    d.text((80, 580), "anun333.github.io/fieldmesh  ·  OGC SensorThings 1.1  ·  "
            "Apache-2.0 · AGPL-3.0 · CC-BY-4.0", font=font(False, 22), fill=muted)
     img.save(path, optimize=True)
 

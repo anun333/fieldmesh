@@ -186,10 +186,10 @@ is 2013, the wettest of the thirty.
 
 * **Collecting, since 2026-10-09.** A cron entry runs `tools/forecast_collect.py` at 06:17
   and 18:17 Central, appending McAllister Farm's NWS forecast (temperature and rain, each
-  value range-checked) to `~/dev/librefarm-data/mcallister-forecasts.jsonl` — about 350 MB a
+  value range-checked) to `~/dev/fieldmesh-data/mcallister-forecasts.jsonl` — about 350 MB a
   year. `tools/forecast_score.py` on that file scores it against the SCAN station whenever
   asked; a season of it scores the forecast the farm actually receives, not only the blend
-  behind it. To stop: delete the three `librefarm` lines from `crontab -e`.
+  behind it. To stop: delete the three `fieldmesh` lines from `crontab -e`.
 * The rules above are stand-ins for layer 1 and 2 modules; when those are built, these
   drills are their backtests (§11).
 * A forecast's quality: only the range check runs on a forecast, and every value is

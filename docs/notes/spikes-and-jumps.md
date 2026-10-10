@@ -133,7 +133,7 @@ Service.
 
 ```sh
 cd /tmp
-python3 -I ~/dev/librefarm/tools/ismn_spikes.py ~/Downloads/ISMN_archive_20261008.zip
+python3 -I ~/dev/fieldmesh/tools/ismn_spikes.py ~/Downloads/ISMN_archive_20261008.zip
 ```
 
 About an hour: every probe is scored three times, at 1, 2 and 3 hours. The step

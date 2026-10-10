@@ -16,7 +16,7 @@ plant list, how it is propagated, how it is sold, its season, and what to watch.
 | **Dormancy** | cold stratification or scarification before seed will germinate — a USDA PLANTS field, and in detail per woody species in the *Woody Plant Seed Manual* | a cooler, or sowing in autumn to let winter do it |
 | **Light** | seedlings and transplants are judged by daily light; some flower only at certain day lengths | greenhouse or shade house; the sunlight dimension, under cover |
 | **Heat and cold** | root zones in black containers overheat in summer and freeze in winter, sooner than ground-planted roots | container placement, shade cloth, overwintering |
-| **Water** | small containers need water daily and lose nutrients in the runoff | reliable water; capture of runoff — a sensor and fertilizer question librefarm already covers |
+| **Water** | small containers need water daily and lose nutrients in the runoff | reliable water; capture of runoff — a sensor and fertilizer question fieldmesh already covers |
 | **Time to saleable** | weeks for transplants, one or two years for bare-root seedlings, more for grafted and container trees | cash flow |
 | **Season** | bare-root stock is lifted and planted dormant; transplants follow spring and autumn | the climate's calendar |
 

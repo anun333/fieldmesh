@@ -235,7 +235,7 @@ The SCAN stations are operated by the USDA Natural Resources Conservation Servic
 
 ```sh
 cd /tmp
-python3 -I ~/dev/librefarm/tools/ismn_score.py ~/Downloads/ISMN_archive_20261008.zip \
+python3 -I ~/dev/fieldmesh/tools/ismn_score.py ~/Downloads/ISMN_archive_20261008.zip \
     --network SCAN --box 34.98,36.68,-90.31,-81.65
 ```
 

@@ -112,16 +112,16 @@ A clause with no row is a clause nothing tests. A row with no producer is the li
 
 `campus_twin` is GPL-3.0, but it is **single-author** — every commit is the same copyright holder, and there is no CLA because there are no outside contributors. GPL-3.0 binds that project's downstream recipients, not its author, so the code can be relicensed at will. There is no license trap here; the only things that could create one are external, and they check out:
 
-- **Dependencies ignore authorship.** The core of `campus_twin` is deliberately stdlib-only. The connectors librefarm wants are clean: `modbus_*` pulls nothing, and `meshtastic_bridge.py` needs `paho-mqtt` (EPL-2.0 or EDL-1.0, and EDL is BSD-3-equivalent) only for the live gateway path — the emulator and its tests need nothing. There is **no dependency on the `meshtastic` PyPI package**, which is GPL-3.0 and would have been a genuine obstacle whoever wrote the calling code.
+- **Dependencies ignore authorship.** The core of `campus_twin` is deliberately stdlib-only. The connectors fieldmesh wants are clean: `modbus_*` pulls nothing, and `meshtastic_bridge.py` needs `paho-mqtt` (EPL-2.0 or EDL-1.0, and EDL is BSD-3-equivalent) only for the live gateway path — the emulator and its tests need nothing. There is **no dependency on the `meshtastic` PyPI package**, which is GPL-3.0 and would have been a genuine obstacle whoever wrote the calling code.
 - **Vendored third-party code** travels under its own license, so anything vendored must be checked file by file before it moves.
 
-**Copying is not importing.** The constellation rule — every joint a published contract or a one-way read, no code imports across repos, each repo survives the others' absence — is an architectural convention about *runtime coupling*, and a vendored fork satisfies it completely. librefarm owning its own copy, free to diverge, is the rule working as intended. What the rule forbids is a path dependency or an import of `campus_twin`, which would make librefarm stop building when its sibling moved.
+**Copying is not importing.** The constellation rule — every joint a published contract or a one-way read, no code imports across repos, each repo survives the others' absence — is an architectural convention about *runtime coupling*, and a vendored fork satisfies it completely. fieldmesh owning its own copy, free to diverge, is the rule working as intended. What the rule forbids is a path dependency or an import of `campus_twin`, which would make fieldmesh stop building when its sibling moved.
 
-**Relicense in place first, then copy.** The tempting shortcut is to copy a GPL-3.0 file into librefarm and stamp it Apache-2.0. That works, but it builds a one-way valve: the Apache copy can flow back into campus_twin (Apache-2.0 is GPLv3-compatible), while later GPL-only improvements on the campus side cannot flow forward without relicensing again. Cheaper to relicense the genuinely shared files to Apache-2.0 **in their current home** — a header change each, and a permissive file inside a GPL-3.0 project is an ordinary arrangement — and then fork. Improvements then move in both directions forever.
+**Relicense in place first, then copy.** The tempting shortcut is to copy a GPL-3.0 file into fieldmesh and stamp it Apache-2.0. That works, but it builds a one-way valve: the Apache copy can flow back into campus_twin (Apache-2.0 is GPLv3-compatible), while later GPL-only improvements on the campus side cannot flow forward without relicensing again. Cheaper to relicense the genuinely shared files to Apache-2.0 **in their current home** — a header change each, and a permissive file inside a GPL-3.0 project is an ordinary arrangement — and then fork. Improvements then move in both directions forever.
 
 ### What is worth taking
 
-| From campus_twin | For librefarm | Clause |
+| From campus_twin | For fieldmesh | Clause |
 | --- | --- | --- |
 | `mesh_emulator.py`, `meshtastic_bridge.py` | The first link driver and its emulator | §5.2, Q6 |
 | `_ingest.py` — shared retry/auth/spool POST | Store-and-forward on the gateway side | §5.2 |
@@ -145,7 +145,7 @@ Worth knowing before a fork, because it predicts which files will rot. A buildin
 
 **What transfers with no license question at all, because patterns are not code:** the canonical named fictional site, determinism via seed and `ts0`, the completeness matrix as a standing gate, fiction-first defaults, an emulator beside every connector, the producer/detector doctrine, scored fault drills with ground truth, and the `.site/` convention.
 
-**One question worth deciding deliberately** rather than by drift: whether the *sensing contract* — observation, datastream, device health, quality assertion, transport message — should eventually be extracted as a third artifact both repos read, or whether the two stay parallel with separate vocabularies. Parallel is right for now; both are young enough on the farm side that premature unification would bind librefarm to a buildings-shaped model. Revisit once librefarm's contract has survived its own first season.
+**One question worth deciding deliberately** rather than by drift: whether the *sensing contract* — observation, datastream, device health, quality assertion, transport message — should eventually be extracted as a third artifact both repos read, or whether the two stay parallel with separate vocabularies. Parallel is right for now; both are young enough on the farm side that premature unification would bind fieldmesh to a buildings-shaped model. Revisit once fieldmesh's contract has survived its own first season.
 
 ## Site data
 

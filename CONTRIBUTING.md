@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Contributing
 
-Thank you for looking. librefarm is a farmer-owned farm-data stack: a specification, an SDK
+Thank you for looking. fieldmesh is a farmer-owned farm-data stack: a specification, an SDK
 that implements it, a simulated farm that tests it, a reference server, and modules above it.
 Start with [README.md](README.md) and the specification, [docs/spec/v0.1.md](docs/spec/v0.1.md).
 

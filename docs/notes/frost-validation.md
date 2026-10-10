@@ -29,7 +29,7 @@ multiplicity zero-to-many, exactly as [sensorthings-2.0.md](sensorthings-2.0.md)
 predicted — and it is the capability the 2.0 draft drops, which is the concrete
 argument for raising Q18.
 
-**`parameters/librefarm` survived intact.** The namespacing decision — layer-zero
+**`parameters/fieldmesh` survived intact.** The namespacing decision — layer-zero
 fields nested rather than posing as 1.1's "environmental conditions during
 measurement" — costs nothing in the reference implementation.
 

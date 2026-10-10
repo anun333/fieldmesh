@@ -373,7 +373,7 @@ def _series(farm, *, name, feature, prop, unit, scale, decimals, thresholds,
                         model=_MODELS.get(prop, "generic probe"),
                         serial=f"SN-{sensor_id.hex[:8]}",
                         manufacturer="Harrow Bend Instruments",
-                        firmware="1.4.2", driver="librefarm.sim",
+                        firmware="1.4.2", driver="fieldmesh.sim",
                         driver_version="0",
                         capabilities={"dedup_volatile": False,
                                       "confirms_delivery": True})

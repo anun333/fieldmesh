@@ -220,12 +220,12 @@ def main(argv=None) -> int:
     ap.add_argument("source", choices=("nws", "metno"))
     ap.add_argument("lat", type=float)
     ap.add_argument("lon", type=float)
-    ap.add_argument("--user-agent", default="librefarm/0.1",
+    ap.add_argument("--user-agent", default="fieldmesh/0.1",
                     help="MET Norway requires the application and a contact in it")
     ap.add_argument("--json", help="write the run here")
     ap.add_argument("--tz", help="IANA time zone for the daily summary (NWS supplies one)")
     args = ap.parse_args(argv)
-    if args.source == "metno" and args.user_agent == "librefarm/0.1":
+    if args.source == "metno" and args.user_agent == "fieldmesh/0.1":
         print("MET Norway's terms ask for a contact in the User-Agent: pass --user-agent "
               "'yourapp/1.0 you@example.org'", file=sys.stderr)
         return 2

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Security
 
-librefarm will hold farms' data and, later, command pumps and valves. A flaw in it can expose
+fieldmesh will hold farms' data and, later, command pumps and valves. A flaw in it can expose
 a farm's records or, eventually, act on its equipment, so please report one privately.
 
 **How:** use GitHub's private vulnerability reporting — the **Report a vulnerability** button

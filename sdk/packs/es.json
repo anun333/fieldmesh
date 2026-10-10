@@ -103,7 +103,7 @@
   "term.http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil_at_wilting_point/": "punto de marchitez permanente",
   "term.http://vocabulary.odm2.org/variablename/batteryVoltage/": "voltaje de la batería",
   "term.http://vocabulary.odm2.org/variablename/receivedSignalStrenghtIndication/": "intensidad de la señal recibida",
-  "term.https://anun333.github.io/librefarm/vocab/vessel_fill_fraction/": "fracción de llenado del depósito",
+  "term.https://anun333.github.io/fieldmesh/vocab/vessel_fill_fraction/": "fracción de llenado del depósito",
   "unit.%": "por ciento",
   "unit.1": "fracción",
   "unit.Cel": "grado Celsius",

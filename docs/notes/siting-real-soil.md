@@ -277,11 +277,11 @@ operated by the USDA Natural Resources Conservation Service.
 
 ```sh
 cd /tmp
-python3 -I ~/dev/librefarm/tools/ismn_siting.py ~/Downloads/ISMN_archive_20261008.zip \
+python3 -I ~/dev/fieldmesh/tools/ismn_siting.py ~/Downloads/ISMN_archive_20261008.zip \
     --stations AllenFarms,EastviewFarm,McAllisterFarm                 # weekly windows
-python3 -I ~/dev/librefarm/tools/ismn_siting.py ~/Downloads/ISMN_archive_20261008.zip \
+python3 -I ~/dev/fieldmesh/tools/ismn_siting.py ~/Downloads/ISMN_archive_20261008.zip \
     --persistence --exclude McAllisterFarm:2023-01-17                  # daily, k-of-n
-python3 -I ~/dev/librefarm/tools/ismn_siting.py ~/Downloads/ISMN_archive_20261008.zip \
+python3 -I ~/dev/fieldmesh/tools/ismn_siting.py ~/Downloads/ISMN_archive_20261008.zip \
     --persistence --weekly \
     --exclude McAllisterFarm:2023-01-17,AllenFarms:2023-01-20         # weekly, k-of-n
 ```

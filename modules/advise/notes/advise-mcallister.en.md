@@ -248,4 +248,4 @@ By the ways USDA PLANTS lists for each plant, in windows set by this site's medi
 
 Climate: NASA POWER (CC BY 4.0). Soil: USDA NRCS soil survey (public domain). Plants: USDA PLANTS (CC0). Crop models: DSSAT (BSD-3-Clause). Bees: GloBI (CC BY 4.0) and the studies it cites. Fruit chill and heat: Fadón et al. 2020, Agronomy 10:409; González Noguer et al. 2023, Front. Hortic. 2:1217689; Fadón et al. 2023, Agronomy 13:518 (all CC BY 4.0); bloom frost thresholds: Washington State University via Penn State Extension. Plant names: AGROVOC (FAO, CC BY 4.0) and Wikidata (CC0).
 
-*Made by librefarm advise 0.1.0, data c61f00dace9b, crop models DSSAT 25c93b9.*
+*Made by fieldmesh advise 0.1.0, data c61f00dace9b, crop models DSSAT 25c93b9.*

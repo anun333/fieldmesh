@@ -49,7 +49,7 @@ def scenario_name(code: str) -> str:
 def _get(url: str, retries: int = 4) -> str:
     for attempt in range(retries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "librefarm/0.1"})
+            req = urllib.request.Request(url, headers={"User-Agent": "fieldmesh/0.1"})
             with urllib.request.urlopen(req, timeout=120) as r:
                 return r.read().decode("utf-8")
         except (urllib.error.URLError, TimeoutError):

@@ -92,7 +92,7 @@ class TestBuild(unittest.TestCase):
 
     def test_llms_txt_is_shaped_and_its_links_resolve(self):
         text = (self.out / "llms.txt").read_text(encoding="utf-8")
-        self.assertTrue(text.startswith("# librefarm\n\n> "))
+        self.assertTrue(text.startswith("# fieldmesh\n\n> "))
         links = re.findall(r"\]\((https://[^)]+)\)", text)
         self.assertGreater(len(links), 10)
         for url in links:

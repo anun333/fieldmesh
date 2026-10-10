@@ -16,7 +16,7 @@ assembled — each recorded at its true depth — and then lied to:
 Two-day windows, sampled weekly across each station's record, reported by season
 because snow and overcast winter days weaken the daily wave the check reads.
 
-    cd /tmp && python3 -I ~/dev/librefarm/tools/ismn_siting.py \\
+    cd /tmp && python3 -I ~/dev/fieldmesh/tools/ismn_siting.py \\
         ~/Downloads/ISMN_archive_20261008.zip --stations AllenFarms,EastviewFarm,McAllisterFarm
 
 `--persistence` instead assesses every day and scores the k-of-n rules that

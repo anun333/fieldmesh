@@ -49,7 +49,7 @@ CHANNELS = [1, 2, 3, 4, 5, 6, 7, 8]
 AGE_DELTAS = [0, 300, 600, 900, 1200, 1500, 1800, 2100]
 VALUES = [231, 238, 244, 249, 253, 258, 262, 267]    # soil moisture x1000
 
-OBSERVED = "urn:librefarm:sm"   # a short alias; §3.4's URI lives in the registry
+OBSERVED = "urn:fieldmesh:sm"   # a short alias; §3.4's URI lives in the registry
 
 
 # ------------------------------------------------------------------ candidates

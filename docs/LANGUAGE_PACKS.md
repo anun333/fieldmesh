@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Language packs
 
-**For a university, extension service or farmer organisation that wants librefarm to
+**For a university, extension service or farmer organisation that wants fieldmesh to
 speak its people's language.** No programming is needed: a language is one JSON file.
 
 ```sh
@@ -109,7 +109,7 @@ looking for a maintainer.
 ## Where good translations already exist
 
 **AGROVOC**, maintained by the FAO, carries agricultural concepts in more than forty
-languages and is already the vocabulary librefarm uses for crops, practices and records
+languages and is already the vocabulary fieldmesh uses for crops, practices and records
 (see [open-questions Q4](spec/open-questions.md)). For those terms, start from AGROVOC
 rather than translating from scratch — your farmers' extension materials probably
 already use its words. The CF names for physical measurements have no official

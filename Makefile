@@ -1,4 +1,4 @@
-# librefarm — layer zero
+# fieldmesh — layer zero
 .POSIX:
 .PHONY: help pages test demo world drill siting forecast irrigation q5 q5-points power vocab vocab-resolve packs serve season export frost clean
 

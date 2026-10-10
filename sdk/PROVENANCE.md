@@ -2,7 +2,7 @@
 
 Everything here originates in **campus_twin** (`~/dev/campus_twin`), the sibling
 buildings/BAS platform by the same author. It arrives by **copy and relicense**, not by
-import: librefarm owns these files now and is free to diverge, which is what the
+import: fieldmesh owns these files now and is free to diverge, which is what the
 constellation rule asks for — no repo stops building because a sibling moved.
 
 ## The license arrangement
@@ -14,7 +14,7 @@ original home** before anything was copied, each file carrying:
 # SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-or-later
 ```
 
-librefarm exercises the Apache-2.0 option, so files here carry
+fieldmesh exercises the Apache-2.0 option, so files here carry
 `SPDX-License-Identifier: Apache-2.0` alone.
 
 Relicensing at the source rather than at the destination is deliberate. Stamping a
@@ -34,7 +34,7 @@ Apache-2.0 option of their upstream dual licence and say so in their SPDX line.
 
 | Here | From | Change |
 | --- | --- | --- |
-| `spool.py` | `open-bas/connectors/_ingest.py` | Adapted. Ingest path and token environment variable parameterised (`TWIN_TOKEN` → `LIBREFARM_TOKEN`, `/api/ingest` now a default rather than a constant); docstring retargeted at spec §5.2 and §5.4. Logic unchanged. |
+| `spool.py` | `open-bas/connectors/_ingest.py` | Adapted. Ingest path and token environment variable parameterised (`TWIN_TOKEN` → `FIELDMESH_TOKEN`, `/api/ingest` now a default rather than a constant); docstring retargeted at spec §5.2 and §5.4. Logic unchanged. |
 | `modbus_rtu.py` | `open-bas/connectors/modbus_rtu.py` | Verbatim logic — CRC-16/MODBUS, frame building, reply parsing, `RtuSource`, `RtuResponder`. Docstring retargeted: the equipment examples are farm equipment, and the read-only rationale is **reversed in meaning** (see below). |
 | `test_spool.py` | — | New. Written here; no counterpart upstream. |
 | `csv_import.py` | `open-bas/connectors/csv_replay.py` | **Retargeted, and two defaults reversed.** Writes `Observation`s on declared raw datastreams instead of POSTing campus-twin/v1 batches. Upstream read every timestamp as UTC; here a timezone must be declared, because a spreadsheet's `14:00` is local and the UTC assumption shifts every reading invisibly — and the autumn hour that occurs twice and the spring hour that never occurs are reported, not guessed. Upstream applied a scale and offset on import; here that is refused, because it would store a value the file never contained with no record of the change (§3.2). Adds required `uncertainty_s` (§2), idempotent re-import, and per-row provenance with the file's SHA-256. |

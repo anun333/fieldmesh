@@ -12,7 +12,7 @@ to a layer-zero log: a device and an installation at its depth behind each of th
 a raw datastream in the unit the station sends, a name for each, and every reading assessed
 by the §4.2 checks as it lands. Soil-water series start from the soil survey's thresholds
 for their own depth and texture (Q24). It is idempotent, and runs from cron every six hours
-into `~/dev/librefarm-data/mcallister-scan.jsonl`, about 170 MB a year. To stop: delete its
+into `~/dev/fieldmesh-data/mcallister-scan.jsonl`, about 170 MB a year. To stop: delete its
 line from `crontab -e`.
 
 ## What the first week showed

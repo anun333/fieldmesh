@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Score the forecasts a farm collected against its station.
 
-    python3 tools/forecast_score.py ~/dev/librefarm-data/mcallister-forecasts.jsonl
+    python3 tools/forecast_score.py ~/dev/fieldmesh-data/mcallister-forecasts.jsonl
 
 Reads a log that tools/forecast_collect.py has been filling, finds the forecast
 datastream by its name ("NWS forecast: air temperature"), fetches the station's hourly
@@ -48,7 +48,7 @@ def main(argv=None) -> int:
     ap.add_argument("--name", default="NWS forecast: air temperature")
     ap.add_argument("--station", default="2075:TN:SCAN")
     ap.add_argument("--utc-offset", type=float, default=-6.0)
-    ap.add_argument("--cache", default=os.path.expanduser("~/dev/librefarm-data/cache"))
+    ap.add_argument("--cache", default=os.path.expanduser("~/dev/fieldmesh-data/cache"))
     args = ap.parse_args(argv)
     state = P.state_from_log(L.Log(args.log))
     named = [e for e in state.entities_named(args.name) if e in state.datastreams]
