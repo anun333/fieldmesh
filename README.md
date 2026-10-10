@@ -43,7 +43,7 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [docs/spec/open-questions.md](docs/spec/open-questions.md) | Every open decision, with every option and its trade-offs |
 | [docs/VIRTUAL_FARM.md](docs/VIRTUAL_FARM.md) | Why the build is simulator-first, and the completeness matrix that turns a spec clause with nothing exercising it into a failing test |
 | [docs/LANGUAGE_PACKS.md](docs/LANGUAGE_PACKS.md) | For a university adding its farmers' language — one JSON file, no code |
-| [docs/notes/](docs/notes/) | Measurements and validations behind decisions: encoding, power, FROST, QGIS, public datasets, pilot candidates |
+| [docs/notes/](docs/notes/) | Measurements and validations behind decisions: encoding, power, FROST, QGIS, public datasets, validation sites |
 | [sdk/](sdk/) | The contract as code: model, append-only log, projection, quality checks, wire format, gateway, SensorThings view, export, subscriptions, siting checks, CSV and MQTT adapters, language packs |
 | [sim/](sim/) | **Harrow Bend**, a fictional farm on the prime meridian: soil water and heat physics, troughs, simulated nodes and radio links, fault injection, scored drills |
 | [server/](server/) | A read-only SensorThings 1.1 HTTP service — the reference implementation |
