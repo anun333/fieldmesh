@@ -86,7 +86,7 @@ of the food: vegetables 5 of 59, spices and herbs none of 34, cut flowers 1 of 2
 tropical fruit 11 of 32, pulses 6 of 23. Apple and peach have entries and no
 characteristics. **So this first version answers conservation, forage and timber
 questions, and is mostly silent on food crops.** Filling that is the case for asking FAO
-about ECOCROP ([the draft request](fao-ecocrop-request-draft.md)), or for another open
+about ECOCROP (a request is drafted), or for another open
 crop source.
 
 **Its limits are guidance, not limits.** PLANTS lists white clover as needing 250
@@ -500,8 +500,8 @@ recommended next source. Of the 285 plants with no PLANTS characteristics, 22 ha
 and their prose gives a pH, rainfall or hardiness range that a pattern can find for 4 —
 lentil with two different pH ranges in one guide. That is not a source to judge a plant by,
 so they stay as the report lists them, not judged, rather than judged on a guess. What
-would change it is a tabulated source: ECOCROP, if FAO answers the request drafted in
-[fao-ecocrop-request-draft.md](fao-ecocrop-request-draft.md).
+would change it is a tabulated source: ECOCROP, if FAO answers the licence request that has
+been drafted.
 
 **Blueberries, looked for and not found (2026-10-09).** No openly licensed table of chill
 by cultivar turned up — not in MDPI or Frontiers, where the apple and stone-fruit tables

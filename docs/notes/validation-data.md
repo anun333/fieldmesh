@@ -92,7 +92,7 @@ thing to point an ingest adapter at.
 95 stations, one per county, the same five depths, **five-minute cadence**, real-time
 and public, half due operational by the end of 2026. Unlike SCAN's hourly, five
 minutes is inside §4.2's cross-check window, so a station in the pilot's county is a
-genuine peer. See [pilot-candidates.md](pilot-candidates.md).
+genuine peer.
 
 ## What no public data can test
 

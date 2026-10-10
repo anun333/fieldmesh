@@ -31,7 +31,7 @@ trimmed National Weather Service forecasts (public domain, a US government work)
 
 Figures quoted in notes from NASA POWER (CC-BY-4.0), ISMN (CC-BY-4.0) and the USDA soil
 survey (public domain) are attributed where they appear. FAO's ECOCROP is **not** used:
-its licence is non-commercial (see `modules/advise/notes/fao-ecocrop-request-draft.md`). Nor is CITA
+its licence is non-commercial, and a request to FAO for permission has been drafted. Nor is CITA
 Aragón's dataset of fruit-tree chill requirements (CC BY-NC-ND). The chill tables come from
 the 2020 review as MDPI published it under CC BY 4.0; CITA's repository files its copy of
 the same article as CC BY-NC-ND 3.0 ES, but a CC BY grant cannot be withdrawn, and the

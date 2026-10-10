@@ -37,7 +37,7 @@ Each question lists **all** options considered, not just the two in the original
 | Co-op or community garden | Several users, natural multi-site and sharing test | Diffuse ownership; nobody to call when a node dies |
 | Your own test bed only | Full control, fast iteration | Does not satisfy "one full growing season of field data" in any honest sense |
 
-**A candidate list with sources is in [notes/pilot-candidates.md](../notes/pilot-candidates.md)**, weighted toward Middle Tennessee, with the funding route (Southern SARE on-farm grants, $15-20k precedents) and the national instrumented networks worth comparing against rather than installing on.
+**A ranked candidate list with sources is kept privately** until the candidates have been asked; the funding route is Southern SARE's on-farm grants, and the national instrumented networks worth comparing against rather than installing on are in [notes/validation-data.md](../notes/validation-data.md).
 
 **One criterion is missing from the list below: distance to the nearest public reference station.** The drills measured that a feature with a single sensor cannot detect drift, bias or noise at all, and drift is the commonest real failure, so a free peer would be worth a great deal.
 
