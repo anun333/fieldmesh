@@ -348,3 +348,39 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     return {"policy": "advisory", "applied_mm": applied, "drained_mm": b.drained_mm,
             "mean_stress": statistics.mean(stress), "stressed_h": stressed_h,
             "advice": advice}
+
+
+# ------------------------------------------------------------------ process
+
+def main(argv=None) -> int:
+    """The advisory as its own process (§8.3; Q11): over the host's socket, holding only
+    the token its grant gave it — a systemd credential, or `FIELDMESH_MODULE_TOKEN`."""
+    import argparse
+    import json
+    import modhost as M
+
+    ap = argparse.ArgumentParser(description="Soil-moisture advisory, as a module process")
+    ap.add_argument("--socket", required=True)
+    ap.add_argument("--config", required=True,
+                    help="JSON: {\"beds\": [{\"feature\": id, \"field_capacity\": 0.3, "
+                         "\"wilting_point\": 0.12, ...}], \"forecast\": id or null}")
+    ap.add_argument("--at", help="advise for this moment (ISO 8601); default now")
+    ap.add_argument("--language", default="en")
+    args = ap.parse_args(argv)
+    with open(args.config, encoding="utf-8") as h:
+        config = json.load(h)
+    beds = [Bed(**{**b, "feature": UUID(b["feature"])}) for b in config["beds"]]
+    forecast = UUID(config["forecast"]) if config.get("forecast") else None
+    at = (_dt.datetime.fromisoformat(args.at) if args.at
+          else _dt.datetime.now(tz=_dt.timezone.utc))
+    with M.ModuleClient(args.socket, M.token_from_environment()) as client:
+        state = client.state(at)
+        for event in Advisor(client.log()).advise(state, beds, at, forecast=forecast):
+            print(json.dumps({"rule": event.payload["rule"],
+                              "message": render(event.payload, args.language, state)},
+                             ensure_ascii=False), flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

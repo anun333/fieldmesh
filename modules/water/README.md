@@ -66,6 +66,12 @@ monitor.check(state, troughs, at=now)        # the decisions it wrote, if any ch
 water.render(event.payload, "es", state)     # "bebedero sur no se ha vuelto a llenar…"
 ```
 
+As its own process (§8.3, Q11), holding only the grant its [module.json](module.json)
+allows: `python3 -I water.py --socket /run/fieldmesh/modules.sock --config troughs.json`, the
+token from a systemd credential or `FIELDMESH_MODULE_TOKEN` (see
+[deploy/systemd/](../../deploy/systemd/)). Through the socket it decides exactly as it
+does in-process; the tests run it both ways.
+
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)); strings in [packs/](packs/) under the
 `water.` prefix, the Spanish an unreviewed draft like the rest. It imports layer zero and
 layer 1, and nothing below imports it.

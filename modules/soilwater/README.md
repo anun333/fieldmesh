@@ -68,6 +68,12 @@ advisor.advise(state, beds, at=morning, forecast=rain_forecast_id)
 soilwater.render(event.payload, "es", state)   # "Riegue cama 3 hoy: …"
 ```
 
+As its own process (§8.3, Q11), holding only the grant its [module.json](module.json)
+allows: `python3 -I soilwater.py --socket /run/fieldmesh/modules.sock --config beds.json`, the
+token from a systemd credential or `FIELDMESH_MODULE_TOKEN` (see
+[deploy/systemd/](../../deploy/systemd/)). Through the socket it decides exactly as it
+does in-process; the tests run it both ways.
+
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)); strings in [packs/](packs/) under the
 `soilwater.` prefix, the Spanish an unreviewed draft. It imports layer zero and layer 1.
 

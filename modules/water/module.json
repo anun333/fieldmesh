@@ -1,0 +1,16 @@
+{
+ "name": "water",
+ "version": "1",
+ "layer": 2,
+ "description": "Livestock water monitor: per trough, empty, low, not refilling, unseen, untrusted.",
+ "reads": {
+  "observed_properties": [
+   "https://anun333.github.io/fieldmesh/vocab/vessel_fill_fraction/"
+  ]
+ },
+ "writes": [
+  "decision",
+  "acknowledgement"
+ ],
+ "commands": []
+}

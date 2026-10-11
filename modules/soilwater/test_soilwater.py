@@ -6,8 +6,12 @@ probe."""
 from __future__ import annotations
 
 import datetime as _dt
+import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -264,6 +268,57 @@ class TestHarrowBend(unittest.TestCase):
             self.assertNotIn(m["bed2"]["rule"], ("soil-unseen", "soil-no-probe"), day)
             self.assertEqual(m["bed2"]["context"]["probes"], 2)
             self.assertEqual(len(m["bed2"]["inputs"]["observations"]), 1)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestAsItsOwnProcess(unittest.TestCase):
+    """Q11: through the host's socket the advisory says what it says in-process, and as
+    a process it writes one decision per bed under its own name."""
+
+    def setUp(self):
+        import modhost as M
+        self.M = M
+        self.g = Garden()
+        self.g.probe(lambda h: 0.22)
+        self.g.probe(lambda h: 0.30, depth=0.40)
+        self.fc = self.g.rain(1.0)
+        self.log = Log()
+        self.dir = tempfile.mkdtemp(prefix="fm-", dir="/tmp" if os.path.isdir("/tmp") else None)
+        self.path = os.path.join(self.dir, "m.sock")
+        self.host = M.ModuleHost(self.log, self.g.state, self.path).start()
+        manifest = M.Manifest.load(os.path.join(HERE, "module.json"))
+        self.grant, self.token = M.grant(self.log, manifest,
+                                         properties=[V.SOIL_WATER, V.PRECIPITATION_DEPTH])
+
+    def tearDown(self):
+        self.host.stop()
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_through_the_socket_it_advises_as_it_does_in_process(self):
+        with self.M.ModuleClient(self.path, self.token) as c:
+            for forecast in (None, self.fc):
+                local = S.Advisor(Log()).judge(self.g.state, self.g.bed, MORNING, forecast=forecast)
+                remote = S.Advisor(c.log()).judge(c.state(MORNING), self.g.bed, MORNING,
+                                                  forecast=forecast)
+                self.assertEqual((remote["rule"], remote["context"]),
+                                 (local["rule"], local["context"]))
+
+    def test_as_a_process_it_writes_one_decision_per_bed(self):
+        config = os.path.join(self.dir, "beds.json")
+        with open(config, "w", encoding="utf-8") as h:
+            json.dump({"beds": [{"feature": str(self.g.land), "field_capacity": 0.30,
+                                 "wilting_point": 0.12}], "forecast": None}, h)
+        done = subprocess.run([sys.executable, "-I", os.path.join(HERE, "soilwater.py"),
+                               "--socket", self.path, "--config", config,
+                               "--at", MORNING.isoformat()],
+                              env={"FIELDMESH_MODULE_TOKEN": self.token,
+                                   "PATH": os.environ.get("PATH", "")},
+                              capture_output=True, text=True, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual([json.loads(x)["rule"] for x in done.stdout.splitlines()],
+                         ["soil-water-now"])
+        self.assertEqual([e.payload["module"] for e in self.log.events if e.kind == "decision"],
+                         ["soilwater"])
 
 
 if __name__ == "__main__":

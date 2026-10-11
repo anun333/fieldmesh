@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: Apache-2.0
+# One fieldmesh module as its own sandboxed process (spec v0.1 §8.3; open-questions Q11).
+#
+#   systemctl enable --now fieldmesh-module@water
+#
+# The module's only way out is the host's unix socket, and the host answers only what
+# its grant allows. Install, once per module:
+#   /etc/fieldmesh/modules/%i.token  from `sdk/modhost.py grant --token-out`, root, 0600
+#   /etc/fieldmesh/modules/%i.json   its troughs or beds
+# Both reach the service as credentials, readable by it alone, gone when it stops.
+
+[Unit]
+Description=fieldmesh module %i
+After=fieldmesh-host.service
+Wants=fieldmesh-host.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -I /opt/fieldmesh/modules/%i/%i.py \
+    --socket /run/fieldmesh/modules.sock --config %d/config
+LoadCredential=token:/etc/fieldmesh/modules/%i.token
+LoadCredential=config:/etc/fieldmesh/modules/%i.json
+Restart=on-failure
+RestartSec=10s
+
+# Its own throwaway user, in the group allowed to open the socket.
+DynamicUser=yes
+SupplementaryGroups=fieldmesh-modules
+UMask=0077
+
+# No network: the socket is a file, and files are all it has.
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+
+# Nothing to write and little to see.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+
+# No way up.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+# A runaway module cannot starve the foundation.
+MemoryMax=256M
+CPUQuota=50%
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

@@ -49,6 +49,7 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [sdk/](sdk/) | The contract as code: model, append-only log, projection, farm records with offline edits, quality checks, wire format, gateway, SensorThings view, export, subscriptions, siting checks, CSV and MQTT adapters, language packs |
 | [sim/](sim/) | **Harrow Bend**, a fictional farm on the prime meridian: soil water and heat physics, troughs, simulated nodes and radio links, fault injection, scored drills |
 | [server/](server/) | A read-only SensorThings 1.1 HTTP service — the reference implementation |
+| [deploy/](deploy/) | systemd units that run each module as its own sandboxed service, reaching the farm's data only through the module host's socket (§8.3, Q11) |
 | [tools/](tools/) | The measurements behind decisions, weather and forecast adapters, and the language-pack tool |
 | [modules/rules/](modules/rules/) | **Layer 1, rules and alerts**: CEL conditions over the log, each evaluation a logged decision. First rule: a frost watch, backtested on NOAA's forecasts against McAllister Farm's station |
 | [modules/water/](modules/water/) | **Layer 2, the livestock water monitor**: empty, low, not refilling, unseen, untrusted, per trough, as advisory decisions in English and Spanish. Passes §15's acceptance test on the virtual farm, whose first run found two defects in the node's backlog handling |
@@ -88,7 +89,7 @@ Three licences, one per kind of artifact. The full reasoning is in
 | | |
 | --- | --- |
 | `docs/` — the spec and all prose | CC-BY-4.0 |
-| `sdk/`, `sim/`, `tools/` | Apache-2.0 — embeddable in firmware |
+| `sdk/`, `sim/`, `tools/`, `deploy/` | Apache-2.0 — embeddable in firmware |
 | `server/` | AGPL-3.0-or-later — so a hosting vendor cannot enclose a farmer-owned stack |
 | `modules/rules/` | AGPL-3.0-or-later, as the reference server |
 | `modules/water/`, `modules/soilwater/` | AGPL-3.0-or-later, the same |

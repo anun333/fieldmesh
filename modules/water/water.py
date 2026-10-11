@@ -280,3 +280,43 @@ def render(decision: dict, language: str = "en", state=None) -> str | None:
     elif key == "water.unseen" and params.get("hours", 0) >= NO_ESTIMATE:
         key = "water.never_seen"
     return str(i18n.Translator(language).text(key, **params))
+
+
+# ------------------------------------------------------------------ process
+
+def main(argv=None) -> int:
+    """The monitor as its own process (§8.3; Q11): over the host's socket, holding only
+    the token its grant gave it — a systemd credential, or `FIELDMESH_MODULE_TOKEN`."""
+    import argparse
+    import json
+    import time
+    import modhost as M
+
+    ap = argparse.ArgumentParser(description="Livestock water monitor, as a module process")
+    ap.add_argument("--socket", required=True)
+    ap.add_argument("--config", required=True,
+                    help="JSON: {\"troughs\": [{\"datastream\": id, \"capacity_l\": 400, ...}]}")
+    ap.add_argument("--at", help="judge this one moment (ISO 8601) and exit")
+    ap.add_argument("--every", type=float, default=300.0, help="seconds between looks")
+    ap.add_argument("--language", default="en")
+    args = ap.parse_args(argv)
+    with open(args.config, encoding="utf-8") as h:
+        config = json.load(h)
+    troughs = [Trough(**{**t, "datastream": UUID(t["datastream"])}) for t in config["troughs"]]
+    with M.ModuleClient(args.socket, M.token_from_environment()) as client:
+        monitor = Monitor(client.log())
+        while True:
+            at = (_dt.datetime.fromisoformat(args.at) if args.at
+                  else _dt.datetime.now(tz=_dt.timezone.utc))
+            state = client.state(at)
+            for event in monitor.check(state, troughs, at):
+                print(json.dumps({"rule": event.payload["rule"], "alert": event.payload["alert"],
+                                  "message": render(event.payload, args.language, state)},
+                                 ensure_ascii=False), flush=True)
+            if args.at:
+                return 0
+            time.sleep(args.every)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

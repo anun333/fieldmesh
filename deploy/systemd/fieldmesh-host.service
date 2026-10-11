@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+# The foundation's side of the module socket (spec v0.1 §8.3; Q11), over the farm's log.
+# On a gateway the host runs inside the gateway process; this unit is for a farm that
+# runs it on its own.
+
+[Unit]
+Description=fieldmesh module host
+
+[Service]
+Type=simple
+User=fieldmesh
+Group=fieldmesh-modules
+ExecStart=/usr/bin/python3 -I /opt/fieldmesh/sdk/modhost.py serve \
+    --log /var/lib/fieldmesh/farm.jsonl --socket /run/fieldmesh/modules.sock
+StateDirectory=fieldmesh
+RuntimeDirectory=fieldmesh
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=5s
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target

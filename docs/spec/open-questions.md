@@ -595,7 +595,7 @@ The binding constraint eliminates most options: v0.1 §11 requires rules to be b
 
 ## Q11. How modules are packaged and isolated
 
-**Status: DECIDED 2026-10-09 — processes under systemd with per-module capability tokens over a unix socket for v0, WASI as the stated target (the maintainer adopted the recommendation).** Plan B, if process isolation proves too weak before WASI is ready for Python: a rootless container per module. Was: blocks third parties. v0.1 §8.3 says the foundation enforces per-point permissions; the enforcement mechanism is open.
+**Status: DECIDED 2026-10-09 — processes under systemd with per-module capability tokens over a unix socket for v0, WASI as the stated target (the maintainer adopted the recommendation).** Built 2026-10-11: [sdk/modhost.py](../../sdk/modhost.py) and [deploy/systemd/](../../deploy/systemd/). The water monitor and the soil advisory run as their own processes and decide exactly as they do in-process; the module unit scores 0.4 ("SAFE") on `systemd-analyze security`. Its filesystem protections are untested live, because a user systemd manager skips them. Plan B, if process isolation proves too weak before WASI is ready for Python: a rootless container per module. Was: blocks third parties. v0.1 §8.3 says the foundation enforces per-point permissions; the enforcement mechanism is open.
 
 | Option | For | Against |
 | --- | --- | --- |

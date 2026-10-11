@@ -5,8 +5,12 @@ on Harrow Bend's paddock."""
 from __future__ import annotations
 
 import datetime as _dt
+import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -267,6 +271,57 @@ class TestAcceptanceOnHarrowBend(unittest.TestCase):
                              _dt.timedelta(hours=self.troughs[1].refill_hold_h) + 2 * self.EVERY)
         self.assertGreaterEqual(min(empty) - refill, _dt.timedelta(hours=4))
         self.assertLessEqual(min(empty) - first_dry, self.EVERY)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestAsItsOwnProcess(unittest.TestCase):
+    """Q11: through the host's socket, holding only its grant, the monitor decides
+    exactly as it does in-process; run as a process, its decisions carry its name."""
+
+    def setUp(self):
+        import modhost as M
+        self.M = M
+        self.p = Paddock(stuck_from(60), minutes=600)
+        self.dir = tempfile.mkdtemp(prefix="fm-", dir="/tmp" if os.path.isdir("/tmp") else None)
+        self.path = os.path.join(self.dir, "m.sock")
+        self.host = M.ModuleHost(self.p.log, self.p.state, self.path).start()
+        manifest = M.Manifest.load(os.path.join(HERE, "module.json"))
+        self.grant, self.token = M.grant(self.p.log, manifest, datastreams=[self.p.ds.id])
+
+    def tearDown(self):
+        self.host.stop()
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_through_the_socket_it_decides_as_it_does_in_process(self):
+        local = W.Monitor(Log())
+        with self.M.ModuleClient(self.path, self.token) as c:
+            remote = W.Monitor(c.log())
+            for m in (30, 100, 200, 400, 600):
+                t = T0 + m * MIN
+                a = [(e.payload["rule"], e.payload["alert"], e.payload["context"])
+                     for e in local.check(self.p.state, [self.p.trough], t)]
+                b = [(e.payload["rule"], e.payload["alert"], e.payload["context"])
+                     for e in remote.check(c.state(t), [self.p.trough], t)]
+                self.assertEqual(a, b, m)
+            self.assertEqual([e.id for e in W.Monitor(c.log()).standing()],
+                             [e.id for e in remote.standing()], "it remembers through the host")
+
+    def test_as_a_process_its_decisions_carry_its_name(self):
+        config = os.path.join(self.dir, "troughs.json")
+        with open(config, "w", encoding="utf-8") as h:
+            json.dump({"troughs": [{"datastream": str(self.p.ds.id), "capacity_l": 400.0}]}, h)
+        done = subprocess.run([sys.executable, "-I", os.path.join(HERE, "water.py"),
+                               "--socket", self.path, "--config", config,
+                               "--at", (T0 + 200 * MIN).isoformat()],
+                              env={"FIELDMESH_MODULE_TOKEN": self.token,
+                                   "PATH": os.environ.get("PATH", "")},
+                              capture_output=True, text=True, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        said = [json.loads(line) for line in done.stdout.splitlines()]
+        self.assertEqual([s["rule"] for s in said], ["water-not-refilling"])
+        decisions = [e for e in self.p.log.events if e.kind == "decision"]
+        self.assertEqual([(e.payload["module"], e.payload["module_grant"]) for e in decisions],
+                         [("water", str(self.grant.id))])
 
 
 if __name__ == "__main__":
