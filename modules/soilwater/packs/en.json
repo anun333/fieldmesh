@@ -17,6 +17,7 @@
   "soilwater.enough": "{bed} has enough water: {left:.0f}% of what its plants can use is still there.",
   "soilwater.regimen.no_response": "{bed}'s probes show almost no new water since this morning: the root zone rose {rise_percent:.1f} points, where {mm:.0f} mm of watering should add about {expected_percent:.1f}. If it was watered, check the drip line and its emitters; if it was not, it still needs water.",
   "soilwater.regimen.no_water_arrived": "{bed}'s valve ran {valve_open_min:.0f} minutes this morning, but its probes show almost no new water: the root zone rose {rise_percent:.1f} points, where {mm:.0f} mm should add about {expected_percent:.1f}. Check the drip line and its emitters for a blockage, and the line for a leak.",
-  "soilwater.regimen.not_watered": "{bed} was due {mm:.0f} mm of water this morning, and its valve did not open. It still needs water."
+  "soilwater.regimen.not_watered": "{bed} was due {mm:.0f} mm of water this morning, and its valve did not open. It still needs water.",
+  "soilwater.layered": "{bed}'s soil is layered: its probe at {shallow} cm drains back to {shallow_fc:.0f}% water after a soaking, the one at {deep} cm to {deep_fc:.0f}%. One soil's values cannot describe it, and the advice may wait too long for the layer whose water the roots cannot take. Give the bed each layer's field capacity and wilting point, from a soil test of each layer or the soil survey's horizons."
  }
 }

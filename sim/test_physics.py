@@ -149,6 +149,103 @@ class TestSoilBed(unittest.TestCase):
         self.assertGreater(bed.theta, 0.20)
 
 
+def _uniform(**kw):
+    return ph.LayeredBed(name="uniform", depth_mm=150,
+                         horizons=(ph.Horizon(600, **ph.SANDY_LOAM),), **kw)
+
+
+def _layered(**kw):
+    """A landscaped bed: 10 cm of brought-in topsoil over a compacted clay subsoil."""
+    return ph.LayeredBed(name="layered", depth_mm=150,
+                         horizons=(ph.Horizon(100, **ph.SANDY_LOAM),
+                                   ph.Horizon(500, **ph.COMPACTED_CLAY)), **kw)
+
+
+def _water(bed, mm_per_h: float, hours: float, after_h: float, *, start=JUNE):
+    """Water `bed` from 05:00 on a dry day; the topsoil's water (5 cm) every hour from
+    the watering's end."""
+    world = ph.World(start=start, climate=_dry_climate(), beds=[bed])
+    seen = []
+    for n in range(int((5 + hours + after_h) * 12)):
+        if 5 * 12 <= n < (5 + hours) * 12:
+            world.irrigate(bed.name, mm_per_h / 12.0)
+        world.step()
+        if n % 12 == 11 and n >= (5 + hours) * 12 - 1:
+            seen.append(bed.theta_at(0.05))
+    return seen
+
+
+def _half_drain_h(seen: list, before: float) -> int:
+    """Hours from the watering's end until the topsoil has lost half its rise."""
+    return next(h for h, v in enumerate(seen) if v - before <= (seen[0] - before) / 2)
+
+
+class TestLayeredBed(unittest.TestCase):
+    """A bed of horizons, for the soil the survey does not describe: brought-in
+    topsoil, sod's soil, a compacted subsoil (`physics.LayeredBed`)."""
+
+    def test_it_starts_soaked_and_drained_layer_by_layer(self):
+        bed = _layered()
+        self.assertEqual(bed.theta_at(0.05), ph.SANDY_LOAM["field_capacity"])
+        self.assertEqual(bed.theta_at(0.20), ph.COMPACTED_CLAY["field_capacity"])
+        self.assertEqual(bed.stress, 0.0)
+
+    def test_horizons_are_whole_layers_and_the_roots_end_inside_the_soil(self):
+        with self.assertRaises(ValueError):
+            ph.LayeredBed(name="x", depth_mm=150, horizons=(ph.Horizon(110, **ph.SANDY_LOAM),))
+        with self.assertRaises(ValueError):
+            ph.LayeredBed(name="x", depth_mm=700, horizons=(ph.Horizon(600, **ph.SANDY_LOAM),))
+        with self.assertRaises(ValueError):
+            ph.LayeredBed(name="x", horizons=())
+
+    def test_every_millimetre_is_accounted_for(self):
+        bed = _layered()
+        before = bed.stored_mm
+        world = ph.World(start=JUNE, climate=ph.Climate(seed=3), beds=[bed])
+        rain = given = 0.0
+        for n, truth in enumerate(world.run(days=4)):
+            rain += truth.weather.rain_mm
+            if n % 288 == 60:
+                world.irrigate("layered", 40.0)
+                given += 40.0
+        after = bed.stored_mm + bed.ponded_mm + bed.et_mm + bed.deep_mm + bed.runoff_mm
+        self.assertAlmostEqual(after, before + rain + given, places=6)
+
+    def test_a_uniform_bed_drains_a_watering_within_hours(self):
+        seen = _water(_uniform(), 25.0, 1.0, 24)
+        self.assertGreater(seen[0], 0.40, "the watering wets the topsoil")
+        self.assertLessEqual(_half_drain_h(seen, ph.SANDY_LOAM["field_capacity"]), 2)
+        self.assertLess(seen[-1] - ph.SANDY_LOAM["field_capacity"], 0.03,
+                        "and a day later it is back near field capacity")
+
+    def test_over_compacted_clay_the_water_perches_in_the_topsoil(self):
+        """The clay passes a millimetre an hour, so the topsoil holds the watering at
+        saturation for hours: the waterlogged lawn after a long run."""
+        seen = _water(_layered(), 25.0, 1.0, 24)
+        perched = sum(1 for v in seen if v >= ph.SANDY_LOAM["saturation"] - 0.01)
+        self.assertGreaterEqual(perched, 6)
+        self.assertGreaterEqual(_half_drain_h(seen, ph.SANDY_LOAM["field_capacity"]), 10)
+
+    def test_a_long_run_runs_off_the_layered_bed_and_not_the_uniform_one(self):
+        uniform, layered = _uniform(), _layered()
+        _water(uniform, 25.0, 2.0, 1)
+        _water(layered, 25.0, 2.0, 1)
+        self.assertLess(uniform.runoff_mm, 1.0)
+        self.assertGreater(layered.runoff_mm, 15.0)
+
+    def test_the_same_water_in_short_runs_soaks_in(self):
+        """Cycle and soak: four quarter-hour runs an hour apart put the same 50 mm on
+        as two hours at 25 mm an hour, and less of it runs off."""
+        long_run, cycled = _layered(), _layered()
+        _water(long_run, 25.0, 2.0, 6)
+        world = ph.World(start=JUNE, climate=_dry_climate(), beds=[cycled])
+        for n in range(16 * 12):
+            if n >= 5 * 12 and (n - 5 * 12) % 48 < 6 and n < 5 * 12 + 4 * 48:
+                world.irrigate("layered", 50.0 / 24.0)
+            world.step()
+        self.assertLess(cycled.runoff_mm, long_run.runoff_mm)
+
+
 class TestIrrigation(unittest.TestCase):
     def test_millimetres_become_water_content_over_the_root_depth(self):
         bed = ph.SoilBed(name="b", theta=0.20, depth_mm=300.0)

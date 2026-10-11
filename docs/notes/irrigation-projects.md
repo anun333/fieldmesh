@@ -182,3 +182,27 @@ sunshine and humidity in the farm's log to compute ET from. The forecast collect
 humidity already. Sunshine it does not: NOAA's National Blend carries it (`dswrf`, which
 `tools/nbm_verify.py` reads), or a station measures it.
 
+
+## Soils the controllers do not see
+
+None of the open controllers above knows the soil it waters. OpenSprinkler scales a
+program by the weather, Smart Irrigation keeps a bucket of a size someone set, and
+pyfao56 takes field capacity and wilting point as given. In a yard that is often the
+wrong soil: topsoil brought in over a compacted subsoil, sod over the yard's own. Water
+soaks into the top layer, stalls at the dense one and perches, and the rest of a long run
+runs off. That is the "it just saturates" a weather-scaled timer produces.
+
+The soil advisory now learns each probe's field capacity from the level it drains back to
+after a soaking. When two probes in one bed learn values far apart, it says the bed is
+layered and asks for each layer's values ([modules/soilwater](../../modules/soilwater/README.md#the-beds-own-soil)).
+
+On the simulator's yard, 10 cm of sandy loam over compacted clay, set up with the soil
+survey's silt loam:
+
+* **One probe in the topsoil drowned it**: 680 mm in the summer of 2013.
+* **With learning, it applied 178 mm**, with no stressed hour.
+* **A probe in each layer** needed each layer's values as well before its roots were never
+  short in the 2012 drought.
+
+This is what a probe gives that weather alone cannot. It is also what a controller's
+soil-based watering scale (item 5) would carry, once §6 allows one.

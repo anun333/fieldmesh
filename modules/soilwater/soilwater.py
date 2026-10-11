@@ -40,6 +40,7 @@ it changes.
 from __future__ import annotations
 
 import datetime as _dt
+import math
 import os
 import sys
 from dataclasses import dataclass, replace
@@ -51,7 +52,7 @@ sys.path.insert(0, os.path.join(HERE, os.pardir, "rules"))
 import i18n  # noqa: E402
 import rules as R  # noqa: E402
 import vocab as V  # noqa: E402
-from model import DatastreamKind, Usable  # noqa: E402
+from model import SURFACES, DatastreamKind, Usable  # noqa: E402
 
 i18n.register(os.path.join(HERE, "packs"), "soilwater")
 
@@ -61,6 +62,12 @@ DRYING_WINDOW_H = 36.0
 #: The shortest stretch a drying rate is measured over.
 DRYING_MIN_H = 6.0
 NO_ESTIMATE = 1e6
+#: What grows in a bed, in a word.
+PLANTINGS = ("vegetables", "flowers", "shrubs", "turf", "trees", "mixed")
+#: Two probes in one bed whose learned field capacities differ by this much are in two
+#: soils: several times the spread of one probe's drain-downs (about 0.02), and about a
+#: texture class apart (a sandy loam holds roughly 0.20, a loam 0.27).
+LAYER_GAP = 0.08
 
 
 @dataclass(frozen=True)
@@ -68,7 +75,12 @@ class Bed:
     """One bed the advisory looks after: its land id (the feature its probes are
     installed in), its soil's water limits as volume fractions, and its crop's root
     depth and depletion fraction. The limits come from a soil test or SSURGO
-    (`tools/soil_survey.py` reads both from the survey for a point)."""
+    (`tools/soil_survey.py` reads both from the survey for a point).
+
+    A bed whose soil changes with depth can say so: `layers` are `(bottom_m,
+    field_capacity, wilting_point)`, top down, from a soil test of each layer or the
+    survey's horizons; below the last, and for a bed with none, the bed's own two
+    values stand."""
 
     feature: UUID
     field_capacity: float
@@ -83,6 +95,16 @@ class Bed:
     #: when a controller reports it — an OpenSprinkler's station through the MQTT bridge.
     #: With it the watering check can tell a blocked line from a bed nobody watered.
     valve: UUID | None = None
+    #: Learn the bed's field capacity from its own probes (`learned_capacity`), the
+    #: configured value standing until there is enough to learn from.
+    learn: bool = True
+    #: What covers the soil (`model.SURFACES`: bare, organic or inorganic mulch, plastic,
+    #: turf) and what grows in it (`PLANTINGS`). The bed's record, written into each
+    #: decision, so a season's advice can be read against what the bed was: a mulched
+    #: shrub bed dries slower than bare vegetables, and the probes see that, not this.
+    surface: str | None = None
+    planting: str | None = None
+    layers: tuple = ()
 
     def __post_init__(self) -> None:
         if not 0 < self.wilting_point < self.field_capacity < 1:
@@ -91,6 +113,22 @@ class Bed:
             raise ValueError("a root zone has a depth")
         if not 0 < self.depletion_fraction < 1:
             raise ValueError("the depletion fraction is between 0 and 1 (FAO-56's p)")
+        if self.surface is not None and self.surface not in SURFACES:
+            raise ValueError(f"a bed's surface is one of {SURFACES}")
+        if self.planting is not None and self.planting not in PLANTINGS:
+            raise ValueError(f"a bed's planting is one of {PLANTINGS}")
+        bottoms = [layer[0] for layer in self.layers]
+        if bottoms != sorted(set(bottoms)) or any(
+                not (b > 0 and 0 < wp < fc < 1) for b, fc, wp in self.layers):
+            raise ValueError("layers are (bottom_m, field capacity, wilting point), top down, "
+                             "with 0 < wilting point < field capacity < 1")
+
+    def limits_at(self, depth_m: float) -> tuple[float, float]:
+        """The field capacity and wilting point of the soil at a depth."""
+        for bottom, fc, wp in self.layers:
+            if depth_m <= bottom:
+                return fc, wp
+        return self.field_capacity, self.wilting_point
 
     @property
     def taw_mm(self) -> float:
@@ -176,6 +214,154 @@ def _drying_mm_per_day(rows, at, root_depth_mm) -> float:
     return max(0.0, (peak_v - last_v) * root_depth_mm / (span_h / 24.0))
 
 
+# ------------------------------------------------------------ learned soil
+
+#: How far back a probe's field capacity is learned from, and the fewest drain-downs it
+#: is learned from: until then the bed's configured value stands.
+LEARN_DAYS = 60.0
+LEARN_MIN_DRAINS = 3
+#: A wetting: the probe's reading, smoothed, rising by this much within four hours.
+WETTING_RISE = 0.04
+#: A drain-down is followed this long at most, and counts only if it runs this long
+#: before the next wetting.
+DRAIN_MAX_H = 72
+DRAIN_MIN_H = 16
+#: A drain-down says nothing about capacity unless the probe was this much wetter than
+#: the level it drained back to: a watering that only refilled the soil part way does not
+#: drain at all.
+DRAIN_MIN_EXCESS = 0.02
+#: The drainage time constants tried, hours.
+DRAIN_TAUS_H = (0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0, 24.0, 36.0)
+
+
+def _smoothed(values: list) -> list:
+    """A running median of three: one noisy reading is not a wetting."""
+    out = []
+    for i in range(len(values)):
+        window = sorted(values[max(0, i - 1):i + 2])
+        out.append(window[len(window) // 2])
+    return out
+
+
+def _solve3(m: list, v: list):
+    a = [row[:] + [v[i]] for i, row in enumerate(m)]
+    for c in range(3):
+        p = max(range(c, 3), key=lambda r: abs(a[r][c]))
+        if abs(a[p][c]) < 1e-12:
+            return None
+        a[c], a[p] = a[p], a[c]
+        for r in range(3):
+            if r != c:
+                f = a[r][c] / a[c][c]
+                for k in range(c, 4):
+                    a[r][k] -= f * a[c][k]
+    return [a[i][3] / a[i][i] for i in range(3)]
+
+
+def drain_fit(points: list):
+    """Fit one drain-down, `[(hours since its peak, reading)]`, as water above field
+    capacity draining away while the crop dries the soil steadily:
+
+        θ(t) = fc + a·exp(−t / τ) − r·t
+
+    For each τ in `DRAIN_TAUS_H`, `fc`, `a` and `r` are a linear least-squares fit; a
+    drain-down cannot gain water, so `a` and `r` are not negative; the τ that fits best
+    wins. Returns `{"field_capacity", "excess", "drying_per_day", "tau_h"}` or None."""
+    best = None
+    for tau in DRAIN_TAUS_H:
+        rows = [(1.0, math.exp(-t / tau), -t) for t, _ in points]
+        m = [[sum(x[i] * x[j] for x in rows) for j in range(3)] for i in range(3)]
+        b = [sum(x[i] * y for x, (_, y) in zip(rows, points)) for i in range(3)]
+        solved = _solve3(m, b)
+        if solved is None or solved[1] < 0 or solved[2] < 0:
+            continue
+        fc, a, r = solved
+        sse = sum((y - fc - a * x[1] - r * x[2]) ** 2 for x, (_, y) in zip(rows, points))
+        if best is None or sse < best[0]:
+            best = (sse, fc, a, r, tau)
+    if best is None:
+        return None
+    _, fc, a, r, tau = best
+    return {"field_capacity": fc, "excess": a, "drying_per_day": r * 24.0, "tau_h": tau}
+
+
+def drain_downs(readings: list) -> list:
+    """Every drain-down in a probe's hourly readings, `[(time, θ)]` oldest first: from the
+    peak of each wetting until the next wetting, or `DRAIN_MAX_H`, when that is at least
+    `DRAIN_MIN_H` of readings with no gap over three hours. Each is `drain_fit`'s result
+    with its `peak_at`, and `half_drain_h`, the hours the probe took to lose half of what
+    the wetting added."""
+    if len(readings) < DRAIN_MIN_H:
+        return []
+    times = [t for t, _ in readings]
+    smooth = _smoothed([v for _, v in readings])
+
+    def rise_at(i: int, floor: int) -> bool:
+        lo = min(smooth[max(floor, i - 4):i], default=smooth[i])
+        return smooth[i] - lo >= WETTING_RISE
+
+    out, i = [], 1
+    while i < len(readings):
+        if not rise_at(i, 0):
+            i += 1
+            continue
+        peak = i
+        while peak + 1 < len(readings) and smooth[peak + 1] >= smooth[peak] - 0.005 \
+                and times[peak + 1] - times[peak] <= 3 * HOUR:
+            peak += 1
+        end = peak + 1
+        while end < len(readings) and (times[end] - times[peak]) / HOUR <= DRAIN_MAX_H \
+                and times[end] - times[end - 1] <= 3 * HOUR and not rise_at(end, peak):
+            end += 1
+        span = times[end - 1] - times[peak]
+        if span / HOUR >= DRAIN_MIN_H:
+            points = [((times[k] - times[peak]) / HOUR, readings[k][1]) for k in range(peak, end)]
+            fit = drain_fit(points)
+            if fit is not None:
+                before = min(smooth[max(0, i - 12):i + 1])
+                half = before + (smooth[peak] - before) / 2.0
+                fit["half_drain_h"] = next(((times[k] - times[peak]) / HOUR
+                                            for k in range(peak, end) if smooth[k] <= half), None)
+                fit["peak_at"] = times[peak]
+                out.append(fit)
+        i = max(end, i + 1)
+    return out
+
+
+def learned_capacity(readings: list):
+    """A probe's field capacity, learned from its own drain-downs: the median of the
+    levels it drained back to, from those where it had been clearly wetter
+    (`DRAIN_MIN_EXCESS`), when there are `LEARN_MIN_DRAINS` of them; else None.
+    `{"field_capacity", "drains", "half_drain_h"}`, the last the median hours to lose half
+    a wetting, or None when none did within its drain-down."""
+    import statistics
+    kept = [d for d in drain_downs(readings) if d["excess"] >= DRAIN_MIN_EXCESS]
+    if len(kept) < LEARN_MIN_DRAINS:
+        return None
+    halves = [d["half_drain_h"] for d in kept if d["half_drain_h"] is not None]
+    return {"field_capacity": round(statistics.median(d["field_capacity"] for d in kept), 3),
+            "drains": len(kept),
+            "half_drain_h": statistics.median(halves) if halves else None}
+
+
+def _capacity(state, bed: Bed, ds, depth_m: float, wilting: float, rows: list,
+              at: _dt.datetime):
+    """A probe's learned field capacity at `at`, from its readings of the last
+    `LEARN_DAYS` that the health checks had passed by then, or None: not learning, not
+    enough drain-downs yet, or a value its soil's wilting point says cannot be right."""
+    if not bed.learn:
+        return None
+    since = at - _dt.timedelta(days=LEARN_DAYS)
+    readings = []
+    for o in rows:
+        if o.measured_at >= since and state.quality_as_of(o.id, at)[0] is Usable.GOOD:
+            readings.append((o.measured_at, float(o.result)))
+    found = learned_capacity(readings)
+    if found is None or found["field_capacity"] <= wilting + 0.03:
+        return None
+    return {**found, "datastream": ds.id, "depth_m": depth_m}
+
+
 def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = None):
     """What the advisory knew about a bed at `at`: `(context, inputs)`."""
     root_m = bed.root_depth_mm / 1000.0
@@ -187,12 +373,15 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
             "hours_since_reading": NO_ESTIMATE, "theta": 0.0,
             "wetter_than_capacity": False, "depletion_mm": 0.0, "refill_mm": 0.0,
             "used_percent": 0.0, "left_percent": 0.0, "rain_mm": 0.0,
-            "days_to_water": NO_ESTIMATE, "probes": len(in_zone)}
+            "days_to_water": NO_ESTIMATE, "probes": len(in_zone),
+            "field_capacity": bed.field_capacity, "wilting_point": bed.wilting_point,
+            "learned_probes": 0, "layered": False, "layers_configured": bool(bed.layers)}
     inputs = {"bed": str(bed.feature), "observations": [], "forecast": None}
+    inputs.update({k: getattr(bed, k) for k in ("surface", "planting") if getattr(bed, k)})
     if not in_zone:
         return base, inputs
 
-    latest, flagged, series = [], set(), []
+    latest, flagged, series, capacities, limits = [], set(), [], [], []
     for ds, depth, w in in_zone:
         inst = state.installation_of(ds.sensor, at)
         rows = sorted((o for o in state.live_observations_of(ds.id)
@@ -214,6 +403,8 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
         fresh = (at - newest.measured_at) / HOUR <= bed.stale_after_h
         if fresh and good and good[-1] is newest:
             series.append((w, good))
+            limits.append(bed.limits_at(depth))
+            capacities.append(_capacity(state, bed, ds, depth, limits[-1][1], rows, at))
     if not latest:
         return base, inputs
     base["has_reading"] = True
@@ -224,6 +415,22 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
 
     total = sum(w for w, _ in series)
     theta = sum(w * good[-1].result for w, good in series) / total
+    # Each probe's slice of the root zone at its own soil's limits, the field capacity
+    # learned where there is enough to learn from.
+    capacity = sum(w * (c["field_capacity"] if c else fc)
+                   for (w, _), c, (fc, _) in zip(series, capacities, limits)) / total
+    wilting = sum(w * wp for (w, _), (_, wp) in zip(series, limits)) / total
+    learned = [{"datastream": str(c["datastream"]), **{k: c[k] for k in
+                ("depth_m", "field_capacity", "drains", "half_drain_h")}}
+               for c in capacities if c]
+    bed = replace(bed, field_capacity=capacity, wilting_point=wilting)
+    if len(learned) >= 2:
+        top, bottom = learned[0], learned[-1]
+        base.update({"layered": abs(bottom["field_capacity"] - top["field_capacity"]) >= LAYER_GAP,
+                     "shallow_cm": round(top["depth_m"] * 100.0),
+                     "deep_cm": round(bottom["depth_m"] * 100.0),
+                     "shallow_fc_percent": round(top["field_capacity"] * 100.0),
+                     "deep_fc_percent": round(bottom["field_capacity"] * 100.0)})
     # The root zone's water over time, on the hours every counted probe has a reading.
     by_time = {}
     for w, good in series:
@@ -242,8 +449,12 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
         rain = sum(o.result for o in ahead if isinstance(o.result, (int, float)))
         inputs["forecast"] = str(forecast)
     inputs["observations"] = [str(good[-1].id) for _, good in series]
+    if learned:
+        inputs["learned"] = learned
     base.update({
-        "usable": True, "theta": round(theta, 3),
+        "usable": True, "theta": round(theta, 3), "field_capacity": round(capacity, 3),
+        "wilting_point": round(wilting, 3),
+        "learned_probes": len(learned),
         "wetter_than_capacity": theta > bed.field_capacity + bed.wet_margin,
         "depletion_mm": round(depletion, 1), "refill_mm": round(depletion, 1),
         "used_percent": round(100.0 * min(1.0, depletion / bed.taw_mm), 0),
@@ -264,7 +475,8 @@ class Advisor:
     def judge(self, state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = None) -> dict:
         """The decision for one bed, without writing it."""
         context, inputs = bed_context(state, bed, at, forecast=forecast)
-        for rule in rules_for(bed):
+        for rule in rules_for(replace(bed, field_capacity=context["field_capacity"],
+                                      wilting_point=context["wilting_point"])):
             d = R.judge(rule, context, inputs, at)
             if d["alert"]:
                 # One answer per bed per morning, whichever rule gave it (§7.7): the
@@ -276,8 +488,40 @@ class Advisor:
         raise AssertionError("the last rule holds whenever none before it does")
 
     def advise(self, state, beds, at: _dt.datetime, *, forecast: UUID | None = None) -> list:
-        return [self.log.append(R.DECISION, self.judge(state, bed, at, forecast=forecast))
-                for bed in beds]
+        """The morning's decision for each bed, and for a bed its probes show is
+        layered, a note saying so (`layering`)."""
+        out = []
+        for bed in beds:
+            decision = self.judge(state, bed, at, forecast=forecast)
+            out.append(self.log.append(R.DECISION, decision))
+            note = self.layering(decision, bed, at)
+            if note is not None:
+                out.append(self.log.append(R.DECISION, note))
+        return out
+
+    @staticmethod
+    def layering(decision: dict, bed: Bed, at: _dt.datetime) -> dict | None:
+        """When two of a bed's probes have learned field capacities `LAYER_GAP` or more
+        apart and the bed was given one soil's values, a note that it is layered: one
+        wilting point cannot describe two soils, and the advice can wait too long for
+        the one that holds water the roots cannot take. None otherwise."""
+        context = decision["context"]
+        if not context.get("layered") or context.get("layers_configured"):
+            return None
+        names = ("layered", "layers_configured", "shallow_cm", "deep_cm",
+                 "shallow_fc_percent", "deep_fc_percent")
+        d = R.judge(layering_rule(), {k: context[k] for k in names}, decision["inputs"], at)
+        d.update({"subject": str(bed.feature), "topic": f"layers/{bed.feature}",
+                  "valid_until": (at + _dt.timedelta(days=1)).isoformat()})
+        return d
+
+
+def layering_rule() -> R.Rule:
+    return R.Rule("soil-layered", "1", "layered && !layers_configured", {},
+                  alert_key="soilwater.layered", subject_param="bed",
+                  message_params={"shallow": "shallow_cm", "deep": "deep_cm",
+                                  "shallow_fc": "shallow_fc_percent",
+                                  "deep_fc": "deep_fc_percent"})
 
 
 # ---------------------------------------------------------------- regimen
@@ -354,7 +598,8 @@ def render(decision: dict, language: str = "en", state=None) -> str | None:
 
 def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              probe_noise: float = 0.01, check=None, blocked=frozenset(),
-             forgotten=frozenset(), valve: bool = False) -> dict:
+             forgotten=frozenset(), valve: bool = False, soil=None, depths=(0.20,),
+             configured=None, learn: bool = True, layers=()) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
@@ -368,7 +613,16 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     bed's valve reports opening and shutting, as an OpenSprinkler station does through the
     MQTT bridge: it runs on a blocked day and stays shut on a forgotten one. The result's
     `checks` says, per watering, whether the regimen said the water did not arrive, and in
-    which words."""
+    which words.
+
+    `soil` is the virtual bed, the drill's (`irrigation_drill.bed`) by default; a
+    `physics.LayeredBed` makes a bed of horizons, read by a probe at each of `depths`.
+    `configured` is the field capacity and wilting point the bed is set up with, as
+    `(fc, wp)`, the virtual bed's own by default: give it a soil survey's for the bed a
+    survey does not describe, and `layers` each layer's (`Bed.layers`). `learn` lets the
+    advisory learn the field capacity from the probes (`Bed.learn`). The result adds what ran off, the field capacity the last
+    advice used, what each probe had learned by then, and whether it said the bed is
+    layered."""
     import statistics
     import random
 
@@ -381,19 +635,23 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     from model import ClockQuality, Datastream, Installation, Observation
 
     state, fc, truth = D.forecasts(climate, start, days, FCS.Skill(), seed)
-    b = D.bed()
+    b = soil if soil is not None else D.bed()
     world = ph.World(start=start, climate=climate, beds=[b])
-    land, sensor = uuid7(), uuid7()
-    raw = Datastream(id=uuid7(), thing=uuid7(), sensor=sensor, observed_property=V.SOIL_WATER,
-                     feature=land, kind=DatastreamKind.RAW, unit="1",
-                     expected_interval=3600.0, max_latency=3600.0)
-    probe = Datastream(id=uuid7(), thing=raw.thing, sensor=sensor,
-                       observed_property=V.SOIL_WATER, feature=land,
-                       kind=DatastreamKind.DERIVED, derived_from=raw.id, unit="cm3/cm3",
-                       expected_interval=3600.0, max_latency=3600.0)
+    land, probes = uuid7(), []
+    for depth in depths:
+        sensor = uuid7()
+        raw = Datastream(id=uuid7(), thing=uuid7(), sensor=sensor,
+                         observed_property=V.SOIL_WATER, feature=land, kind=DatastreamKind.RAW,
+                         unit="1", expected_interval=3600.0, max_latency=3600.0)
+        probe = Datastream(id=uuid7(), thing=raw.thing, sensor=sensor,
+                           observed_property=V.SOIL_WATER, feature=land,
+                           kind=DatastreamKind.DERIVED, derived_from=raw.id, unit="cm3/cm3",
+                           expected_interval=3600.0, max_latency=3600.0)
+        for rec in (raw, probe, Installation(uuid7(), sensor, land, start - 24 * HOUR,
+                                             depth_m=depth)):
+            state.add(rec)
+        probes.append((probe, depth))
     cal = uuid7()
-    for rec in (raw, probe, Installation(uuid7(), sensor, land, start - 24 * HOUR, depth_m=0.20)):
-        state.add(rec)
     valve_ds = None
     if valve:
         valve_ds = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(),
@@ -407,10 +665,11 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         seq[0] += 1
         state.add(Observation(uuid7(), valve_ds.id, when, 1.0, when, is_open,
                               ClockQuality.NETWORK, node="opensprinkler", boot=1, seq=seq[0] & 0xFFFF))
-    bed = Bed(land, b.field_capacity, b.wilting_point, root_depth_mm=b.depth_mm,
-              skip_rain_mm=D.SKIP_MM, valve=valve_ds.id if valve_ds else None)
+    capacity, wilting = configured or (b.field_capacity, b.wilting_point)
+    bed = Bed(land, capacity, wilting, root_depth_mm=b.depth_mm, skip_rain_mm=D.SKIP_MM,
+              valve=valve_ds.id if valve_ds else None, learn=learn, layers=tuple(layers))
     advisor, noise = Advisor(Log()), random.Random(seed)
-    applied, dose_now, stressed_h, stress, advice = 0.0, 0.0, 0.0, [], {}
+    applied, dose_now, stressed_h, stress, advice, last, last_at = 0.0, 0.0, 0.0, [], {}, None, None
     runner = None
     if check is not None:
         import regimen as G
@@ -421,13 +680,16 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     for n in range(int(days * 24 * 12)):
         when = world.when
         if when.minute == 0:
-            state.add(Observation(uuid7(), probe.id, when, 60.0, when,
-                                  round(b.theta + noise.gauss(0.0, probe_noise), 3),
-                                  ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
-                                  calibration=cal))
+            for probe, depth in probes:
+                truth = b.theta_at(depth) if hasattr(b, "theta_at") else b.theta
+                state.add(Observation(uuid7(), probe.id, when, 60.0, when,
+                                      round(truth + noise.gauss(0.0, probe_noise), 3),
+                                      ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
+                                      calibration=cal))
         if when.hour == D.DECIDE_HOUR and when.minute == 0:
             d = advisor.judge(state, bed, when, forecast=fc.id)
             advice[d["rule"]] = advice.get(d["rule"], 0) + 1
+            last, last_at = d, when
             want = d["context"]["refill_mm"] if d["rule"] == "soil-water-now" else 0.0
             dose_now = want / 12.0
             if runner is not None:
@@ -437,7 +699,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             if valve_ds is not None and when.minute == 0:
                 report(when, True)
             if day not in blocked:
-                world.irrigate("field", dose_now)
+                world.irrigate(b.name, dose_now)
             applied += dose_now
         if valve_ds is not None and when.hour == D.WATER_HOUR + 1 and when.minute == 0 \
                 and dose_now and day not in forgotten:
@@ -452,11 +714,15 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         if when.hour == D.WATER_HOUR + 1 and when.minute == 0:
             dose_now = 0.0
         tick = world.step()
-        s = tick.soil_stress["field"]
+        s = tick.soil_stress[b.name]
         stress.append(s)
         if s >= 0.5:
             stressed_h += 1.0 / 12.0
     return {"policy": "advisory", "applied_mm": applied, "drained_mm": b.drained_mm,
+            "runoff_mm": b.runoff_mm, "field_capacity": last["context"]["field_capacity"],
+            "learned": [{k: v for k, v in x.items() if k != "datastream"}
+                        for x in last["inputs"].get("learned", [])],
+            "layered": Advisor.layering(last, bed, last_at) is not None,
             "mean_stress": statistics.mean(stress), "stressed_h": stressed_h,
             "advice": advice, "checks": checks if runner is not None else None}
 
@@ -480,7 +746,9 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     with open(args.config, encoding="utf-8") as h:
         config = json.load(h)
-    beds = [Bed(**{**b, "feature": UUID(b["feature"])}) for b in config["beds"]]
+    beds = [Bed(**{**b, "feature": UUID(b["feature"]),
+                   "layers": tuple(tuple(x) for x in b.get("layers", ()))})
+            for b in config["beds"]]
     forecast = UUID(config["forecast"]) if config.get("forecast") else None
     at = (_dt.datetime.fromisoformat(args.at) if args.at
           else _dt.datetime.now(tz=_dt.timezone.utc))

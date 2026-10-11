@@ -17,6 +17,7 @@
   "soilwater.enough": "{bed} tiene agua suficiente: aún le queda el {left:.0f} % del agua que sus plantas pueden usar.",
   "soilwater.regimen.no_response": "Las sondas de {bed} casi no muestran agua nueva desde esta mañana: la zona de raíces subió {rise_percent:.1f} puntos, cuando {mm:.0f} mm de riego deberían sumar unos {expected_percent:.1f}. Si se regó, revise la línea de goteo y sus goteros; si no, todavía necesita agua.",
   "soilwater.regimen.no_water_arrived": "La válvula de {bed} estuvo abierta {valve_open_min:.0f} minutos esta mañana, pero sus sondas casi no muestran agua nueva: la zona de raíces subió {rise_percent:.1f} puntos, cuando {mm:.0f} mm deberían sumar unos {expected_percent:.1f}. Revise la línea de goteo y sus goteros por si están tapados, y la línea por si tiene una fuga.",
-  "soilwater.regimen.not_watered": "A {bed} le tocaban {mm:.0f} mm de agua esta mañana y su válvula no se abrió. Todavía necesita agua."
+  "soilwater.regimen.not_watered": "A {bed} le tocaban {mm:.0f} mm de agua esta mañana y su válvula no se abrió. Todavía necesita agua.",
+  "soilwater.layered": "El suelo de {bed} tiene capas: su sonda a {shallow} cm vuelve a {shallow_fc:.0f} % de agua después de un riego abundante, la de {deep} cm a {deep_fc:.0f} %. Los valores de un solo suelo no lo describen, y el consejo puede esperar demasiado por la capa cuya agua las raíces no pueden tomar. Indique la capacidad de campo y el punto de marchitez de cada capa, de un análisis de suelo de cada una o de los horizontes del levantamiento de suelos."
  }
 }

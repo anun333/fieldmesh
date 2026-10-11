@@ -172,6 +172,20 @@ class TestAdvice(unittest.TestCase):
         g.probe(lambda h: 0.22, depth=0.40)
         self.assertEqual(g.advice()[0], "soil-no-probe")
 
+    def test_what_covers_the_bed_and_grows_in_it_goes_on_the_record(self):
+        g = Garden()
+        g.bed = S.Bed(g.land, 0.30, 0.12, surface="organic_mulch", planting="shrubs")
+        g.probe(lambda h: 0.25)
+        _, d = g.advice()
+        self.assertEqual((d["inputs"]["surface"], d["inputs"]["planting"]),
+                         ("organic_mulch", "shrubs"))
+        _, d = Garden().advice()
+        self.assertNotIn("surface", d["inputs"])
+        with self.assertRaises(ValueError):
+            S.Bed(g.land, 0.30, 0.12, surface="gravel")
+        with self.assertRaises(ValueError):
+            S.Bed(g.land, 0.30, 0.12, planting="lawn")
+
     def test_one_decision_per_bed_and_the_advice_in_the_readers_language(self):
         g = Garden()
         g.probe(lambda h: 0.22)
@@ -185,6 +199,131 @@ class TestAdvice(unittest.TestCase):
                          "Water bed 3 today: 44% of the water its plants can use is gone. "
                          "About 24 mm brings it back to field capacity.")
         self.assertIn("Riegue cama 3 hoy: ya se gastó el 44 %", S.render(event.payload, "es", g.state))
+
+
+def _drains(cycles: int, *, capacity=0.22, every_h=72, lead_h=12, excess=0.18, tau_h=3.0,
+            drying_per_h=0.0006, noise=0.005, seed=1):
+    """A probe's hours `(h, θ)`: dry and flat for `lead_h`, then a wetting every
+    `every_h`, each draining back towards `capacity` while the crop dries the soil."""
+    import math
+    import random
+    rng, out = random.Random(seed), []
+    for h in range(lead_h):
+        out.append((h, capacity - 0.03 + rng.gauss(0.0, noise)))
+    for c in range(cycles):
+        for t in range(every_h):
+            v = capacity + excess * math.exp(-t / tau_h) - drying_per_h * t
+            out.append((lead_h + c * every_h + t, v + rng.gauss(0.0, noise)))
+    return out
+
+
+def _timed(points):
+    return [(T0 + h * HOUR, v) for h, v in points]
+
+
+class TestLearnedCapacity(unittest.TestCase):
+    """Field capacity learned from the bed's own probe: the level it drains back to after
+    a soaking (`learned_capacity`), for the bed the soil survey does not describe."""
+
+    def test_a_drain_down_is_fitted_to_the_level_it_drains_back_to(self):
+        points = [(float(h - 12), v) for h, v in _drains(1)[12:]]
+        fit = S.drain_fit(points)
+        self.assertAlmostEqual(fit["field_capacity"], 0.22, delta=0.01)
+        self.assertAlmostEqual(fit["excess"], 0.18, delta=0.03)
+        self.assertIn(fit["tau_h"], (2.0, 3.0, 4.0))
+
+    def test_each_wetting_is_found_and_one_noisy_reading_is_not_one(self):
+        readings = _timed(_drains(3))
+        self.assertEqual(len(S.drain_downs(readings)), 3)
+        spiked = list(readings)
+        h, v = spiked[40]
+        spiked[40] = (h, v + 0.08)
+        self.assertEqual(len(S.drain_downs(spiked)), 3)
+
+    def test_three_drain_downs_teach_it_and_two_do_not(self):
+        self.assertIsNone(S.learned_capacity(_timed(_drains(2))))
+        found = S.learned_capacity(_timed(_drains(3)))
+        self.assertAlmostEqual(found["field_capacity"], 0.22, delta=0.01)
+        self.assertEqual(found["drains"], 3)
+        self.assertLessEqual(found["half_drain_h"], 4)
+
+    def test_a_watering_that_only_refills_part_way_teaches_nothing(self):
+        """Back up to 0.20 and drying from there: the soil never held more than it
+        could, so nothing drained, and the 0.20 says nothing about capacity."""
+        readings = _timed(_drains(4, capacity=0.20, excess=0.0, drying_per_h=0.001))
+        rising = [(t, v + (0.05 if (t - T0) / HOUR >= 12 else 0.0)) for t, v in readings]
+        self.assertIsNone(S.learned_capacity(_timed(_drains(4, excess=0.0))))
+        self.assertIsNone(S.learned_capacity(rising))
+
+    def test_a_gap_ends_a_drain_down(self):
+        readings = [(t, v) for t, v in _timed(_drains(4))
+                    if not 8 <= ((t - T0) / HOUR - 12) % 72 < 14]
+        self.assertEqual(S.drain_downs(readings), [])
+
+    @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+    def test_the_advice_uses_the_beds_own_capacity(self):
+        """Set up with a survey's 0.30, the bed drains back to 0.22 after every soaking:
+        a sandy fill the survey never saw. A day after its last soaking, on the configured
+        value it is a third short and needs water; on its own, it has most of its water
+        left."""
+        points = dict(_drains(4))
+        last = 12 + 3 * 72 + 24
+        g = Garden()
+        g.probe(lambda h: points[h], hours=last)
+        at = T0 + last * HOUR
+        rule, d = g.advice(at)
+        self.assertAlmostEqual(d["context"]["field_capacity"], 0.22, delta=0.01)
+        self.assertEqual(d["context"]["learned_probes"], 1)
+        self.assertEqual(d["inputs"]["learned"][0]["drains"], 4)
+        self.assertNotEqual(rule, "soil-water-now")
+        g.bed = S.replace(g.bed, learn=False)
+        rule, d = g.advice(at)
+        self.assertEqual(d["context"]["field_capacity"], 0.30)
+        self.assertEqual(rule, "soil-water-now")
+
+    def test_a_bed_can_give_each_layers_values(self):
+        bed = S.Bed(uuid7(), 0.38, 0.25, layers=((0.10, 0.20, 0.09),))
+        self.assertEqual(bed.limits_at(0.05), (0.20, 0.09))
+        self.assertEqual(bed.limits_at(0.10), (0.20, 0.09))
+        self.assertEqual(bed.limits_at(0.12), (0.38, 0.25))
+        for bad in (((0.10, 0.09, 0.20),), ((0.20, 0.2, 0.1), (0.10, 0.3, 0.1)),
+                    ((0.0, 0.2, 0.1),)):
+            with self.assertRaises(ValueError):
+                S.Bed(uuid7(), 0.38, 0.25, layers=bad)
+
+    @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+    def test_two_probes_in_two_soils_say_the_bed_is_layered(self):
+        """Sandy topsoil at 5 cm drains back to 0.22, clay at 12 cm to 0.40: the bed
+        is two soils, and its one pair of values cannot describe it."""
+        top, clay = dict(_drains(4)), dict(_drains(4, capacity=0.40, excess=0.05, seed=2))
+        last = 12 + 3 * 72 + 24
+        g = Garden()
+        g.probe(lambda h: top[h], depth=0.05, hours=last)
+        g.probe(lambda h: clay[h], depth=0.12, hours=last)
+        log = Log()
+        events = S.Advisor(log).advise(g.state, [g.bed], T0 + last * HOUR)
+        self.assertEqual([e.payload["rule"] for e in events][1:], ["soil-layered"])
+        note = events[1].payload
+        self.assertEqual(note["topic"], f"layers/{g.land}")
+        self.assertEqual((note["context"]["shallow_cm"], note["context"]["deep_cm"]), (5, 12))
+        g.state.add(Label(uuid7(), g.land, "bed 3", T0, language="en"))
+        g.state.add(Label(uuid7(), g.land, "cama 3", T0, language="es"))
+        self.assertIn("bed 3's soil is layered: its probe at 5 cm drains back to 22% water",
+                      S.render(note, "en", g.state))
+        self.assertIn("la de 12 cm a 40 %", S.render(note, "es", g.state))
+        g.bed = S.Bed(g.land, 0.38, 0.25, layers=((0.08, 0.20, 0.09),))
+        events = S.Advisor(log).advise(g.state, [g.bed], T0 + last * HOUR)
+        self.assertEqual(len(events), 1, "given each layer's values, it has nothing to add")
+
+    @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+    def test_a_capacity_the_wilting_point_rules_out_is_not_used(self):
+        points = dict(_drains(4))
+        g = Garden()
+        g.bed = S.Bed(g.land, field_capacity=0.30, wilting_point=0.20)
+        g.probe(lambda h: points[h], hours=max(points))
+        _, d = g.advice(T0 + max(points) * HOUR)
+        self.assertEqual(d["context"]["field_capacity"], 0.30)
+        self.assertEqual(d["context"]["learned_probes"], 0)
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
@@ -221,6 +360,65 @@ class TestBacktestOnARecordedSummer(unittest.TestCase):
     def test_every_morning_got_advice(self):
         self.assertEqual(sum(self.advisory["advice"].values()), 92)
         self.assertIn("soil-water-now", self.advisory["advice"])
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestLearningOnTheVirtualFarm(unittest.TestCase):
+    """A yard the soil survey does not describe: 10 cm of brought-in sandy loam over a
+    compacted clay subsoil, roots in the top 15 cm (`physics.LayeredBed`), on McAllister
+    Farm's recorded summers. The survey says silt loam, field capacity 0.30 and wilting
+    point 0.12. A soil test of each layer says 0.20 and 0.09 for the topsoil, 0.38 and
+    0.25 for the clay."""
+
+    SURVEY = (0.30, 0.12)
+
+    @classmethod
+    def setUpClass(cls):
+        import irrigation_drill as D
+        import physics as ph
+
+        def run(year, depths, learn, configured=cls.SURVEY, layers=()):
+            path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data",
+                                f"mcallister-{year}-summer.csv")
+            yard = ph.LayeredBed(name="yard", depth_mm=150,
+                                 horizons=(ph.Horizon(100, **ph.SANDY_LOAM),
+                                           ph.Horizon(500, **ph.COMPACTED_CLAY)))
+            return S.backtest(ph.RecordedClimate.from_csv(path, seed=1),
+                              _dt.datetime(year, 6, 1, tzinfo=_dt.timezone.utc), 92, seed=1,
+                              soil=yard, depths=depths, configured=configured, learn=learn,
+                              layers=layers)
+        cls.topsoil = {learn: run(2013, (0.05,), learn) for learn in (False, True)}
+        cls.survey_2012 = run(2012, (0.05, 0.12), True)
+        cls.tested_2012 = run(2012, (0.05, 0.12), True, (0.38, 0.25), ((0.10, 0.20, 0.09),))
+
+    def test_one_probe_in_the_topsoil_on_the_surveys_values_drowns_the_yard(self):
+        """It reads the topsoil at 0.23 as a quarter short of 0.30 and waters most days:
+        about 680 mm in the summer of 2013, nearly all of it drained past the roots."""
+        r = self.topsoil[False]
+        self.assertGreater(r["applied_mm"], 600)
+        self.assertGreater(r["advice"]["soil-water-now"], 45)
+
+    def test_learning_the_topsoils_own_capacity_it_waters_a_quarter_as_much(self):
+        off, on = self.topsoil[False], self.topsoil[True]
+        self.assertLess(on["applied_mm"], 0.3 * off["applied_mm"])
+        self.assertLess(on["drained_mm"], 0.4 * off["drained_mm"])
+        self.assertEqual(on["stressed_h"], 0.0)
+        self.assertAlmostEqual(on["field_capacity"], 0.23, delta=0.02)
+
+    def test_a_probe_in_each_layer_learns_each_layer_and_says_it_is_layered(self):
+        learned = {x["depth_m"]: x for x in self.survey_2012["learned"]}
+        self.assertAlmostEqual(learned[0.05]["field_capacity"], 0.23, delta=0.02)
+        self.assertAlmostEqual(learned[0.12]["field_capacity"], 0.40, delta=0.02)
+        self.assertTrue(self.survey_2012["layered"])
+
+    def test_given_each_layers_values_as_the_note_asks_its_roots_are_never_short(self):
+        """One wilting point for two soils counts water the clay holds and the roots
+        cannot take, so through the dry summer of 2012 the advice waited too long: 75
+        hours of stress. With each layer's own values, and the capacities still learned,
+        none, and no note."""
+        self.assertGreater(self.survey_2012["stressed_h"], 40)
+        self.assertEqual(self.tested_2012["stressed_h"], 0.0)
+        self.assertFalse(self.tested_2012["layered"])
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")

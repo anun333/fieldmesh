@@ -16,11 +16,14 @@ module's evidence base before that module exists.
 | **no probe** | nothing is installed within the root zone |
 | **unseen** | no reading for six hours |
 | **untrusted** | the newest readings failed the health checks |
+| **layered**, beside the morning's advice | two of its probes learned field capacities far apart, and the bed was given one soil's values ([below](#the-beds-own-soil)) |
 
 The arithmetic is FAO-56's root-zone balance read from the probes rather than modelled:
 `TAW = (field capacity − wilting point) × root depth`, depletion
 `Dr = (field capacity − θ) × root depth`, water when `Dr ≥ p × TAW`, `Dr` millimetres.
-The soil's limits come from a soil test or the survey (`tools/soil_survey.py`).
+The soil's limits come from a soil test or the survey (`tools/soil_survey.py`), by layer
+where the soil changes with depth. The field capacity is then learned from the probes
+themselves ([below](#the-beds-own-soil)).
 
 **The probes are found, not configured.** A bed's probes are the soil-moisture series
 whose device was installed in it when the reading was taken (§4.1), at the depth its
@@ -63,10 +66,120 @@ cd modules/soilwater && python3 -m unittest discover -p 'test_*.py'
 
 ```python
 advisor = soilwater.Advisor(log)
-beds = [soilwater.Bed(land_id, field_capacity=0.30, wilting_point=0.12)]
+beds = [soilwater.Bed(land_id, field_capacity=0.30, wilting_point=0.12),
+        soilwater.Bed(yard_id, 0.38, 0.25, layers=((0.10, 0.20, 0.09),),
+                      root_depth_mm=150, surface="turf", planting="turf")]
 advisor.advise(state, beds, at=morning, forecast=rain_forecast_id)
 soilwater.render(event.payload, "es", state)   # "Riegue cama 3 hoy: …"
 ```
+
+## The bed's own soil
+
+A soil survey maps the native soil. A landscaped yard, a raised bed or a market garden
+on an old house lot is often something else:
+
+* topsoil brought in over a subsoil the builders compacted;
+* sod with its own soil over the yard's;
+* a compost mix over the ground.
+
+Set up with the survey's values, the advisory misjudges such a bed. So each probe
+**learns its own field capacity from its own drain-downs** (`learned_capacity`):
+
+* **A wetting** is the probe's reading, smoothed by a running median of three, rising
+  0.04 or more within four hours.
+* **A drain-down** runs from the wetting's peak to the next wetting, or 72 hours. It
+  counts when it is at least 16 hours long with no gap over three hours.
+* **Each drain-down is fitted** as water above field capacity draining away while the
+  crop dries the soil steadily: `θ(t) = fc + a·exp(−t/τ) − r·t`.
+* **Only drain-downs from clearly above field capacity count:** at least 0.02 above it
+  (`a ≥ 0.02`). A watering that only refilled the soil part way never drained, and
+  says nothing.
+* **The probe's field capacity** is the median of the last 60 days' drain-downs, once
+  there are three. It replaces the configured value for that probe's slice of the root
+  zone.
+
+Until then, and for a value within 0.03 of its soil's wilting point, the configured
+value stands. `Bed(learn=False)` turns learning off.
+
+What it learns is the level the bed actually holds a day or two after a soaking, the
+in-place sense of field capacity: where drainage has become negligible (Twarakavi, Sakai
+and Šimůnek 2009, *Water Resources Research* 45, [doi:10.1029/2009WR007944](https://doi.org/10.1029/2009WR007944)).
+A laboratory's value can sit below it.
+
+**A layered bed.** Two probes whose learned field capacities differ by 0.08 or more
+(`LAYER_GAP`) are in two soils. When the bed was given one soil's values, the advisory
+then writes a second decision beside the morning's, `soil-layered`:
+
+> bed 3's soil is layered: its probe at 5 cm drains back to 23% water after a soaking, the
+> one at 12 cm to 40%. One soil's values cannot describe it, and the advice may wait too
+> long for the layer whose water the roots cannot take. Give the bed each layer's field
+> capacity and wilting point, from a soil test of each layer or the soil survey's horizons.
+
+`Bed.layers` takes those values: `(bottom_m, field_capacity, wilting_point)`, top down.
+Each probe's slice of the root zone is then judged at its own soil's limits, and the
+note stops. `tools/soil_survey.py` gives the survey's values by depth.
+
+**Backtested on the virtual farm.** The test bed is a yard
+(`physics.LayeredBed`): 10 cm of brought-in sandy loam over a compacted clay subsoil.
+Its roots are in the top 15 cm, and it ran over McAllister Farm's summers of 2013 and 2012
+(June to August), with the advisory followed. It was set up three ways:
+
+* with the survey's silt loam, field capacity 0.30 and wilting point 0.12;
+* with the topsoil's own nominal values, 0.20 and 0.09;
+* with a soil test of each layer: the topsoil as above, the clay 0.38 and 0.25.
+
+The soils' values are round, typical ones, assumed for the simulator rather than
+measured. Water applied, drained below the roots, and hours with half the available
+water gone:
+
+| probes | set up with | 2013 | 2012, a drought |
+| --- | --- | --- | --- |
+| one, 5 cm | the survey | 680 mm, 693 drained, 0 h | 810 mm, 662, 0 h |
+| | the survey, **learning** | **178 mm, 232, 0 h** | **272 mm, 196, 16 h** |
+| | the topsoil's values | 94 mm, 196, 140 h | 110 mm, 131, 421 h |
+| | the topsoil's values, **learning** | **181 mm, 232, 0 h** | **227 mm, 155, 76 h** |
+| 5 and 12 cm | the survey | 136 mm, 209, 4 h | 196 mm, 141, 45 h |
+| | the survey, learning | 147 mm, 210, 4 h, and the note | 208 mm, 147, 75 h, and the note |
+| | each layer's values | 119 mm, 203, 0 h | 183 mm, 145, 68 h |
+| | each layer's values, **learning** | **165 mm, 219, 0 h** | **229 mm, 158, 0 h** |
+
+**What the table shows:**
+
+* **On the survey's values, a probe in the topsoil drowns the yard.** The topsoil holds
+  0.23, which the advisory reads as a quarter short of 0.30, so it waters most mornings.
+  Learning cuts the water by two thirds to three quarters.
+* **A soil's nominal values can starve it.** Sandy loam's 0.20 is where its drainage
+  stops, but in the simulator drainage slows to almost nothing sooner. A day after a
+  soaking the bed still holds about 0.23, so refills to 0.20 leave the roots short in hot
+  spells. Learning closes most of that.
+* **Learning field capacity does not fix a layered bed on its own.** With a probe in
+  each layer, the survey's 0.30 happens to sit near the two layers' depth-weighted mix,
+  and learning changes little. In the 2012 drought it did slightly worse, 75 stressed
+  hours against 45. The trouble is the wilting point: one value for two soils counts
+  water the clay holds that the roots cannot take, so the advice waits too long. The note
+  is what helps here. Given each layer's values, as the note asks, and with learning on,
+  the yard was never short in either summer.
+* **Learning leaves a correctly set-up bed alone.** On the advisory's own backtest bed it
+  changed the 2013 summer by less than a millimetre (154.5 mm against 155.4) and 2012
+  not at all.
+
+A uniform sandy fill, 60 cm of the same sandy loam with a probe at 5 cm, behaves like
+the single-probe yard: 725 mm on the survey's values against 177 learning in 2013. On
+its nominal values it had 107 stressed hours, and none learning.
+
+**What is still not right.** The 16 to 76 hours left in 2012 come from the morning
+cadence on a shallow, sandy root zone. It holds about 17 mm its roots can use, and in
+2012 a hot day took up to 7.7 mm. With water at a third gone, one morning's "water soon" can be past
+half by the next morning. For such a bed, `p` should be lower.
+
+The 25 mm that ran off the yard in 2013 was rain on topsoil already holding water over the
+clay, the same with or without learning. A watering can do the same when it is run
+faster than the clay takes water. In the simulator, the same 50 mm given as four
+quarter-hour runs an hour apart sheds less than two hours in one go (`sim/test_physics.py`),
+which is cycle-and-soak.
+
+These results come from the simulator. A real yard's probes are what would check them
+([UNTESTED](../../docs/UNTESTED.md)).
 
 ## Did the water arrive?
 
@@ -118,7 +231,20 @@ does in-process; the tests run it both ways.
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)); strings in [packs/](packs/) under the
 `soilwater.` prefix, the Spanish an unreviewed draft. It imports layer zero and layer 1.
 
-**Not yet:** the watering check as part of the module's own process, rather than the
-backtest and the library; the dose as a duration for a given drip line; the crop's `p` and root depth
-from the farm's planting records; a probe's own field capacity learned from how far it
-drains after a soaking.
+A bed can also record what covers its soil (`surface`: bare, organic or inorganic mulch,
+plastic, turf) and what grows in it (`planting`). Each decision carries them, so a
+season's advice can be read against what the bed was. The probes see what mulch does to
+drying; this records why.
+
+**Not yet:**
+
+* the watering check as part of the module's own process, rather than the backtest and
+  the library;
+* the dose as a duration for a given drip line;
+* the crop's `p` and root depth from the farm's planting records;
+* a wilting point learned from the probes: that needs the crop's lower limit, the
+  driest its roots take a probe to, which a well-watered bed never shows;
+* a safe run length learned from the bed: comparing short runs with long ones,
+  cycle-and-soak worked out from the bed itself;
+* each bed's drying rate and the share of rain that reaches it, learned, to set beside
+  its recorded surface and planting.

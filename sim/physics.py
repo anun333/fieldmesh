@@ -466,6 +466,154 @@ class SoilBed:
         return self.temps[lower] * (1 - frac) + self.temps[lower + 1] * frac
 
 
+@dataclass(frozen=True)
+class Horizon:
+    """One layer of soil in a `LayeredBed`, top down: how thick it is, its water limits
+    as volume fractions, and how fast it passes water when saturated, mm an hour."""
+
+    thickness_mm: float
+    saturation: float
+    field_capacity: float
+    wilting_point: float
+    ks_mm_per_h: float
+
+    def __post_init__(self) -> None:
+        if not 0 < self.wilting_point < self.field_capacity < self.saturation < 1:
+            raise ValueError("0 < wilting point < field capacity < saturation < 1")
+        if self.thickness_mm <= 0 or self.ks_mm_per_h <= 0:
+            raise ValueError("a horizon has a thickness and passes some water")
+
+
+#: A light topsoil and a compacted clay subsoil, the two a landscaped bed is often made
+#: of: round values typical of a sandy loam and of a dense clay, assumed for the virtual
+#: farm rather than taken from one soil survey. The clay's conductivity is a compacted
+#: subsoil's, well below an undisturbed clay's.
+SANDY_LOAM = {"saturation": 0.45, "field_capacity": 0.20, "wilting_point": 0.09,
+              "ks_mm_per_h": 25.0}
+COMPACTED_CLAY = {"saturation": 0.46, "field_capacity": 0.38, "wilting_point": 0.25,
+                  "ks_mm_per_h": 1.0}
+
+
+@dataclass
+class LayeredBed(SoilBed):
+    """A bed made of horizons: a few centimetres of brought-in topsoil over a subsoil the
+    builders compacted, sod's own soil over the yard's, a raised bed's mix over the
+    ground. A `SoilBed` is one bucket, so it cannot hold water perched over a layer that
+    passes it slowly; this can.
+
+    The soil is cut into layers `layer_mm` thick, each with its horizon's limits. Each
+    five-minute tick:
+
+    * **the crop takes water** from the root zone (`depth_mm`, here the roots' depth, not
+      the soil's), from each layer in proportion to the water it can give;
+    * **water drains down**, bottom layer first: a layer wetter than its field capacity
+      passes the excess on as fast as its own conductivity at that wetness allows,
+      `ks · ((θ − fc) / (sat − fc))³`, and no faster than the layer below takes water or
+      has room for it; the bottom layer drains out of the soil;
+    * **water soaks in** at the top as fast as the top layer passes water while it has
+      room. Up to `surface_storage_mm` waits on the surface for the next tick, as in a
+      lawn's hollows; the rest runs off.
+
+    So a watering on topsoil over compacted clay fills the topsoil, stalls at the clay and
+    perches there, and a long run puts more on than the bed can take. A probe reads its
+    layer (`theta_at`); `theta` is the root zone's mean, which is what the crop and the
+    heat model use. It starts at each layer's field capacity, a bed soaked and drained.
+    """
+
+    horizons: tuple = ()
+    layer_mm: float = 25.0
+    surface_storage_mm: float = 2.5
+    ponded_mm: float = field(default=0.0, repr=False)
+    #: Water that left the bottom of the soil, mm; `drained_mm` is what left the roots.
+    deep_mm: float = field(default=0.0, repr=False)
+    layers: list = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if not self.horizons:
+            raise ValueError("a layered bed has horizons")
+        props = []
+        for h in self.horizons:
+            n = h.thickness_mm / self.layer_mm
+            if abs(n - round(n)) > 1e-9:
+                raise ValueError(f"a horizon is a whole number of {self.layer_mm} mm layers")
+            props += [h] * int(round(n))
+        roots = self.depth_mm / self.layer_mm
+        if abs(roots - round(roots)) > 1e-9 or not 0 < round(roots) <= len(props):
+            raise ValueError("the roots reach a whole number of layers, within the soil")
+        self._props = props
+        self._roots = int(round(roots))
+        if self.layers is None:
+            self.layers = [h.field_capacity for h in props]
+        top = props[:self._roots]
+        self.saturation = sum(h.saturation for h in top) / len(top)
+        self.field_capacity = sum(h.field_capacity for h in top) / len(top)
+        self.wilting_point = sum(h.wilting_point for h in top) / len(top)
+        self._mean()
+
+    def _mean(self) -> None:
+        self.theta = sum(self.layers[:self._roots]) / self._roots
+
+    def theta_at(self, depth_m: float) -> float:
+        """What a probe at `depth_m` reads: the water of the layer it sits in."""
+        i = min(len(self.layers) - 1, max(0, int(depth_m * 1000.0 / self.layer_mm)))
+        return self.layers[i]
+
+    @property
+    def stress(self) -> float:
+        """The root zone's share of its available water that is gone, layer by layer."""
+        gone = 0.0
+        for theta, h in zip(self.layers[:self._roots], self._props):
+            gone += 1.0 - max(0.0, min(1.0, (theta - h.wilting_point)
+                                       / (h.field_capacity - h.wilting_point)))
+        return gone / self._roots
+
+    @property
+    def stored_mm(self) -> float:
+        return sum(self.layers) * self.layer_mm
+
+    def step(self, weather: Weather, *, irrigation_mm: float = 0.0) -> float:
+        dz, dt, n = self.layer_mm, HOURS_PER_STEP, len(self.layers)
+        theta, props = self.layers, self._props
+
+        et = weather.et0_mm * self.crop_coefficient * (1.0 - self.stress)
+        can = [max(0.0, theta[i] - props[i].wilting_point) * dz for i in range(self._roots)]
+        if et > 0 and sum(can) > 0:
+            et = min(et, sum(can))
+            total = sum(can)
+            for i in range(self._roots):
+                theta[i] -= et * can[i] / total / dz
+            self.et_mm += et
+
+        for i in reversed(range(n)):
+            h = props[i]
+            excess = theta[i] - h.field_capacity
+            if excess <= 0:
+                continue
+            k = h.ks_mm_per_h * (excess / (h.saturation - h.field_capacity)) ** 3
+            flux = min(k * dt, excess * dz)
+            if i + 1 < n:
+                below = props[i + 1]
+                flux = min(flux, below.ks_mm_per_h * dt, (below.saturation - theta[i + 1]) * dz)
+                theta[i + 1] += flux / dz
+            else:
+                self.deep_mm += flux
+            theta[i] -= flux / dz
+            if i == self._roots - 1:
+                self.drained_mm += flux
+
+        water = self.ponded_mm + weather.rain_mm + irrigation_mm
+        top = props[0]
+        soak = max(0.0, min(water, top.ks_mm_per_h * dt, (top.saturation - theta[0]) * dz))
+        theta[0] += soak / dz
+        left = water - soak
+        self.ponded_mm = min(left, self.surface_storage_mm)
+        self.runoff_mm += left - self.ponded_mm
+        for i in range(n):
+            theta[i] = max(0.01, theta[i])
+        self._mean()
+        return self.theta
+
+
 # --------------------------------------------------------------------- troughs
 
 @dataclass
