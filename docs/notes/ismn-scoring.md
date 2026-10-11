@@ -205,6 +205,46 @@ has since been measured on every SCAN probe in the top 21 cm, in
 finds broken sensors ISMN rates good, a cap on *falls* catches most of ISMN's negative
 jumps, and a cap on rises turned out not to be worth keeping.
 
+## A second network: NOAA's Climate Reference Network
+
+*Scored 2026-10-11.* The same archive carries NOAA's Climate Reference Network (USCRN).
+In the same box it has five stations' worth of probes: Crossville in Tennessee, and two
+at Asheville, on its North Carolina edge. That is 15 probes and 1.9 million readings.
+
+USCRN is a different operator, with three probes at each depth and its own quality
+control before ISMN's. The probes are Stevens Hydra Probe II on SDI-12, the same make as
+SCAN's. The thresholds are the ones above, unchanged:
+
+    python3 -I ismn_score.py ~/Downloads/ISMN_archive_20261008.zip \
+        --network USCRN --box 34.98,36.68,-90.31,-81.65
+
+| ISMN family | readings | we flag | agreement |
+| --- | --- | --- | --- |
+| good | 1,534,449 | 13,106 flags: stuck 10,994, suspect 1,009, rate 577, range 526 | — |
+| plateau | 120,027 | 2,247 | 2% |
+| range | 110,656 | 75,777 | 68% |
+| spike (D06) | 571 | 298 | **52%** |
+| fall | 133 | 67 | 50% |
+| rise | 393 | 0 | 0% |
+
+What we raise on readings ISMN rates good, by depth (the 1,009 `suspect` flags are not split by depth):
+
+| depth | good readings | stuck | out of range | rate | share |
+| --- | --- | --- | --- | --- | --- |
+| 5 cm | 298,840 | 211 | 12 | 39 | 0.09% |
+| 10 cm | 321,408 | 403 | 436 | 105 | 0.29% |
+| 20 cm | 337,199 | 292 | 0 | 177 | 0.14% |
+| 50 cm | 306,612 | 2,439 | 78 | 185 | 0.88% |
+| 1 m | 270,390 | 7,649 | 0 | 71 | 2.86% |
+
+* **The root zone holds up on a second operator's probes.** At 0.09% to 0.29% of good
+  readings in the top 20 cm, it is within SCAN's 0.02% to 0.27%.
+* **The deep disagreement is the same `stuck`**, and the flatline limit learned per soil
+  and depth (Q24) is its answer, as on SCAN.
+* **ISMN's spikes on USCRN are mostly real glitches.** The shape check agrees on 52% of
+  them, against 8% on SCAN, where D06 mostly marked dry-soil noise.
+* No rise is capped, by design (Q23).
+
 ## Caveats
 
 - **One region, one sensor make, for the agreement figures.** The scoring is three

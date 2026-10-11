@@ -599,7 +599,7 @@ def render(decision: dict, language: str = "en", state=None) -> str | None:
 def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              probe_noise: float = 0.01, check=None, blocked=frozenset(),
              forgotten=frozenset(), valve: bool = False, soil=None, depths=(0.20,),
-             configured=None, learn: bool = True, layers=()) -> dict:
+             configured=None, learn: bool = True, layers=(), probe_bias: float = 0.0) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
@@ -620,7 +620,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     `configured` is the field capacity and wilting point the bed is set up with, as
     `(fc, wp)`, the virtual bed's own by default: give it a soil survey's for the bed a
     survey does not describe, and `layers` each layer's (`Bed.layers`). `learn` lets the
-    advisory learn the field capacity from the probes (`Bed.learn`). The result adds what ran off, the field capacity the last
+    advisory learn the field capacity from the probes (`Bed.learn`). `probe_bias` is added
+    to every reading, as an uncalibrated probe reads high or low. The result adds what ran off, the field capacity the last
     advice used, what each probe had learned by then, and whether it said the bed is
     layered."""
     import statistics
@@ -683,7 +684,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             for probe, depth in probes:
                 truth = b.theta_at(depth) if hasattr(b, "theta_at") else b.theta
                 state.add(Observation(uuid7(), probe.id, when, 60.0, when,
-                                      round(truth + noise.gauss(0.0, probe_noise), 3),
+                                      round(truth + probe_bias + noise.gauss(0.0, probe_noise), 3),
                                       ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
                                       calibration=cal))
         if when.hour == D.DECIDE_HOUR and when.minute == 0:

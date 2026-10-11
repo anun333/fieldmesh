@@ -422,6 +422,38 @@ class TestLearningOnTheVirtualFarm(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestAProbeThatReadsOff(unittest.TestCase):
+    """An uncalibrated probe reads high or low by the same amount all summer. On the
+    advisory's backtest bed, McAllister Farm's 2013, where a true probe's advice used
+    155 mm (docs/notes/soil-sensors.md)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import irrigation_drill as D
+        import physics as ph
+        start = _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc)
+        cls.r = {bias: S.backtest(ph.RecordedClimate.from_csv(D.SUMMER, seed=1), start, 92,
+                                  seed=1, probe_bias=bias)
+                 for bias in (-0.05, 0.05)}
+
+    def test_reading_low_it_learns_its_own_full_and_waters_far_less_than_unlearned(self):
+        """Unlearned, a probe 0.05 low called for 748 mm. Learning, its drain-downs say
+        where its full is, 0.05 low too, and the advice uses 256 mm."""
+        low = self.r[-0.05]
+        self.assertAlmostEqual(low["field_capacity"], 0.25, delta=0.02)
+        self.assertLess(low["applied_mm"], 300)
+
+    def test_reading_high_it_never_waters_and_so_never_learns(self):
+        """A probe 0.05 high says the bed is full, so it is not watered, so the probe
+        sees too few soakings to learn from: the bed goes dry. A second probe in the bed,
+        and the cross-check between them, is what catches this."""
+        high = self.r[0.05]
+        self.assertEqual(high["field_capacity"], 0.30)
+        self.assertLess(high["applied_mm"], 50)
+        self.assertGreater(high["stressed_h"], 100)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestHarrowBend(unittest.TestCase):
     """Six beds every morning for eight days: the far bed node's radio is out from day 5
     to day 8, and on day 4 a probe is lifted out of bed 6 and pushed into bed 2."""

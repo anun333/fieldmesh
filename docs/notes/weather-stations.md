@@ -3,6 +3,7 @@
 
 Which weather stations a farm on fieldmesh should be pointed to, and the ideas around
 them: what to measure, where to put it, how to check it, and how it gets into the log.
+Soil probes have a note of their own: [soil sensors](soil-sensors.md).
 Nothing here has been run on a real station yet ([UNTESTED](../UNTESTED.md)).
 
 ## What a farm's station is for

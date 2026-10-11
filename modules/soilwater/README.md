@@ -178,6 +178,12 @@ faster than the clay takes water. In the simulator, the same 50 mm given as four
 quarter-hour runs an hour apart sheds less than two hours in one go (`sim/test_physics.py`),
 which is cycle-and-soak.
 
+**A probe that reads off.** Learning forgives a probe that reads low: one 0.05 low called
+for 748 mm unlearned and 256 learned, against a true probe's 155, on 2013. It cannot
+forgive one that reads high. That probe says the bed is full, so the bed is not watered,
+and the probe sees too few soakings to learn from: 242 hours of stress. A second probe in
+the bed is what catches it ([soil sensors](../../docs/notes/soil-sensors.md)).
+
 These results come from the simulator. A real yard's probes are what would check them
 ([UNTESTED](../../docs/UNTESTED.md)).
 
