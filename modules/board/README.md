@@ -19,7 +19,8 @@ language:
 
 Like the [notifier](../notify/), it reads any module's decisions without importing any
 module (`rules.render`), and it never writes the log. Its grant reads decisions,
-notifications and acknowledgements, plus the names of what decisions are about.
+notifications and acknowledgements, the names of what decisions are about, and the series
+its page shows.
 
 **It says when it was made.** A page that stopped updating looks exactly like a quiet
 farm, the failure §4.2 forbids for sensors ("no news is not good news"). So the page:

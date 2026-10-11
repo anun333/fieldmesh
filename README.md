@@ -64,7 +64,7 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [modules/twin/](modules/twin/) | **Layer 3, a physics twin for the hoop house** (Q28): Wageningen's GreenLight configured as an unheated single-poly tunnel, on the farm's real weather. It found the virtual farm's tunnel too warm at night (now refitted) and a defect in GreenLight's crop model. Its covered-crop frost watch, backtested on a season, warned of every damaging frost inside a tunnel, and found that a Tennessee winter gets into one most nights |
 | [modules/advise/](modules/advise/) | **The first module above layer zero** (layer 3, decision support): for any point, what grows and when to sow it, which fruit cultivars get their chill and how often frost follows bloom, what the soil needs, bees, livestock heat, and the 2050s — in English and Spanish |
 
-About 1,360 tests. The simulator runs a 180-day season in under eight minutes.
+About 1,380 tests. The simulator runs a 180-day season in under eight minutes.
 
 ## A few things this does that are easy to get wrong
 
