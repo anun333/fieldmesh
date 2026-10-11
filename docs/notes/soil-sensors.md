@@ -97,6 +97,15 @@ the bridge already reads.
    no rain and no watering is reading high, or the bed is waterlogged. Either needs a
    person.
 4. **A term for soil water potential**, for the Watermark and tensiometers.
+5. **A calibration by known water.** A measured amount poured over a measured square
+   around the probe, say 10 litres on one square metre, is 10 mm. The probe's rise
+   against the rise those 10 mm should make measures its gain, and its drain-down
+   afterwards measures the level it settles at.
+   * The watering check already computes the expected rise. A regimen can lead a person
+     through it now: "pour this here", wait, check.
+   * The sprinkler doing it on its own is a command, and waits for §6.
+
+   It would also catch a probe reading high, which learning cannot.
 
 ## Sources
 

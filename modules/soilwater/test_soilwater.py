@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -324,6 +325,115 @@ class TestLearnedCapacity(unittest.TestCase):
         _, d = g.advice(T0 + max(points) * HOUR)
         self.assertEqual(d["context"]["field_capacity"], 0.30)
         self.assertEqual(d["context"]["learned_probes"], 0)
+
+
+class WeatherGarden(Garden):
+    """A bed with no probe, and the farm's station: hourly readings each local day, in
+    America/Chicago, the same summer weather every day unless rain is given."""
+
+    def station(self, days, *, rain=None, gap_days=()):
+        import eto as E
+        names = (("air", V.AIR_TEMPERATURE, "Cel"), ("rh", V.RELATIVE_HUMIDITY, "%"),
+                 ("sun", V.SOLAR_RADIATION, "W/m2"), ("rain", V.PRECIPITATION_DEPTH, "mm"))
+        ds = {}
+        for name, prop, unit in names:
+            ds[name] = FX.raw_datastream(unit=unit, observed_property=prop,
+                                         expected_interval=3600.0, max_latency=3600.0)
+            self.state.add(ds[name])
+        start = _dt.datetime(2026, 7, 1, 5, tzinfo=_dt.timezone.utc)      # local midnight
+        for d in range(days):
+            if d in gap_days:
+                continue
+            for h in range(24):
+                when = start + _dt.timedelta(days=d, hours=h, minutes=30)
+                values = {"air": 20.0 + 12.0 * max(0.0, math.sin(math.pi * (h - 6) / 12.0)),
+                          "rh": 60.0, "sun": 260.0,
+                          "rain": (rain or {}).get(d, 0.0) / 24.0}
+                for name, value in values.items():
+                    self.state.add(FX.observation(ds[name], result=value, measured_at=when,
+                                                  seq=d * 24 + h))
+        return E.Station(lat=35.06, elevation_m=243.0, timezone="America/Chicago",
+                         air_temperature=ds["air"].id, relative_humidity=ds["rh"].id,
+                         solar_radiation=ds["sun"].id, precipitation=ds["rain"].id)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestByTheWeather(unittest.TestCase):
+    """A bed with no probe, advised from the farm's own station (`weather_balance`)."""
+
+    MORNING = staticmethod(lambda day: _dt.datetime(2026, 7, 1, 9, tzinfo=_dt.timezone.utc)
+                           + _dt.timedelta(days=day))
+
+    def test_without_a_station_it_still_says_no_probe(self):
+        g = WeatherGarden()
+        self.assertEqual(g.advice(self.MORNING(5))[0], "soil-no-probe")
+
+    def test_a_soaking_then_dry_days_until_it_is_due(self):
+        g = WeatherGarden()
+        station = g.station(12, rain={0: 80.0})
+        rules = [g.advice(self.MORNING(d), station=station)[0] for d in (2, 5)]
+        self.assertEqual(rules, ["soil-weather-enough", "soil-weather-water-now"])
+        _, d = g.advice(self.MORNING(5), station=station)
+        self.assertGreaterEqual(d["context"]["depletion_mm"], g.bed.raw_mm)
+        self.assertEqual(d["message"]["key"], "soilwater.weather_water_now_unrecorded",
+                         "with no valve recorded, it says it cannot see the watering")
+        self.assertEqual(d["inputs"]["estimated"], ["wind"])
+
+    def test_two_days_of_three_missing_and_it_cannot_tell(self):
+        g = WeatherGarden()
+        station = g.station(12, rain={0: 80.0}, gap_days=(8, 9))
+        rule, d = g.advice(self.MORNING(10), station=station)
+        self.assertEqual(rule, "soil-weather-unseen")
+        self.assertIn("Check the station", S.render(d, "en"))
+
+    def test_a_recorded_watering_refills_it(self):
+        from model import ClockQuality, Observation
+        g = WeatherGarden()
+        station = g.station(12, rain={0: 80.0})
+        valve = FX.raw_datastream(unit=None, observed_property=V.VALVE_OPEN)
+        g.state.add(valve)
+        opened = _dt.datetime(2026, 7, 6, 10, tzinfo=_dt.timezone.utc)
+        for when, state in ((opened, True), (opened + _dt.timedelta(hours=2), False)):
+            g.state.add(Observation(uuid7(), valve.id, when, 1.0, when, state,
+                                    ClockQuality.NETWORK, node="opensprinkler", boot=1, seq=1))
+        g.bed = S.replace(g.bed, valve=valve.id, application_mm_per_h=15.0)
+        rule, d = g.advice(self.MORNING(6), station=station)
+        self.assertEqual(rule, "soil-weather-enough")
+        self.assertTrue(d["context"]["watering_recorded"])
+
+    def test_with_no_record_of_watering_its_own_advice_is_taken_as_followed(self):
+        g = WeatherGarden()
+        station = g.station(12, rain={0: 80.0})
+        advisor = S.Advisor(Log())
+        [due] = advisor.advise(g.state, [g.bed], self.MORNING(5), station=station)
+        self.assertEqual(due.payload["rule"], "soil-weather-water-now")
+        [next_day] = advisor.advise(g.state, [g.bed], self.MORNING(6), station=station)
+        self.assertEqual(next_day.payload["rule"], "soil-weather-enough")
+        [fresh] = S.Advisor(Log()).advise(g.state, [g.bed], self.MORNING(6), station=station)
+        self.assertEqual(fresh.payload["rule"], "soil-weather-water-now",
+                         "an advisory with no memory of its advice sees no watering")
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
+    """The backtest bed with no probe, advised from a station on the farm, on McAllister
+    Farm's summer of 2013, its watering unrecorded (`weather_backtest`)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import irrigation_drill as D
+        import physics as ph
+        cls.r = S.weather_backtest(ph.RecordedClimate.from_csv(D.SUMMER, seed=1),
+                                   _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc), 92,
+                                   seed=1, record_valve=False)
+
+    def test_it_waters_about_as_the_probe_does_and_far_less_than_a_timer(self):
+        """The probe-led advice used 155 mm and the drip timer 552 on the same summer."""
+        self.assertAlmostEqual(self.r["applied_mm"], 155.0, delta=0.25 * 155.0)
+        self.assertEqual(self.r["stressed_h"], 0.0)
+
+    def test_a_station_installed_today_has_no_estimate_for_two_days(self):
+        self.assertEqual(self.r["advice"]["soil-weather-unseen"], 2)
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")

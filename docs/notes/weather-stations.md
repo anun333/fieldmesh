@@ -134,7 +134,10 @@ In the order I'd do them:
 
    Tested with a fake station answering over a pseudo-terminal, not yet a real one.
 4. **ET from the farm's own station into the soil advisory**, for beds without a
-   probe and for watering by the weather.
+   probe and for watering by the weather. *Built 2026-10-11* (`sdk/eto.py`;
+   [by the weather](../../modules/soilwater/README.md#by-the-weather-with-no-probe)).
+   With no probe, on the virtual farm's 2013 and 2012, it used 157 and 314 mm, against
+   the probe's 155 and 208, with no stressed hour.
 5. **Ecowitt's local API, Tempest's broadcast and WeatherLink Live's HTTP API** as
    direct adapters (§10), for farms without Home Assistant.
 

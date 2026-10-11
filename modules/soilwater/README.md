@@ -16,6 +16,7 @@ module's evidence base before that module exists.
 | **no probe** | nothing is installed within the root zone |
 | **unseen** | no reading for six hours |
 | **untrusted** | the newest readings failed the health checks |
+| **by the weather**: water now, rain coming, enough, or the station unseen | the bed has no probe, and the farm's station is given ([below](#by-the-weather-with-no-probe)) |
 | **layered**, beside the morning's advice | two of its probes learned field capacities far apart, and the bed was given one soil's values ([below](#the-beds-own-soil)) |
 
 The arithmetic is FAO-56's root-zone balance read from the probes rather than modelled:
@@ -187,6 +188,48 @@ the bed is what catches it ([soil sensors](../../docs/notes/soil-sensors.md)).
 These results come from the simulator. A real yard's probes are what would check them
 ([UNTESTED](../../docs/UNTESTED.md)).
 
+## By the weather, with no probe
+
+A bed with no probe used to get "no probe" and nothing else. Given the farm's own station
+(`eto.Station`: its site and the series it keeps), the advisory keeps FAO-56's daily
+root-zone balance instead (`weather_balance`).
+
+* **Each day's reference ET** is FAO-56 Penman–Monteith from the station's readings that
+  the checks passed (`sdk/eto.py`, which reproduces FAO-56's Example 18: 3.88 mm).
+  Missing sunshine, humidity or wind are replaced by FAO-56's own stand-ins, and each
+  decision lists which it used.
+* **The balance**: each day the depletion falls by the gauge's rain and the watering, and
+  rises by `Ks · Kc · ETo`, `Kc` the bed's `crop_coefficient` and `Ks` slowing the crop
+  once its readily available water is gone (eq. 84).
+* **Watering is the valve's recorded minutes** times the bed's `application_mm_per_h`.
+  Without that record, the advisory's own advice to water is taken as followed, and the
+  advice says so. A balance that never sees the watering it asked for asks again every
+  morning: on the backtest bed that called for 1,027 mm in 2013.
+* **Two of the last three days without a full day of weather**, and it says it cannot
+  tell, rather than guess.
+
+> Water bed 3 today, by the farm's weather: about 50% of the water its plants can use is
+> gone, with no probe to confirm it. About 27 mm brings it back to field capacity.
+
+(The test's bed, five dry days after a soaking.)
+
+Backtested with no probe on the same bed and summers, with an hourly station:
+
+* air temperature, humidity and rain as the virtual farm's recorded weather gives them;
+* each day's recorded sunshine spread over its hours;
+* no wind sensor;
+* the watering unrecorded (`weather_backtest`).
+
+| summer | by the weather | the probe-led advice | stressed hours |
+| --- | --- | --- | --- |
+| 2013 | 157 mm | 155 mm | 0 |
+| 2012, a drought | 314 mm | 208 mm | 0 |
+
+The balance's ET is Penman–Monteith, while the virtual bed loses water by Hargreaves'
+formula. So it runs on a model of the bed that is not the bed, as it would on a farm.
+In the dry summer it watered half again as much as the probe did, and still a fraction
+of the 552 mm a drip timer uses. A probe reads the bed itself; this reads only the sky.
+
 ## Did the water arrive?
 
 The first **regimen** (Q10; [modules/rules](../rules/README.md#regimens)):
@@ -253,4 +296,6 @@ drying; this records why.
 * a safe run length learned from the bed: comparing short runs with long ones,
   cycle-and-soak worked out from the bed itself;
 * each bed's drying rate and the share of rain that reaches it, learned, to set beside
-  its recorded surface and planting.
+  its recorded surface and planting;
+* for a bed advised by the weather, the crop's coefficient through the season, rather
+  than one number.
