@@ -729,6 +729,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
 | Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed |
 | Q27 | What crosses between fieldmesh and ERPNext, and who owns each fact? | Blocks nothing yet — the records it needs exist since 2026-10-10 (land, inputs applied, harvest lots); the adapter waits on a partner that runs ERPNext |
+| Q28 | Should a process-based greenhouse model — GreenLight — be the hoop house's physics twin? | **Open, recommended yes; step 1 done 2026-10-11** — the virtual farm's tunnel is too warm at night, and the film decides the frost; see below |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
@@ -951,3 +952,66 @@ likeliest first. Until then the mapping above is the design, and the records the
 needs are built so each carries the id ERPNext will need. To check before building: whether
 the agriculture doctypes are still maintained, now that ERPNext has moved agriculture out of
 its core into a separate app.
+
+## Q28. A physics twin for protected cultivation: GreenLight?
+
+**Status: open; recommended yes, in four steps; step 1 done 2026-10-11** ([modules/twin/](../../modules/twin/)).
+
+**Step 1, what it found.** On McAllister Farm's spring of 2025 (60 nights, 6 frosts outside),
+the virtual farm's tunnel averages 3.1 °C warmer than the air at night; GreenLight's tunnel
+1.4 °C under IR film and 0.3 °C under clear film, where five of the six frosts still got in
+and clear nights were colder inside than out. The virtual farm's tunnel has no long-wave
+radiation and knows cloud only by rain. By day they are closer (hottest July hour within
+1.6 °C). To run at all, GreenLight needed one fix in its crop model. Its canopy CO2
+compensation point goes negative below one leaf layer, which puts a pole at a leaf CO2 of
+about 300 ppm, and a tunnel that is not enriched passes through that every sunny morning. A
+report to the GreenLight authors is drafted (the maintainer's to send). Next: give the
+virtual farm's tunnel GreenLight's night gains by film type, then step 2.
+Raised when GreenLight was pointed out as the open-science side of greenhouse climate
+control, against the closed commercial systems (Priva, Ridder, Hoogendoorn).
+
+**What it is.** GreenLight (Katzin et al., Wageningen University & Research;
+BSD-3-Clause-Clear; `pip install greenlight`) is a process-based model of a greenhouse's
+climate and energy: the cover's shortwave and long-wave exchanges, the air above and below
+a screen, ventilation by wind and buoyancy, the soil, a tomato crop's transpiration and
+growth. Version 2 is Python with the models as declarative JSON, so a different structure
+is a file of overrides rather than a fork. GreenLight-Gym2 (AGPL-3.0) wraps it for
+reinforcement-learning control research. Neither is a deployable controller; both are what
+a controller would be judged against.
+
+**Why it fits here.** The project's headline from the virtual farm and campus_twin alike is
+that a single sensor cannot see its own drift and a second one can. A physics model is a
+second probe that never drifts: a tunnel whose measured air and modelled air part company
+for six hours has a sensor or a structure that is wrong. And it answers the hoop-house
+grower's real question — will it freeze in there tonight — from tonight's forecast.
+
+**What it does not fit.** It models a heated, lit Venlo glasshouse — a boiler, CO2, roof
+vents, glass that stops long-wave radiation. The farms here have unheated single-poly
+tunnels. A configuration for one is a set of overrides, but nobody has validated GreenLight
+as one, and a twin nobody has checked is a third opinion, not a reference. Its dependencies
+(numpy 1.26 pinned, scipy, pandas, matplotlib) belong in a module's own environment, which
+§8.3's module isolation now provides.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **GreenLight as a layer-3 module, configured as a tunnel** | Process physics with a published lineage (Vanthoor 2011; Katzin 2020, 2021); open; overrides rather than a fork; fast (two days of the stock glasshouse in 16 s here) | Built for glass and heat; the tunnel configuration is unvalidated; heavy dependencies |
+| Grow the virtual farm's own `Tunnel` | Already in the repository; tiny; tested | A few plausible numbers with no lineage; nothing outside to hold it to |
+| A data-driven twin learned from a tunnel's own sensors | Fits the tunnel it is in | Needs a season of that tunnel's data first, and learns its faults along with its physics |
+| No twin; peers only | Nothing new | A tunnel has one air sensor more often than two |
+
+**Recommendation: the first, in four steps, each read-only until §6.**
+1. **Check our own physics against it.** The virtual farm's `Tunnel` and GreenLight-as-a-tunnel
+   on the same real weather (McAllister Farm, spring 2025, NASA POWER hourly). Neither is
+   trusted until they agree, or until it is known why they do not.
+2. **A frost watch for covered crops**: tonight's forecast through the twin to the tunnel's
+   inside low, beside the frost watch for open beds (modules/rules).
+3. **Twin against sensor**: modelled against measured inside air, as advisory decisions —
+   flags for a person, since a module does not write quality verdicts (§8.3).
+4. **After §6**: GreenLight-Gym policies as advice — what the policy would do, scored against
+   what the grower did — before anything acts.
+
+**The gap this sits in** is narrower than "no open controller exists": Mycodo (GPL-3.0) is an
+open monitoring and regulation stack at small scale. What nobody combines is an open
+controller with a data contract, quality with provenance, hardwired interlocks and a physics
+twin.
+

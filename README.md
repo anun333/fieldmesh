@@ -54,6 +54,7 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [modules/rules/](modules/rules/) | **Layer 1, rules and alerts**: CEL conditions over the log, each evaluation a logged decision. First rule: a frost watch, backtested on NOAA's forecasts against McAllister Farm's station |
 | [modules/water/](modules/water/) | **Layer 2, the livestock water monitor**: empty, low, not refilling, unseen, untrusted, per trough, as advisory decisions in English and Spanish. Passes §15's acceptance test on the virtual farm, whose first run found two defects in the node's backlog handling |
 | [modules/soilwater/](modules/soilwater/) | **Layer 2, the soil-moisture advisory**: each morning, per bed, water now and how much, rain coming, water soon, too wet, enough — or why it cannot say. Backtested on a recorded summer: 72% less water than a drip timer with no hour of stress |
+| [modules/twin/](modules/twin/) | **Layer 3, a physics twin for the hoop house** (Q28): Wageningen's GreenLight configured as an unheated single-poly tunnel, on the farm's real weather. First finding: the virtual farm's tunnel is too warm at night, and the film decides how many frosts get in |
 | [modules/advise/](modules/advise/) | **The first module above layer zero** (layer 3, decision support): for any point, what grows and when to sow it, which fruit cultivars get their chill and how often frost follows bloom, what the soil needs, bees, livestock heat, and the 2050s — in English and Spanish |
 
 About 1,200 tests. The simulator runs a 180-day season in under eight minutes.
@@ -92,7 +93,7 @@ Three licences, one per kind of artifact. The full reasoning is in
 | `sdk/`, `sim/`, `tools/`, `deploy/` | Apache-2.0 — embeddable in firmware |
 | `server/` | AGPL-3.0-or-later — so a hosting vendor cannot enclose a farmer-owned stack |
 | `modules/rules/` | AGPL-3.0-or-later, as the reference server |
-| `modules/water/`, `modules/soilwater/` | AGPL-3.0-or-later, the same |
+| `modules/water/`, `modules/soilwater/`, `modules/twin/` | AGPL-3.0-or-later, the same; GreenLight, which the twin installs, is BSD-3-Clause-Clear |
 | `modules/advise/` | AGPL-3.0-or-later for code, the same reasoning; its data under each source's licence ([MANIFEST](modules/advise/data/MANIFEST.csv)) |
 
 Some of `sdk/` derives from **campus_twin**, by the same author. See
@@ -110,9 +111,9 @@ Plainly, so nobody has to discover it:
 - **No commands.** §6 is deferred until a season of field evidence exists. Of the three
   acceptance apps, the livestock water monitor is built (read-only, so it needs none);
   the irrigation controller waits on §6 and the research logger is not built.
-- **Little above layer zero.** Four modules exist: rules and alerts (layer 1), the
-  livestock water monitor and the soil-moisture advisory (layer 2), and the advisor
-  (layer 3). Apps (4) and the
+- **Little above layer zero.** Five modules exist: rules and alerts (layer 1), the
+  livestock water monitor and the soil-moisture advisory (layer 2), and the advisor and
+  the hoop-house twin (layer 3). Apps (4) and the
   ecosystem (5) are described in §11 and do not; the irrigation rules in `sim/` stand in,
   and no app writes the farm's records yet.
 - **Two rows of the completeness matrix are skipped**, the two that need §6. The farm's
