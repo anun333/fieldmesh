@@ -22,7 +22,7 @@ python3 demo.py --json                        # the served Observations collecti
 | `model.py` | §1–§4 | The contract types, frozen, rejecting at construction what the spec forbids |
 | `codec.py` | §7.1, §7.6 | Exact JSON round-trip for every record — the log and the export share one encoding |
 | `log.py` | §7.1, §7.3 | The append-only log. No update, no delete, by construction |
-| `project.py` | §2, §3.2, §3.3, §4.2, §7.1 | Derived state: live rows, quality precedence, calibration by `measured_at`, staleness, ordering |
+| `project.py` | §2, §3.2, §3.3, §4.2, §7.1 | Derived state: live rows, quality precedence and quality as known at a moment, calibration by `measured_at`, staleness, ordering |
 | `fixtures.py` | — | Record builders for tests, and the seed of the virtual farm's own |
 | `wire.py` | §5.2, §5.3 | The wire message: CBOR packed arrays, a CDDL schema, payload-budget-aware packing, transmit-time restamping, and `Window`, a node's aggregate of a low-urgency series (Q20) |
 | `registry.py` | §1, §8.1, §9.1 | Short wire ids to full identities, plus each node's clock source and uncertainty budget |

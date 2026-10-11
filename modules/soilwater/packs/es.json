@@ -1,0 +1,19 @@
+{
+ "_meta": {
+  "language": "es",
+  "module": "soilwater",
+  "license": "AGPL-3.0-or-later",
+  "note": "Borrador: sin revisar por un agrónomo hispanohablante."
+ },
+ "strings": {
+  "soilwater.no_probe": "{bed} no tiene ninguna sonda de humedad instalada dentro de sus {depth} cm de raíces, así que no hay recomendación para ella. Instale una o registre adónde se llevó.",
+  "soilwater.unseen": "No llega ninguna lectura de las sondas de {bed} desde hace {hours:.1f} horas, así que hoy no hay recomendación. Revise las sondas y su radio.",
+  "soilwater.never_seen": "Nunca ha llegado una lectura de las sondas de {bed}. Revíselas, y también su radio.",
+  "soilwater.untrusted": "Las lecturas de las sondas de {bed} no pasaron los controles de calidad ({flags}), así que hoy no hay recomendación. Revise las sondas antes de fiarse de ninguna.",
+  "soilwater.too_wet": "{bed} está más húmeda que su capacidad de campo, así que el agua se está perdiendo por debajo de las raíces. No la riegue hoy.",
+  "soilwater.rain_coming": "{bed} necesita agua, con el {used:.0f} % del agua que sus plantas pueden usar ya gastado, pero se pronostican {rain:.0f} mm de lluvia en las próximas 24 horas. Espere y vuelva a revisar mañana.",
+  "soilwater.water_now": "Riegue {bed} hoy: ya se gastó el {used:.0f} % del agua que sus plantas pueden usar. Unos {mm:.0f} mm la devuelven a su capacidad de campo.",
+  "soilwater.water_soon": "{bed} tiene agua suficiente hoy. Al ritmo que se está secando, necesitará riego en unos {days:.1f} días.",
+  "soilwater.enough": "{bed} tiene agua suficiente: aún le queda el {left:.0f} % del agua que sus plantas pueden usar."
+ }
+}

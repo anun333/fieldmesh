@@ -210,6 +210,29 @@ class TestQualityPrecedence(unittest.TestCase):
         self.assertEqual(P.live_assertion([a, b], self.obs), winner)
         self.assertEqual(P.live_assertion([b, a], self.obs), winner)
 
+    def test_quality_as_of_knows_only_what_had_been_asserted(self):
+        """A decision made at a moment could only know the verdicts made by then: a
+        later override does not reach back, and a reassessment that superseded the
+        verdict only later leaves it live until then."""
+        ds = fx.raw_datastream()
+        obs = fx.observation(ds)
+        state = P.State()
+        for rec in (ds, obs):
+            state.add(rec)
+        machine = fx.assertion(obs.id, flags={QualityFlag.STUCK}, asserted_at=fx.at(0))
+        reassessed = fx.assertion(obs.id, flags=set(), supersedes=machine.id,
+                                  asserted_at=fx.at(30))
+        person = fx.assertion(obs.id, flags={QualityFlag.STUCK}, usable=Usable.BAD,
+                              assertor=Assertor.PERSON, assertor_id=uuid7(),
+                              check="manual-review", asserted_at=fx.at(60))
+        for a in (machine, reassessed, person):
+            state.add(a)
+        self.assertEqual(state.quality_as_of(obs.id, fx.at(-1)), (Usable.GOOD, frozenset()))
+        self.assertEqual(state.quality_as_of(obs.id, fx.at(10)),
+                         (Usable.BAD, frozenset({QualityFlag.STUCK})))
+        self.assertEqual(state.quality_as_of(obs.id, fx.at(40)), (Usable.GOOD, frozenset()))
+        self.assertEqual(state.quality_as_of(obs.id, fx.at(70))[0], Usable.BAD)
+
     def test_a_superseded_assertion_does_not_win(self):
         old = fx.assertion(self.obs, flags={QualityFlag.STUCK})
         new = fx.assertion(self.obs, flags=set(), supersedes=old.id,

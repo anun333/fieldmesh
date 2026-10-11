@@ -11,6 +11,7 @@ licenses, because the three kinds of artifact here have three different jobs.
 | `server/` — the reference implementation | **AGPL-3.0-or-later** | [LICENSE-AGPL-3.0](LICENSE-AGPL-3.0) | The project's premise is that the farmer owns the data. A hosting vendor running this as a closed service, with the farmer's data inside it, would defeat that premise specifically. The network clause is the only license term that reaches that case. |
 | `modules/rules/` — rules and alerts, layer 1 | **AGPL-3.0-or-later** | [modules/rules/LICENSE](modules/rules/LICENSE) | The reference server's reasoning: run as a service, its improvements stay open. Depends on cel-python (Apache-2.0) |
 | `modules/water/` — livestock water monitor, layer 2 | **AGPL-3.0-or-later** | [modules/water/LICENSE](modules/water/LICENSE) | The same, and it is built on `modules/rules/` |
+| `modules/soilwater/` — soil-moisture advisory, layer 2 | **AGPL-3.0-or-later** | [modules/soilwater/LICENSE](modules/soilwater/LICENSE) | The same |
 | `modules/advise/` — the advisor, a layer-3 module | **AGPL-3.0-or-later** for code; each data file its source's licence | [modules/advise/LICENSE](modules/advise/LICENSE), [data/MANIFEST.csv](modules/advise/data/MANIFEST.csv) | Decided 2026-10-09: an advisor is the piece most likely to be run as a hosted service, so the server's reasoning applies to it too. |
 
 Every file carries an `SPDX-License-Identifier` line. The file is authoritative; this

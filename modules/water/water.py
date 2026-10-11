@@ -120,16 +120,6 @@ def rules_for(trough: Trough) -> list:
 
 # ----------------------------------------------------------------- context
 
-def _quality_as_of(state, observation, at):
-    """The live judgement of a reading as it stood at `at` — a person's override made
-    later does not reach back into what the monitor knew then."""
-    known = [a for a in state.assertions_about(observation.id) if a.asserted_at <= at]
-    if not known:
-        return Usable.GOOD, frozenset()
-    best = max(known, key=lambda a: (a.precedence, a.asserted_at, a.id.int))
-    return best.usable, best.flags
-
-
 def _slope_per_h(points) -> float:
     """Least-squares slope of (hours, level) points."""
     n = len(points)
@@ -161,13 +151,13 @@ def trough_context(state, trough: Trough, at: _dt.datetime) -> tuple[dict, dict]
                 inputs)
     rows.sort(key=lambda o: o.measured_at)
     latest = rows[-1]
-    usable, flags = _quality_as_of(state, latest, at)
+    usable, flags = state.quality_as_of(latest.id, at)
     level = float(latest.result)
     low_side_range = (usable is not Usable.GOOD and flags == {QualityFlag.OUT_OF_RANGE}
                       and level < trough.empty_at)
 
     def counts(o):
-        u, f = _quality_as_of(state, o, at)
+        u, f = state.quality_as_of(o.id, at)
         return u is Usable.GOOD or (f == {QualityFlag.OUT_OF_RANGE}
                                     and o.result < trough.empty_at)
 

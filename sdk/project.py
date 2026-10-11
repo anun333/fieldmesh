@@ -567,6 +567,22 @@ class State:
         found = self.live_assertion_for(observation_id)
         return found.usable if found is not None else Usable.GOOD
 
+    def quality_as_of(self, observation_id: UUID, at: _dt.datetime):
+        """The live judgement of a reading as it stood at `at`: `(usable, flags)`.
+
+        What a decision made at `at` could have known (§7.7). A person's override, a
+        retune's reassessment, any assertion made later, does not reach back into it —
+        and an assertion superseded only later was still live then. A backtest that
+        read today's verdicts would credit a past decision with knowledge it never had.
+        """
+        known = [a for a in self.assertions_about(observation_id) if a.asserted_at <= at]
+        if not known:
+            return Usable.GOOD, frozenset()
+        replaced = {a.supersedes for a in known if a.supersedes is not None}
+        live = [a for a in known if a.id not in replaced] or known
+        best = max(live, key=lambda a: (a.precedence, a.asserted_at, a.id.int))
+        return best.usable, best.flags
+
     def calibration_for(self, sensor: UUID, measured_at: _dt.datetime,
                         datastream: UUID | None = None):
         return calibration_for(self.calibrations.values(), sensor, measured_at,
