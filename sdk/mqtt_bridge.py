@@ -5,7 +5,8 @@
 Most cheap sensors already speak MQTT and differ only in topic shape and payload: a
 greenhouse ESPHome node, a Tasmota plug on the irrigation pump, a Shelly relay, a Zigbee
 soil sensor, a Home Assistant entity, an **OpenSprinkler** irrigation controller opening and
-closing its valves, and — the one that matters most for fields — a **ChirpStack v4**
+closing its valves, the cheap weather stations and rain gauges **`rtl_433`** hears on 433,
+868 and 915 MHz, and — the one that matters most for fields — a **ChirpStack v4**
 LoRaWAN uplink, which is what a farm gateway will commonly be running. Each profile below
 knows one family's shape. A family whose root topic is not its default names it in the
 bindings: `{"prefixes": {"opensprinkler": "farm/os1"}, "devices": …}`.
@@ -53,9 +54,10 @@ from model import ClockQuality, DatastreamKind, Observation
 
 UTC = _dt.timezone.utc
 
-PROFILES = ("esphome", "tasmota", "shelly", "zigbee2mqtt", "ha", "chirpstack", "opensprinkler")
+PROFILES = ("esphome", "tasmota", "shelly", "zigbee2mqtt", "ha", "chirpstack", "opensprinkler",
+            "rtl_433")
 DEFAULT_PREFIXES = {"zigbee2mqtt": "zigbee2mqtt", "ha": "homeassistant",
-                    "opensprinkler": "opensprinkler"}
+                    "opensprinkler": "opensprinkler", "rtl_433": "rtl_433"}
 #: Link-health keys a profile reports beside its points. Bindable like any point —
 #: §4.3 makes signal and battery ordinary datastreams, not a side channel.
 HEALTH_KEYS = ("rssi", "snr", "battery", "linkquality")
@@ -74,6 +76,9 @@ def detect(topic: str, prefixes: dict | None = None) -> str | None:
     root = px["opensprinkler"].split("/")
     if t[:len(root)] == root and len(t) > len(root):
         return "opensprinkler"
+    root = px["rtl_433"].split("/")
+    if t[:len(root)] == root and len(t) == len(root) + 2 and t[-1] == "events":
+        return "rtl_433"
     if t[0] == px["zigbee2mqtt"] and len(t) == 2 and t[1] != "bridge":
         return "zigbee2mqtt"
     if t[0] == px["ha"] and len(t) == 4 and t[3] == "state":
@@ -151,6 +156,8 @@ def parse(profile: str, topic: str, raw, prefixes: dict | None = None) -> dict |
     p = _payload(raw)
     if profile == "opensprinkler":
         return _opensprinkler({**DEFAULT_PREFIXES, **(prefixes or {})}["opensprinkler"], t, p)
+    if profile == "rtl_433":
+        return _rtl_433(p)
     if profile == "esphome":
         return {"device": t[0], "points": {t[2]: p}, "health": {}, "stamp": None}
     if profile == "tasmota":
@@ -185,6 +192,41 @@ def parse(profile: str, topic: str, raw, prefixes: dict | None = None) -> dict |
         return {"device": device, "points": _flat(p.get("object") or {}),
                 "health": health, "stamp": p.get("time")}
     return None
+
+
+#: What an rtl_433 event says about the radio and the decoder, not about the weather.
+RTL_433_META = frozenset({"time", "model", "subtype", "channel", "id", "mic", "mod", "freq",
+                          "freq1", "freq2", "noise", "protocol", "rssi", "snr"})
+
+
+def _rtl_433(p) -> dict | None:
+    """An event `rtl_433` (GPL-2.0) decoded off the air and published on
+    `rtl_433/<host>/events`, its `-F mqtt` events topic: one JSON object a reception,
+    the decoder's own field names (`src/devices/fineoffset.c` for a Fine Offset WH65B:
+    `temperature_C`, `humidity`, `wind_dir_deg`, `wind_avg_m_s`, `wind_max_m_s`,
+    `rain_mm`, `uv`, `uvi`, `light_lux`, `battery_ok`).
+
+    * **The device is the decoder's model and its ids**, `<model>[-<subtype>][-<channel>]
+      -<id>`, as rtl_433 itself names a device's topic. Many stations pick a new id when
+      their batteries are changed; the station then arrives unbound, and is reported by
+      its new name.
+    * **Every other number or truth is a point**, under the decoder's name; the radio's
+      `rssi` and `snr` (with `-M level`) are link health.
+    * **`rain_mm` is the gauge's running total**, as the station counts it, not the
+      rain since the last message; a day's rain is a derivation, not a reading.
+    * **`light_lux` is light, not sunshine.** Declaring it as solar radiation in W/m2
+      would be the unit lie §3.4 forbids; the clear-sky check catches it when it is.
+    * **Its time is local and zoneless by default.** Run it with `-M time:unix` (epoch
+      seconds) or `-M time:iso:tz`, or give the binding a `timezone`; otherwise each
+      reading is stamped on arrival.
+    """
+    if not isinstance(p, dict) or "model" not in p:
+        return None
+    device = "-".join(str(p[k]) for k in ("model", "subtype", "channel", "id") if k in p)
+    points = {k: v for k, v in p.items() if k not in RTL_433_META
+              and (isinstance(v, (int, float, bool)))}
+    health = {k: p[k] for k in ("rssi", "snr") if isinstance(p.get(k), (int, float))}
+    return {"device": device, "points": points, "health": health, "stamp": p.get("time")}
 
 
 def _opensprinkler(root: str, t: list, p) -> dict | None:
@@ -310,12 +352,18 @@ class Bridge:
         return devices
 
     def _stamp(self, text, binding, arrived):
-        """The payload's own time, if it can be trusted; otherwise arrival time."""
+        """The payload's own time, if it can be trusted; otherwise arrival time. Seconds
+        since the Unix epoch, as a number or digits, are UTC and need no zone."""
+        if isinstance(text, (int, float)) and not isinstance(text, bool):
+            text = repr(text)
         if not isinstance(text, str) or not text:
             return None
         try:
-            parsed = _dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
-        except ValueError:
+            if text.replace(".", "", 1).isdigit():
+                parsed = _dt.datetime.fromtimestamp(float(text), tz=UTC)
+            else:
+                parsed = _dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except (ValueError, OverflowError, OSError):
             return None
         if parsed.tzinfo is None:
             if binding["zone"] is None:

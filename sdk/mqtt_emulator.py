@@ -62,6 +62,13 @@ def messages(*, vent_open: bool = True, leak: bool = False,
         {"topic": "opensprinkler/raindelay", "payload": {"state": 0}},
         {"topic": "opensprinkler/weather", "payload": {"water level": 84}},
         {"topic": "opensprinkler/availability", "payload": "online"},
+        # rtl_433 on the gateway, hearing the farm's Fine Offset WH65B weather station
+        # (run with -M time:unix), its fields as src/devices/fineoffset.c names them.
+        {"topic": "rtl_433/gateway/events", "payload": {
+            "time": "1781550000", "model": "Fineoffset-WH65B", "id": 117, "battery_ok": 1,
+            "temperature_C": 27.4, "humidity": 61, "wind_dir_deg": 203,
+            "wind_avg_m_s": 1.4, "wind_max_m_s": 2.8, "rain_mm": 311.5, "uv": 2310,
+            "uvi": 5, "light_lux": 84210.0, "mic": "CRC", "rssi": -6.2, "snr": 21.3}},
         {"topic": "some/other/thing", "payload": "ignored"},
     ]
 

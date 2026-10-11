@@ -153,6 +153,61 @@ class TestOpenSprinkler(unittest.TestCase):
         self.assertEqual((parsed["device"], parsed["points"]["station.3.ran_s"]), ("farm/os1", 60))
 
 
+class TestRtl433(unittest.TestCase):
+    """A cheap weather station heard off the air by rtl_433 on the gateway, as its MQTT
+    events topic carries it (docs/notes/weather-stations.md)."""
+
+    EVENT = next(m for m in E.messages() if m["topic"] == "rtl_433/gateway/events")
+
+    def bridge(self, *, timezone=None, payload=None):
+        farm = _Farm(["air", "rain", "gust", "signal"])
+        spec = {"uncertainty_s": 60.0, "points": {
+            "temperature_C": "air", "rain_mm": "rain", "wind_max_m_s": "gust",
+            "rssi": "signal"}}
+        if timezone:
+            spec["timezone"] = timezone
+        bridge = B.Bridge(farm.log, farm.state,
+                          _bindings(farm, **{"rtl_433:Fineoffset-WH65B-117": spec}))
+        written = bridge.handle(self.EVENT["topic"], payload or self.EVENT["payload"],
+                                arrived=ARRIVED)
+        return farm, bridge, written
+
+    def test_parsed_with_the_decoders_own_names(self):
+        parsed = B.parse("rtl_433", self.EVENT["topic"], self.EVENT["payload"])
+        self.assertEqual(parsed["device"], "Fineoffset-WH65B-117")
+        self.assertEqual(set(parsed["points"]),
+                         {"battery_ok", "temperature_C", "humidity", "wind_dir_deg",
+                          "wind_avg_m_s", "wind_max_m_s", "rain_mm", "uv", "uvi", "light_lux"})
+        self.assertEqual(parsed["health"], {"rssi": -6.2, "snr": 21.3})
+
+    def test_epoch_seconds_are_the_readings_own_time(self):
+        farm, bridge, written = self.bridge()
+        self.assertEqual(written, 4)
+        [air] = farm.rows("air")
+        self.assertEqual((air.measured_at, air.result),
+                         (_dt.datetime(2026, 6, 15, 19, tzinfo=UTC), 27.4))
+        self.assertFalse(air.provenance["stamped_on_arrival"])
+        self.assertEqual(farm.rows("signal")[0].result, -6.2)
+
+    def test_its_default_local_time_needs_the_stations_zone(self):
+        local = dict(self.EVENT["payload"], time="2026-06-15 14:00:00")
+        farm, bridge, _ = self.bridge(payload=local)
+        self.assertEqual(farm.rows("air")[0].measured_at, ARRIVED)
+        self.assertEqual(bridge.report.stamped_on_arrival, 1)
+        farm, _, _ = self.bridge(payload=local, timezone="America/Chicago")
+        self.assertEqual(farm.rows("air")[0].measured_at, _dt.datetime(2026, 6, 15, 19, tzinfo=UTC))
+
+    def test_a_station_with_new_batteries_and_a_new_id_arrives_unbound_and_named(self):
+        farm, bridge, written = self.bridge(payload=dict(self.EVENT["payload"], id=42))
+        self.assertEqual(written, 0)
+        self.assertIn("rtl_433:Fineoffset-WH65B-42", str(bridge.report.unbound_devices))
+
+    def test_under_its_own_root_and_only_its_events_topic(self):
+        self.assertIsNone(B.detect("rtl_433/gateway/states"))
+        self.assertIsNone(B.detect("rtl_433/gateway/devices/Fineoffset-WH65B/117/temperature_C"))
+        self.assertEqual(B.detect("farm/radio/pi/events", {"rtl_433": "farm/radio"}), "rtl_433")
+
+
 class TestTimestampsWithNoZone(unittest.TestCase):
     """Tasmota's Time is local and has no offset. Upstream read it in whatever zone
     the host machine happened to be in."""

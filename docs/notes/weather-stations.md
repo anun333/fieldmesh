@@ -34,8 +34,9 @@ crop". Neither a roof nor a fence by the barn will do.
    also keeps the station working when the internet is down.
 2. **It measures sunshine properly.** Solar radiation is the largest term in ET, and the
    weakest sensor on cheap stations. Some measure light (lux) and convert it to W/m² with
-   a fixed factor: Fine Offset's does, per the openHAB binding's discussion. A
-   pyranometer measures the energy itself.
+   a fixed factor. Fine Offset's WH24 and WH65B send `light_lux` (`rtl_433`'s decoder,
+   `src/devices/fineoffset.c`), and their app shows it as W/m². A pyranometer measures
+   the energy itself.
 3. **Parts can be replaced**: cups, bearings, the rain funnel, the humidity element.
 4. **It speaks an open protocol, or is open hardware.**
 
@@ -45,7 +46,7 @@ crop". Neither a roof nor a fence by the barn will do.
 | --- | --- | --- | --- | --- | --- |
 | **Build it: ESPHome** | An ESP32 with a cup anemometer, vane and tipping bucket, such as SparkFun's Weather Meter Kit: passive reed switches, 0.2794 mm per tip. Add a temperature and humidity sensor in a radiation shield. | wind, rain, temperature, humidity; sunshine only with a pyranometer added | **Today**, through the MQTT bridge's ESPHome profile | firmware and wiring yours | you calibrate and maintain it; the shield matters |
 | **Build it: 3D-PAWS** | UCAR and the National Weather Service's international office's 3D-printed station, built locally for a few hundred dollars, with "open-source electronics", used by weather services in many countries | wind, wind direction, rain, temperature, humidity, pressure; no solar sensor in the typical build | Through MQTT or its own outputs (to build) | open designs | a project to build, not a product to buy |
-| **Ready-made, cheap: the Fine Offset family** | Sold as Ecowitt, Ambient, Misol and others, read through an Ecowitt gateway (GW1100, GW2000 and others, which serve a local HTTP API with no cloud account) or straight off the air by `rtl_433` | temperature, humidity, wind, rain, light/UV; some models add more | Through Home Assistant's MQTT state stream **today**; a direct profile is to build | protocols decoded openly (`rtl_433`, GPL-2.0, 386 device protocols) | sunshine from a light sensor; plastic mechanics |
+| **Ready-made, cheap: the Fine Offset family** | Sold as Ecowitt, Ambient, Misol and others, read through an Ecowitt gateway (GW1100, GW2000 and others, which serve a local HTTP API with no cloud account) or straight off the air by `rtl_433` | temperature, humidity, wind, rain, light/UV; some models add more | **Today**: off the air through `rtl_433` and the bridge's `rtl_433` profile, or through Home Assistant's MQTT state stream | protocols decoded openly (`rtl_433`, GPL-2.0, 386 device protocols) | sunshine from a light sensor; plastic mechanics |
 | **Ready-made: WeatherFlow Tempest** | One unit, no moving parts; the hub broadcasts each minute's observation on the local network (UDP port 50222) | temperature, humidity, pressure, wind, rain by impact, solar radiation | Through Home Assistant today; a UDP listener to build | documented local broadcast | the maker calls the local broadcast a backup to its cloud |
 | **Ready-made, durable: Davis Vantage Pro2 with WeatherLink Live** | A long-serving station whose WeatherLink Live unit serves current conditions over local HTTP and broadcasts wind and rain over UDP, both documented | temperature, humidity, wind, rain; solar with the optional sensor | Through Home Assistant today; an HTTP poller to build | documented local API | Davis's AirLink is an air-quality monitor, not this |
 | **Research grade: METER ATMOS 41 Gen 2** | All-in-one, no moving parts, SDI-12 or Modbus RTU over RS-485 on enabled units, with its registers documented | solar radiation (±5%), temperature (±0.2 °C at 25 °C), humidity, pressure, wind, rain, lightning | Through fieldmesh's Modbus RTU driver, which reads holding and input registers; the register binding is to build | documented protocol | the most to buy; the way to a pilot's reference station |
@@ -114,6 +115,13 @@ In the order I'd do them:
      clear-day ratio over weeks is still to build.
 2. **An `rtl_433` profile** in the MQTT bridge. It reaches every cheap station on
    433/868/915 MHz without a vendor's gateway or Home Assistant in between.
+   *Built 2026-10-11*:
+   * it reads `rtl_433`'s events topic under the decoder's own field names;
+   * it takes `-M time:unix` epoch seconds as the reading's time;
+   * it reports a station whose id changed with its batteries as unbound, by its new
+     name.
+
+   It has been tested against the decoder's source, not yet a station on the air.
 3. **A Modbus binding for the ATMOS 41 Gen 2**, for a pilot's reference station.
 4. **ET from the farm's own station into the soil advisory**, for beds without a
    probe and for watering by the weather.
@@ -136,6 +144,8 @@ In the order I'd do them:
   [accessing data from WLL](https://www.manula.com/manuals/pws/davis-kb/1/en/topic/accessing-data-from-wll).
 * METER ATMOS 41 Gen 2 Integrator Guide, rev. 05, 2026. [PDF](https://library.metergroup.com/Integrator%20Guide/18036%20ATMOS%2041%20Gen2%20Integrator%20Guide.pdf)
 * SparkFun Weather Meter Kit: [sparkfun.com](https://www.sparkfun.com/weather-meter-kit.html).
-* Fine Offset's light sensor: [openHAB Fine Offset binding discussion](https://community.openhab.org/t/fine-offset-weather-station-binding-discussion/134167/56).
+* Fine Offset's light sensor: `rtl_433`'s [fineoffset.c](https://github.com/merbanan/rtl_433/blob/master/src/devices/fineoffset.c);
+  [openHAB Fine Offset binding discussion](https://community.openhab.org/t/fine-offset-weather-station-binding-discussion/134167/56).
+* `rtl_433`'s MQTT output and time options: [OPERATION.md](https://github.com/merbanan/rtl_433/blob/master/docs/OPERATION.md).
 * CWOP: [NOAA MADIS](https://madis.ncep.noaa.gov/madis_cwop.shtml); CoCoRaHS:
   [NWS](https://www.weather.gov/dtx/cocorahs), [cocorahs.org](https://www.cocorahs.org).
