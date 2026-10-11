@@ -955,7 +955,7 @@ its core into a separate app.
 
 ## Q28. A physics twin for protected cultivation: GreenLight?
 
-**Status: open; recommended yes, in four steps; step 1 done 2026-10-11** ([modules/twin/](../../modules/twin/)).
+**Status: open; recommended yes, in four steps; steps 1 and 2 done 2026-10-11** ([modules/twin/](../../modules/twin/)).
 
 **Step 1, what it found.** On McAllister Farm's spring of 2025 (60 nights, 6 frosts outside),
 the virtual farm's tunnel averages 3.1 °C warmer than the air at night; GreenLight's tunnel

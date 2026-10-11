@@ -26,6 +26,12 @@ try:
 except ImportError:
     HAVE_GREENLIGHT = False
 
+try:
+    import celpy  # noqa: F401
+    HAVE_CEL = True
+except ImportError:
+    HAVE_CEL = False
+
 UTC = _dt.timezone.utc
 
 
@@ -191,6 +197,7 @@ class TestTheFrostWatchInputs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cloud_area_fraction"):
             F.live_weather(no_cloud, t0, t0 + F.HOUR, lat=35.06, lon=-86.59)
 
+    @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
     def test_the_rule_warns_and_says_so_in_two_languages(self):
         import frostwatch as F
         sys.path.insert(0, os.path.join(HERE, os.pardir, "rules"))
