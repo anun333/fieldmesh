@@ -206,3 +206,7 @@ survey's silt loam:
 
 This is what a probe gives that weather alone cannot. It is also what a controller's
 soil-based watering scale (item 5) would carry, once §6 allows one.
+
+For a home lawn, the add-ons a system can take without being replaced (rain and soil
+sensors, weather-based adjustment, cycle and soak, rotary nozzles) are scored in
+[lawn-sprinklers](lawn-sprinklers.md).

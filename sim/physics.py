@@ -469,18 +469,22 @@ class SoilBed:
 @dataclass(frozen=True)
 class Horizon:
     """One layer of soil in a `LayeredBed`, top down: how thick it is, its water limits
-    as volume fractions, and how fast it passes water when saturated, mm an hour."""
+    as volume fractions, how fast it passes water when saturated, mm an hour, and the
+    suction at a wetting front, mm, which draws water into a dry soil faster than that
+    (Green and Ampt). With no suction, water soaks in only as fast as saturated soil
+    passes it."""
 
     thickness_mm: float
     saturation: float
     field_capacity: float
     wilting_point: float
     ks_mm_per_h: float
+    suction_mm: float = 0.0
 
     def __post_init__(self) -> None:
         if not 0 < self.wilting_point < self.field_capacity < self.saturation < 1:
             raise ValueError("0 < wilting point < field capacity < saturation < 1")
-        if self.thickness_mm <= 0 or self.ks_mm_per_h <= 0:
+        if self.thickness_mm <= 0 or self.ks_mm_per_h <= 0 or self.suction_mm < 0:
             raise ValueError("a horizon has a thickness and passes some water")
 
 
@@ -489,9 +493,9 @@ class Horizon:
 #: farm rather than taken from one soil survey. The clay's conductivity is a compacted
 #: subsoil's, well below an undisturbed clay's.
 SANDY_LOAM = {"saturation": 0.45, "field_capacity": 0.20, "wilting_point": 0.09,
-              "ks_mm_per_h": 25.0}
+              "ks_mm_per_h": 25.0, "suction_mm": 110.0}
 COMPACTED_CLAY = {"saturation": 0.46, "field_capacity": 0.38, "wilting_point": 0.25,
-                  "ks_mm_per_h": 1.0}
+                  "ks_mm_per_h": 1.0, "suction_mm": 300.0}
 
 
 @dataclass
@@ -510,9 +514,13 @@ class LayeredBed(SoilBed):
       passes the excess on as fast as its own conductivity at that wetness allows,
       `ks · ((θ − fc) / (sat − fc))³`, and no faster than the layer below takes water or
       has room for it; the bottom layer drains out of the soil;
-    * **water soaks in** at the top as fast as the top layer passes water while it has
-      room. Up to `surface_storage_mm` waits on the surface for the next tick, as in a
-      lawn's hollows; the rest runs off.
+    * **water soaks in** at the top as Green and Ampt have it: at the top horizon's
+      saturated conductivity times `1 + suction · Δθ / F`, `Δθ` how much drier than
+      saturation its top layer was when the water began to arrive and `F` what has soaked
+      in since. A dry soil takes a shower fast at first, then more slowly. The water fills
+      the top horizon from the top down, as a wetting front does, as far as it has room.
+      Up to `surface_storage_mm` waits on the surface for the next tick, as in a lawn's
+      hollows; the rest runs off.
 
     So a watering on topsoil over compacted clay fills the topsoil, stalls at the clay and
     perches there, and a long run puts more on than the bed can take. A probe reads its
@@ -524,6 +532,9 @@ class LayeredBed(SoilBed):
     layer_mm: float = 25.0
     surface_storage_mm: float = 2.5
     ponded_mm: float = field(default=0.0, repr=False)
+    #: What has soaked in since water began to arrive, and how dry the top was then.
+    soaked_mm: float = field(default=0.0, repr=False)
+    front_deficit: float = field(default=0.0, repr=False)
     #: Water that left the bottom of the soil, mm; `drained_mm` is what left the roots.
     deep_mm: float = field(default=0.0, repr=False)
     layers: list = field(default=None, repr=False)
@@ -603,8 +614,22 @@ class LayeredBed(SoilBed):
 
         water = self.ponded_mm + weather.rain_mm + irrigation_mm
         top = props[0]
-        soak = max(0.0, min(water, top.ks_mm_per_h * dt, (top.saturation - theta[0]) * dz))
-        theta[0] += soak / dz
+        if water <= 0:
+            self.soaked_mm = 0.0                    # the surface is dry: the next is new
+        elif self.soaked_mm == 0.0:
+            self.front_deficit = max(0.0, top.saturation - theta[0])
+        rate = top.ks_mm_per_h * (1.0 + top.suction_mm * self.front_deficit
+                                  / max(self.soaked_mm, 1.0))
+        soak = max(0.0, min(water, rate * dt))
+        given = soak
+        for i in range(n):                          # the wetting front, top down
+            if props[i] is not top or given <= 0:
+                break
+            fill = min(given, (props[i].saturation - theta[i]) * dz)
+            theta[i] += fill / dz
+            given -= fill
+        soak -= given
+        self.soaked_mm += soak
         left = water - soak
         self.ponded_mm = min(left, self.surface_storage_mm)
         self.runoff_mm += left - self.ponded_mm
