@@ -729,7 +729,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
 | Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed; probabilities and ensembles built since |
 | Q27 | What crosses between fieldmesh and ERPNext, and who owns each fact? | Blocks nothing yet — the records it needs exist since 2026-10-10 (land, inputs applied, harvest lots); the adapter waits on a partner that runs ERPNext |
-| Q28 | Should a process-based greenhouse model — GreenLight — be the hoop house's physics twin? | **Open, recommended yes; steps 1 and 2 done 2026-10-11** — the virtual farm's tunnel refitted to it; a covered-crop frost watch backtested on a season; see below |
+| Q28 | Should a process-based greenhouse model — GreenLight — be the hoop house's physics twin? | **Open, recommended yes; steps 1 to 3 done 2026-10-11** — the virtual farm's tunnel refitted to it; a covered-crop frost watch backtested on a season; see below |
 | Q29 | How do alerts reach people on the pilot farm: SMS through the farm's own modem, push through ntfy, or both? | **Open, recommended: SMS through a modem as the floor, push through a self-hosted ntfy** — the notifier speaks both; blocks the pilot; see below |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
@@ -969,7 +969,7 @@ its core into a separate app.
 
 ## Q28. A physics twin for protected cultivation: GreenLight?
 
-**Status: open; recommended yes, in four steps; steps 1 and 2 done 2026-10-11** ([modules/twin/](../../modules/twin/)).
+**Status: open; recommended yes, in four steps; steps 1 to 3 done 2026-10-11, step 4 waits on §6** ([modules/twin/](../../modules/twin/)).
 
 **Step 1, what it found.** On McAllister Farm's spring of 2025 (60 nights, 6 frosts outside),
 the virtual farm's tunnel averages 3.1 °C warmer than the air at night; GreenLight's tunnel
@@ -991,6 +991,13 @@ Tennessee winter gets into an unheated tunnel (28 of 38 damaging outdoor frosts 
 film, 36 under clear). The twin on a forecast runs about 1.1 °C warm, which let one
 damaging night through under clear film at 0 °C, so clear film warns at +0.5 °C. The live
 watch reads the farm's own forecast log, which now keeps humidity, wind and cloud.
+**Step 3, what it found.** The twin against the tunnel's sensor
+([twin_check.py](../../modules/twin/twin_check.py)) learns how far apart the two usually sit
+by time of day, then says when they part company for three hours. Backtested on spring 2025
+with GreenLight's run as the twin and the virtual farm's tunnel as the sensor, it raised no
+false alert in seven weeks and caught each gross fault put in within a day: a sensor 4 °C
+off, a lost sun shield, the sides left up, the sensor reading outside air. It cannot see a
+sensor 2 °C off reliably; that is a second sensor's job.
 Raised when GreenLight was pointed out as the open-science side of greenhouse climate
 control, against the closed commercial systems (Priva, Ridder, Hoogendoorn).
 

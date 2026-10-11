@@ -90,6 +90,43 @@ outside. A damaging frost is −2.2 °C or below, as in the open-bed watch's bac
 Neither "truth" inside is a thermometer in a tunnel. The twin run on the weather that came
 is the best available while no real tunnel is logged.
 
+## Step 3: the twin against the tunnel's own sensor
+
+A tunnel has one air sensor more often than two, and one sensor cannot see its own fault.
+[twin_check.py](twin_check.py) sets the twin beside it, and says, as an advisory decision,
+when the two part company and stay apart:
+
+> invernadero's air sensor and the twin have disagreed by −6.4 °C for 3 hours. Check the
+> sensor and its sun shield, and whether the sides or a door are open.
+
+It never marks a reading bad. A module does not write quality verdicts (§8.3), and the twin
+may be the one that is wrong.
+
+**What counts as apart is learned.** Two models of one tunnel never agree. On the spring of
+2025, GreenLight and the virtual farm's tunnel, lit by the measured sunshine, differ by about
+1 °C at night and up to 2 °C at midday. So the check first learns the usual difference and
+its spread for each four hours of the solar day over two weeks of good data, after the
+sensor is installed or serviced. After that, an hour departs when its difference lies
+further from the usual one than the larger of 2 °C and three spreads. The alert stands once
+three such hours run in a row.
+
+**Backtested** on the spring of 2025, with GreenLight's saved run as the twin and the
+virtual farm's tunnel as the sensor, with faults put in:
+
+| fault | said after |
+| --- | --- |
+| none, seven weeks; five noise seeds | never: no false alert |
+| the sensor reads 4 °C high (miscalibrated, replaced) | 12 h; across five placings, 8 to 39 h |
+| its sun shield is gone, reading up to 8 °C high in full sun | 8 h |
+| the sides are left up for two days | 15 h, at the first sunny midday |
+| it reads the outside air (knocked down, moved) | 2 h by day; at night a tunnel is barely warmer than outside |
+
+**What it cannot see:** a sensor 1.5 °C off (no case in five), 2 °C off (two in five) or 3 °C
+off (three or four in five). The twin is a second opinion for gross faults; a sensor slowly
+going wrong is a second sensor's to catch. And the "sensor" here is a second model, not a
+thermometer in a tunnel: what a real one's residuals look like is
+[untested](../../docs/UNTESTED.md).
+
 ## What it took to run GreenLight as a tunnel
 
 Every unheated configuration failed at the first sunrise, in the solver, whatever its film
@@ -129,6 +166,6 @@ Sixty-one days of the tunnel take about 80 seconds here.
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)), like the other modules; GreenLight is
 BSD-3-Clause-Clear and is installed, not copied.
 
-**Next (Q28):** twin against a tunnel's own sensor, as advice, once a tunnel is logged; and
-the twin's warm bias on forecasts, which a season of a real tunnel's lows would let the
-watch correct rather than pad.
+**Next (Q28):** the twin run live on a farm's weather beside a real tunnel's sensor, as
+a module process; the twin's warm bias on forecasts, which a season of a real tunnel's lows
+would let the watch correct rather than pad; step 4 waits on §6.

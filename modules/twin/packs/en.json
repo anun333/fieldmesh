@@ -6,6 +6,7 @@
   "note": "The hoop-house twin's strings, merged over layer zero's pack at load. Every key starts with `twin.`."
  },
  "strings": {
-  "twin.frost.alert": "Frost in the tunnel tonight: the twin puts the inside low at {low:.1f} °C, at or below the {warn:.1f} °C this farm warns at, with {outside:.1f} °C forecast outside. Cover tender plants inside the tunnel, or heat it."
+  "twin.frost.alert": "Frost in the tunnel tonight: the twin puts the inside low at {low:.1f} °C, at or below the {warn:.1f} °C this farm warns at, with {outside:.1f} °C forecast outside. Cover tender plants inside the tunnel, or heat it.",
+  "twin.disagree": "{tunnel}'s air sensor and the twin have disagreed by {delta:+.1f} °C for {hours:.0f} hours. Check the sensor and its sun shield, and whether the sides or a door are open."
  }
 }

@@ -243,6 +243,72 @@ class TestTheFrostWatchSeason(unittest.TestCase):
         self.assertEqual(missed, [], "at the clear film's own threshold")
 
 
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestTheTwinAgainstTheSensor(unittest.TestCase):
+    """Q28 step 3, on the spring of 2025: GreenLight's saved run as the twin, and the
+    virtual farm's tunnel, lit by the measured sunshine, as the sensor, with faults put
+    in. Two models of one tunnel never agree; the check learns how far apart they
+    usually are and says when they part company."""
+
+    @classmethod
+    def setUpClass(cls):
+        import twin_check as K
+        cls.K = K
+        cls.hours = T.read_hours(C.data(C.PERIODS["spring"]))
+        cls.twin = C.read_inside(C.greenlight_file("spring", "thermic"))
+        d = lambda m, day, h=12: _dt.datetime(2025, m, day, h, tzinfo=UTC)
+        cls.faults = [("offset", d(3, 20), d(3, 23), 4.0), ("sun", d(3, 28), d(4, 2), 8.0),
+                      ("sides", d(4, 8, 0), d(4, 10, 0), None), ("outside", d(4, 16), d(4, 18, 0), None)]
+
+    def test_a_sound_sensor_raises_nothing_in_seven_weeks(self):
+        r = self.K.backtest(self.K.sensor_series(self.hours), self.twin, [], lon=C.LON)
+        self.assertEqual(r["false"], [])
+        self.assertGreater(r["clean_days"], 45)
+
+    def test_each_fault_is_said_within_a_day_and_nothing_else_is(self):
+        sensor = self.K.sensor_series(self.hours, faults=self.faults)
+        r = self.K.backtest(sensor, self.twin, self.faults, lon=C.LON)
+        caught = {f["kind"]: f["caught_after_h"] for f in r["faults"]}
+        self.assertEqual(set(caught), {"offset", "sun", "sides", "outside"})
+        self.assertTrue(all(h is not None and h <= 24 for h in caught.values()), caught)
+        self.assertEqual(r["false"], [])
+
+    def test_a_small_offset_is_not_its_to_see(self):
+        """Two models of a tunnel differ by one or two degrees, so a sensor that reads
+        1.5 °C high is a second sensor's to catch, not the twin's."""
+        d = lambda m, day: _dt.datetime(2025, m, day, 12, tzinfo=UTC)
+        faults = [("offset", d(3, 20), d(3, 27), 1.5)]
+        r = self.K.backtest(self.K.sensor_series(self.hours, faults=faults), self.twin, faults, lon=C.LON)
+        self.assertIsNone(r["faults"][0]["caught_after_h"])
+
+    def test_it_waits_for_a_week_of_calibration_and_says_so_in_two_languages(self):
+        import rules as R
+        from ids import uuid7
+        from model import Label
+        from project import State
+        start = self.hours[0].when
+        sensor = self.K.sensor_series(self.hours, faults=[("outside", start + 20 * self.K.DAY,
+                                                           start + 22 * self.K.DAY, None)])
+        short = self.K.calibrate(sensor, self.twin, start, start + 3 * self.K.DAY, lon=C.LON)
+        self.assertFalse(short.ok())
+        cal = self.K.calibrate(sensor, self.twin, start, start + 14 * self.K.DAY, lon=C.LON)
+        # At night a tunnel is barely warmer than outside, so the first sunny hours say it.
+        at = start + 20 * self.K.DAY
+        while at < start + 22 * self.K.DAY:
+            ctx, _ = self.K.context(sensor, self.twin, cal, at, lon=C.LON)
+            d = R.judge(self.K.rule(), ctx, {}, at)
+            if d["alert"]:
+                break
+            at += self.K.HOUR
+        self.assertTrue(d["alert"])
+        self.assertLess(d["context"]["delta_c"], 0, "outside is colder than the tunnel by day")
+        tunnel = uuid7()
+        d["subject"] = str(tunnel)
+        state = State()
+        state.add(Label(uuid7(), tunnel, "invernadero", at, language="es"))
+        self.assertIn("El sensor de aire de invernadero y el gemelo discrepan", R.render(d, "es", state))
+
+
 @unittest.skipUnless(HAVE_GREENLIGHT, "GreenLight runs in this module's environment (requirements.txt)")
 class TestGreenLightAsATunnel(unittest.TestCase):
     def run_days(self, days, *, fix):

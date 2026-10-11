@@ -6,6 +6,7 @@
   "note": "Borrador: sin revisar por un agrónomo hispanohablante."
  },
  "strings": {
-  "twin.frost.alert": "Helada dentro del túnel esta noche: el gemelo calcula una mínima interior de {low:.1f} °C, igual o por debajo de los {warn:.1f} °C con que avisa esta finca, con {outside:.1f} °C previstos afuera. Cubra las plantas tiernas dentro del túnel, o caliéntelo."
+  "twin.frost.alert": "Helada dentro del túnel esta noche: el gemelo calcula una mínima interior de {low:.1f} °C, igual o por debajo de los {warn:.1f} °C con que avisa esta finca, con {outside:.1f} °C previstos afuera. Cubra las plantas tiernas dentro del túnel, o caliéntelo.",
+  "twin.disagree": "El sensor de aire de {tunnel} y el gemelo discrepan en {delta:+.1f} °C desde hace {hours:.0f} horas. Revise el sensor y su protector solar, y si los laterales o una puerta están abiertos."
  }
 }
