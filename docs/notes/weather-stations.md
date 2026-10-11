@@ -123,6 +123,15 @@ In the order I'd do them:
 
    It has been tested against the decoder's source, not yet a station on the air.
 3. **A Modbus binding for the ATMOS 41 Gen 2**, for a pilot's reference station.
+   *Built 2026-10-11*: [sdk/modbus_collector.py](../../sdk/modbus_collector.py) polls it
+   from its register map.
+   * It reads input registers 3001–3044 in one burst, as the guide asks, because a read
+     resets the station's accumulators.
+   * Each reading records the span it covers.
+   * Writing the decoder against the guide found a slip in it: its example of the float
+     byte order prints 0x471F2000 for 123456.0, which is 0x47F12000.
+
+   Tested with a fake station answering over a pseudo-terminal, not yet a real one.
 4. **ET from the farm's own station into the soil advisory**, for beds without a
    probe and for watering by the weather.
 5. **Ecowitt's local API, Tempest's broadcast and WeatherLink Live's HTTP API** as
