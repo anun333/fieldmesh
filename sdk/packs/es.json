@@ -125,6 +125,9 @@
   "unit.[in_i]": "pulgada",
   "unit.km/h": "kilómetro por hora",
   "unit.[mi_i]/h": "milla por hora",
-  "term.http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/": "nubosidad"
+  "term.http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/": "nubosidad",
+  "term.http://vocab.nerc.ac.uk/standard_name/surface_downwelling_shortwave_flux_in_air/": "radiación solar",
+  "unit.W/m2": "vatio por metro cuadrado",
+  "check.clear_sky.above": "{value:.0f} W/m2 es más de lo que da un cielo despejado aquí a esta hora ({limit:.0f} W/m2 como máximo): revise el reloj del sensor, su zona horaria y sus unidades"
  }
 }

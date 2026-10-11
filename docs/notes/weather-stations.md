@@ -104,6 +104,14 @@ Either can feed fieldmesh's MQTT bridge, once the bridge has a profile for its t
 In the order I'd do them:
 
 1. **The clear-sky check** on solar radiation, beside the range and flatline checks.
+   *Built 2026-10-11* (`sdk/checks.clear_sky`, `sdk/sun.py`). On a year of NOAA's
+   reference station at Crossville, Tennessee, it raised nothing on healthy readings.
+   With faults put in ([tools/clear_sky_scan.py](../../tools/clear_sky_scan.py)):
+   * a clock on local time read as UTC was caught on 363 of 366 days;
+   * a clock an hour out, on 219;
+   * lux sent as watts, every day;
+   * a sensor 30% high, on only 46. The check is a ceiling, not a calibration; the
+     clear-day ratio over weeks is still to build.
 2. **An `rtl_433` profile** in the MQTT bridge. It reaches every cheap station on
    433/868/915 MHz without a vendor's gateway or Home Assistant in between.
 3. **A Modbus binding for the ATMOS 41 Gen 2**, for a pilot's reference station.

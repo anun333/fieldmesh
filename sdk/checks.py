@@ -46,6 +46,7 @@ from uuid import UUID
 
 import i18n
 import project as P
+import sun
 import vocab
 from ids import uuid7
 from model import (Assertor, Datastream, DatastreamKind, Observation,
@@ -89,6 +90,17 @@ DEFAULTS = {
     # `suspect`: capacitance and impedance probes sense liquid water only, so frozen
     # soil reads falsely dry. ISMN's D01 is the same rule. None switches it off.
     "frozen_below_c": 0.0,
+    # A sunshine reading above what a clear sky gives at the site and hour is
+    # `out_of_range`: a station clock in the wrong zone shows sun at night, and light in
+    # lux sent as W m-2 is a hundred times too bright. Off until the site is given; the
+    # rest default in `clear_sky` (elevation 0, a reading of a moment, the factor and
+    # margin there).
+    "clear_sky_lat": None,
+    "clear_sky_lon": None,
+    "clear_sky_elevation_m": None,
+    "clear_sky_window_s": None,     # the reading is a mean over this window, ending at it
+    "clear_sky_factor": None,
+    "clear_sky_margin_w": None,
 }
 
 
@@ -142,6 +154,39 @@ def _frozen(state: P.State, obs: Observation, datastream: Datastream,
                                       temperature=reading.result, limit=limit)
             return True, None
     return False, None
+
+
+#: How far above FAO-56's clear sky a sunshine reading may go. On three years of NOAA's
+#: Climate Reference Network station at Crossville, Tennessee (2022-2024, every hour its
+#: own quality control passed), an hour's mean reached 1.15 times the clear sky's mean,
+#: and the brightest moment in an hour 1.66 times the clear sky's most, at a cloud's
+#: edge; no hour of darkness read above zero. So a reading of a moment may reach 1.7
+#: times, and an hourly mean can be held to 1.25 (`clear_sky_factor`). The margin
+#: covers the minutes around sunrise and a clock a little off.
+CLEAR_SKY_FACTOR = 1.7
+CLEAR_SKY_MARGIN_W = 25.0
+
+
+def clear_sky(obs: Observation, datastream: Datastream,
+               values: dict) -> tuple[bool, Finding | None]:
+    """§4.2: more sunshine than the sky can give, at the site and the reading's hour.
+
+    Returns `(ran, finding)`, as `_frozen` does: the evidence lists the check only when
+    the series is sunshine and its site is configured."""
+    lat, lon = values.get("clear_sky_lat"), values.get("clear_sky_lon")
+    if (lat is None or lon is None or datastream.observed_property != vocab.SOLAR_RADIATION
+            or not _numeric(obs.result)):
+        return False, None
+    sky = sun.clear_sky_mean_w(lat, lon, values.get("clear_sky_elevation_m") or 0.0,
+                               obs.measured_at, values.get("clear_sky_window_s") or 0.0)
+    factor = values.get("clear_sky_factor") or CLEAR_SKY_FACTOR
+    margin = values.get("clear_sky_margin_w")
+    limit = factor * sky + (CLEAR_SKY_MARGIN_W if margin is None else margin)
+    if obs.result > limit:
+        return True, _finding(QualityFlag.OUT_OF_RANGE, "clear_sky", "check.clear_sky.above",
+                              value=obs.result, limit=round(limit, 1),
+                              clear_sky=round(sky, 1))
+    return True, None
 
 
 def thresholds_for(datastream: Datastream,
@@ -737,6 +782,9 @@ def assess(state: P.State, obs: Observation, *,
     frozen_ran, frozen = (False, None) if forecast else _frozen(state, obs, datastream, values)
     if frozen is not None:
         findings.append(frozen)
+    sky_ran, sky = (False, None) if forecast else clear_sky(obs, datastream, values)
+    if sky is not None:
+        findings.append(sky)
     # Only decidable here when the readings after this one are already in: otherwise
     # `spike_assertions` decides it when they arrive, and the evidence must not claim
     # the check ran.
@@ -749,6 +797,7 @@ def assess(state: P.State, obs: Observation, *,
     evidence = {
         "checks_run": [check_name(c) for c in checks]
                       + (["frozen"] if frozen_ran else [])
+                      + (["clear_sky"] if sky_ran else [])
                       + (["spike"] if spike_ran else []),
         "fired": {f.check: f.reason for f in findings},
         # What any language renders from, years later, from this same record.

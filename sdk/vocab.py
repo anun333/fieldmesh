@@ -77,6 +77,11 @@ PRECIPITATION_DEPTH = CF + "lwe_thickness_of_precipitation_amount/"
 #: Wind speed. CF, canonical m s-1.
 WIND_SPEED = CF + "wind_speed/"
 
+#: Sunshine: the sun's energy reaching a horizontal surface, what a pyranometer
+#: measures, direct and diffuse together. CF, canonical W m-2. The largest term in
+#: reference ET, and the one a clear sky bounds (`sun.py`, the clear-sky check).
+SOLAR_RADIATION = CF + "surface_downwelling_shortwave_flux_in_air/"
+
 #: Cloud cover, as a forecast gives it. The covered-crop frost watch needs it: a clear sky
 #: draws heat out through a polyethylene tunnel, and cloud is what stops it (Q28).
 CLOUD_AREA_FRACTION = CF + "cloud_area_fraction/"
@@ -146,6 +151,7 @@ TERMS: dict[str, tuple[str, str]] = {
     PRECIPITATION_DEPTH: ("mm", "CF"),
     WIND_SPEED: ("m/s", "CF"),
     CLOUD_AREA_FRACTION: ("%", "CF"),
+    SOLAR_RADIATION: ("W/m2", "CF"),
     BATTERY_VOLTAGE: ("V", "ODM2"),
     RSSI: ("dB[mW]", "ODM2"),
     VESSEL_FILL_FRACTION: ("1", "local"),
@@ -168,6 +174,7 @@ ACCEPTED_UNITS: dict[str, frozenset] = {
     PRECIPITATION_DEPTH: frozenset({"mm", "m", "[in_i]"}),
     WIND_SPEED: frozenset({"m/s", "km/h", "[mi_i]/h"}),
     CLOUD_AREA_FRACTION: frozenset({"%", "1"}),
+    SOLAR_RADIATION: frozenset({"W/m2"}),
     BATTERY_VOLTAGE: frozenset({"V", "mV"}),
     RSSI: frozenset({"dB[mW]"}),
     VESSEL_FILL_FRACTION: frozenset({"1", "%"}),

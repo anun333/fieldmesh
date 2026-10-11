@@ -32,7 +32,10 @@ Test fixtures: `sim/data/mcallister-2007-spring.csv` and
 `sim/data/mcallister-2013-summer.csv`, NASA POWER daily weather (CC-BY-4.0, credited in
 their headers), and
 `tools/fixtures/nws-gridpoint-HUN-62-57.json` and `nws-gridpoint-HUN-62-57-pop.json`,
-trimmed National Weather Service forecasts (public domain, a US government work).
+trimmed National Weather Service forecasts (public domain, a US government work), and
+`tools/fixtures/uscrn-crossville-2024-solar.csv.gz`, a year of hourly solar radiation from
+NOAA's Climate Reference Network station at Crossville, Tennessee (public domain, credited
+in its header).
 
 Figures quoted in notes from NASA POWER (CC-BY-4.0), ISMN (CC-BY-4.0) and the USDA soil
 survey (public domain) are attributed where they appear. FAO's ECOCROP is **not** used:

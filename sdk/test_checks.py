@@ -78,6 +78,61 @@ class TestRange(unittest.TestCase):
         self.assertEqual(_flags(C.assess(_state(ds, obs), obs)), [])
 
 
+class TestClearSky(unittest.TestCase):
+    """More sunshine than a clear sky gives at the site and hour (`checks.clear_sky`)."""
+
+    SITE = {"clear_sky_lat": 36.01, "clear_sky_lon": -85.13, "clear_sky_elevation_m": 583.0}
+
+    def _assess(self, result, when, **thresholds):
+        import vocab as V
+        ds = fx.raw_datastream(unit="W/m2", observed_property=V.SOLAR_RADIATION,
+                               thresholds={**self.SITE, **thresholds})
+        obs = fx.observation(ds, result=result, measured_at=when)
+        return C.assess(_state(ds, obs), obs)
+
+    def test_the_sun_module_gives_fao_56s_example_8(self):
+        """Example 8: on 3 September at 20 degrees south, Ra = 32.2 MJ m-2 a day."""
+        import sun
+        day = _dt.datetime(2026, 9, 3, tzinfo=UTC)
+        mj = sum(sun.extraterrestrial_w(-20.0, 0.0, day + _dt.timedelta(minutes=m + 0.5))
+                 for m in range(24 * 60)) * 60.0 / 1e6
+        self.assertAlmostEqual(mj, 32.2, delta=0.15)
+
+    def test_sunshine_at_night_is_out_of_range(self):
+        """At Crossville, 06:00 UTC is midnight: a station whose clock is in the wrong zone
+        shows the afternoon's sun then."""
+        a = self._assess(450.0, _dt.datetime(2024, 6, 21, 6, 0, tzinfo=UTC))
+        self.assertEqual(_flags(a), ["out_of_range"])
+        self.assertIn("clear_sky", a.evidence["checks_run"])
+        self.assertEqual(a.evidence["messages"]["clear_sky"]["key"], "check.clear_sky.above")
+
+    def test_a_bright_noon_is_clean_and_lux_sent_as_watts_is_not(self):
+        noon = _dt.datetime(2024, 6, 21, 18, 0, tzinfo=UTC)
+        self.assertEqual(_flags(self._assess(980.0, noon)), [])
+        self.assertEqual(_flags(self._assess(98000.0, noon)), ["out_of_range"])
+
+    def test_an_hourly_mean_is_held_to_the_hours_mean_sky(self):
+        """At 11:00 UTC on 21 June the sun has just risen at Crossville: a clear sky gives
+        98 W/m2 at that moment but 25 on average over the hour before it. So 100 W/m2 is
+        a plausible moment and an impossible hour's mean."""
+        when = _dt.datetime(2024, 6, 21, 11, 0, tzinfo=UTC)
+        self.assertEqual(_flags(self._assess(100.0, when, clear_sky_factor=1.25)), [])
+        self.assertEqual(_flags(self._assess(100.0, when, clear_sky_window_s=3600.0,
+                                             clear_sky_factor=1.25)), ["out_of_range"])
+
+    def test_it_runs_only_on_sunshine_with_its_site_given(self):
+        night = _dt.datetime(2024, 6, 21, 6, 0, tzinfo=UTC)
+        ds = fx.raw_datastream(thresholds=dict(self.SITE))            # a soil probe
+        obs = fx.observation(ds, result=450.0, measured_at=night)
+        self.assertNotIn("clear_sky", C.assess(_state(ds, obs), obs).evidence["checks_run"])
+        import vocab as V
+        ds = fx.raw_datastream(unit="W/m2", observed_property=V.SOLAR_RADIATION)
+        obs = fx.observation(ds, result=450.0, measured_at=night)
+        a = C.assess(_state(ds, obs), obs)
+        self.assertEqual(_flags(a), [])
+        self.assertNotIn("clear_sky", a.evidence["checks_run"])
+
+
 class TestFlatline(unittest.TestCase):
     def _series(self, values, flat_n=4):
         ds = fx.raw_datastream(thresholds={"flat_n": flat_n})

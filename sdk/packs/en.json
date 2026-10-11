@@ -117,6 +117,9 @@
   "unit.[in_i]": "inch",
   "unit.km/h": "kilometre per hour",
   "unit.[mi_i]/h": "mile per hour",
-  "term.http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/": "cloud cover"
+  "term.http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/": "cloud cover",
+  "term.http://vocab.nerc.ac.uk/standard_name/surface_downwelling_shortwave_flux_in_air/": "solar radiation",
+  "unit.W/m2": "watt per square metre",
+  "check.clear_sky.above": "{value:.0f} W/m2 is more than a clear sky gives here at this hour ({limit:.0f} W/m2 at most): check the sensor's clock, its time zone and its units"
  }
 }
