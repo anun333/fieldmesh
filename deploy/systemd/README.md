@@ -81,6 +81,10 @@ by it alone and gone when it stops.
   directory was still writable — so they take effect only under the system manager, which
   needs root to test. Check them on a real gateway with
   `systemd-run -p ProtectSystem=strict … touch /usr/x` before relying on them.
+* **Not checked live either:** dropping capabilities (`CapabilityBoundingSet=`). A user
+  manager refuses it outright, so the live runs left it out. Check it under the system
+  manager with `grep Cap /proc/<pid>/status`. Everything still untested is listed in
+  [docs/UNTESTED.md](../../docs/UNTESTED.md).
 
 WASI's capability sandbox is the stated target (Q11), adopted when the Python toolchain is
 ready; the grant model does not change when the sandbox does.

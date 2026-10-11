@@ -43,6 +43,7 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | --- | --- |
 | [docs/spec/v0.1.md](docs/spec/v0.1.md) | **The contract.** §17 records every amendment, and most were found by running code rather than by reading |
 | [docs/spec/open-questions.md](docs/spec/open-questions.md) | Every open decision, with every option and its trade-offs |
+| [docs/UNTESTED.md](docs/UNTESTED.md) | Every claim not yet tested, in one place: what was checked instead, and what would close it |
 | [docs/VIRTUAL_FARM.md](docs/VIRTUAL_FARM.md) | Why the build is simulator-first, and the completeness matrix that turns a spec clause with nothing exercising it into a failing test |
 | [docs/LANGUAGE_PACKS.md](docs/LANGUAGE_PACKS.md) | For a university adding its farmers' language — one JSON file, no code |
 | [docs/notes/](docs/notes/) | Measurements and validations behind decisions: encoding, power, FROST, QGIS, public datasets, validation sites |
@@ -128,3 +129,5 @@ Plainly, so nobody has to discover it:
   a token, answers a sharing grantee from what their grant covers and nothing else,
   refuses to listen beyond the machine without TLS, and rate-limits and times out its
   clients. Nobody outside has tried to break it.
+- **Everything not yet tested is listed in [docs/UNTESTED.md](docs/UNTESTED.md)**, with
+  what was checked instead and what would close each gap.

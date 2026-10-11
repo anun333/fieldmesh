@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+# What has not been tested
+
+This page lists, in one place, every claim this repository makes that has not been
+checked. For each it gives:
+
+* what was checked instead;
+* what would close the gap;
+* where the gap is noted alongside the code.
+
+A claim that is tested only on the simulated farm is marked as such, because a simulator
+never satisfies §9.2. When an item is checked, move it to the end with the date and a
+link to the evidence; do not delete it.
+
+## Needs hardware or a farm
+
+| Not tested | Checked instead | What would check it | Noted in |
+| --- | --- | --- | --- |
+| **Sending and receiving SMS through a real modem**: `mmcli` creating, sending and deleting a message; reading replies; a long Spanish text arriving as one joined message; the sender's number in the format a real network gives it | The commands and their JSON as ModemManager 1.23's source defines them (`cli/mmcli-output.c`, `cli/mmcli-modem-messaging.c`), against a fake that answers the same way | A modem ModemManager supports, with a SIM, on the gateway: send to a phone and reply to it (Q29's first step) | [modules/notify](../modules/notify/README.md) |
+| **ModemManager letting the notifier's service user send**, which polkit decides | Nothing | The same modem, with the notifier running as its own systemd service rather than as a person | [modules/notify](../modules/notify/README.md), [deploy/systemd](../deploy/systemd/README.md) |
+| **A real radio and a real device driver** (build step 7) | Meshtastic chosen on paper (Q6); a Modbus RTU driver over a pseudo-terminal; a real station's feed (McAllister Farm's SCAN station) through layer zero every six hours | One Meshtastic node with one sensor, through a season | [README](../README.md) |
+| **A growing season on a real farm** (§9.2), which every reliability claim waits on | The simulated farm, Harrow Bend, and recorded seasons from public stations | The pilot (Q1): two sites, decided by February 2027 to install before spring | [README](../README.md), [Q1](spec/open-questions.md) |
+| **The thresholds**: a trough's empty, low and refill marks; the soil advisory's readily available water; the frost watch's 0 °C | Simulated troughs; one recorded summer for the soil advisory (2013); one frost season (2025–26) | A season of a real farm's troughs and beds, with the farmer saying which alerts were right | [§15](spec/v0.1.md), [modules/water](../modules/water/README.md), [modules/soilwater](../modules/soilwater/README.md) |
+| **GreenLight's tunnel against a real tunnel**, and the covered-crop frost watch's "inside low" | GreenLight against the virtual farm's tunnel; the watch on forecasts against the twin run on the weather that came. The "truth" inside is the twin itself, and it runs about 1.1 °C warm on forecasts | A tunnel's inside and outside air logged on clear spring nights, with its film type written down (Q28 step 3) | [modules/twin](../modules/twin/README.md), [Q28](spec/open-questions.md) |
+
+## Needs root, a phone or the open internet
+
+| Not tested | Checked instead | What would check it | Noted in |
+| --- | --- | --- | --- |
+| **The sandbox's filesystem protections** (`ProtectSystem`, `ProtectHome`) | Runs under a *user* systemd manager, which skips mount-namespace options without saying so | `systemd-run -p ProtectSystem=strict … touch /usr/x` under the system manager, on the gateway | [deploy/systemd](../deploy/systemd/README.md) |
+| **Dropping capabilities** (`CapabilityBoundingSet=`) | Nothing: a user manager is refused it. The notifier's live run on 2026-10-11 had to leave it out | The unit started by the system manager, then `grep Cap /proc/<pid>/status` | [deploy/systemd](../deploy/systemd/README.md) |
+| **Push reaching a real phone**: the ntfy app showing the alert, and its "I'm on it" button sending the acknowledgement | A real ntfy server (v2.11.0), open and locked down. The button was pressed by making the exact request its action describes. Per ntfy's documentation, an iPhone gets instant notifications from a self-hosted server only when that server relays through ntfy.sh (`upstream-base-url`); not tried | The ntfy app on an Android phone and an iPhone, subscribed to a test topic on the server the pilot will use | [modules/notify](../modules/notify/README.md) |
+| **The data service facing the internet** | Real sockets on this machine: tokens, grants, TLS with a generated certificate, rate limits, timeouts | Someone outside trying to break it | [README](../README.md), [server](../server/README.md) |
+| **The farm page served with TLS** | Its refusal to serve beyond the machine without TLS; the data service's TLS, whose handling it copies | A test with a generated certificate, as the data service has | [modules/board](../modules/board/README.md) |
+
+## Needs a person
+
+| Not tested | Checked instead | What would check it | Noted in |
+| --- | --- | --- | --- |
+| **Every Spanish string**: messages, the board, the advisor. The notifier's lists of yes and no words matter most, because they decide whether a reply stops an alert climbing | `make packs`: every key present, every field matching English | A native-speaking agronomist's review, and the yes and no lists tried on the people who will text back | [LANGUAGE_PACKS](LANGUAGE_PACKS.md), each module's README |
+| **The advisor's crops without a model**: chill and bloom for blueberries, heat at fruit set in any crop but tomato, oats, and the 255 plants with neither source | The 28 crops with a crop model, and 625 fruit cultivars for chill | Sources for them, or a grower's records | [site-match-tennessee](../modules/advise/notes/site-match-tennessee.md#not-checked-yet) |
+
+## Smaller gaps in the tests
+
+* **Quiet hours across a daylight-saving change.** The notifier reads quiet hours in
+  the farm's own time zone, but the tests run in July only.
+* **A notifier that runs for a year.** It keeps every alert it has seen in memory, and
+  none of them is ever dropped. Nobody has measured how that grows.
+* **The gateway with the module host inside it.** The host is tested on its own and as its
+  own service. "On a gateway it runs inside the gateway" is how the systemd notes describe
+  it, but nothing in `sdk/gateway.py` starts the host yet.
