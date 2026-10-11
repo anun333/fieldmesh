@@ -325,7 +325,10 @@ class Node:
         """
         sent = []
         for _ in range(max_messages):
-            if self.buffered == 0:
+            # Resends count as backlog. Under `fresh_first` the newest frame goes ahead
+            # of them, and a drain that stopped once nothing was left unsent would leave
+            # them behind every new sample until the horizon turned them into a gap.
+            if self.buffered == 0 and self.awaiting_resend == 0:
                 break
             attempt = self.transmit(now_s)
             if not attempt.sent:
@@ -341,20 +344,36 @@ class Node:
 
         A frame awaiting resend goes first and **keeps its sequence number**, so the
         gateway can recognise it as the message it may already hold.
-        """
-        resend = self._oldest_resend()
-        if resend is not None:
-            return self._send(resend, now_s, seq=resend[0].seq, resend=True)
 
+        **Except under `fresh_first`, when there is something newer to say** (§5.3).
+        Through a long outage every frame the node tries goes unacknowledged, so when
+        the link returns the resends are all of the oldest readings. Sending them first
+        delivered a trough's level from midnight at noon, twelve hours stale, for the
+        one series whose whole policy is that the newest reading goes first — the
+        livestock water monitor's acceptance test found it. Readings never sent that
+        are newer than every frame awaiting resend go first; the resends follow in the
+        same burst, under their own numbers.
+        """
         pending = [h for h in self._held
                    if h.seq is None and not h.awaiting_resend]
+        resend = self._next_resend()
+        if resend is not None:
+            if not (self.policy.drain_order == FRESH_FIRST and pending
+                    and max(h.sampled_at_s for h in pending) > self._newest_awaiting()):
+                return self._send(resend, now_s, seq=resend[0].seq, resend=True)
         if not pending:
             return Transmission(payload=None, deferred="nothing buffered")
         return self._send(self._drain_order(pending), now_s, seq=self.seq,
                           resend=False)
 
-    def _oldest_resend(self):
-        """The earliest-sent frame still awaiting acknowledgement, as a group.
+    def _newest_awaiting(self) -> float:
+        return max((h.sampled_at_s for h in self._held if h.awaiting_resend),
+                   default=float("-inf"))
+
+    def _next_resend(self):
+        """The frame to resend next, as a group: the earliest sent, or under
+        `fresh_first` the one holding the newest readings — a fresh frame lost on the
+        way is resent before the night's backlog, not after it (§5.3).
 
         One pass to group, then a lookup per sequence number — not a scan of the
         buffer per sequence number. The nested version was correct and was **the
@@ -382,6 +401,8 @@ class Node:
                 groups.setdefault(h.seq, []).append(h)
         if not groups:
             return None
+        if self.policy.drain_order == FRESH_FIRST:
+            return max(groups.values(), key=lambda g: max(h.sampled_at_s for h in g))
         for seq in self._sent_order:
             group = groups.get(seq)
             if group:
@@ -452,14 +473,29 @@ class Node:
 
     # ------------------------------------------------------------ confirmation
 
-    def ack(self, seq: int) -> int:
-        """Release everything up to and including `seq` (§5.2's cumulative ack).
+    def ack(self, seq: int, *, cumulative: bool = True) -> int:
+        """Release what an acknowledgement covers.
 
-        One small downlink retires many uplinks, which is what makes
-        store-and-forward affordable on a link that confirms nothing.
+        Cumulative (§5.2): everything up to and including `seq`. One small downlink
+        retires many uplinks, which is what makes store-and-forward affordable on a
+        link that confirms nothing, and it is true because the gateway sends its
+        *highest contiguous* seq.
+
+        **A frame's own confirmation is not cumulative.** A link that confirms each
+        frame says that frame arrived and nothing about the ones before it. Read as
+        cumulative, the confirmation of a fresh frame released every older frame still
+        waiting for resend, as if delivered: after a twelve-hour outage under
+        `fresh_first`, 123 of the paddock's readings became 21. The same loss happened
+        before that, more rarely, whenever a lost frame was followed by a confirmed one.
         """
         if seq not in self._sent_order:
             return 0
+        if not cumulative:
+            before = len(self._held)
+            self._held = [h for h in self._held if h.seq != seq]
+            self._sent_order.remove(seq)
+            self._sent_at.pop(seq, None)
+            return before - len(self._held)
         cutoff = self._sent_order.index(seq)
         released = set(self._sent_order[:cutoff + 1])
         before = len(self._held)

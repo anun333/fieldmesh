@@ -41,6 +41,8 @@ class Rule:
     params: dict = field(default_factory=dict)
     trust: str = "advisory"    # §11's trust ramp: advisory, approval, autonomous
     alert_key: str = ""        # the message a true condition raises, for any language
+    #: The message's parameters, each named for a value in the context or `params`.
+    message_params: dict = field(default_factory=dict)
 
 
 def frost_watch(warn_at_c: float = 0.0, *, window_h: tuple = (2.0, 16.0)) -> Rule:
@@ -51,7 +53,8 @@ def frost_watch(warn_at_c: float = 0.0, *, window_h: tuple = (2.0, 16.0)) -> Rul
                 condition="has_forecast && night_low_c <= warn_at_c",
                 params={"warn_at_c": warn_at_c, "window_start_h": window_h[0],
                         "window_end_h": window_h[1]},
-                alert_key="rules.frost.alert")
+                alert_key="rules.frost.alert",
+                message_params={"low": "night_low_c", "warn": "warn_at_c"})
 
 
 def frost_context(state, forecast_id, at: _dt.datetime, params: dict) -> tuple[dict, list]:
@@ -82,19 +85,31 @@ def _cel(condition: str, values: dict) -> bool:
     return bool(program.evaluate({k: celpy.json_to_cel(v) for k, v in values.items()}))
 
 
-def evaluate(rule: Rule, state, forecast_id, at: _dt.datetime) -> dict:
-    """The decision event's payload for one evaluation (§7.7). Pure: the caller logs it."""
-    context, inputs = frost_context(state, forecast_id, at, rule.params)
+def judge(rule: Rule, context: dict, inputs: dict, at: _dt.datetime) -> dict:
+    """The decision event's payload (§7.7) for any rule over a context its caller built.
+
+    A module above layer 1 builds its own context — a trough's level, a bed's water —
+    and judges it here, so every module's decisions carry the same provenance: the
+    inputs, the rule and its version, the condition as written, the trust level. Pure:
+    the caller logs it. Text values in the context are kept in the record but not
+    offered to the condition, which is written over numbers and truths.
+    """
     values = {**context, **rule.params}
     alert = _cel(rule.condition, {k: v for k, v in values.items() if not isinstance(v, str)})
     return {"rule": rule.id, "version": rule.version, "condition": rule.condition,
             "params": dict(rule.params), "trust": rule.trust,
-            "evaluated_at": at.isoformat(), "inputs": {"forecast": str(forecast_id),
-                                                       "observations": inputs},
+            "evaluated_at": at.isoformat(), "inputs": inputs,
             "context": context, "alert": alert,
             "message": ({"key": rule.alert_key,
-                         "params": {"low": context["night_low_c"], "warn": rule.params["warn_at_c"]}}
+                         "params": {name: values[source]
+                                    for name, source in rule.message_params.items()}}
                         if alert else None)}
+
+
+def evaluate(rule: Rule, state, forecast_id, at: _dt.datetime) -> dict:
+    """The frost watch's decision event payload for one evaluation (§7.7)."""
+    context, inputs = frost_context(state, forecast_id, at, rule.params)
+    return judge(rule, context, {"forecast": str(forecast_id), "observations": inputs}, at)
 
 
 def decide(log, rule: Rule, state, forecast_id, at: _dt.datetime):

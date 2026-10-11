@@ -655,10 +655,10 @@ class TestCommandsAndApps(Matrix):
 
     def test_all_three_acceptance_apps_run_against_the_farm(self):
         self.skipTest(
-            "§15's three apps — irrigation controller, livestock water monitor, "
-            "research logger — are not built. The farm has a home for each "
-            "(beds with drip, the paddock troughs, the research plot's two "
-            "probes), and the irrigation controller needs §6 first.")
+            "§15's three apps: the livestock water monitor is built and runs its "
+            "acceptance test against this farm in modules/water (a module, so layer "
+            "zero cannot import it here). The irrigation controller needs §6 first, "
+            "and the research logger is not built.")
 
 
 class TestHistory(Matrix):

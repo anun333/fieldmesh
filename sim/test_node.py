@@ -230,6 +230,31 @@ class TestDrainOrder(unittest.TestCase):
         self.assertEqual(message.base_age, 300,
                          "the youngest reading is 300 s old and goes in this frame")
 
+    def test_after_an_outage_fresh_first_sends_the_newest_before_its_resends(self):
+        """§5.3 through a long outage. Every frame the node tried went unacknowledged,
+        so its resends are all of the oldest readings; under `fresh_first` the newest
+        reading must still go first when the link comes back. Found by the livestock
+        water monitor's acceptance run, which saw a trough's midnight level at noon."""
+        for order, newest_first in ((nd.FRESH_FIRST, True), (nd.CHRONOLOGICAL, False)):
+            n = _node(nd.Channel(1, 300.0, 300.0, lambda t: 231),
+                      policy=nd.BufferPolicy(drain_order=order), dr=0, ack_timeout_s=600.0)
+            for i in range(24):                      # two hours, sending and losing
+                now = T0 + i * 300
+                n.expire_unacked(now)
+                n.sample(_truth(now))
+                n.transmit(now)
+            n.expire_unacked(T0 + 24 * 300)
+            self.assertGreater(n.awaiting_resend, 0)
+            n.sample(_truth(T0 + 24 * 300))          # the link is back
+            first = wire.decode(n.transmit(T0 + 24 * 300).payload)
+            self.assertEqual(first.base_age == 0, newest_first, order)
+            if newest_first:
+                waiting = n.awaiting_resend
+                later = n.drain(T0 + 24 * 300 + 3600, max_messages=64)  # airtime back
+                self.assertTrue(any(tx.resend for tx in later), "the resends still follow")
+                # As far as the hour's airtime allows: the duty cycle is a regulation.
+                self.assertLess(n.awaiting_resend, waiting // 2)
+
     def test_both_eventually_deliver_everything(self):
         for order in (nd.CHRONOLOGICAL, nd.FRESH_FIRST):
             n, _ = self._backlog(order)
@@ -257,6 +282,17 @@ class TestConfirmation(unittest.TestCase):
         released = n.ack(sent[1].seq)
         self.assertEqual(released, sent[0].readings + sent[1].readings)
         self.assertLess(n.unacked, before)
+
+    def test_a_frames_own_confirmation_releases_only_that_frame(self):
+        """A link that confirms each frame says nothing about the frames before it;
+        read as cumulative, it released readings that never arrived."""
+        n, sent = self._sent_three()
+        self.assertGreaterEqual(len(sent), 2)
+        before = n.unacked
+        released = n.ack(sent[1].seq, cumulative=False)
+        self.assertEqual(released, sent[1].readings)
+        self.assertEqual(n.unacked, before - sent[1].readings)
+        self.assertEqual(n.ack(sent[0].seq, cumulative=False), sent[0].readings)
 
     def test_an_unknown_ack_releases_nothing(self):
         n, _ = self._sent_three()

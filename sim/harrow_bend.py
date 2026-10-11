@@ -258,6 +258,11 @@ _SPANISH = {
 }
 
 
+#: The series a Spanish-speaking farmer is told about by name: the troughs, in the
+#: livestock water monitor's alerts.
+_SPANISH_SERIES = {"trough_north": "bebedero norte", "trough_south": "bebedero sur"}
+
+
 def _name(farm, entity, name: str, *, description: str | None = None,
           language: str = "en") -> None:
     label = Label(id=uuid7(), entity=entity, name=name, language=language,
@@ -288,6 +293,8 @@ def name_everything(farm) -> None:
               description=f"{name}, as the node reported it, before calibration")
         _name(farm, series.derived.id, name,
               description=f"{name}, calibrated to physical units")
+        if name in _SPANISH_SERIES:
+            _name(farm, series.derived.id, _SPANISH_SERIES[name], language="es")
         device = series.raw.sensor
         if device not in named:
             probe = name.removesuffix("_temp")
@@ -322,11 +329,10 @@ def rename(farm, entity, name: str, *, language: str = "en", by=None,
 
 
 def geometries(farm) -> dict:
-    """GeoJSON for every feature, for the SensorThings view and the GeoJSON export.
-
-    Not log records, and on purpose (§10.1): a real farm's boundaries belong in
-    site-private storage. Harrow Bend is fictional and sits on the prime meridian, so
-    its geometry can live in the repository.
+    """GeoJSON points for every feature, for the SensorThings view and the GeoJSON
+    export. A field's boundary is a `records.Land` in the farm's own log; these points
+    are the side table the view is handed. Harrow Bend is fictional and sits on the
+    prime meridian, so its geometry can live in the repository.
     """
     return {feature["id"]: _geometry(name)
             for name, feature in farm.features.items()
@@ -1010,7 +1016,7 @@ def _run_segment(farm: Farm, report: SeasonReport, days: float) -> None:
                     link.send_ack(acked, true_now)
                 last_ack[label] = true_now
             for seq in link.acks(true_now):
-                node.ack(seq)
+                node.ack(seq, cumulative=link.needs_cumulative_ack)
 
 
 def main() -> int:

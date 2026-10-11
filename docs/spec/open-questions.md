@@ -676,7 +676,7 @@ The binding constraint eliminates most options: v0.1 §11 requires rules to be b
 
 ## Q12. Which layer 2 module ships first
 
-**Status: DECIDED 2026-10-09 — livestock water monitoring or a soil-moisture advisory, whichever the pilot farm has, irrigation second (the maintainer adopted the recommendation).** Plan B, for a pilot with neither: a frost watch, read-only and already backtested — at McAllister Farm on NOAA's real forecasts it warned of all 38 frost nights of 2025–26 ([notes/forecasts.md](../notes/forecasts.md)). Was: blocks the pilot. It determines what the pilot farm actually gets, and it interacts with Q1.
+**Status: DECIDED 2026-10-09 — livestock water monitoring or a soil-moisture advisory, whichever the pilot farm has, irrigation second (the maintainer adopted the recommendation).** Built 2026-10-10: the livestock water monitor, [modules/water/](../../modules/water/), passing §15's acceptance test on Harrow Bend; the soil-moisture advisory is next. Plan B, for a pilot with neither: a frost watch, read-only and already backtested — at McAllister Farm on NOAA's real forecasts it warned of all 38 frost nights of 2025–26 ([notes/forecasts.md](../notes/forecasts.md)). Was: blocks the pilot. It determines what the pilot farm actually gets, and it interacts with Q1.
 
 | Option | Needs commands? | For | Against |
 | --- | --- | --- | --- |

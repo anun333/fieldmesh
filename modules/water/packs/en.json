@@ -1,0 +1,18 @@
+{
+ "_meta": {
+  "language": "en",
+  "module": "water",
+  "license": "AGPL-3.0-or-later",
+  "note": "The livestock water monitor's strings, merged over layer zero's pack at load. Every key starts with `water.`."
+ },
+ "strings": {
+  "water.empty": "{trough} is nearly empty: {percent:.0f}% full. Stock cannot drink below a tenth. Water them now.",
+  "water.empty_unconfirmed": "{trough} reads {percent:.0f}% full, below where stock can drink. The reading is outside the sensor's expected range, so the trough may be empty or the sensor may have failed. Go and look.",
+  "water.low": "{trough} is low: {percent:.0f}% full.",
+  "water.not_refilling": "{trough} has not refilled for {hours:.1f} hours. The float may be stuck shut or the supply off. Stock are drinking about {rate:.0f} L an hour, so it has about {left:.1f} hours before it is too low to drink from.",
+  "water.not_refilling_idle": "{trough} has not refilled for {hours:.1f} hours. The float may be stuck shut or the supply off. Check it before the stock start drinking again.",
+  "water.unseen": "Nothing heard from {trough} for {hours:.1f} hours. It could be dry and nobody would know. Check the trough and its sensor.",
+  "water.never_seen": "No reading has ever arrived from {trough}. Check the sensor and its radio.",
+  "water.untrusted": "The newest reading from {trough} failed the health checks and is not trusted. Check the sensor."
+ }
+}

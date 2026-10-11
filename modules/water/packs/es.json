@@ -1,0 +1,18 @@
+{
+ "_meta": {
+  "language": "es",
+  "module": "water",
+  "license": "AGPL-3.0-or-later",
+  "note": "Borrador: sin revisar por un agrónomo hispanohablante."
+ },
+ "strings": {
+  "water.empty": "{trough} está casi vacío: al {percent:.0f} % de su capacidad. El ganado no puede beber por debajo de una décima parte. Deles agua ahora.",
+  "water.empty_unconfirmed": "{trough} marca un {percent:.0f} % de su capacidad, por debajo de lo que el ganado puede beber. La lectura está fuera del rango esperado del sensor, así que el bebedero puede estar vacío o el sensor puede haber fallado. Vaya a revisarlo.",
+  "water.low": "{trough} está bajo: al {percent:.0f} % de su capacidad.",
+  "water.not_refilling": "{trough} no se ha vuelto a llenar en {hours:.1f} horas. Puede que el flotador esté trabado o que no llegue agua. El ganado bebe unos {rate:.0f} L por hora, así que quedan unas {left:.1f} horas antes de que no alcance para beber.",
+  "water.not_refilling_idle": "{trough} no se ha vuelto a llenar en {hours:.1f} horas. Puede que el flotador esté trabado o que no llegue agua. Revíselo antes de que el ganado vuelva a beber.",
+  "water.unseen": "No llega nada de {trough} desde hace {hours:.1f} horas. Podría estar seco sin que nadie lo sepa. Revise el bebedero y su sensor.",
+  "water.never_seen": "Nunca ha llegado una lectura de {trough}. Revise el sensor y su radio.",
+  "water.untrusted": "La lectura más reciente de {trough} no pasó los controles de calidad y no es confiable. Revise el sensor."
+ }
+}

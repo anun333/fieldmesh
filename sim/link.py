@@ -180,7 +180,10 @@ class Link:
     # ------------------------------------------------------------- downlink
 
     def send_ack(self, seq: int, at_s: float) -> str:
-        """The gateway's cumulative ack (§5.2): the highest contiguous seq it holds.
+        """An acknowledgement going back to the node: on a link that confirms nothing,
+        the gateway's cumulative ack (§5.2), the highest contiguous seq it holds; on a
+        link that confirms frames, that one frame's confirmation, which covers nothing
+        before it (`needs_cumulative_ack` says which).
 
         One small downlink retires many uplinks, which is what makes
         store-and-forward affordable on a link that confirms nothing — and losing

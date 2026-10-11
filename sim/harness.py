@@ -127,7 +127,7 @@ def run(*, world, node, gateway, link=None, days: float = 1.0,
         # Polling it on the node's skewed clock was another mixed-clock bug: acks
         # queued at true time never came due, and the node resent forever.
         for seq in link.acks(true_now):
-            node.ack(seq)
+            node.ack(seq, cumulative=link.needs_cumulative_ack)
 
     report.link = link.stats.as_dict()
     return report
