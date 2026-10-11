@@ -83,6 +83,7 @@
   "siting.profile_unnamed": "something in this probe's profile moved; with only two peers the check cannot tell which of these {count} probes it was",
   "siting.shallower": "the daily peak at {peak:05.2f} UTC implies {implied:.2f} m, {off:.2f} m shallower than the recorded {recorded:.2f} m, with no installation record of a move",
   "siting.too_few_peers": "{peers} usable peers at {depths} depth(s); calibrating the depth-to-phase line needs at least two at two depths",
+  "siting.too_few_peers_same_surface": "{peers} usable peers at {depths} depth(s) under the same cover ({surface}); {others} more lie under another, and a cover damps the daily wave as depth does, so they cannot calibrate this one",
   "siting.too_few_readings": "too few temperature readings in the window",
   "siting.unconfirmed": "displaced in {days} of the last {of} checks; a move is called after {required}",
   "term.http://vocab.nerc.ac.uk/standard_name/air_temperature/": "air temperature",

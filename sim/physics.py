@@ -353,6 +353,13 @@ class SoilBed:
     #: needs roughly a day to establish itself at 20 cm, as it would after a real
     #: probe is pushed into undisturbed ground.
     temps: list = field(default=None, repr=False)
+    #: A layer of mulch over the soil, metres thick, with the low diffusivity of wood
+    #: chips, bark or straw, mostly air. The day's heat reaches the soil through it, so the
+    #: soil's daily wave is damped and delayed as if the soil were deeper: the confounder
+    #: `sdk/siting.py`'s depth check must not read as a move. Depths stay measured from the
+    #: soil's surface, as a probe's are.
+    mulch_m: float = 0.0
+    mulch_diffusivity: float = 2.0e-7         # dry wood chips: about 0.1 W m-1 K-1 over 0.5 MJ m-3 K-1
     #: Season totals, for anything that has to account for water: what drained below
     #: the root zone, what ran off a saturated bed, what the crop transpired.
     drained_mm: float = field(default=0.0, repr=False)
@@ -417,27 +424,43 @@ class SoilBed:
         depth, by the amounts `damping_depth` predicts — and differently in a wet bed
         than a dry one.
         """
+        mulch = self._mulch_layers()
         if self.temps is None:
-            self.temps = [deep_c] * HEAT_LAYERS
-        ratio = (thermal_diffusivity(self.theta) * STEP.total_seconds()
-                 / (HEAT_DZ * HEAT_DZ))
+            self.temps = [deep_c] * (HEAT_LAYERS + mulch)
         old = self.temps
         new = old[:]
         new[0] = surface_c
-        for i in range(1, HEAT_LAYERS - 1):
-            new[i] = old[i] + ratio * (old[i - 1] - 2.0 * old[i] + old[i + 1])
+        if not mulch:
+            ratio = (thermal_diffusivity(self.theta) * STEP.total_seconds()
+                     / (HEAT_DZ * HEAT_DZ))
+            for i in range(1, HEAT_LAYERS - 1):
+                new[i] = old[i] + ratio * (old[i - 1] - 2.0 * old[i] + old[i + 1])
+        else:
+            # Under mulch the column has two materials; heat crosses each interface at
+            # the harmonic mean of the two layers' diffusivities.
+            soil = thermal_diffusivity(self.theta)
+            k = [self.mulch_diffusivity if i < mulch else soil for i in range(len(old))]
+            c = STEP.total_seconds() / (HEAT_DZ * HEAT_DZ)
+            for i in range(1, len(old) - 1):
+                up = 2.0 * k[i - 1] * k[i] / (k[i - 1] + k[i])
+                down = 2.0 * k[i] * k[i + 1] / (k[i] + k[i + 1])
+                new[i] = old[i] + c * (up * (old[i - 1] - old[i]) - down * (old[i] - old[i + 1]))
         new[-1] = deep_c
         self.temps = new
+
+    def _mulch_layers(self) -> int:
+        return int(round(self.mulch_m / HEAT_DZ))
 
     def temp_at(self, depth_m: float) -> float:
         """Temperature at a depth, linearly between the two nearest layers."""
         if self.temps is None:
             raise ValueError("the heat model has not been stepped yet")
+        top = self._mulch_layers()                  # the soil's surface, under any mulch
         if depth_m <= 0:
-            return self.temps[0]
-        position = depth_m / HEAT_DZ
+            return self.temps[top]
+        position = top + depth_m / HEAT_DZ
         lower = int(position)
-        if lower >= HEAT_LAYERS - 1:
+        if lower >= len(self.temps) - 1:
             return self.temps[-1]
         frac = position - lower
         return self.temps[lower] * (1 - frac) + self.temps[lower + 1] * frac
@@ -707,7 +730,8 @@ class World:
             trough_l={n: round(t.level_l, 2) for n, t in self.troughs.items()},
             trough_fraction={n: round(t.level_fraction, 4)
                              for n, t in self.troughs.items()},
-            soil_temp={n: tuple(b.temps) for n, b in self.beds.items()},
+            # From the soil's surface down: a sensor's depth is never into the mulch.
+            soil_temp={n: tuple(b.temps[b._mulch_layers():]) for n, b in self.beds.items()},
             tunnel_temp={n: round(t.inside_c, 2) for n, t in self.tunnels.items()},
         )
         self.when = self.when + STEP

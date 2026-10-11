@@ -177,6 +177,7 @@ _CONVERTERS = {
         "orientation_deg": (_same, _same),
         "installed_by": (_enc_uuid, _dec_uuid),
         "note": (_same, _same),
+        "surface": (_same, _same),
     },
     MaintenanceEvent: {
         "id": (_enc_uuid, _dec_uuid),
@@ -354,7 +355,7 @@ def load_fields(kind: str, doc: dict) -> dict:
 
 #: Fields added after logs existed, written only when set — so every log line written
 #: before them reads back, and is written again, byte for byte the same.
-_OMIT_WHEN_NONE = {(Observation, "issued_at"), (Datastream, "window_s"),
+_OMIT_WHEN_NONE = {(Observation, "issued_at"), (Datastream, "window_s"), (Installation, "surface"),
                    (Datastream, "probability_of"), (Datastream, "ensemble")}
 
 

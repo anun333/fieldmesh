@@ -39,7 +39,7 @@ python3 demo.py --json                        # the served Observations collecti
 | `export.py` | §7.6 | The log out in open formats — a JSONL archive, per-type CSV, GeoJSON — with a checksummed manifest, verified by replaying it into an identical log |
 | `csv_import.py` | §10 | A farm's or a station's existing records in from CSV onto declared datastreams, so its history lands in the same log |
 | `mqtt_bridge.py`, `mqtt_emulator.py` | §10 | MQTT into the log for the device families that already publish there — ESPHome, Tasmota, Shelly, Zigbee, Home Assistant, ChirpStack LoRaWAN, and OpenSprinkler's valves opening and shutting — and an emulator of what each really sends |
-| `siting.py` | §4.1, §4.2 | Is a probe where its installation says? Depth from the damping and delay of its daily temperature wave; a two-peer check for a move nobody logged; a GPS node's fix |
+| `siting.py` | §4.1, §4.2 | Is a probe where its installation says? Depth from the damping and delay of its daily temperature wave, read only against peers under the same recorded cover, since mulch and sod read as depth; a two-peer check for a move nobody logged; a GPS node's fix |
 | `airtime.py` | §5.2 | LoRa airtime and the duty-cycle budget, at runtime, so a fleet that reports too often fails here and not in a field |
 | `vocab.py` | §3.4; Q4 | Observed-property terms and UCUM units: CF Standard Names for physical measurands, ODM2 for what CF lacks, AGROVOC for records, and a counted few local terms for real gaps, each with its reason |
 | `i18n.py`, `packs/` | §11 | Language packs: codes in the log, sentences in the reader's language; a module ships its own pack under its own prefix |

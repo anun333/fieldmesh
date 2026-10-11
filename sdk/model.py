@@ -456,6 +456,11 @@ class Device:
         return out
 
 
+#: What may cover the ground over an installed device (§4.1): bare soil; organic mulch
+#: (wood chips, straw, bark, compost); inorganic mulch (gravel, rock); plastic mulch; turf.
+SURFACES = ("bare", "organic_mulch", "inorganic_mulch", "plastic_mulch", "turf")
+
+
 @dataclass(frozen=True, slots=True)
 class Installation:
     """§4.1. Where a device is, with dates. Closed by re-appending with `removed_at`.
@@ -480,6 +485,11 @@ class Installation:
     orientation_deg: float | None = None
     installed_by: UUID | None = None
     note: str | None = None
+    #: What covers the ground over the device, one of `SURFACES`, when someone recorded
+    #: it. Mulch, sod and plastic insulate the surface and damp the daily temperature
+    #: wave as extra depth would, so a probe's depth can only be read against peers under
+    #: the same cover (`siting.py`). A cover laid later is a new installation, as a move is.
+    surface: str | None = None
 
     def __post_init__(self) -> None:
         _uuid7(self.id, "id")
@@ -487,6 +497,8 @@ class Installation:
         _uuid7(self.feature, "feature")
         _opt_uuid7(self.installed_by, "installed_by")
         _utc(self.installed_at, "installed_at")
+        if self.surface is not None and self.surface not in SURFACES:
+            raise ValueError(f"surface is one of {SURFACES}")
         if self.removed_at is not None:
             _utc(self.removed_at, "removed_at")
             if self.removed_at <= self.installed_at:

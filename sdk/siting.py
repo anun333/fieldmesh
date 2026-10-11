@@ -37,6 +37,12 @@ while the size of the swing does. Amplitude is fitted too and carried as corrobo
   answer to?).
 * **Anything in the first day or so after installation**, while the wave establishes.
 * **Peers that are themselves misplaced.** The fit is robust to one, not to many.
+* **A cover nobody recorded.** Mulch, sod and plastic insulate the ground and damp and
+  delay the daily wave as extra soil would, so a probe under a cover looks deeper than it
+  is against peers in bare beds. Peers are therefore taken only under the same recorded
+  surface as the probe (`Installation.surface`); with too few, the check says it cannot
+  tell. Unrecorded covers are all alike to it, so a farm that mulches some beds and records
+  none can still be told a mulched probe moved when it did not. Record the cover.
 """
 from __future__ import annotations
 
@@ -313,6 +319,7 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
     # --- calibrate on the peers ---------------------------------------------
     peers = []
     peer_devices = []
+    other_covers = 0
     for other_id in state.devices:
         if other_id == device_id:
             continue
@@ -321,6 +328,9 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
             continue
         other_install = state.installation_of(other_id, at)
         if other_install is None or other_install.depth_m is None:
+            continue
+        if other_install.surface != installed.surface:
+            other_covers += 1               # a different cover damps the wave differently
             continue
         other_fit = _window_fit(state, other_stream.id, at,
                                 min(window, at - other_install.installed_at))
@@ -339,6 +349,12 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
     # the check said "cannot tell" about 80% of the time. With two, the line is exact and
     # cannot be robust, so the tolerance widens and the evidence says so.
     if len(peers) < 2 or len(depths) < 2:
+        if other_covers:
+            return unknown("siting.too_few_peers_same_surface",
+                           {"peers": len(peers), "depths": len(depths),
+                            "surface": installed.surface or "unrecorded",
+                            "others": other_covers},
+                           recorded_depth_m=recorded, fit=own, peers_used=len(peers))
         return unknown("siting.too_few_peers",
                        {"peers": len(peers), "depths": len(depths)},
                        recorded_depth_m=recorded, fit=own, peers_used=len(peers))
@@ -385,6 +401,10 @@ def assess_siting(state: P.State, device_id: UUID, at: _dt.datetime, *,
         "surface_peak_hour_utc": round(h0 % 24.0, 2),
         "peers": len(peers),
         "peer_scatter_m": round(peer_scatter_m, 3),
+        # The cover the peers share with this probe; probes under other covers were left
+        # out, since mulch or sod reads as depth.
+        "surface": installed.surface,
+        "peers_under_other_covers": other_covers,
         # False when two peers fixed the line: then a displaced peer cannot be outvoted,
         # and a flag here may mean "something in this profile moved" rather than "this
         # probe moved".

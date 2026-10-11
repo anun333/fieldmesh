@@ -142,3 +142,89 @@ class TestDisplacedProbeReadingsAreFlagged(unittest.TestCase):
             self.assertIn(QualityFlag.SUSPECT,
                           farm.state.live_assertion_for(obs.id).flags)
         self.assertEqual(farm.state.validate(), [])
+
+
+class TestUnderMulch(unittest.TestCase):
+    """A probe under mulch (sim/physics.SoilBed.mulch_m) is damped and delayed as a deeper
+    one would be. Read against peers in bare beds it looks moved; with covers recorded,
+    the depth check reads it only against peers under the same cover."""
+
+    @classmethod
+    def setUpClass(cls):
+        import os
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sdk"))
+        import physics as ph
+        start = _dt.datetime(2026, 6, 10, tzinfo=_dt.timezone.utc)
+        world = ph.World(start=start, climate=ph.Climate(seed=3),
+                         beds=[ph.SoilBed(name="bare"), ph.SoilBed(name="mulched", mulch_m=0.05)])
+        cls.probes = [("bare", 0.05), ("bare", 0.10), ("bare", 0.20),
+                      ("mulched", 0.05), ("mulched", 0.10), ("mulched", 0.20)]
+        cls.series = {p: [] for p in cls.probes}
+        for n in range(4 * 24 * 12):
+            tick = world.step()
+            if n >= 24 * 12 and n % 12 == 0:
+                for bed, z in cls.probes:
+                    cls.series[(bed, z)].append((world.when, round(tick.soil_temp_at(bed, z), 1)))
+        cls.at = world.when - _dt.timedelta(minutes=5)
+
+    def farm(self, probes, *, covers: bool):
+        """A log with these probes in it, each cover recorded or not."""
+        import fixtures as fx
+        import log as L
+        import project as P
+        import vocab as V
+        from ids import uuid7
+        from model import (Calibration, Datastream, DatastreamKind, Device, DeviceKind,
+                           Installation)
+        log, ids, site = L.Log(), {}, uuid7()
+        beds = {"bare": uuid7(), "mulched": uuid7()}
+        for bed, z in probes:
+            device = Device(id=uuid7(), kind=DeviceKind.SENSOR, site=site)
+            raw = Datastream(id=uuid7(), thing=uuid7(), sensor=device.id,
+                             observed_property=V.SOIL_TEMPERATURE, feature=beds[bed],
+                             kind=DatastreamKind.RAW, unit="Cel")
+            derived = Datastream(id=uuid7(), thing=raw.thing, sensor=device.id,
+                                 observed_property=V.SOIL_TEMPERATURE, feature=beds[bed],
+                                 kind=DatastreamKind.DERIVED, derived_from=raw.id, unit="Cel")
+            first = self.series[(bed, z)][0][0] - _dt.timedelta(days=2)
+            cal = Calibration(id=uuid7(), sensor=device.id, datastream=raw.id,
+                              method="identity", valid_from=first)
+            surface = ("organic_mulch" if bed == "mulched" else "bare") if covers else None
+            install = Installation(id=uuid7(), device=device.id, feature=beds[bed],
+                                   installed_at=first, depth_m=z, surface=surface)
+            for record in (device, raw, derived, cal, install):
+                log.append_record(record)
+            for when, value in self.series[(bed, z)]:
+                log.append_record(fx.observation(derived, result=value, measured_at=when,
+                                                 calibration=cal.id, node=None, boot=None, seq=None))
+            ids[(bed, z)] = device.id
+        return P.state_from_log(log), ids
+
+    def assess(self, probes, *, covers, which=("mulched", 0.10)):
+        import siting as S
+        state, ids = self.farm(probes, covers=covers)
+        return S.assess_siting(state, ids[which], self.at)
+
+    def test_without_the_cover_recorded_a_mulched_probe_looks_moved(self):
+        """The blind spot, shown: nothing moved, and bare peers say it is deeper."""
+        found = self.assess([p for p in self.probes if p[0] == "bare"] + [("mulched", 0.10)],
+                            covers=False)
+        self.assertTrue(found.displaced, found.reason)
+        self.assertGreater(found.evidence["implied_depth_m"], 0.15)
+
+    def test_with_it_recorded_and_no_peer_under_mulch_it_cannot_tell(self):
+        found = self.assess([p for p in self.probes if p[0] == "bare"] + [("mulched", 0.10)],
+                            covers=True)
+        self.assertFalse(found.displaced)
+        self.assertEqual(found.key, "siting.too_few_peers_same_surface")
+        self.assertEqual(found.params["others"], 3)
+
+    def test_with_peers_under_the_same_mulch_it_reads_true(self):
+        found = self.assess(self.probes, covers=True)
+        self.assertEqual(found.verdict, "consistent", found.reason)
+        self.assertEqual(found.evidence["surface"], "organic_mulch")
+        self.assertEqual(found.evidence["peers_under_other_covers"], 3)
+        # The bare probes are judged against bare peers, as before.
+        self.assertEqual(self.assess(self.probes, covers=True, which=("bare", 0.10)).verdict,
+                         "consistent")
