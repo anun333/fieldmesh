@@ -1,0 +1,11 @@
+{
+ "_meta": {
+  "language": "es",
+  "module": "twin",
+  "license": "AGPL-3.0-or-later",
+  "note": "Borrador: sin revisar por un agrónomo hispanohablante."
+ },
+ "strings": {
+  "twin.frost.alert": "Helada dentro del túnel esta noche: el gemelo calcula una mínima interior de {low:.1f} °C, igual o por debajo de los {warn:.1f} °C con que avisa esta finca, con {outside:.1f} °C previstos afuera. Cubra las plantas tiernas dentro del túnel, o caliéntelo."
+ }
+}

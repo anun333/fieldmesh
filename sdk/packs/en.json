@@ -114,6 +114,7 @@
   "unit.m": "metre",
   "unit.[in_i]": "inch",
   "unit.km/h": "kilometre per hour",
-  "unit.[mi_i]/h": "mile per hour"
+  "unit.[mi_i]/h": "mile per hour",
+  "term.http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/": "cloud cover"
  }
 }

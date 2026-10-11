@@ -729,7 +729,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
 | Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed |
 | Q27 | What crosses between fieldmesh and ERPNext, and who owns each fact? | Blocks nothing yet — the records it needs exist since 2026-10-10 (land, inputs applied, harvest lots); the adapter waits on a partner that runs ERPNext |
-| Q28 | Should a process-based greenhouse model — GreenLight — be the hoop house's physics twin? | **Open, recommended yes; step 1 done 2026-10-11** — the virtual farm's tunnel is too warm at night, and the film decides the frost; see below |
+| Q28 | Should a process-based greenhouse model — GreenLight — be the hoop house's physics twin? | **Open, recommended yes; steps 1 and 2 done 2026-10-11** — the virtual farm's tunnel refitted to it; a covered-crop frost watch backtested on a season; see below |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
@@ -965,8 +965,18 @@ radiation and knows cloud only by rain. By day they are closer (hottest July hou
 1.6 °C). To run at all, GreenLight needed one fix in its crop model. Its canopy CO2
 compensation point goes negative below one leaf layer, which puts a pole at a leaf CO2 of
 about 300 ppm, and a tunnel that is not enriched passes through that every sunny morning. A
-report to the GreenLight authors is drafted (the maintainer's to send). Next: give the
-virtual farm's tunnel GreenLight's night gains by film type, then step 2.
+report to the GreenLight authors is drafted (the maintainer's to send). The virtual farm's
+tunnel now takes GreenLight's night gains by film (`sim/physics.FILMS`; night-low error
+0.87 °C, from 1.95), at the cost of running about 3 °C cool at a July peak.
+
+**Step 2, what it found.** The covered-crop frost watch ([frostwatch.py](../../modules/twin/frostwatch.py))
+on McAllister Farm's 2025–26 season, 194 nights of NBM forecasts through the twin: under IR
+film it warned of all 28 damaging frosts inside, with 8 false alarms, and spared 9 of the
+open-bed watch's 45 warnings. The headline is the other way round from the hope, though: a
+Tennessee winter gets into an unheated tunnel (28 of 38 damaging outdoor frosts under IR
+film, 36 under clear). The twin on a forecast runs about 1.1 °C warm, which let one
+damaging night through under clear film at 0 °C, so clear film warns at +0.5 °C. The live
+watch reads the farm's own forecast log, which now keeps humidity, wind and cloud.
 Raised when GreenLight was pointed out as the open-science side of greenhouse climate
 control, against the closed commercial systems (Priva, Ridder, Hoogendoorn).
 

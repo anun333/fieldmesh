@@ -78,9 +78,14 @@ class SimulatorTest(unittest.TestCase):
                     inside.append((t, truth.tunnel_temp[tunnel.name]))
                     outside.append((t, truth.weather.air_temp_c))
             return T.analyse(inside, outside)
-        cls.tunnel = physics.Tunnel("hoop")
+        # Distinct mild and clear-cold gains and a strong sun, given explicitly: the test
+        # is of whether the tool recovers what it was not told, so the physics must have
+        # something to tell apart. The tunnel's defaults, fitted to GreenLight (Q28), make
+        # the two night gains equal and the sun gentler.
+        given = dict(night_gain_c=3.0, cold_night_gain_c=1.0, solar_gain_c=18.0)
+        cls.tunnel = physics.Tunnel("hoop", **given)
         cls.vented = year(cls.tunnel)
-        cls.shut = year(physics.Tunnel("shut", vent_at_c=None))
+        cls.shut = year(physics.Tunnel("shut", vent_at_c=None, **given))
 
     def test_recovers_the_clear_cold_night_gain(self):
         self.assertAlmostEqual(self.vented["winter_gain_c"], self.tunnel.cold_night_gain_c, delta=0.5)

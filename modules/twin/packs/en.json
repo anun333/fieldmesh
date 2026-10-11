@@ -1,0 +1,11 @@
+{
+ "_meta": {
+  "language": "en",
+  "module": "twin",
+  "license": "AGPL-3.0-or-later",
+  "note": "The hoop-house twin's strings, merged over layer zero's pack at load. Every key starts with `twin.`."
+ },
+ "strings": {
+  "twin.frost.alert": "Frost in the tunnel tonight: the twin puts the inside low at {low:.1f} °C, at or below the {warn:.1f} °C this farm warns at, with {outside:.1f} °C forecast outside. Cover tender plants inside the tunnel, or heat it."
+ }
+}

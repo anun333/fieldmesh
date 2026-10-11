@@ -1,0 +1,13 @@
+{
+ "name": "twin",
+ "version": "1",
+ "layer": 3,
+ "description": "Hoop-house twin (Q28): GreenLight as an unheated tunnel; the covered-crop frost watch reads tonight's forecast through it.",
+ "reads": {"observed_properties": [
+  "http://vocab.nerc.ac.uk/standard_name/air_temperature/",
+  "http://vocab.nerc.ac.uk/standard_name/relative_humidity/",
+  "http://vocab.nerc.ac.uk/standard_name/wind_speed/",
+  "http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/"]},
+ "writes": ["decision"],
+ "commands": []
+}

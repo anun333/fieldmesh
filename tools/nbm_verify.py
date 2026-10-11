@@ -90,8 +90,13 @@ def read_cell(key: str, lat: float, lon: float) -> float | None:
 
 
 def nbm_runs(start: _dt.date, end: _dt.date, lat: float, lon: float, cache: str,
-             hours=(0, 12), workers: int = 8) -> dict:
-    """{issued: [(valid, °F)]}, read in parallel and cached in `cache`."""
+             hours=(0, 12), workers: int = 8, var: str = "temp", leads=None) -> dict:
+    """{issued: [(valid, value)]} for one NBM field — `temp` in °F by default — read in
+    parallel and cached in `cache`. Fields share one cache file; keys name the field.
+
+    Units are the field's own and the files do not carry them: `temp` °F, `rh` and `sky`
+    %, `dswrf` W m-2, and `windspd` in knots — its median ratio to NASA POWER's 10 m wind
+    at McAllister Farm in March 2026 was 2.0, against 1.94 for knots and 2.24 for mph."""
     os.makedirs(cache, exist_ok=True)
     path = os.path.join(cache, f"nbm-{lat:.4f}-{lon:.4f}.json")
     known = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
@@ -100,8 +105,8 @@ def nbm_runs(start: _dt.date, end: _dt.date, lat: float, lon: float, cache: str,
     while d <= end:
         for h in hours:
             issued = _dt.datetime(d.year, d.month, d.day, h, tzinfo=UTC)
-            for lead in LEADS_H:
-                key = nbm_key(issued, issued + lead * HOUR)
+            for lead in (leads or LEADS_H):
+                key = nbm_key(issued, issued + lead * HOUR, var)
                 if key not in known:
                     wanted.append(key)
         d += _dt.timedelta(days=1)
@@ -114,6 +119,8 @@ def nbm_runs(start: _dt.date, end: _dt.date, lat: float, lon: float, cache: str,
             json.dump(known, h)
     runs: dict = {}
     for key, value in known.items():
+        if f"/{var}/" not in key:
+            continue
         m = re.search(r"_(\d{4}-\d\d-\d\dT\d\d:\d\d)_(\d{4}-\d\d-\d\dT\d\d:\d\d)\.tif$", key)
         if not m or value is None:
             continue

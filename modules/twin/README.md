@@ -18,25 +18,77 @@ sets the two side by side.
 
 | spring 2025, 60 nights, 6 frosts outside | mean night gain | worst night | frosts inside | inside ≤ −2.2 °C | daytime excess | hottest |
 | --- | --- | --- | --- | --- | --- | --- |
-| the virtual farm's tunnel | +3.1 °C | +1.6 | 2 | 1 | +9.5 | 32.6 °C |
+| the virtual farm's tunnel, as first guessed | +3.1 °C | +1.6 | 2 | 1 | +9.5 | 32.6 °C |
+| the virtual farm's tunnel, fitted to GreenLight (IR film) | +1.2 °C | +1.0 | 3 | 1 | +7.5 | 31.1 °C |
 | GreenLight, thermic (IR) film | +1.4 °C | −0.4 | 1 | 0 | +7.3 | 29.3 °C |
 | GreenLight, clear film | +0.3 °C | −1.1 | 5 | 1 | +6.7 | 29.2 °C |
 
-* **The virtual farm's tunnel is too kind at night.** It is 1.6 °C warmer than GreenLight's
-  tunnel under IR film and 2.7 °C warmer than under clear film. It has no long-wave
-  radiation and knows cloud only by rain, so it barely tells a clear night from a cloudy
-  one.
+* **The virtual farm's tunnel was too kind at night.** It ran 1.6 °C warmer than
+  GreenLight's tunnel under IR film and 2.7 °C warmer than under clear film. Its defaults
+  are now fitted to GreenLight per film (`sim/physics.FILMS`: night-low error 0.87 °C, down
+  from 1.95), and agree with it on average by night and day. What it still cannot do is be
+  colder inside than out: it has no long-wave radiation and knows cloud only by rain.
 * **The film decides the frost.** Under clear polyethylene five of the six frosts still got
   in, and on clear nights the tunnel was colder than the open air: thermal radiation goes
   straight through to the sky. That is the inversion growers report under single poly.
   Under IR film one frost got in, and none hard.
-* **By day they are closer.** Two July weeks put the hottest hour within 1.6 °C across all
-  three.
+* **By day, the peak is where the fit gives way.** The two films agree on the hottest July
+  hour within a degree (37–38 °C). The fitted virtual tunnel runs about 3.4 °C cooler at the
+  peak; fitted mainly to the nights, its sun is gentler. A heat warning should come from the
+  twin, not from it.
 
 Neither GreenLight's tunnel nor the virtual farm's has met a real one, so this says what to
 measure first, not who is right: a tunnel's inside and outside air on clear spring nights,
 with its film type written down. `modules/advise/tunnel_gain.py` already turns paired
 sensors into a measured gain.
+
+## Step 2: a frost watch for covered crops
+
+[frostwatch.py](frostwatch.py) runs tonight through the twin. It warms up on the last 36
+hours, starting from soil temperatures taken from the weeks before (not GreenLight's
+16.5 °C glasshouse floor). It then runs dusk to dawn on the forecast's air temperature,
+humidity, wind and cloud. The cloud becomes the long-wave sky the tunnel radiates to
+(Brutsaert's clear-sky emissivity, raised toward a black body by cloud), and the morning
+sun is a clear sky dimmed by cloud (Kasten and Czeplak). The inside low is judged by a CEL
+rule through modules/rules, in English and Spanish.
+
+Live, everything comes from the forecast log the farm's cron keeps (`tools/forecast_collect.py`,
+which now keeps humidity, wind and cloud as well), each hour its latest issue (Q26). The
+warm-up hours are forecasts made a few hours ahead, near enough to what happened. It runs by
+hand on a log, or as a module process through the host (§8.3, [module.json](module.json)):
+
+```sh
+twin-env/bin/python -I modules/twin/frostwatch.py --log forecasts.jsonl --lat 35.06 --lon -86.59 --cover thermic
+```
+
+**The 2025–26 season at McAllister Farm** ([covered_backtest.py](covered_backtest.py)): 194
+nights, mid-October to the end of April. Each night uses NOAA's National Blend of Models
+issued at 6 pm, after a warm-up on what the weather did (NASA POWER). The same night is
+run on what the weather did as the twin's own answer; the farm's SCAN station is the truth
+outside. A damaging frost is −2.2 °C or below, as in the open-bed watch's backtest.
+
+| | damaging frosts | caught | missed | false alarms | open-bed warnings spared |
+| --- | --- | --- | --- | --- | --- |
+| open-bed watch, outside | 38 | 38 | 0 | 7 | — |
+| covered watch, IR film, warn at 0 °C | 28 inside | 28 | 0 | 8 | 9 of 45 |
+| covered watch, clear film, warn at 0 °C | 36 inside | 35 | **1** | 6 | 4 of 45 |
+| covered watch, clear film, warn at +0.5 °C | 36 inside | 36 | 0 | 7 | 3 of 45 |
+
+* **A Tennessee winter gets into an unheated tunnel.** Of the 38 damaging frosts outside,
+  28 were damaging inside under IR film and 36 under clear film. The tunnel stretches the
+  shoulders of the season; it is not frost protection in January.
+* **The twin on the forecast runs about 1.1 °C warm** against the twin on the weather that
+  came, which is the dangerous direction. Under clear film 0 °C let one damaging night
+  through. The defaults are therefore by film (`WARN_BY_COVER`): 0 °C for IR film and
+  +0.5 °C for clear, the highest thresholds that missed nothing this season. That is one
+  season's evidence, as the open-bed watch's 0 °C is.
+* **What a tunnel grower gains is specificity, not a warmer number:** 9 of the 45 outdoor
+  warnings spared under IR film, with the inside low named. Four of those nine still
+  touched 0 °C inside without reaching −2.2: a light frost for hardy crops, which the
+  message says.
+
+Neither "truth" inside is a thermometer in a tunnel. The twin run on the weather that came
+is the best available while no real tunnel is logged.
 
 ## What it took to run GreenLight as a tunnel
 
@@ -70,10 +122,12 @@ Sixty-one days of the tunnel take about 80 seconds here.
 | --- | --- |
 | [data/mcallister-2025-spring-hourly.csv](data/), [july](data/) | the weather: NASA POWER hourly, CC BY 4.0, irradiance converted from MJ/h |
 | [data/greenlight-tunnel-*.csv](data/) | GreenLight's hourly inside air, per film and period |
+| [data/mcallister-2025-26-frost-season-hourly.csv](data/) | the 2025–26 frost season's weather, NASA POWER hourly |
+| [data/frost-backtest-2025-26-*.csv](data/) | the covered-crop watch per night, per film: NBM's outside low, the station's, and the twin's inside low on the forecast and on the weather |
 
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)), like the other modules; GreenLight is
 BSD-3-Clause-Clear and is installed, not copied.
 
-**Next (Q28):** a frost watch for covered crops, from tonight's forecast through the twin;
-then twin against a tunnel's own sensor, as advice. The virtual farm's tunnel should take
-GreenLight's night gains, by film type, before anything is built on it.
+**Next (Q28):** twin against a tunnel's own sensor, as advice, once a tunnel is logged; and
+the twin's warm bias on forecasts, which a season of a real tunnel's lows would let the
+watch correct rather than pad.

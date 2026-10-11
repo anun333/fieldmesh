@@ -52,6 +52,7 @@ VARIABLES = {
     "wind_speed": ("http://vocab.nerc.ac.uk/standard_name/wind_speed/", False),
     "precipitation": ("http://vocab.nerc.ac.uk/standard_name/lwe_thickness_of_precipitation_amount/", True),
     "precipitation_probability": ("http://vocab.nerc.ac.uk/standard_name/lwe_thickness_of_precipitation_amount/", False),
+    "cloud_area_fraction": ("http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/", False),
 }
 
 #: What a probability is the probability of (Q26). NWS's gridded probability of
@@ -112,7 +113,8 @@ def expand(values: list, issued: _dt.datetime, amount: bool) -> list:
 NWS_UNITS = {"wmoUnit:degC": "Cel", "wmoUnit:percent": "%", "wmoUnit:km_h-1": "km/h", "wmoUnit:mm": "mm"}
 NWS_FIELDS = {"temperature": "air_temperature", "relativeHumidity": "relative_humidity",
               "windSpeed": "wind_speed", "quantitativePrecipitation": "precipitation",
-              "probabilityOfPrecipitation": "precipitation_probability"}
+              "probabilityOfPrecipitation": "precipitation_probability",
+              "skyCover": "cloud_area_fraction"}
 
 
 def nws_run(grid_doc: dict) -> Run:

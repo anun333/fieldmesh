@@ -487,27 +487,40 @@ class Tunnel:
       and cut again by the share the sides let out when they are up;
     * **by night**, the heat the soil inside stored by day and gives back. Single poly
       passes long-wave radiation, so a clear sky draws much of that heat away, and
-      clear nights are the cold ones: the gain shrinks from `night_gain_c` on a mild
+      clear nights can be the cold ones: the gain shrinks from `night_gain_c` on a mild
       night to `cold_night_gain_c` at `cold_night_c` and below. Under cloud (here,
       rain) the full gain holds whatever the cold.
 
     The sides go up when the inside passes `vent_at_c` and down below `close_at_c`, as
-    a grower would; `vent_at_c=None` is a tunnel nobody opens, which overheats. The
-    numbers are plausible, not measured: they are what modules/advise/tunnel_gain.py has to
-    recover, which is the point of having them written down.
+    a grower would; `vent_at_c=None` is a tunnel nobody opens, which overheats.
+
+    **The numbers are fitted to GreenLight** (open-questions Q28, modules/twin): its
+    process model configured as an unheated single-poly tunnel, run on McAllister Farm's
+    real spring and July weather. The first numbers here were plausible guesses — a 3 °C
+    night gain, 18 °C of sun — and ran 1.6 °C too warm at night against it, which is a
+    frost forecast for covered crops wrong in the dangerous direction. The defaults are an
+    IR ("thermic") film, which most high-tunnel film now is; `FILMS["clear"]` is plain
+    polyethylene, which on clear nights is no warmer than the open air. Neither the
+    virtual tunnel nor GreenLight's has met a real one: these are what modules/advise/
+    tunnel_gain.py must recover, and what a real tunnel's paired sensors will correct.
     """
 
     name: str
-    night_gain_c: float = 3.0
+    night_gain_c: float = 1.0
     cold_night_gain_c: float = 1.0
     cold_night_c: float = -5.0
-    solar_gain_c: float = 18.0
+    solar_gain_c: float = 12.0
     vent_at_c: float | None = 27.0
     close_at_c: float = 20.0
     vent_cut: float = 0.75
     tau_h: float = 0.75
     inside_c: float | None = None
     sides_up: bool = False
+
+    @classmethod
+    def of(cls, name: str, film: str = "thermic", **kw) -> "Tunnel":
+        """A tunnel covered in one of `FILMS`."""
+        return cls(name=name, **{**FILMS[film], **kw})
 
     def night_gain(self, outside_c: float, overcast: bool) -> float:
         if overcast:
@@ -531,6 +544,14 @@ class Tunnel:
             elif self.inside_c < self.close_at_c:
                 self.sides_up = False
         return self.inside_c
+
+
+#: Fitted to GreenLight's tunnel per film (modules/twin, Q28): night-low error 0.87 °C
+#: for IR film and 0.81 °C for clear, against 1.95 °C for the first guesses.
+FILMS = {
+    "thermic": {"night_gain_c": 1.0, "cold_night_gain_c": 1.0, "solar_gain_c": 12.0},
+    "clear": {"night_gain_c": 0.0, "cold_night_gain_c": 0.0, "solar_gain_c": 10.0},
+}
 
 
 # ------------------------------------------------------------------- the world

@@ -77,6 +77,10 @@ PRECIPITATION_DEPTH = CF + "lwe_thickness_of_precipitation_amount/"
 #: Wind speed. CF, canonical m s-1.
 WIND_SPEED = CF + "wind_speed/"
 
+#: Cloud cover, as a forecast gives it. The covered-crop frost watch needs it: a clear sky
+#: draws heat out through a polyethylene tunnel, and cloud is what stops it (Q28).
+CLOUD_AREA_FRACTION = CF + "cloud_area_fraction/"
+
 
 #: A node's own GNSS fix. CF names, canonical units degree_north and degree_east;
 #: UCUM writes both as `deg`. A node that keeps GPS time already has this fix and
@@ -129,6 +133,7 @@ TERMS: dict[str, tuple[str, str]] = {
     LONGITUDE: ("deg", "CF"),
     PRECIPITATION_DEPTH: ("mm", "CF"),
     WIND_SPEED: ("m/s", "CF"),
+    CLOUD_AREA_FRACTION: ("%", "CF"),
     BATTERY_VOLTAGE: ("V", "ODM2"),
     RSSI: ("dB[mW]", "ODM2"),
     VESSEL_FILL_FRACTION: ("1", "local"),
@@ -149,6 +154,7 @@ ACCEPTED_UNITS: dict[str, frozenset] = {
     LONGITUDE: frozenset({"deg"}),
     PRECIPITATION_DEPTH: frozenset({"mm", "m", "[in_i]"}),
     WIND_SPEED: frozenset({"m/s", "km/h", "[mi_i]/h"}),
+    CLOUD_AREA_FRACTION: frozenset({"%", "1"}),
     BATTERY_VOLTAGE: frozenset({"V", "mV"}),
     RSSI: frozenset({"dB[mW]"}),
     VESSEL_FILL_FRACTION: frozenset({"1", "%"}),

@@ -122,6 +122,7 @@
   "unit.m": "metro",
   "unit.[in_i]": "pulgada",
   "unit.km/h": "kilómetro por hora",
-  "unit.[mi_i]/h": "milla por hora"
+  "unit.[mi_i]/h": "milla por hora",
+  "term.http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/": "nubosidad"
  }
 }

@@ -15,8 +15,10 @@ A season of runs in the log, next to the farm's own station, is what scores the 
 for this place (tools/forecast_score.py; tools/nbm_verify.py shows the result on NOAA's
 archive). Morning and dusk from cron, say — the NWS grid updates about hourly, but a farm
 acts on the forecast at dusk, and every run kept costs log space: some 185 hours of each
-variable, each with its range-check assertion, about 470 KB a run for two variables, so
-about 350 MB a year at two runs a day:
+variable, each with its range-check assertion, about 235 KB a run per variable, so about
+860 MB a year at two runs a day for the five kept by default — temperature and rain for
+the frost watch and the irrigation drill, and humidity, wind and cloud for the
+covered-crop frost watch (Q28), which runs the hoop-house twin on them:
 
     17 6,18 * * *  cd ~/dev/fieldmesh && python3 tools/forecast_collect.py ~/farm/log.jsonl --lat 35.0645 --lon -86.5914
 
@@ -104,7 +106,8 @@ def main(argv=None) -> int:
     ap.add_argument("--lon", type=float, required=True)
     ap.add_argument("--source", choices=("nws", "metno"), default="nws")
     ap.add_argument("--user-agent", default="fieldmesh/0.1")
-    ap.add_argument("--variables", default="air_temperature,precipitation",
+    ap.add_argument("--variables",
+                    default="air_temperature,precipitation,relative_humidity,wind_speed,cloud_area_fraction",
                     help="which to keep, of air_temperature, precipitation, relative_humidity, "
                          "wind_speed and precipitation_probability; each run re-forecasts some "
                          "185 hours, so every variable kept twice a day adds about 170 MB a year")
