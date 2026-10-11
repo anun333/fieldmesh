@@ -178,6 +178,7 @@ irrigation drill then waters the virtual bed on that schedule
   around it with 1.049 and says so.
 
 Still to build: the advisory itself for a bed without a probe, which needs daily
-sunshine and humidity in the farm's log to compute ET from. Those are the forecast
-collector's `dswrf` and `relative_humidity`, or a station's.
+sunshine and humidity in the farm's log to compute ET from. The forecast collector keeps
+humidity already. Sunshine it does not: NOAA's National Blend carries it (`dswrf`, which
+`tools/nbm_verify.py` reads), or a station measures it.
 
