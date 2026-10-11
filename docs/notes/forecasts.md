@@ -238,7 +238,9 @@ is 2013, the wettest of the thirty.
   value range-checked) to `~/dev/fieldmesh-data/mcallister-forecasts.jsonl` — about 350 MB a
   year. `tools/forecast_score.py` on that file scores it against the SCAN station whenever
   asked; a season of it scores the forecast the farm actually receives, not only the blend
-  behind it. To stop: delete the three `fieldmesh` lines from `crontab -e`.
+  behind it. To stop: delete the two lines in `crontab -e` that run `forecast_collect.py` and
+  `scan_collect.py` (they still name the old `librefarm` directories, which the new names
+  point to).
 * The rules above are stand-ins for layer 1 and 2 modules; when those are built, these
   drills are their backtests (§11).
 * A forecast's quality: only the range check runs on a forecast, and every value is

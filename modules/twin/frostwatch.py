@@ -246,13 +246,29 @@ def main(argv=None) -> int:
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--log", help="a forecast log to read (never written)")
     src.add_argument("--socket", help="the module host's socket (§8.3); the decision is logged")
-    ap.add_argument("--lat", type=float, required=True)
-    ap.add_argument("--lon", type=float, required=True)
+    ap.add_argument("--config", help="JSON with any of lat, lon, cover, warn_at, tunnel, language: "
+                                     "how the evening timer runs it (deploy/systemd)")
+    ap.add_argument("--lat", type=float)
+    ap.add_argument("--lon", type=float)
     ap.add_argument("--dusk", help="ISO 8601, UTC; default: the coming 00 UTC, about 6 pm in the central US")
-    ap.add_argument("--cover", default="thermic", choices=sorted(T.COVERS))
+    ap.add_argument("--cover", choices=sorted(T.COVERS))
     ap.add_argument("--warn-at", type=float, help="default: the film's, from the backtest")
-    ap.add_argument("--language", default="en")
+    ap.add_argument("--tunnel", help="the tunnel's id, so the decision names it")
+    ap.add_argument("--language")
     args = ap.parse_args(argv)
+    config = {}
+    if args.config:
+        with open(args.config, encoding="utf-8") as h:
+            config = json.load(h)
+    # A flag given overrides the file; the file overrides the defaults.
+    for name, default in (("lat", None), ("lon", None), ("cover", "thermic"), ("warn_at", None),
+                          ("tunnel", None), ("language", "en")):
+        if getattr(args, name) is None:
+            setattr(args, name, config.get(name, default))
+    if args.lat is None or args.lon is None:
+        ap.error("the tunnel's place is needed: --lat and --lon, or lat and lon in --config")
+    if args.cover not in T.COVERS:
+        ap.error(f"cover is one of {sorted(T.COVERS)}")
     now = _dt.datetime.now(tz=_dt.timezone.utc)
     dusk = (_dt.datetime.fromisoformat(args.dusk) if args.dusk
             else now.replace(hour=0, minute=0, second=0, microsecond=0) + _dt.timedelta(days=1))
@@ -272,6 +288,8 @@ def main(argv=None) -> int:
         print(f"no watch tonight: {exc}", file=sys.stderr)
     decision = judge(rule, result, now, {"dusk": dusk.isoformat(), "cover": args.cover})
     decision["valid_until"] = (dusk + NIGHT_H * HOUR).isoformat()     # tonight's, until dawn
+    if args.tunnel:
+        decision["subject"] = str(args.tunnel)
     if write is not None:
         write.append(R.DECISION, decision)
     print(json.dumps({"alert": decision["alert"], "context": decision["context"],

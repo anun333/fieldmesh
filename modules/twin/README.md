@@ -61,6 +61,13 @@ hand on a log, or as a module process through the host (§8.3, [module.json](mod
 twin-env/bin/python -I modules/twin/frostwatch.py --log forecasts.jsonl --lat 35.06 --lon -86.59 --cover thermic
 ```
 
+On a farm it runs each evening at 17:30 as its own module process, from a systemd timer
+([deploy/systemd/](../../deploy/systemd/README.md)), with its place, film and tunnel in a
+config file. Its decision names the tunnel and stands until dawn, so the
+[notifier](../notify/) can send it and the [board](../board/) can show it. Run so on McAllister
+Farm's forecast log on 2026-10-11, it said 14.4 °C inside a thermic-film tunnel against
+12.8 °C outside: no warning.
+
 **The 2025–26 season at McAllister Farm** ([covered_backtest.py](covered_backtest.py)): 194
 nights, mid-October to the end of April. Each night uses NOAA's National Blend of Models
 issued at 6 pm, after a warm-up on what the weather did (NASA POWER). The same night is

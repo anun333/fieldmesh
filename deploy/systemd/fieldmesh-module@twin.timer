@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# Tonight's covered-crop frost watch, each evening before dusk, in the farm's own time.
+# It reads the night ahead from the coming 00 UTC, which is 6 or 7 pm in the central
+# United States; a farm far from there sets --dusk in the drop-in instead.
+#   systemctl enable --now fieldmesh-module@twin.timer
+
+[Unit]
+Description=fieldmesh covered-crop frost watch, each evening
+
+[Timer]
+OnCalendar=*-*-* 17:30
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

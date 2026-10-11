@@ -1,3 +1,5 @@
 # GreenLight runs in its own environment: it pins numpy 1.26 and brings scipy,
 # pandas and matplotlib. BSD-3-Clause-Clear.
 greenlight==2.0.5
+# The covered frost watch judges its rule through modules/rules (cel-python).
+-r ../rules/requirements.txt

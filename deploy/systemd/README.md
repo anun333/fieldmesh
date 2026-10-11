@@ -11,6 +11,7 @@ the module host's unix socket, and the host answers only what the module's grant
 | [fieldmesh-module@.service](fieldmesh-module@.service) | one module: `fieldmesh-module@water`, `fieldmesh-module@soilwater` |
 | [fieldmesh-server.service](fieldmesh-server.service) | the SensorThings data service, read-only over the farm's log, tokens required ([server/](../../server/)) |
 | [fieldmesh-module@notify.service.d/](fieldmesh-module@notify.service.d/channels.conf) | the notifier's one exception: the network, for its push server, and its ntfy tokens as credentials ([modules/notify/](../../modules/notify/)) |
+| [fieldmesh-module@twin.service.d/](fieldmesh-module@twin.service.d/frostwatch.conf) and [fieldmesh-module@twin.timer](fieldmesh-module@twin.timer) | the covered-crop frost watch ([modules/twin/](../../modules/twin/)): one run each evening at 17:30, in GreenLight's own environment, no network |
 | [fieldmesh-module@board.service.d/](fieldmesh-module@board.service.d/serve.conf) | the farm page: its own state directory for the pages, served on this machine only ([modules/board/](../../modules/board/)) |
 
 ## Installing a module
@@ -54,6 +55,28 @@ sudoedit /etc/fieldmesh/modules/board.json       # farm, time zone, languages, p
 sudo cp -r deploy/systemd/fieldmesh-module@board.service.d /etc/systemd/system/
 sudo systemctl enable --now fieldmesh-module@board   # http://127.0.0.1:8080/
 ```
+
+The covered-crop frost watch runs once each evening rather than staying up:
+
+```sh
+sudo python3 -m venv /opt/fieldmesh/modules/twin/env
+sudo /opt/fieldmesh/modules/twin/env/bin/pip install -r /opt/fieldmesh/modules/twin/requirements.txt
+sudo python3 /opt/fieldmesh/sdk/modhost.py grant --log /var/lib/fieldmesh/farm.jsonl \
+    --manifest /opt/fieldmesh/modules/twin/module.json \
+    --property http://vocab.nerc.ac.uk/standard_name/air_temperature/ \
+    --property http://vocab.nerc.ac.uk/standard_name/relative_humidity/ \
+    --property http://vocab.nerc.ac.uk/standard_name/wind_speed/ \
+    --property http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/ \
+    --token-out /etc/fieldmesh/modules/twin.token
+sudoedit /etc/fieldmesh/modules/twin.json        # {"lat": …, "lon": …, "cover": "thermic", "tunnel": "<id>"}
+sudo cp -r deploy/systemd/fieldmesh-module@twin.service.d deploy/systemd/fieldmesh-module@twin.timer /etc/systemd/system/
+sudo systemctl enable --now fieldmesh-module@twin.timer
+```
+
+Run as such a process on a copy of McAllister Farm's own forecast log, sandboxed without
+network and capped at 512 MB, it read the night through the host and logged its decision.
+That night took 5 seconds and 132 MB. `systemd-analyze` accepts the unit and its timer, and
+scores the unit 0.4. The timer itself has not fired under a system manager.
 
 The notifier is the one module given the network, so `systemd-analyze security` scores
 its unit at 1.3 ("OK"), and the board, which serves on this machine only, at 1.2; a
