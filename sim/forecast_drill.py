@@ -67,9 +67,11 @@ def hourly_truth(climate, start: _dt.datetime, days: float) -> list:
     return [tuple(x) for x in out]
 
 
-def declare(state, log, *, kind, unit, prop, expected_interval, sensor, thing, feature):
+def declare(state, log, *, kind, unit, prop, expected_interval, sensor, thing, feature,
+            ensemble=None):
     ds = Datastream(id=uuid7(), thing=thing, sensor=sensor, feature=feature, observed_property=prop,
-                    unit=unit, kind=kind, expected_interval=expected_interval, max_latency=3600.0)
+                    unit=unit, kind=kind, expected_interval=expected_interval, max_latency=3600.0,
+                    ensemble=ensemble)
     log.append_record(ds)
     state.add(ds)
     return ds
@@ -133,7 +135,11 @@ def score_watch(warnings: list, events: list, issue_every_h: int, issues: list |
 def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float = 0.0,
           seed: int = 1, issue_every_h: int = 6, station_noise_c: float = 0.2,
           thresholds: tuple = (), weather: str = WEATHER, climate=None,
-          score_from: _dt.datetime | None = None) -> dict:
+          score_from: _dt.datetime | None = None, ensemble: int = 0, spread: float = 0.7,
+          chances: tuple = ()) -> dict:
+    """With `ensemble`, an ensemble of that many members is issued with every run (Q26),
+    and the watch also warns when the chance that the next 48 hours reach the damage
+    line — the share of members whose run does — is at least each of `chances`."""
     climate = climate or ph.RecordedClimate.from_csv(weather, seed=seed)
     truth = hourly_truth(climate, start, days)
     state, log = P.State(), L.Log()
@@ -152,6 +158,12 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
         log.append_record(obs)
         state.add(obs)
 
+    members = [declare(state, log, kind=DatastreamKind.FORECAST, unit="Cel", prop=V.AIR_TEMPERATURE,
+                       expected_interval=issue_every_h * 3600.0, sensor=ens_sensor, thing=thing,
+                       feature=feature, ensemble={"member": m, "members": ensemble})
+               for ens_sensor in ([uuid7()] if ensemble else []) for m in range(ensemble)]
+    by_chance = {c: [] for c in chances}
+    pairs = []                                      # (issued, chance from the members, deterministic)
     forecaster = FCS.Forecaster(truth, skill=skill, seed=seed)
     warnings = []                                   # (issued_at, first forecast frost hour)
     issues = []
@@ -174,6 +186,19 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
         for thr, ws in by_threshold.items():
             if lowest is not None and lowest <= thr:
                 ws.append((issued, None))
+        if members:
+            for ds, run in zip(members, forecaster.ensemble(issued, ensemble, spread=spread,
+                                                             horizon_h=48)):
+                FC.ingest(log, state, ds.id, issued, run, uncertainty_s=1800.0, received_at=issued,
+                          provenance={"source": "sim/forecaster.py", "ensemble": ensemble,
+                                      "spread": spread})
+            chance = FC.event_probability(state, [d.id for d in members], issued,
+                                          issued + 48 * HOUR, comparison="le",
+                                          threshold=DAMAGE_C)["probability"]
+            pairs.append((issued, chance, lowest is not None and lowest <= DAMAGE_C))
+            for c, ws in by_chance.items():
+                if chance is not None and chance >= c:
+                    ws.append((issued, None))
         runs += 1
         last_issue = issued
         issued += issue_every_h * HOUR
@@ -183,6 +208,15 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
     events = [e for e in frost_events(measured) if score_from is None or e[0] >= score_from]
     watch = {thr: score_watch(ws, events, issue_every_h, issues, score_from)
              for thr, ws in by_threshold.items()}
+    ensemble_watch = {c: score_watch(ws, events, issue_every_h, issues, score_from)
+                      for c, ws in by_chance.items()}
+    # Each issue's chance of damage in the next 48 hours against whether it came.
+    happened = []
+    for issued, chance, det in pairs:
+        if score_from is not None and issued < score_from or chance is None:
+            continue
+        came = any(issued <= t < issued + 48 * HOUR and v <= DAMAGE_C for t, v in measured)
+        happened.append((chance, came, det))
     scored = []
     for first, last in events:
         leads = [(first - issued).total_seconds() / 3600.0 for issued, _ in warnings
@@ -200,6 +234,8 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
                     for day, e in sorted(by_day.items())}
     problems = state.validate()
     return {"events": scored, "warnings": warnings, "false_alarms": false_alarms, "watch": watch,
+            "ensemble_watch": ensemble_watch, "chances": happened,
+            "ensemble_rows": sum(len(state.observations_of(d.id)) for d in members),
             "verification": verification, "runs": runs,
             "forecast_rows": len(state.observations_of(fc_temp.id)),
             "live_hours": len(state.forecast(fc_temp.id, start, end + HOUR)),
@@ -210,19 +246,28 @@ def drill(*, start: _dt.datetime, days: float, skill: FCS.Skill, warn_c: float =
 
 
 def springs(weather: str, years: range, *, skill: FCS.Skill, thresholds: tuple, seed: int = 1,
-            first=(3, 1), last=(5, 10)) -> dict:
+            first=(3, 1), last=(5, 10), ensemble: int = 0, spread: float = 0.7,
+            chances: tuple = ()) -> dict:
     """The frost watch over many recorded springs, every threshold on the same forecasts:
-    per threshold, frost nights warned in time, missed, and false alert episodes."""
+    per threshold, frost nights warned in time, missed, and false alert episodes. With an
+    ensemble, the same per chance (keyed `"p0.2"`), and under `"brier"` every issue's
+    chance against what came."""
     climate = ph.RecordedClimate.from_csv(weather, seed=seed)
-    totals = {thr: {"frosts": 0, "in_time": 0, "late_or_missed": [], "episodes": 0, "false_episodes": 0}
-              for thr in thresholds}
+    keys = list(thresholds) + [f"p{c:g}" for c in chances]
+    totals = {k: {"frosts": 0, "in_time": 0, "late_or_missed": [], "episodes": 0, "false_episodes": 0}
+              for k in keys}
+    pairs = []
     for year in years:
         scored_from = _dt.datetime(year, *first, tzinfo=UTC)
         start = scored_from - _dt.timedelta(days=3)     # so the first frost can be warned of
         days = (_dt.datetime(year, *last, tzinfo=UTC) - start).days
         r = drill(start=start, days=days, skill=skill, seed=seed + year, thresholds=thresholds,
-                  climate=climate, score_from=scored_from)
-        for thr, w in r["watch"].items():
+                  climate=climate, score_from=scored_from, ensemble=ensemble, spread=spread,
+                  chances=chances)
+        pairs += r["chances"]
+        watches = dict(r["watch"])
+        watches.update({f"p{c:g}": w for c, w in r["ensemble_watch"].items()})
+        for thr, w in watches.items():
             tot = totals[thr]
             tot["frosts"] += len(w["events"])
             tot["in_time"] += w["in_time"]
@@ -230,6 +275,12 @@ def springs(weather: str, years: range, *, skill: FCS.Skill, thresholds: tuple, 
                                       if e["warned_h"] < ENOUGH_LEAD_H]
             tot["episodes"] += w["episodes"]
             tot["false_episodes"] += w["false_episodes"]
+    if pairs:
+        base = sum(came for _, came, _ in pairs) / len(pairs)
+        totals["brier"] = {"issues": len(pairs), "base_rate": base,
+                           "ensemble": FC.brier_score((p, came) for p, came, _ in pairs),
+                           "deterministic": FC.brier_score((float(d), came) for _, came, d in pairs),
+                           "climatology": FC.brier_score((base, came) for _, came, _ in pairs)}
     return totals
 
 
@@ -246,23 +297,37 @@ def main(argv=None) -> int:
     ap.add_argument("--springs", help="YEAR-YEAR: score the frost watch over these springs, "
                                       "March 1 to May 10, at several thresholds")
     ap.add_argument("--thresholds", default="1,0,-1,-2.2", help="°C, comma-separated, with --springs")
+    ap.add_argument("--ensemble", type=int, default=0,
+                    help="members of an ensemble issued with every run (Q26); 0 for none")
+    ap.add_argument("--spread", type=float, default=0.7,
+                    help="the ensemble's spread over its run's error; 1 is reliable")
+    ap.add_argument("--chances", default="0.05,0.1,0.2,0.3,0.5",
+                    help="with --ensemble: warn when the chance of damage in 48 h reaches these")
     args = ap.parse_args(argv)
+    chances = tuple(float(x) for x in args.chances.split(",")) if args.ensemble else ()
     if args.springs:
         a, _, b = args.springs.partition("-")
         thresholds = tuple(float(x) for x in args.thresholds.split(","))
         skill = FCS.Skill(sd0_c=args.sd0, sd_per_day_c=args.per_day, bias_c=args.bias)
         totals = springs(args.weather, range(int(a), int(b) + 1), skill=skill, thresholds=thresholds,
-                         seed=args.seed)
+                         seed=args.seed, ensemble=args.ensemble, spread=args.spread, chances=chances)
+        brier = totals.pop("brier", None)
         n = int(b) - int(a) + 1
         print(f"Frost watch over {n} springs (March 1 – May 10), damage at {DAMAGE_C} °C, "
               f"{ENOUGH_LEAD_H} h of warning enough; forecast spread {skill.sd0_c} + {skill.sd_per_day_c}/day, "
               f"bias {skill.bias_c:+}:")
         print("  warn at   frost nights warned in time   alerts   false alerts   false per spring")
         for thr, tot in totals.items():
-            print(f"  {thr:+6.1f}   {tot['in_time']:>4} of {tot['frosts']:<4} ({tot['in_time'] / max(1, tot['frosts']):.0%})"
+            label = f"{thr:+6.1f}" if not isinstance(thr, str) else f"{float(thr[1:]):>5.0%} "
+            print(f"  {label}   {tot['in_time']:>4} of {tot['frosts']:<4} ({tot['in_time'] / max(1, tot['frosts']):.0%})"
                   f"            {tot['episodes']:>5}   {tot['false_episodes']:>6}         {tot['false_episodes'] / n:5.1f}")
             for when, lead in tot["late_or_missed"][:6]:
                 print(f"           {'missed' if not lead else f'{lead:.0f} h only'}: {when:%Y-%m-%d %H:%M}")
+        if brier:
+            print(f"\nThe chance of damage within 48 h, every issue ({brier['issues']}; it came after "
+                  f"{brier['base_rate']:.1%}), Brier score (0 perfect): ensemble {brier['ensemble']:.3f}, "
+                  f"one run read as yes or no {brier['deterministic']:.3f}, "
+                  f"the spring's average chance {brier['climatology']:.3f}")
         return 0
     skill = FCS.Skill(sd0_c=args.sd0, sd_per_day_c=args.per_day, bias_c=args.bias)
     start = _dt.datetime.fromisoformat(args.start).replace(tzinfo=UTC)

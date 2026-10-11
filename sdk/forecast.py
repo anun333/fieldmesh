@@ -130,6 +130,51 @@ def brier(state: P.State, forecast_id: UUID, measured_id: UUID) -> dict:
     return out
 
 
+def members(state: P.State, datastream_id: UUID) -> list:
+    """The ensemble a member belongs to (Q26): every forecast datastream sharing its
+    sensor, observed property and feature that declares `ensemble`, by member number."""
+    ds = state.datastreams[datastream_id]
+    if ds.ensemble is None:
+        raise ForecastError("not an ensemble member: it declares no ensemble")
+    found = [d for d in state.datastreams.values()
+             if d.ensemble is not None and d.kind is DatastreamKind.FORECAST
+             and (d.sensor, d.observed_property, d.feature) == (ds.sensor, ds.observed_property,
+                                                                ds.feature)]
+    return sorted(found, key=lambda d: d.ensemble["member"])
+
+
+def event_probability(state: P.State, member_ids, start: _dt.datetime, end: _dt.datetime, *,
+                      comparison: str, threshold: float, at: _dt.datetime | None = None) -> dict:
+    """The chance that a value between two valid times compares to `threshold` — "the
+    night's low reaches −2.2 °C" is `comparison="le"` over the night — as the share of
+    members whose run does. Each member's run is its latest issue by `at` (the live one
+    if `at` is None), so a backtest reads only what was known then. A member with no run
+    covering the window is left out and counted.
+    `{"probability", "members", "missing", "issued_at"}` (the oldest issue counted)."""
+    compare = {"gt": float.__gt__, "ge": float.__ge__, "lt": float.__lt__,
+               "le": float.__le__}[comparison]
+    hits = counted = missing = 0
+    oldest = None
+    for mid in member_ids:
+        if at is None:
+            rows = [o for o in state.forecast(mid, start, end) if isinstance(o.result, (int, float))]
+        else:
+            known = [o for o in state.observations_of(mid)
+                     if o.issued_at is not None and o.issued_at <= at]
+            issued = max((o.issued_at for o in known), default=None)
+            rows = [o for o in known if o.issued_at == issued and start <= o.measured_at < end
+                    and isinstance(o.result, (int, float))]
+        if not rows:
+            missing += 1
+            continue
+        counted += 1
+        hits += any(compare(float(o.result), float(threshold)) for o in rows)
+        first = min(o.issued_at for o in rows)
+        oldest = first if oldest is None or first < oldest else oldest
+    return {"probability": hits / counted if counted else None, "members": counted,
+            "missing": missing, "issued_at": oldest}
+
+
 def brier_score(pairs) -> float:
     """Mean squared error of probability against outcome: 0 perfect, 0.25 a coin."""
     pairs = list(pairs)

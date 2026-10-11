@@ -20,6 +20,13 @@ week — without being calibrated to any one service; a test that needs a sharpe
 worse forecaster says so. Each run is seeded by the forecaster's seed and its issue
 time, so a season of runs is reproducible and two runs differ the way two real
 issues do.
+
+An **ensemble** (`Forecaster.ensemble`, Q26) is members that share their run's error —
+what the model got wrong that day, which every member inherits — and spread about it,
+each wandering on its own. `spread` is the members' spread over the run's error: 1 makes
+the truth indistinguishable from a member, the definition of a reliable ensemble; real
+ones near the ground are usually narrower than their error, so the default is 0.7. Each
+member alone has the declared skill's error, as one deterministic run does.
 """
 from __future__ import annotations
 
@@ -89,3 +96,37 @@ class Forecaster:
                 spurious = rng.random() < min(1.0, s.false_alarm * g)
                 rain.append((t, round(rng.uniform(0.2, 2.0), 2) if spurious else 0.0))
         return {"air_temperature": temps, "precipitation": rain}
+
+    def ensemble(self, issued_at: _dt.datetime, members: int = 20, *, spread: float = 0.7,
+                 horizon_h: int | None = None) -> list:
+        """One issue of an ensemble: a list of `[(t, °C)]`, one per member, for the hours
+        after `issued_at` up to the horizon (the forecaster's, or `horizon_h`)."""
+        first = issued_at.replace(minute=0, second=0, microsecond=0) + HOUR
+        start = self.index.get(first)
+        if start is None:
+            return [[] for _ in range(members)]
+        rng = random.Random(self.seed * 104_729 + int(issued_at.timestamp()))
+        s = self.skill
+        horizon = min(self.horizon_h, horizon_h or self.horizon_h)
+        # A member's error is the run's plus its own, so each member alone has the
+        # declared spread: run sd = sd / sqrt(1 + spread²), member sd = spread × that.
+        share = 1.0 / math.sqrt(1.0 + spread ** 2)
+        lead0 = (first - issued_at).total_seconds() / 3600.0
+        common = share * s.sd(lead0) * rng.gauss(0.0, 1.0)
+        own = [spread * share * s.sd(lead0) * rng.gauss(0.0, 1.0) for _ in range(members)]
+        prev_sd = s.sd(lead0)
+        out = [[] for _ in range(members)]
+        noise = math.sqrt(1.0 - s.rho ** 2)
+        for k in range(horizon):
+            i = start + k
+            if i >= len(self.truth):
+                break
+            t, temp, _ = self.truth[i]
+            sd = s.sd((t - issued_at).total_seconds() / 3600.0)
+            grow = sd / prev_sd
+            common = s.rho * common * grow + noise * share * sd * rng.gauss(0.0, 1.0)
+            for m in range(members):
+                own[m] = s.rho * own[m] * grow + noise * spread * share * sd * rng.gauss(0.0, 1.0)
+                out[m].append((t, round(temp + s.bias_c + common + own[m], 2)))
+            prev_sd = sd
+        return out

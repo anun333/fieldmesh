@@ -71,6 +71,22 @@ class ForecasterTest(unittest.TestCase):
         for day, errs in by_day.items():
             self.assertAlmostEqual(statistics.pstdev(errs), skill.sd(day * 24 + 12), delta=0.25 * skill.sd(day * 24 + 12))
 
+    def test_an_ensemble_has_the_declared_spread_and_each_member_the_declared_skill(self):
+        f = F.Forecaster(self.truth(), seed=5)
+        t0 = dt.datetime(2026, 1, 1, tzinfo=UTC)
+        member_err, run_err, spread = [], [], []
+        for k in range(120):
+            runs = f.ensemble(t0 + k * 6 * HOUR, 20, spread=0.7, horizon_h=48)
+            values = [r[23][1] - 10.0 for r in runs]          # 24 hours ahead
+            member_err += values
+            run_err.append(statistics.mean(values))
+            spread.append(statistics.pstdev(values))
+        sd = F.Skill().sd(24)
+        self.assertAlmostEqual(statistics.pstdev(member_err), sd, delta=0.15 * sd)
+        self.assertAlmostEqual(statistics.mean(spread), 0.7 * sd / (1 + 0.7 ** 2) ** 0.5, delta=0.1)
+        self.assertLess(statistics.pstdev(run_err), sd, "the members share an error, which is the run's")
+        self.assertEqual(f.ensemble(t0, 3), F.Forecaster(self.truth(), seed=5).ensemble(t0, 3))
+
     def test_nothing_beyond_the_truth(self):
         f = F.Forecaster(self.truth(48))
         run = f.run(dt.datetime(2026, 1, 1, 12, tzinfo=UTC))
@@ -120,6 +136,29 @@ class DrillTest(unittest.TestCase):
 
     def test_health_follows_the_runs(self):
         self.assertEqual((self.r["health"], self.r["health_later"]), ("ok", "stale"))
+
+
+
+class EnsembleDrillTest(unittest.TestCase):
+    """The frost watch from an ensemble's chance, through layer zero (Q26)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.r = D.drill(start=dt.datetime(2007, 4, 3, tzinfo=UTC), days=8, skill=F.Skill(),
+                        ensemble=10, chances=(0.1, 0.5))
+
+    def test_every_member_run_is_in_the_log_and_the_log_is_sound(self):
+        self.assertEqual(self.r["problems"], [])
+        self.assertGreater(self.r["ensemble_rows"], 10 * 48 * 20)
+
+    def test_the_easter_freeze_is_warned_by_the_chance_too(self):
+        for c, w in self.r["ensemble_watch"].items():
+            easter = [e for e in w["events"] if e["start"].date() in (dt.date(2007, 4, 7), dt.date(2007, 4, 8))]
+            self.assertTrue(easter and all(e["warned_h"] >= D.ENOUGH_LEAD_H for e in easter), c)
+
+    def test_a_chance_is_given_every_issue(self):
+        self.assertTrue(self.r["chances"])
+        self.assertTrue(all(0.0 <= p <= 1.0 for p, _, _ in self.r["chances"]))
 
 
 if __name__ == "__main__":

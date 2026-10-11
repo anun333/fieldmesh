@@ -179,6 +179,64 @@ class IngestTest(unittest.TestCase):
         self.assertTrue(all(abs(e) == 0.5 for es in errors.values() for e in es))
 
 
+
+class EnsembleTest(unittest.TestCase):
+    """An ensemble is members, each an ordinary forecast series (Q26): a window's event
+    ("will the night reach −2.2 °C?") is counted on the members' runs."""
+
+    def members(self, n=4):
+        sensor, thing, feature = uuid7(), uuid7(), uuid7()
+        return [Datastream(id=uuid7(), thing=thing, sensor=sensor, feature=feature,
+                           observed_property=V.AIR_TEMPERATURE, unit="Cel",
+                           kind=DatastreamKind.FORECAST, expected_interval=6 * 3600.0,
+                           max_latency=3600.0, ensemble={"member": m, "members": n})
+                for m in range(n)]
+
+    def test_a_member_is_declared_and_checked(self):
+        [ds, *_] = self.members()
+        self.assertEqual(codec.load(codec.dump(ds)), ds)
+        self.assertNotIn("ensemble", codec.dump(forecast_datastream()))
+        for bad in ({"member": 4, "members": 4}, {"member": 0, "members": 1},
+                    {"member": "0", "members": 4}, {"member": 0}, {"member": 0, "members": 4, "x": 1}):
+            with self.assertRaises(ValueError, msg=bad):
+                forecast_datastream(ensemble=bad)
+        with self.assertRaises(ValueError):
+            F.raw_datastream(ensemble={"member": 0, "members": 4})   # a measurement is one
+        with self.assertRaises(ValueError):
+            forecast_datastream(ensemble={"member": 0, "members": 4},
+                                probability_of={"comparison": "le", "threshold": 0.0,
+                                                "unit": "Cel", "period_s": 3600}, )
+
+    def test_the_chance_of_a_window_is_the_share_of_members_whose_run_reaches_it(self):
+        ms = self.members(4)
+        state = P.State()
+        other = forecast_datastream()               # not a member, same model or not
+        for ds in ms + [other]:
+            state.add(ds)
+        lows = {0: [2.0, -2.5, 1.0], 1: [3.0, 1.0, 0.5], 2: [-2.2, 0.0, 1.0], 3: [4.0, 4.0, 4.0]}
+        for m, ds in enumerate(ms):
+            for o in run(ds, T0, lows[m]):
+                state.add(o)
+        self.assertEqual([d.id for d in FC.members(state, ms[2].id)], [d.id for d in ms])
+        with self.assertRaises(FC.ForecastError):
+            FC.members(state, other.id)
+        got = FC.event_probability(state, [d.id for d in ms], T0, T0 + 3 * HOUR,
+                                   comparison="le", threshold=-2.2)
+        self.assertEqual((got["probability"], got["members"], got["missing"]), (0.5, 4, 0))
+        # A later run that warms one member changes the live chance, not what was known.
+        for o in run(ms[0], T0 + HOUR, [1.0, 1.0]):
+            state.add(o)
+        live = FC.event_probability(state, [d.id for d in ms], T0 + HOUR, T0 + 3 * HOUR,
+                                    comparison="le", threshold=-2.2)
+        then = FC.event_probability(state, [d.id for d in ms], T0 + HOUR, T0 + 3 * HOUR,
+                                    comparison="le", threshold=-2.2, at=T0)
+        # In the later window only member 0 reached it, and only in the run known then.
+        self.assertEqual((live["probability"], then["probability"]), (0.0, 0.25))
+        none = FC.event_probability(state, [d.id for d in ms], T0 + 9 * HOUR, T0 + 12 * HOUR,
+                                    comparison="le", threshold=-2.2)
+        self.assertEqual((none["probability"], none["missing"]), (None, 4))
+
+
 if __name__ == "__main__":
     unittest.main()
 

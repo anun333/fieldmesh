@@ -122,6 +122,55 @@ takes a warning at +1 °C. So the rule the backtest gives is **warn about 2 °C 
 damage temperature, plus whatever warm bias the forecast has on this farm's cold nights** —
 which is a number only the farm's own station can supply.
 
+## Ensembles: a chance in place of a margin (Q26)
+
+An ensemble forecast is several runs of a model from slightly different starts, and the
+share of members that reach a frost is a chance of frost. Each member is stored as an
+ordinary forecast datastream that says which member it is (`ensemble: {member, members}`),
+so every member's whole run is kept: "will the night's low reach −2.2 °C?" is a question
+about each member's night, which per-hour spreads cannot answer.
+`sdk.forecast.event_probability` counts the members whose run does, from what was known
+when the watch looked.
+
+The virtual farm's forecaster issues an ensemble of 20 with every run (`Forecaster.ensemble`).
+The members share the run's error, which is what the model got wrong that day, and spread
+about it, each with the declared skill alone. The spread is 0.7 of the run's error, narrower
+than a reliable ensemble's, as real ones near the ground tend to be. The thirty springs
+again, the same weather and the same deterministic forecasts, with the watch warning at a
+chance of damage within 48 hours:
+
+| warn when | frost nights warned 12 h ahead | false alerts a spring |
+| --- | --- | --- |
+| one forecast reaches +1 °C | 132 of 133 (99%) | 10.6 |
+| one forecast reaches 0 °C | 132 of 133 (99%) | 9.9 |
+| one forecast reaches −1 °C | 127 of 133 (95%) | 7.5 |
+| one forecast reaches −2.2 °C | 112 of 133 (84%) | 4.2 |
+| **the ensemble's chance ≥ 5%** | **131 of 133 (98%)** | **7.3** |
+| the ensemble's chance ≥ 10% | 127 of 133 (95%) | 6.7 |
+| the ensemble's chance ≥ 20% | 126 of 133 (95%) | 5.3 |
+| the ensemble's chance ≥ 30% | 125 of 133 (94%) | 4.4 |
+| the ensemble's chance ≥ 50% | 123 of 133 (92%) | 3.4 |
+
+* **The chance beats the margin at every setting.** At 5% the watch catches nearly what
+  0 °C does, with a quarter fewer false alerts. At 30% it catches 13 more frosts than
+  warning at the damage line, for about the same false alerts. A farm chooses its risk
+  directly ("warn me at one in ten") instead of guessing a margin.
+* **As a forecast of the chance**, over 8,160 issues where damage followed 10% of the
+  time: Brier score 0.024 for the ensemble, 0.045 for one forecast read as yes or no, and
+  0.093 for the spring's average chance.
+* **It is overconfident, as built.** When it said 90 to 100%, damage came 78% of the time;
+  at exactly 100%, 96%. Below 10% it was right: damage came after almost none of 6,876
+  such issues.
+* **What this does not show** is how a real ensemble does here. The members' error is the
+  one this simulator declares, and the spread is an assumption. ECMWF's open ensemble
+  (CC BY 4.0) and NOAA's GEFS are the candidates; neither is collected yet, and a season of
+  either against the SCAN station is what would score it.
+
+`forecast_drill.py --springs 1991-2020 --ensemble 20` reproduces the table. It is heavy:
+twenty members of every run, every six hours, in each spring's log, about 270,000 rows a
+spring and some 1.6 GB of memory each. A machine shared with other work should run the
+springs a few at a time.
+
 ## A real season: NOAA's forecasts against McAllister Farm's station
 
 That number exists for McAllister. NOAA keeps every run of the National Blend of Models —
@@ -197,5 +246,6 @@ is 2013, the wettest of the thirty.
 * **Probabilities, since built.** NWS's chance of rain is collected as a forecast that
   declares its event — 0.254 mm within the hour — and `forecast.brier` scores every issue
   against a rain gauge by lead time. Add `precipitation_probability` to the collector's
-  `--variables` to keep it, about 170 MB a year more at two runs a day. Ensembles are still
-  open.
+  `--variables` to keep it, about 170 MB a year more at two runs a day.
+* **Ensembles, since built** (above): the representation, the event chance and the drill.
+  Still to build: a collector for a real ensemble, ECMWF's open ENS or NOAA's GEFS.

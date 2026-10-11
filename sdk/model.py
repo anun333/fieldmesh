@@ -271,6 +271,12 @@ class Datastream:
     #: "the chance that `observed_property` reaches 0.254 mm within the hour". The series'
     #: own unit is then `%` or `1`; the threshold's unit is the property's.
     probability_of: dict | None = None
+    #: On one member of an ensemble forecast (Q26): `{"member": 3, "members": 20}`. The
+    #: members of one ensemble are the forecast datastreams that share its sensor (the
+    #: model), observed property and feature; each is an ordinary forecast series, one
+    #: live value per valid time, so a member's whole run is kept — which a window's
+    #: event ("will the night's low reach −2.2 °C?") needs and per-hour spreads lose.
+    ensemble: dict | None = None
 
     def __post_init__(self) -> None:
         _uuid7(self.id, "id")
@@ -308,6 +314,18 @@ class Datastream:
                                  "measurement measures")
             for problem in probability_problems(self.probability_of, self.unit):
                 raise ValueError(problem)
+        if self.ensemble is not None:
+            if self.kind is not DatastreamKind.FORECAST:
+                raise ValueError("only a forecast has ensemble members (Q26)")
+            if self.probability_of is not None:
+                raise ValueError("a member forecasts the variable; a probability comes from "
+                                 "counting members, not from one of them (Q26)")
+            m, n = self.ensemble.get("member"), self.ensemble.get("members")
+            if set(self.ensemble) != {"member", "members"} or \
+                    not all(isinstance(x, int) and not isinstance(x, bool) for x in (m, n)) \
+                    or not (n >= 2 and 0 <= m < n):
+                raise ValueError("ensemble is {member, members}: whole numbers, two members "
+                                 "or more, member counted from 0")
         if self.derived_from == self.id:
             raise ValueError("a datastream cannot derive from itself")
         if self.expected_interval is not None and self.expected_interval <= 0:

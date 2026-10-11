@@ -727,7 +727,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q23 | A rate-of-change limit that works at any sampling interval | **Decided 2026-10-08** |
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | **Decided 2026-10-09** — learned, floored at the soil's default |
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
-| Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed |
+| Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed; probabilities and ensembles built since |
 | Q27 | What crosses between fieldmesh and ERPNext, and who owns each fact? | Blocks nothing yet — the records it needs exist since 2026-10-10 (land, inputs applied, harvest lots); the adapter waits on a partner that runs ERPNext |
 | Q28 | Should a process-based greenhouse model — GreenLight — be the hoop house's physics twin? | **Open, recommended yes; steps 1 and 2 done 2026-10-11** — the virtual farm's tunnel refitted to it; a covered-crop frost watch backtested on a season; see below |
 | Q29 | How do alerts reach people on the pilot farm: SMS through the farm's own modem, push through ntfy, or both? | **Open, recommended: SMS through a modem as the floor, push through a self-hosted ntfy** — the notifier speaks both; blocks the pilot; see below |
@@ -850,7 +850,7 @@ battery life matters most.
 
 ## Q26. How does a weather forecast enter layer zero?
 
-**Status: DECIDED 2026-10-09 — A, confirmed after it was built (the maintainer adopted the recommendation).** Since: probability forecasts, as a declared event on a forecast series; ensembles still open, below. Was: built as recommended 2026-10-09; open to revisit. Raised when forecasts were
+**Status: DECIDED 2026-10-09 — A, confirmed after it was built (the maintainer adopted the recommendation).** Since: probability forecasts, as a declared event on a forecast series; ensembles, one forecast datastream per member (2026-10-11), below. Was: built as recommended 2026-10-09; open to revisit. Raised when forecasts were
 asked for as input data: a frost watch, an irrigation rule that skips a watering when rain
 is coming, a tunnel closed before a cold night all act on them, and §1 promises that any
 action can be traced to why it happened — so the forecast an action rested on belongs in
@@ -899,8 +899,21 @@ comparison, threshold in the observed property's own unit, and the period it may
 within. NWS's probability of precipitation is "≥ 0.254 mm within the hour". No new kind and
 no new vocabulary term — the term is still the variable, and the declaration says what
 about it is being given a chance. `forecast.brier` scores every stored issue against a
-measured series by lead time. **Still open:** an ensemble's members and spread, which are
-several values per valid time per issue.
+measured series by lead time.
+
+**Since built, 2026-10-11: ensembles.** An ensemble's members and spread are several values
+per valid time per issue, which a forecast series must not hold. Each member is therefore
+its own forecast datastream, declaring `ensemble: {member, members}`. The members of one
+ensemble share its sensor (the model), observed property and feature, so the latest-issue
+projection holds for each, and every member's whole run is kept. That is what a window's
+event needs: "will the night's low reach −2.2 °C?" is asked of each member's night, which
+per-hour quantiles cannot answer. Storing quantiles or event probabilities alone was the
+alternative, and it would decide at ingest which questions can ever be asked.
+`forecast.event_probability` counts the members. On the virtual farm's thirty springs, with
+a simulated ensemble of 20, warning at a 5% chance of damage caught 131 of 133 frosts with
+7.3 false alerts a spring, against 132 and 9.9 for a single forecast at 0 °C
+([notes/forecasts.md](../notes/forecasts.md#ensembles-a-chance-in-place-of-a-margin-q26)).
+**Still open:** a real ensemble collected and scored at the farm.
 
 ## Q27. What crosses between fieldmesh and ERPNext, and who owns each fact?
 
