@@ -250,6 +250,69 @@ class TestEscalation(unittest.TestCase):
         self.assertIn("Frost warning", f.ntfy.sent[-1][1])
         self.assertEqual(len(f.ntfy.sent), 2)
 
+    def test_quiet_hours_keep_the_farm_s_clock_across_the_change_of_hour(self):
+        """On 1 November 2026 Tennessee goes from CDT to CST: 11:00 UTC is 6 am the day
+        before and 5 am that day. A frost watch held overnight goes out at 6 by the
+        clock on the farm's wall, both days."""
+        doc = roster()
+        for person in doc["people"].values():
+            person["quiet"] = ["21:00", "06:00"]
+        for day, still_quiet, wakes in ((31, None, 11), (1, 11, 12)):
+            month = 10 if day == 31 else 11
+            evening = _dt.datetime(2026, month, day, 4, tzinfo=UTC) - _dt.timedelta(days=0)
+            f = Farm(doc, since=evening - MIN)
+            f.decide("frost-watch", True, evening, subject=None, key="rules.frost.alert",
+                     valid_until=(evening + 14 * 60 * MIN).isoformat())
+            f.step(evening)
+            if still_quiet is not None:
+                f.step(evening.replace(hour=still_quiet))
+                self.assertEqual(f.ntfy.sent, [], f"5 am CST on the {day}th is still quiet")
+            f.step(evening.replace(hour=wakes))
+            self.assertEqual(len(f.ntfy.sent), 1, f"6 am local on the {day}th")
+
+    def test_a_year_of_alerts_is_not_a_year_of_memory(self):
+        f = Farm(since=T0)
+        for d in range(365):
+            at = T0 + d * 24 * 60 * MIN
+            f.decide("water-low", True, at, key="water.low")
+            f.step(at)
+            f.decide("water-low", False, at + 90 * MIN)
+            f.step(at + 91 * MIN)
+        dispatcher = f.notifier.dispatcher
+        self.assertLessEqual(len(dispatcher.episodes), 9, "about a week of ended alerts")
+        self.assertLessEqual(len(dispatcher._seen), 2, "only the last look's own writes")
+        f.step(T0 + 366 * 24 * 60 * MIN)
+        self.assertEqual(len(dispatcher._seen), 0, "and those once the cursor has read them")
+        self.assertEqual(len(f.sms.sent), 365 * 2, "and every alert and clear still went out")
+
+    def test_the_week_is_told_once_at_its_hour_with_what_it_cost(self):
+        doc = roster(digest={"to": ["sam"], "weekday": "mon", "time": "08:00",
+                             "cost_per_segment": 0.0075, "currency": "USD"})
+        f = Farm(doc, since=T0)
+        # Tuesday 14 July: two alerts; María takes one, the other climbs to Sam.
+        first = f.decide("water-empty", True, T0)
+        f.decide("water-low", True, T0 + 5 * MIN, subject=uuid7(), key="water.low")
+        f.step(T0 + 5 * MIN)
+        code = next(n["code"] for n in f.notifications(reason="raised") if n["decision"] == str(first.id))
+        f.sms.inbox.append(N.Reply("sms", "+16155550101", f"ok {code}", T0 + 10 * MIN, "r"))
+        f.step(T0 + 10 * MIN)
+        f.step(T0 + 40 * MIN)
+        before = len(f.ntfy.sent)
+        monday = _dt.datetime(2026, 7, 20, 13, tzinfo=UTC)          # 8 am CDT
+        f.step(monday - MIN)
+        self.assertEqual(len(f.ntfy.sent), before, "not before its hour")
+        f.step(monday)
+        digest = f.ntfy.sent[-1][1]
+        self.assertEqual(len(f.ntfy.sent), before + 1)
+        self.assertIn("Last week: 2 alerts; 1 taken by someone, 1 passed up for want of an answer.", digest)
+        segments = sum(n.get("segments", 0) for n in f.notifications() if n.get("reason") != "digest")
+        self.assertIn(f"({segments} segments, about {segments * 0.0075:.2f} USD)", digest)
+        f.step(monday + 60 * MIN)
+        self.assertEqual(len(f.ntfy.sent), before + 1, "once a week")
+        again = f.fresh()                                    # restarted: the log says it was sent
+        again.step(monday + 61 * MIN, f.state)
+        self.assertEqual(len(f.ntfy.sent), before + 1)
+
     def test_a_new_answer_ends_the_old_alert_and_an_answer_goes_stale(self):
         f = Farm(since=T0)
         night = 14 * 60 * MIN

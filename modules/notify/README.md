@@ -55,6 +55,20 @@ Who gets what is the farm's private configuration, not the log:
 * **Quiet hours** hold anything not marked `urgent` until morning. An empty trough is
   urgent; tomorrow's watering is not.
 * **A rule no route names goes nowhere.** It still stands on the [board](../board/).
+* **A weekly digest**, if the roster asks for one
+  (`"digest": {"to": ["sam"], "weekday": "mon", "time": "08:00", "cost_per_segment": 0.0075,
+  "currency": "USD"}`), tells the week in one message:
+
+  > Harrow Bend: Last week: 2 alerts; 1 taken by someone, 1 passed up for want of an
+  > answer. 2 messages: 1 by SMS (5 segments, about 0.04 USD) and 1 by push. 0 could not
+  > be delivered.
+
+  That is the test's week: two troughs at once, sent to María as one Spanish SMS; she took
+  one, and the other climbed to Sam.
+
+  It goes once, at its hour in the farm's own time; a notifier that was down then does not
+  send it a day late. Quiet hours are read on the farm's clock, so a change of hour
+  (CDT to CST) moves "6 am" with it.
 
 **The log names people and never their numbers.** Each message sent or tried is written
 back as a `notification` event, and each acknowledgement as an `acknowledgement` event,
@@ -65,6 +79,11 @@ the same kind the water monitor writes. A notification event records:
 
 Phone numbers and topics stay in the roster. An export, or a view of the log shared with a
 researcher, carries who was told, never how to reach them.
+
+**Its memory stays a week long.** An alert that ended more than seven days ago is
+forgotten. Of the events it wrote itself, it remembers only those its cursor has not
+read back yet. A year of daily alerts, tested, leaves about a week of them in memory, and
+the log keeps everything.
 
 **It restarts where the log says it was.** A restarted notifier neither sends everything
 again nor forgets an alert half-escalated, and escalation keeps its original clock. It
@@ -157,4 +176,4 @@ standard library, plus `mmcli` for SMS.
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)); strings in [packs/](packs/) under the
 `notify.` prefix, with the Spanish an unreviewed draft.
 
-**Next:** a weekly digest of what was sent and what it cost; SMS checked on a real modem.
+**Next:** SMS checked on a real modem.

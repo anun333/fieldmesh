@@ -65,6 +65,9 @@ MIN = _dt.timedelta(minutes=1)
 #: hands on at once.
 RETRY_AFTER = 10 * MIN
 MAX_TRIES = 3
+#: An alert that ended and was told of is forgotten this long after, so a notifier that
+#: runs for years holds the alerts of the last week, not of every season.
+FORGET_AFTER = _dt.timedelta(days=7)
 
 
 def register_packs(modules_dir: str = os.path.join(HERE, os.pardir)) -> list[str]:
@@ -132,11 +135,24 @@ class Route:
 
 
 @dataclass(frozen=True)
+class Digest:
+    """A weekly word on what the notifier did: to whom, on which local day and hour, and
+    what an SMS segment costs on the farm's plan, if it says."""
+
+    to: tuple
+    weekday: int = 0                 # Monday
+    time: str = "08:00"
+    cost_per_segment: float | None = None
+    currency: str = ""
+
+
+@dataclass(frozen=True)
 class Roster:
     farm: str
     timezone: str
     people: dict
     routes: tuple
+    digest: Digest | None = None
 
     def __post_init__(self) -> None:
         for route in self.routes:
@@ -144,6 +160,9 @@ class Roster:
                 for key in tier:
                     if key not in self.people:
                         raise ValueError(f"a route names {key!r}, who is not in the roster")
+        for key in (self.digest.to if self.digest else ()):
+            if key not in self.people:
+                raise ValueError(f"the digest names {key!r}, who is not in the roster")
 
     @classmethod
     def from_json(cls, doc: dict) -> "Roster":
@@ -156,7 +175,28 @@ class Roster:
                              float(r.get("escalate_after_min", 30.0)), bool(r.get("urgent", False)),
                              bool(r.get("notify_clear", True)), tuple(r.get("modules", ())))
                        for r in doc["routes"])
-        return cls(doc.get("farm", ""), doc.get("timezone", "UTC"), people, routes)
+        d = doc.get("digest")
+        days = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+        digest = Digest(tuple(d["to"]), days.index(str(d.get("weekday", "mon"))[:3].lower()),
+                        d.get("time", "08:00"), d.get("cost_per_segment"),
+                        d.get("currency", "")) if d else None
+        return cls(doc.get("farm", ""), doc.get("timezone", "UTC"), people, routes, digest)
+
+    def week_starting(self, now: _dt.datetime) -> _dt.datetime | None:
+        """The digest's latest moment at or before `now`, in UTC: the end of the week it
+        reports on."""
+        if not self.digest:
+            return None
+        from zoneinfo import ZoneInfo
+        local = self.local(now)
+        hh, mm = (int(x) for x in self.digest.time.split(":"))
+        slot = local.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        slot -= _dt.timedelta(days=(slot.weekday() - self.digest.weekday) % 7)
+        if slot > local:
+            slot -= _dt.timedelta(days=7)
+        # Rebuilt in the zone so a week across a change of hour keeps the wall clock.
+        slot = _dt.datetime(slot.year, slot.month, slot.day, hh, mm, tzinfo=ZoneInfo(self.timezone))
+        return slot.astimezone(_dt.timezone.utc)
 
     def route_for(self, decision: dict) -> Route | None:
         return next((r for r in self.routes if r.matches(decision)), None)
@@ -237,19 +277,39 @@ class Dispatcher:
         self._seen: set[str] = set()
         self._rng = rng or secrets.SystemRandom()
         self.unmatched_replies = 0
+        #: What a weekly digest counts, kept a little over a week: alerts as they opened,
+        #: and every notification, by time.
+        self.opened: list = []                     # (at, episode id)
+        self.sent: list = []                       # (at, payload)
+        self.digested: set = set()                 # (person key, week ending) sent
 
     # ------------------------------------------------------------- learning
 
-    def learn(self, event) -> None:
+    def learn(self, event, *, from_cursor: bool = False) -> None:
         """Fold one event: a decision, a notification, an acknowledgement. Idempotent,
-        so an event seen once on writing and again from the cursor counts once."""
-        if str(event.id) in self._seen:
+        so an event learned when it is written and again from the cursor counts once.
+        Only events written and not yet reached by the cursor are remembered for that:
+        the cursor never goes back, so once it has passed an event nothing brings it
+        again, and the memory stays the size of one look's writes."""
+        key = str(event.id)
+        if key in self._seen:
+            if from_cursor:
+                self._seen.discard(key)
             return
-        self._seen.add(str(event.id))
+        if not from_cursor:
+            self._seen.add(key)
         p = event.payload
         if event.kind == R.DECISION:
             self._decision(str(event.id), p)
         elif event.kind == NOTIFICATION:
+            at = _dt.datetime.fromisoformat(p["at"]) if p.get("at") else None
+            if p.get("reason") == "digest":
+                person = self.roster.by_id(p.get("person", ""))
+                if person is not None and p.get("outcome") == "sent":
+                    self.digested.add((person.key, p.get("week")))
+                return
+            if at is not None:
+                self.sent.append((at, p))
             ep = self.episodes.get(p.get("decision"))
             if ep is not None:
                 self._notification(ep, p)
@@ -286,6 +346,7 @@ class Dispatcher:
             return
         self.episodes[decision_id] = Episode(decision_id, p, key, route)
         self._open[key] = decision_id
+        self.opened.append((at, decision_id))
 
     def _notification(self, ep: Episode, p: dict) -> None:
         person = self.roster.by_id(p.get("person", ""))
@@ -313,6 +374,7 @@ class Dispatcher:
 
     def due(self, now: _dt.datetime) -> list[Send]:
         """What should go out now, in a stable order."""
+        self._forget(now)
         out = []
         for ep in self.episodes.values():
             if ep.ended is None and ep.decision.get("valid_until") and \
@@ -321,6 +383,36 @@ class Dispatcher:
                 self._open.pop(ep.key, None)
             out += self._due(ep, now)
         return out
+
+    def _forget(self, now: _dt.datetime) -> None:
+        """Drop alerts that ended more than `FORGET_AFTER` ago. Their notices are long
+        sent or abandoned, and the log keeps everything that happened."""
+        for key in [k for k, ep in self.episodes.items()
+                    if ep.ended is not None and ep.ended_at is not None
+                    and now - ep.ended_at > FORGET_AFTER]:
+            del self.episodes[key]
+        keep = now - FORGET_AFTER - _dt.timedelta(days=2)
+        self.opened = [x for x in self.opened if x[0] >= keep]
+        self.sent = [x for x in self.sent if x[0] >= keep]
+
+    def week(self, end: _dt.datetime) -> dict:
+        """What the seven days to `end` held, for the digest."""
+        start = end - _dt.timedelta(days=7)
+        opened = {d for at, d in self.opened if start <= at < end}
+        sent = [p for at, p in self.sent if start <= at < end]
+        delivered = [p for p in sent if p.get("outcome") == "sent"]
+        messages = {p.get("batch") or (p["decision"], p["person"], p["reason"]) for p in delivered}
+        sms = {p.get("batch") or (p["decision"], p["person"], p["reason"])
+               for p in delivered if p.get("via") == "sms"}
+        reached = {(p["decision"], p["person"], p["reason"]) for p in delivered}
+        failed = {(p["decision"], p["person"], p["reason"]) for p in sent
+                  if p.get("outcome") == "failed"} - reached
+        acked = {d for d in opened if d in self.episodes and self.episodes[d].acked}
+        climbed = {p["decision"] for p in delivered if p.get("reason") == "escalated"}
+        return {"alerts": len(opened), "acked": len(acked), "climbed": len(climbed & opened),
+                "messages": len(messages), "sms": len(sms), "push": len(messages) - len(sms),
+                "segments": sum(p.get("segments", 0) for p in delivered),
+                "failed": len(failed)}
 
     def _ready(self, ep: Episode, person: str, reason: str, now: _dt.datetime) -> bool:
         if (person, reason) in ep.noticed:
@@ -634,7 +726,7 @@ class Notifier:
         while True:
             events, nxt = self.source.follow(self.cursor)
             for e in events:
-                self.dispatcher.learn(e)
+                self.dispatcher.learn(e, from_cursor=True)
             moved, self.cursor = nxt != self.cursor, nxt
             if not events or not moved:
                 return
@@ -672,6 +764,49 @@ class Notifier:
                 break
             for group in batches(sends):
                 written += self._deliver(group, now, state)
+        written += self._digest(now)
+        return written
+
+    def _digest(self, now: _dt.datetime) -> list:
+        """The week's digest to each person the roster names, once a week, at its hour."""
+        end = self.roster.week_starting(now)
+        if end is None or now - end > _dt.timedelta(days=1):
+            return []                      # a notifier down for the hour does not send late
+        week = self.dispatcher.week(end)
+        written = []
+        for key in self.roster.digest.to:
+            if (key, end.isoformat()) in self.dispatcher.digested:
+                continue
+            # At the hour the roster chose for it, quiet hours or not.
+            written += self._send_digest(self.roster.people[key], end, week, now)
+        return written
+
+    def _send_digest(self, person: Person, end: _dt.datetime, week: dict, now) -> list:
+        t = i18n.Translator(person.language)
+        d = self.roster.digest
+        cost = ""
+        if d.cost_per_segment is not None and week["segments"]:
+            cost = str(t.text("notify.digest_cost", amount=week["segments"] * d.cost_per_segment,
+                              currency=d.currency))
+        text = str(t.text("notify.digest", cost=cost, **week))
+        text = str(t.text("notify.from", farm=self.roster.farm, text=text)) if self.roster.farm else text
+        written = []
+        for via, address in person.contacts:
+            channel = self.channels.get(via)
+            if channel is None:
+                continue
+            payload = {"reason": "digest", "week": end.isoformat(), "person": str(person.id),
+                       "via": via, "at": now.isoformat(), **{f"week_{k}": v for k, v in week.items()}}
+            try:
+                got = channel.send(address, text, title=self.roster.farm or "fieldmesh", urgent=False)
+                payload["outcome"] = "sent"
+                if got.get("segments"):
+                    payload["segments"] = got["segments"]
+            except DeliveryError as exc:
+                payload["outcome"], payload["error"] = "failed", str(exc)[:200]
+            written.append(self._write(NOTIFICATION, payload))
+            if payload["outcome"] == "sent":
+                break
         return written
 
     def _deliver(self, group: list, now: _dt.datetime, state) -> list:

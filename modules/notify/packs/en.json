@@ -16,6 +16,8 @@
   "notify.no_words": "no, not, nope, cant, cannot, unable, wont, dont, later",
   "notify.several": "{n} alerts:",
   "notify.escalated_several": "Nobody has answered these for {minutes:.0f} minutes. {text}",
-  "notify.reply_sms_several": "Reply OK to take them all, or OK and a number to take one: {codes}."
+  "notify.reply_sms_several": "Reply OK to take them all, or OK and a number to take one: {codes}.",
+  "notify.digest": "Last week: {alerts} alerts; {acked} taken by someone, {climbed} passed up for want of an answer. {messages} messages: {sms} by SMS ({segments} segments{cost}) and {push} by push. {failed} could not be delivered.",
+  "notify.digest_cost": ", about {amount:.2f} {currency}"
  }
 }

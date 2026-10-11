@@ -43,10 +43,7 @@ link to the evidence; do not delete it.
 
 ## Smaller gaps in the tests
 
-* **Quiet hours across a daylight-saving change.** The notifier reads quiet hours in
-  the farm's own time zone, but the tests run in July only.
-* **A notifier that runs for a year.** It keeps every alert it has seen in memory, and
-  none of them is ever dropped. Nobody has measured how that grows.
+None open at the moment.
 
 ## Checked since this list began
 
@@ -54,3 +51,4 @@ link to the evidence; do not delete it.
 | --- | --- | --- |
 | **The farm page served with TLS** (2026-10-11) | A generated certificate: the pages over TLS, nothing over plain HTTP, an untrusted certificate refused, and a client that stalls its handshake stalling only itself | [modules/board/test_board.py](../modules/board/test_board.py), `TestTls` |
 | **The module host and the other writers of the farm's log** (2026-10-11) | The notes said the host "runs inside the gateway", but no gateway process exists (it waits on the radio, build step 7). The real gap was worse: the host never read what other processes appended, so a revocation made at the command line was not seen until a restart, nor a new grant, nor a reading from the ingest. It now reads the file back every two seconds; tests show each counts, and fail on the old host. Found on the way: the first event after a power cut was glued to the cut line and lost; it now starts a fresh line | [sdk/test_modhost.py](../sdk/test_modhost.py) `TestOtherWritersOfTheLog`, [sdk/test_log.py](../sdk/test_log.py) `TestOtherWritersOfOneFile`, `test_the_first_event_after_a_power_cut_is_not_lost` |
+| **Quiet hours across a change of hour, and a notifier that runs for a year** (2026-10-11) | The autumn change in Tennessee: a frost watch held overnight goes out at 6 am by the farm's clock both sides of it, which a fixed offset would get wrong by an hour. A year of daily alerts leaves about a week of them in the notifier's memory, and every alert and clear still went out | [modules/notify/test_notify.py](../modules/notify/test_notify.py): `test_quiet_hours_keep_the_farm_s_clock_across_the_change_of_hour`, `test_a_year_of_alerts_is_not_a_year_of_memory` |

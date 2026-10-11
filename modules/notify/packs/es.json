@@ -16,6 +16,8 @@
   "notify.no_words": "no, nadie, imposible, tampoco, nunca, luego",
   "notify.several": "{n} alertas:",
   "notify.escalated_several": "Nadie ha respondido a estas en {minutes:.0f} minutos. {text}",
-  "notify.reply_sms_several": "Responda OK para encargarse de todas, u OK y un número para una: {codes}."
+  "notify.reply_sms_several": "Responda OK para encargarse de todas, u OK y un número para una: {codes}.",
+  "notify.digest": "La semana pasada: {alerts} alertas; {acked} atendidas por alguien, {climbed} pasaron al siguiente por falta de respuesta. {messages} mensajes: {sms} por SMS ({segments} segmentos{cost}) y {push} por notificación. {failed} no se pudieron entregar.",
+  "notify.digest_cost": ", unos {amount:.2f} {currency}"
  }
 }
