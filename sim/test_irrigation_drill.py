@@ -44,5 +44,29 @@ class SummerTest(unittest.TestCase):
         self.assertEqual(len(rains), 1)
 
 
+
+class ControllersTest(unittest.TestCase):
+    """What the free irrigation controllers do, on the same weather (irrigation-projects.md)."""
+
+    def test_reference_et_matches_fao56_example_18(self):
+        """Uccle, 6 July: 21.5 / 12.3 °C, RH 84 and 63 %, 22.07 MJ, wind 2.078 m/s, 100 m
+        above the sea at 50° 48' N gives 3.9 mm; from the mean humidity, within a tenth."""
+        e = ph.fao56_eto(12.3, 21.5, (84 + 63) / 2, 22.07, 187, 50.8, 100.0, wind_m_s=2.078)
+        self.assertAlmostEqual(e, 3.9, delta=0.15)
+
+    def test_zimmerman_from_its_documented_baselines(self):
+        day = lambda c, rh, mm: {"T2M": c, "RH2M": rh, "PRECTOTCORR": mm}
+        self.assertAlmostEqual(D.zimmerman_scale(day(21.111, 30.0, 0.0)), 100.0, places=1)
+        self.assertAlmostEqual(D.zimmerman_scale(day(21.111, 30.0, 12.7)), 0.0, places=1,
+                               msg="half an inch of rain cancels the day")
+        self.assertEqual(D.zimmerman_scale(day(40.0, 5.0, 0.0)), 200.0, "held at 200")
+
+    def test_each_controller_waters_less_than_the_timer_on_a_wet_summer(self):
+        r = D.season(D.SUMMER, dt.datetime(2013, 6, 1, tzinfo=UTC), 30, policies=("timer",) + D.CONTROLLERS)
+        for policy in D.CONTROLLERS:
+            self.assertLess(r[policy]["applied_mm"], r["timer"]["applied_mm"], policy)
+            self.assertEqual(r[policy]["stressed_h"], 0.0, policy)
+
+
 if __name__ == "__main__":
     unittest.main()

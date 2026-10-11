@@ -24,7 +24,7 @@ python3 irrigation_drill.py                             # watering by timer, for
 | `harrow_bend.py` | **Harrow Bend**, the canonical farm: built from a seed, every device and series declared, a season lived through; the completeness matrix (`test_harrow_bend.py`) is enforced against it |
 | `siting_drill.py` | The depth and two-peer siting checks scored on a control farm and on one where five probes are moved, pulled or swapped and nobody logs it |
 | `export_demo.py` | A season exported and verified, printing what a farmer would receive |
-| `irrigation_drill.py` | Five watering rules on identical recorded summers and forecasts — timer, skip on forecast rain, skip knowing the rain, soil probe, probe with skip — by water applied, drained and transpired, and stress |
+| `irrigation_drill.py` | Five watering rules on identical recorded summers and forecasts — timer, skip on forecast rain, skip knowing the rain, soil probe, probe with skip — by water applied, drained and transpired, and stress; with `--controllers`, OpenSprinkler's Zimmerman and ETo methods and Home Assistant's Smart Irrigation beside them, from their source, with FAO-56 reference ET |
 | `node.py` | A duty-cycled node: sampling, buffering, transmit-time restamping, eviction, resend, reboot |
 | `link.py` | A radio that loses, delays, duplicates, drops acks and goes out — seeded |
 | `faults.py` | Injectable sensor faults: drift, sticking, bias, noise, death, out-of-range |

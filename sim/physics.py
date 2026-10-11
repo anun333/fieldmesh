@@ -60,6 +60,35 @@ class Weather:
 SIGMA = 5.670374419e-8          # Stefan–Boltzmann, W m-2 K-4
 
 
+def fao56_eto(tmin_c: float, tmax_c: float, rh_mean_pct: float, rs_mj_m2: float, day_of_year: int,
+              lat_deg: float, elevation_m: float, wind_m_s: float = 2.0) -> float:
+    """Daily reference evapotranspiration, mm, by FAO-56 Penman–Monteith (Allen et al.
+    1998, eq. 6), from a day's extremes, mean humidity and sunshine. With no wind measured,
+    FAO-56's own default of 2 m/s. This is what an irrigation controller's weather service
+    computes from the day before; the virtual farm's own water use is its soil bucket."""
+    def sat(t):
+        return 0.6108 * math.exp(17.27 * t / (t + 237.3))
+    tmean = (tmin_c + tmax_c) / 2.0
+    pressure = 101.3 * ((293.0 - 0.0065 * elevation_m) / 293.0) ** 5.26
+    gamma = 0.000665 * pressure
+    delta = 4098.0 * sat(tmean) / (tmean + 237.3) ** 2
+    es = (sat(tmax_c) + sat(tmin_c)) / 2.0
+    ea = rh_mean_pct / 100.0 * es                                   # eq. 19
+    phi = math.radians(lat_deg)
+    dr = 1.0 + 0.033 * math.cos(2.0 * math.pi * day_of_year / 365.0)
+    dec = 0.409 * math.sin(2.0 * math.pi * day_of_year / 365.0 - 1.39)
+    ws = math.acos(max(-1.0, min(1.0, -math.tan(phi) * math.tan(dec))))
+    ra = 24.0 * 60.0 / math.pi * 0.0820 * dr * (ws * math.sin(phi) * math.sin(dec)
+                                               + math.cos(phi) * math.cos(dec) * math.sin(ws))
+    rso = (0.75 + 2e-5 * elevation_m) * ra
+    rnl = (4.903e-9 * ((tmax_c + 273.16) ** 4 + (tmin_c + 273.16) ** 4) / 2.0
+           * (0.34 - 0.14 * math.sqrt(max(ea, 0.0)))
+           * (1.35 * min(rs_mj_m2 / rso, 1.0) - 0.35)) if rso > 0 else 0.0
+    rn = (1.0 - 0.23) * rs_mj_m2 - rnl
+    return max(0.0, (0.408 * delta * rn + gamma * 900.0 / (tmean + 273.0) * wind_m_s * (es - ea))
+               / (delta + gamma * (1.0 + 0.34 * wind_m_s)))
+
+
 def cloud_from_longwave(t_c: float, rh_pct: float, lw_w_m2: float) -> float:
     """Cloud cover from the long-wave the sky sends: how far it lies between what a clear
     sky would send (Brutsaert 1975) and what a black one would (Crawford and Duchon 1999,

@@ -229,7 +229,8 @@ costs little when the timer overwaters anyway. **The farm's own soil probe saves
 the forecast adds a little on top. The probe rule's lower transpiration is an upper bound:
 the simulator's stress falls linearly from field capacity, stricter than FAO-56, which
 holds full transpiration until about half the available water is gone. The bundled summer
-is 2013, the wettest of the thirty.
+is 2013, the wettest of the thirty. The free irrigation controllers' own methods on the same
+thirty summers are in [irrigation-projects.md](irrigation-projects.md#their-methods-on-thirty-summers).
 
 ## Next
 

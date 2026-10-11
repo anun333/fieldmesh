@@ -60,7 +60,9 @@ tunnel, a garden-sized field. Three things here touch them.
    *the valve ran for 90 minutes and no water reached the bed* (a blocked line or a leak)
    and *nobody watered*. The board could show the last watering beside each bed. ESPHome's
    sprinkler, and SIP and Home Assistant through MQTT, could be read the same way.
-2. **Score their methods on recorded summers, and give the numbers back.** Add OpenSprinkler's
+2. **Score their methods on recorded summers, and give the numbers back.** *Scored
+   2026-10-11: the results are [below](#their-methods-on-thirty-summers). Giving them back is
+   the maintainer's.* Add OpenSprinkler's
    Zimmerman and ETo adjustments and Smart Irrigation's evapotranspiration bucket to the
    irrigation drill, beside the timer and the soil probe, over thirty McAllister summers.
    That gives water applied, drained and stress for each. It is a comparison none of those
@@ -92,3 +94,55 @@ tunnel, a garden-sized field. Three things here touch them.
 
 Items 1 to 3 are code that can be written here. Items 2 and 4 involve opening issues in
 other projects, which is the maintainer's to do. Item 5 waits on §6.
+
+## Their methods on thirty summers
+
+`sim/irrigation_drill.py --summers 1991-2020 --controllers`, on McAllister Farm's thirty
+recorded summers (NASA POWER), puts one bed through each under every rule on identical
+weather. The bed is a 30 cm root zone in silt loam under a full canopy. The controllers' rules
+are written from their source:
+
+* OpenSprinkler's Zimmerman (`ZimmermanAdjustmentMethod.ts`) and ETo
+  (`EToAdjustmentMethod.ts`) methods scale the timer's program, 12 mm every second
+  morning, by the day before's weather;
+* Home Assistant's Smart Irrigation (`calculation.py`, with its defaults: crop factor 1, a
+  24 mm bucket, surplus drained within the day) puts back each day's reference ET less its
+  rain.
+
+Reference ET is FAO-56 Penman–Monteith, from each day's recorded extremes, mean humidity and
+sunshine, with FAO-56's 2 m/s where no wind is recorded. On FAO-56's own Example 18 it gives
+3.79 mm against the published 3.9; the gap is the mean humidity, where the example uses the
+day's maximum and minimum.
+
+| rule | water applied | drained below the roots | transpired | hours seriously stressed |
+| --- | --- | --- | --- | --- |
+| timer | 552 mm | 432 mm | 441 mm | 0 |
+| **OpenSprinkler ETo, default annual baseline** | **612** | **490** | 442 | 0 |
+| OpenSprinkler Zimmerman | 385 | 271 | 434 | 0 |
+| OpenSprinkler ETo, a summer baseline | 367 | 252 | 435 | 0 |
+| Home Assistant Smart Irrigation | 294 | 177 | 436 | 0 |
+| this project's soil probe rule | 219 | 146 | 395 | 0.3 (8.5 h in 1993) |
+
+The first five rows reproduce the timer's figures in [forecasts.md](forecasts.md#watering-by-forecast-and-by-soil)
+exactly, and the soil probe's.
+
+* **OpenSprinkler's ETo method, left at its default baseline, waters more than the plain
+  timer**: 11% more, and 13% more lost below the roots. Its baseline is an annual figure, a
+  year-round average day of 2.8 mm here, while summer runs at 4.8 mm. So every summer program
+  is scaled up by about 1.7, against its cap of 2. Set to a summer baseline, the same method
+  saves a third. The baseline matters more than the method, and the default works against
+  a grower who set the program in summer. That is the finding worth giving back first.
+  Here the annual mean of FAO-56 ET on POWER data stands in for its MOD16 dataset, so the
+  exact factor is this place's estimate, not theirs.
+* **Zimmerman saves 30%** in this humid climate, where its humidity term pulls the scale
+  down. Far drier air would push it the other way.
+* **Home Assistant's bucket saves 47%** with the same transpiration as the timer and no
+  stress: the closest a weather-only rule comes to the soil probe.
+* **The soil probe saves 60%.** Its lower transpiration is an upper bound on its cost,
+  because the simulator's stress falls linearly from field capacity, stricter than FAO-56.
+
+One place, one soil and one crop, in a humid climate whose summers average 315 mm of rain.
+Over thirty summers the virtual bed's own water use averages 4.8 mm a day, the same as the
+reference ET the controllers compute, so none of them is scored against a demand it could not
+know. A drier place, a sandier soil or a crop factor other than 1 would move every row.
+

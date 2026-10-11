@@ -17,6 +17,16 @@ ways to decide each morning whether to water — every one run on identical weat
 | `soil` | on any morning the bed's own probe reads below the refill point (a third of the available water used), back up to field capacity |
 | `soil_skip` | the soil rule, skipping when `SKIP_MM` or more is forecast |
 
+And, with `--controllers`, what the free irrigation controllers would do on the same weather
+(docs/notes/irrigation-projects.md), from the day before's recorded weather:
+
+| policy | waters |
+| --- | --- |
+| `os_zimmerman` | the timer's program scaled by OpenSprinkler's Zimmerman percentage |
+| `os_eto_annual` | the timer's program scaled by OpenSprinkler's ETo method, ETo less rain over its default annual baseline |
+| `os_eto_summer` | the same over a summer baseline, as a grower who set the program for summer would have |
+| `ha_bucket` | Home Assistant's Smart Irrigation: each day's FAO-56 reference ET less its rain, put back |
+
 Scored per policy: water applied; water drained below the roots, which is water paid for
 and nitrate carried off; mean crop stress; and hours of stress at 0.5 or more — the
 readily available water gone, FAO-56's usual depletion fraction.
@@ -55,6 +65,12 @@ SKIP_MM = 10.0
 DECIDE_HOUR = 4
 WATER_HOUR = 5
 POLICIES = ("timer", "rain_skip", "oracle_skip", "soil", "soil_skip")
+#: What the free irrigation controllers do, on the same weather (docs/notes/irrigation-projects.md):
+#: OpenSprinkler's weather service scales the timer's program by the day before — Zimmerman's
+#: percentage, or its evapotranspiration less its rain over a baseline, annual by default; Home
+#: Assistant's Smart Irrigation puts back each day's evapotranspiration less its rain.
+CONTROLLERS = ("os_zimmerman", "os_eto_annual", "os_eto_summer", "ha_bucket")
+LAT, ELEVATION_M = 35.06, 243.0          # McAllister Farm, for the ETo the controllers compute
 
 
 def bed() -> ph.SoilBed:
@@ -85,9 +101,37 @@ def forecasts(climate, start: _dt.datetime, days: float, skill: FCS.Skill, seed:
     return state, fc, truth
 
 
+def eto(climate, day: _dt.date, lat: float = LAT, elevation_m: float = ELEVATION_M) -> float | None:
+    """A day's reference evapotranspiration, mm, from its recorded weather (FAO-56)."""
+    v = climate.days.get(day)
+    if not v or any(k not in v for k in ("T2M_MIN", "T2M_MAX", "RH2M", "ALLSKY_SFC_SW_DWN")):
+        return None
+    return ph.fao56_eto(v["T2M_MIN"], v["T2M_MAX"], v["RH2M"], v["ALLSKY_SFC_SW_DWN"],
+                        day.timetuple().tm_yday, lat, elevation_m)
+
+
+def baselines(climate) -> dict:
+    """The daily ETo the ETo method calls 100%: OpenSprinkler's default is an annual
+    figure for the place (MOD16), stood in for by the mean over every recorded day; a
+    grower who set the program for summer would use the mean of June to August."""
+    every = [e for d in climate.days if (e := eto(climate, d)) is not None]
+    summer = [e for d in climate.days if d.month in (6, 7, 8) and (e := eto(climate, d)) is not None]
+    return {"annual": statistics.mean(every), "summer": statistics.mean(summer)}
+
+
+def zimmerman_scale(day: dict) -> float:
+    """OpenSprinkler's Zimmerman percentage from a day's weather (OpenSprinkler-Weather,
+    ZimmermanAdjustmentMethod.ts): 100, plus 30 less the humidity, plus four per °F above 70,
+    less 200 per inch of rain; held between 0 and 200."""
+    temp_f = day["T2M"] * 9.0 / 5.0 + 32.0
+    scale = 100.0 + (30.0 - day["RH2M"]) + (temp_f - 70.0) * 4.0 - day["PRECTOTCORR"] / 25.4 * 200.0
+    return min(200.0, max(0.0, scale))
+
+
 def run_policy(policy: str, climate, start: _dt.datetime, days: float, state, fc, truth,
-               seed: int = 1, probe_noise: float = 0.01) -> dict:
+               seed: int = 1, probe_noise: float = 0.01, base: dict | None = None) -> dict:
     b = bed()
+    bucket = 0.0
     world = ph.World(start=start, climate=climate, beds=[b])
     rain_by_hour = {t: mm for t, _, mm in truth}
     probe = random.Random(seed)
@@ -101,8 +145,23 @@ def run_policy(policy: str, climate, start: _dt.datetime, days: float, state, fc
             really = sum(rain_by_hour.get(when + k * HOUR, 0.0) for k in range(24))
             reading = b.theta + probe.gauss(0.0, probe_noise)
             want = 0.0
+            yesterday = (when - 24 * HOUR).date()
+            seen = climate.days.get(yesterday)
             if policy in ("timer", "rain_skip", "oracle_skip") and day % 2 == 0:
                 want = DOSE_MM
+            elif policy == "os_zimmerman" and day % 2 == 0 and seen:
+                want = DOSE_MM * zimmerman_scale(seen) / 100.0
+            elif policy in ("os_eto_annual", "os_eto_summer") and day % 2 == 0 and seen:
+                e = eto(climate, yesterday)
+                ref = (base or baselines(climate))["annual" if policy == "os_eto_annual" else "summer"]
+                scale = min(200.0, max(0.0, (e - seen["PRECTOTCORR"]) / ref * 100.0))
+                want = DOSE_MM * scale / 100.0
+            elif policy == "ha_bucket" and seen:
+                # The bucket gains the day's rain and loses its ET (crop factor 1, the
+                # default); a surplus drains away within the day at the default rate.
+                bucket = min(0.0, bucket + seen["PRECTOTCORR"] - eto(climate, yesterday))
+                if bucket < 0.0:
+                    want, bucket = -bucket, 0.0
             elif policy in ("soil", "soil_skip") and reading < refill_point(b):
                 want = max(0.0, (b.field_capacity - reading) * b.depth_mm)
             if want:
@@ -129,10 +188,13 @@ def run_policy(policy: str, climate, start: _dt.datetime, days: float, state, fc
 
 
 def season(weather: str, start: _dt.datetime, days: float, *, skill: FCS.Skill = FCS.Skill(),
-           seed: int = 1, climate=None, policies=POLICIES) -> dict:
+           seed: int = 1, climate=None, policies=POLICIES, base: dict | None = None) -> dict:
     climate = climate or ph.RecordedClimate.from_csv(weather, seed=seed)
     state, fc, truth = forecasts(climate, start, days, skill, seed)
-    return {p: run_policy(p, climate, start, days, state, fc, truth, seed) for p in policies}
+    if base is None and any(p in CONTROLLERS for p in policies):
+        base = baselines(climate)
+    return {p: run_policy(p, climate, start, days, state, fc, truth, seed, base=base)
+            for p in policies}
 
 
 def main(argv=None) -> int:
@@ -142,7 +204,10 @@ def main(argv=None) -> int:
     ap.add_argument("--sd0", type=float, default=FCS.Skill.sd0_c)
     ap.add_argument("--miss", type=float, default=FCS.Skill.miss)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--controllers", action="store_true",
+                    help="also what OpenSprinkler's and Home Assistant's methods would water")
     args = ap.parse_args(argv)
+    policies = POLICIES + (CONTROLLERS if args.controllers else ())
     skill = FCS.Skill(sd0_c=args.sd0, miss=args.miss)
     if args.summers:
         a, _, b = args.summers.partition("-")
@@ -150,10 +215,12 @@ def main(argv=None) -> int:
     else:
         years = [2013]
     climate = ph.RecordedClimate.from_csv(args.weather, seed=args.seed)
-    totals = {p: [] for p in POLICIES}
+    base = baselines(climate) if args.controllers else None
+    totals = {p: [] for p in policies}
     for year in years:
         start = _dt.datetime(year, 6, 1, tzinfo=UTC)
-        r = season(args.weather, start, 92, skill=skill, seed=args.seed + year, climate=climate)
+        r = season(args.weather, start, 92, skill=skill, seed=args.seed + year, climate=climate,
+                   policies=policies, base=base)
         for p, v in r.items():
             totals[p].append(v)
         if len(years) > 1:
@@ -166,7 +233,10 @@ def main(argv=None) -> int:
     print(f"\n{n} summer(s), June 1 – August 31, rain {rain:.0f} mm on average; a 30 cm root zone; dose "
           f"{DOSE_MM:g} mm; skip at {SKIP_MM:g} mm forecast in 24 h; mean per summer:")
     print("  policy        applied   drained   transpired   mean stress   hours stressed ≥0.5   skipped")
-    for p in POLICIES:
+    if args.controllers and len(climate.days) < 365:
+        print(f"  (the weather file holds {len(climate.days)} days, so os_eto_annual's baseline is "
+              f"not a year's: give a whole year's file, as tools/weather_csv.py writes, for it)")
+    for p in policies:
         rows = totals[p]
         avg = lambda k: statistics.mean(r[k] for r in rows)
         print(f"  {p:<12} {avg('applied_mm'):7.0f} mm {avg('drained_mm'):6.0f} mm {avg('et_mm'):8.0f} mm"
