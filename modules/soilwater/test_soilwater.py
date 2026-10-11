@@ -23,6 +23,11 @@ try:
     HAVE_CEL = True
 except ImportError:
     HAVE_CEL = False
+try:
+    import starlark  # noqa: F401
+    HAVE_STARLARK = HAVE_CEL
+except ImportError:
+    HAVE_STARLARK = False
 
 import fixtures as FX  # noqa: E402
 import vocab as V  # noqa: E402
@@ -319,6 +324,53 @@ class TestAsItsOwnProcess(unittest.TestCase):
                          ["soil-water-now"])
         self.assertEqual([e.payload["module"] for e in self.log.events if e.kind == "decision"],
                          ["soilwater"])
+
+
+
+@unittest.skipUnless(HAVE_STARLARK, "starlark-pyo3 and cel-python (modules/rules/requirements.txt)")
+class TestTheWateringCheck(unittest.TestCase):
+    """A regimen (Q10): after the advice to water, did the water arrive? Backtested on
+    McAllister Farm's recorded summers with some waterings that never reach the bed, as
+    through a blocked drip line. 2013 is where the threshold was chosen; 2012 was not
+    looked at until it was."""
+
+    @staticmethod
+    def score(path, start, blocked):
+        import physics as ph
+        r = S.backtest(ph.RecordedClimate.from_csv(path, seed=1), start, 92, seed=1,
+                       check=S.watering_check(), blocked=frozenset(blocked))
+        out = {"caught": 0, "missed": 0, "false": 0, "quiet": 0}
+        for c in r["checks"]:
+            if c["day"] in blocked:
+                out["caught" if c["alert"] else "missed"] += 1
+            else:
+                out["false" if c["alert"] else "quiet"] += 1
+        return out, r
+
+    def test_it_catches_every_watering_that_never_arrived_on_2013(self):
+        import irrigation_drill as D
+        got, r = self.score(D.SUMMER, _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc),
+                            {14, 30, 46, 78, 90})
+        self.assertEqual(got, {"caught": 5, "missed": 0, "false": 0, "quiet": 7})
+        self.assertEqual(r["stressed_h"], 0.0, "the next morning's advice waters it again")
+
+    def test_and_on_a_summer_it_was_not_tuned_on(self):
+        path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
+        got, _ = self.score(path, _dt.datetime(2012, 6, 1, tzinfo=_dt.timezone.utc),
+                            set(range(0, 92, 2)))
+        self.assertEqual((got["missed"], got["false"]), (0, 0))
+        self.assertGreater(got["caught"], 0)
+
+    def test_advice_not_to_water_plans_nothing(self):
+        import regimen as G
+        bed = S.Bed(uuid7(), 0.30, 0.12, root_depth_mm=300.0)
+        for rule in ("soil-enough", "soil-rain-coming", "soil-too-wet"):
+            ctx = S.watering_check_context({"rule": rule, "context": {"refill_mm": 20.0}}, bed)
+            self.assertEqual(G.plan(S.watering_check(), ctx), [])
+        ctx = S.watering_check_context({"rule": "soil-water-now", "context": {"refill_mm": 18.0}}, bed)
+        steps = G.plan(S.watering_check(), ctx)
+        self.assertEqual(steps[0], {"kind": "wait", "minutes": 60.0 + 90.0 + 180.0})
+        self.assertEqual(steps[1]["params"]["expected_percent"], 6.0)
 
 
 if __name__ == "__main__":

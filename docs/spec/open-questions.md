@@ -575,7 +575,7 @@ On the *Reimplement, don't copy* principle: it is satisfied by speaking HTTP to 
 
 ## Q10. Rule language for layer 1
 
-**Status: DECIDED 2026-10-09 — CEL for conditions, Starlark for regimens (the maintainer adopted the recommendation).** Plan B, if Starlark's Python embedding is not ready when layer 1 is built: CEL only, with regimens as declarative step lists (step, wait, check) and no general control flow. Was: blocks third parties. Not needed for v0, but it determines whether layer 1 can be trusted.
+**Status: DECIDED 2026-10-09 — CEL for conditions, Starlark for regimens (the maintainer adopted the recommendation).** Built: conditions 2026-10-09 ([modules/rules/](../../modules/rules/)); regimens 2026-10-11 ([regimen.py](../../modules/rules/regimen.py)), on starlark-pyo3 (Apache-2.0, the Rust implementation), whose Python embedding was ready, so Plan B was not needed. The first regimen checks that a watering arrived: on two recorded summers it caught all 25 waterings that never reached the bed, with no false alarm on 72 that did. Plan B, if Starlark's Python embedding is not ready when layer 1 is built: CEL only, with regimens as declarative step lists (step, wait, check) and no general control flow. Was: blocks third parties. Not needed for v0, but it determines whether layer 1 can be trusted.
 
 The binding constraint eliminates most options: v0.1 §11 requires rules to be backtestable on past seasons and decision events to be reproducible. That means **deterministic and side-effect-free**, which plain Python cannot promise.
 

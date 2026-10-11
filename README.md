@@ -56,7 +56,7 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [server/](server/) | A read-only SensorThings 1.1 HTTP service — the reference implementation |
 | [deploy/](deploy/) | systemd units that run each module as its own sandboxed service, reaching the farm's data only through the module host's socket (§8.3, Q11) |
 | [tools/](tools/) | The measurements behind decisions, weather and forecast adapters, and the language-pack tool |
-| [modules/rules/](modules/rules/) | **Layer 1, rules and alerts**: CEL conditions over the log, each evaluation a logged decision. First rule: a frost watch, backtested on NOAA's forecasts against McAllister Farm's station |
+| [modules/rules/](modules/rules/) | **Layer 1, rules and alerts**: CEL conditions over the log, each evaluation a logged decision, and Starlark regimens of steps, waits and checks. First rule: a frost watch, backtested on NOAA's forecasts against McAllister Farm's station. First regimen: did the watering reach the bed? |
 | [modules/notify/](modules/notify/) | **Layer 1, alerts to people**: any module's alerts by push (ntfy) or SMS through the farm's own modem, in each person's language, climbing a route's tiers until someone answers "on it" by reply or button. Checked against a real ntfy server; SMS checked only against ModemManager's documented output, for want of a modem |
 | [modules/board/](modules/board/) | **Layer 4, the farm's page**: one read-only page per language of the alerts that stand, who was told and who is on it, today's advice and what cleared. It says so when it has stopped updating |
 | [modules/water/](modules/water/) | **Layer 2, the livestock water monitor**: empty, low, not refilling, unseen, untrusted, per trough, as advisory decisions in English and Spanish. Passes §15's acceptance test on the virtual farm, whose first run found two defects in the node's backlog handling |
@@ -64,7 +64,7 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [modules/twin/](modules/twin/) | **Layer 3, a physics twin for the hoop house** (Q28): Wageningen's GreenLight configured as an unheated single-poly tunnel, on the farm's real weather. It found the virtual farm's tunnel too warm at night (now refitted) and a defect in GreenLight's crop model. Its covered-crop frost watch, backtested on a season, warned of every damaging frost inside a tunnel, and found that a Tennessee winter gets into one most nights |
 | [modules/advise/](modules/advise/) | **The first module above layer zero** (layer 3, decision support): for any point, what grows and when to sow it, which fruit cultivars get their chill and how often frost follows bloom, what the soil needs, bees, livestock heat, and the 2050s — in English and Spanish |
 
-About 1,340 tests. The simulator runs a 180-day season in under eight minutes.
+About 1,360 tests. The simulator runs a 180-day season in under eight minutes.
 
 ## A few things this does that are easy to get wrong
 

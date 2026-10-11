@@ -23,10 +23,29 @@ The same numbers the Python scoring gave when the threshold was chosen
 rule is written and logged, not what it concludes.
 
 ```sh
-pip install -r modules/rules/requirements.txt          # cel-python, Apache-2.0
+pip install -r modules/rules/requirements.txt          # cel-python and starlark-pyo3, Apache-2.0
 python3 modules/rules/frost_backtest.py --cache NBM_CACHE --from 2025-10-15 --to 2026-04-30
 cd modules/rules && python3 -m unittest discover -p 'test_*.py'
 ```
+
+## Regimens
+
+A condition is one expression. A *regimen* is a sequence: water bed 3, wait for it to soak
+in, check the probe saw it. Q10 chose **Starlark** for these, and
+[regimen.py](regimen.py) runs them on starlark-pyo3 (Apache-2.0), a binding to the Rust
+implementation. A regimen is a file defining `plan(ctx, params)` that returns steps built
+with `say(...)`, `wait(minutes)` and `check(condition, ...)`. Starlark plans, CEL checks,
+and the runner keeps time. Each step's outcome is a decision (§7.7) carrying the regimen's
+version and the SHA-256 of its source, and a run's plan is logged when it starts, so a
+restarted runner carries on without planning again on data that has since changed.
+
+A regimen cannot reach the world, and the tests hold it to that. `open`, `load`,
+`import`, `while`, recursion and a hundred-million-step loop are each refused: the last by
+an instruction budget of about a million. A plan that is not a plan is refused too: an
+unknown step, a malformed message key, a wait into the past or past fourteen days, a
+condition that does not compile as CEL. Nothing acts while commands wait on §6, so every
+step is advisory. The first regimen is the soil advisory's
+[watering check](../soilwater/README.md#did-the-water-arrive).
 
 ## A decision anyone can read
 

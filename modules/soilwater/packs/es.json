@@ -14,6 +14,7 @@
   "soilwater.rain_coming": "{bed} necesita agua, con el {used:.0f} % del agua que sus plantas pueden usar ya gastado, pero se pronostican {rain:.0f} mm de lluvia en las próximas 24 horas. Espere y vuelva a revisar mañana.",
   "soilwater.water_now": "Riegue {bed} hoy: ya se gastó el {used:.0f} % del agua que sus plantas pueden usar. Unos {mm:.0f} mm la devuelven a su capacidad de campo.",
   "soilwater.water_soon": "{bed} tiene agua suficiente hoy. Al ritmo que se está secando, necesitará riego en unos {days:.1f} días.",
-  "soilwater.enough": "{bed} tiene agua suficiente: aún le queda el {left:.0f} % del agua que sus plantas pueden usar."
+  "soilwater.enough": "{bed} tiene agua suficiente: aún le queda el {left:.0f} % del agua que sus plantas pueden usar.",
+  "soilwater.regimen.no_response": "Las sondas de {bed} casi no muestran agua nueva desde esta mañana: la zona de raíces subió {rise_percent:.1f} puntos, cuando {mm:.0f} mm de riego deberían sumar unos {expected_percent:.1f}. Si se regó, revise la línea de goteo y sus goteros; si no, todavía necesita agua."
  }
 }

@@ -14,6 +14,7 @@
   "soilwater.rain_coming": "{bed} is due for water, with {used:.0f}% of the water its plants can use gone, but {rain:.0f} mm of rain is forecast in the next 24 hours. Wait, and check again tomorrow.",
   "soilwater.water_now": "Water {bed} today: {used:.0f}% of the water its plants can use is gone. About {mm:.0f} mm brings it back to field capacity.",
   "soilwater.water_soon": "{bed} has enough water today. At the rate it is drying it will need water in about {days:.1f} days.",
-  "soilwater.enough": "{bed} has enough water: {left:.0f}% of what its plants can use is still there."
+  "soilwater.enough": "{bed} has enough water: {left:.0f}% of what its plants can use is still there.",
+  "soilwater.regimen.no_response": "{bed}'s probes show almost no new water since this morning: the root zone rose {rise_percent:.1f} points, where {mm:.0f} mm of watering should add about {expected_percent:.1f}. If it was watered, check the drip line and its emitters; if it was not, it still needs water."
  }
 }

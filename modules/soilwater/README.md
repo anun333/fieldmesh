@@ -68,6 +68,30 @@ advisor.advise(state, beds, at=morning, forecast=rain_forecast_id)
 soilwater.render(event.payload, "es", state)   # "Riegue cama 3 hoy: …"
 ```
 
+## Did the water arrive?
+
+The first **regimen** (Q10; [modules/rules](../rules/README.md#regimens)):
+[regimens/watering_check.star](regimens/watering_check.star), a few lines of Starlark. When
+the morning's advice is "water today", it waits for the watering to happen and soak in,
+then checks that the root zone rose by at least half of what that watering should add.
+If not, it says so, and says both things a probe cannot tell apart:
+
+> bed 3's probes show almost no new water since this morning: the root zone rose 0.4
+> points, where 18 mm of watering should add about 6.0. If it was watered, check the drip
+> line and its emitters; if it was not, it still needs water.
+
+It was backtested on the recorded summers with some waterings blocked, as through a
+blocked drip line: the person waters, and the bed gets nothing.
+
+| summer | waterings | blocked, caught | watered, wrongly flagged | closest call |
+| --- | --- | --- | --- | --- |
+| 2013, where the threshold was chosen (five sets of blocked days) | 51 | 16 of 16 | 0 of 35 | watered beds rose at least 0.74 of their expected rise; blocked ones at most 0.27 |
+| 2012, a summer not looked at until the threshold was set (four sets) | 46 | 9 of 9 | 0 of 37 | a watered bed at **0.55**, close to the 0.5 line |
+
+The 2012 margin is the honest caveat. A bed that soaks its water up slowly, or a probe set
+deep, could fall below half on a day the water did arrive. The share is a parameter, and a
+season of a real bed's waterings is what would set it.
+
 As its own process (§8.3, Q11), holding only the grant its [module.json](module.json)
 allows: `python3 -I soilwater.py --socket /run/fieldmesh/modules.sock --config beds.json`, the
 token from a systemd credential or `FIELDMESH_MODULE_TOKEN` (see
@@ -77,6 +101,7 @@ does in-process; the tests run it both ways.
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)); strings in [packs/](packs/) under the
 `soilwater.` prefix, the Spanish an unreviewed draft. It imports layer zero and layer 1.
 
-**Not yet:** the dose as a duration for a given drip line; the crop's `p` and root depth
+**Not yet:** the watering check as part of the module's own process, rather than the
+backtest and the library; the dose as a duration for a given drip line; the crop's `p` and root depth
 from the farm's planting records; a probe's own field capacity learned from how far it
 drains after a soaking.

@@ -276,6 +276,40 @@ class Advisor:
                 for bed in beds]
 
 
+# ---------------------------------------------------------------- regimen
+
+#: The watering check's defaults (Q10): the watering an hour after the 04:00 advice, a
+#: drip line's rate, three hours for the water to reach the probes, and the share of the
+#: expected rise that counts as arrived. On the recorded summer (`backtest`), across 51
+#: waterings, every bed that was watered rose by at least 0.74 of what its watering
+#: should add and no blocked one by more than 0.27; half is the middle of that gap.
+WATERING_CHECK = {"water_after_min": 60.0, "mm_per_hour": 12.0, "soak_min": 180.0,
+                  "share": 0.5}
+
+
+def watering_check(params=None):
+    """The regimen that checks a watering arrived: `regimens/watering_check.star`."""
+    import regimen as G
+    return G.load(os.path.join(HERE, "regimens", "watering_check.star"),
+                  params={**WATERING_CHECK, **(params or {})})
+
+
+def watering_check_context(decision: dict, bed: Bed) -> dict:
+    """What the regimen plans from: the morning's advice for the bed."""
+    return {"advice": decision["rule"], "refill_mm": decision["context"]["refill_mm"],
+            "root_depth_mm": bed.root_depth_mm, "bed": str(bed.feature)}
+
+
+def response_context(state, bed: Bed, since: _dt.datetime, at: _dt.datetime) -> dict:
+    """How much the root zone's water rose between `since` and `at`, as a fraction and
+    in percentage points, from the same depth-weighted reading the advice uses."""
+    before, _ = bed_context(state, bed, since)
+    after, _ = bed_context(state, bed, at)
+    ok = before["usable"] and after["usable"]
+    rise = after["theta"] - before["theta"] if ok else 0.0
+    return {"has_reading": ok, "rise": round(rise, 4), "rise_percent": round(rise * 100.0, 1)}
+
+
 def render(decision: dict, language: str = "en", state=None) -> str | None:
     """A decision's advice in `language`, naming the bed by its label there."""
     return R.render(decision, language, state)
@@ -284,12 +318,18 @@ def render(decision: dict, language: str = "en", state=None) -> str | None:
 # ---------------------------------------------------------------- backtest
 
 def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
-             probe_noise: float = 0.01) -> dict:
+             probe_noise: float = 0.01, check=None, blocked=frozenset()) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
     drip timer most farms run. Hourly probe readings at 20 cm, the drill's forecasts in
-    the log, the advice at 04:00 and the watering from 05:00."""
+    the log, the advice at 04:00 and the watering from 05:00.
+
+    With `check`, a watering-check regimen (`watering_check()`) runs after each advice to
+    water, and the days in `blocked` (counted from `start`) are waterings that never reach
+    the bed, as through a blocked drip line: the person waters, the soil gets nothing.
+    The result's `checks` says, per watering, whether the regimen said the water did not
+    arrive."""
     import statistics
     import random
 
@@ -319,6 +359,13 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
               skip_rain_mm=D.SKIP_MM)
     advisor, noise = Advisor(Log()), random.Random(seed)
     applied, dose_now, stressed_h, stress, advice = 0.0, 0.0, 0.0, [], {}
+    runner = None
+    if check is not None:
+        import regimen as G
+        runner, checks = G.Runner(Log()), []
+
+        def respond(subject, run):
+            return response_context(state, bed, run.started_at, world.when)
     for n in range(int(days * 24 * 12)):
         when = world.when
         if when.minute == 0:
@@ -331,9 +378,19 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             advice[d["rule"]] = advice.get(d["rule"], 0) + 1
             want = d["context"]["refill_mm"] if d["rule"] == "soil-water-now" else 0.0
             dose_now = want / 12.0
+            if runner is not None:
+                runner.start(check, watering_check_context(d, bed), when, subject=bed.feature)
+        day = (when - start).days
         if when.hour == D.WATER_HOUR and dose_now:
-            world.irrigate("field", dose_now)
+            if day not in blocked:
+                world.irrigate("field", dose_now)
             applied += dose_now
+        if runner is not None and when.minute == 0:
+            for e in runner.tick(when, respond):
+                checks.append({"day": (_dt.datetime.fromisoformat(e.payload["due_at"]) - start).days,
+                               "alert": e.payload["alert"],
+                               "rise_percent": e.payload["context"].get("rise_percent"),
+                               "expected_percent": round(e.payload["context"]["expected_percent"], 1)})
         if when.hour == D.WATER_HOUR + 1 and when.minute == 0:
             dose_now = 0.0
         tick = world.step()
@@ -343,7 +400,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             stressed_h += 1.0 / 12.0
     return {"policy": "advisory", "applied_mm": applied, "drained_mm": b.drained_mm,
             "mean_stress": statistics.mean(stress), "stressed_h": stressed_h,
-            "advice": advice}
+            "advice": advice, "checks": checks if runner is not None else None}
 
 
 # ------------------------------------------------------------------ process

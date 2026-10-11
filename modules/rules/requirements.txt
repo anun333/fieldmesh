@@ -1,4 +1,6 @@
-# The rules module's one dependency: cel-python (Apache-2.0), the Common Expression
-# Language that conditions are written in (open-questions Q10). It brings lark, pendulum,
-# jmespath, pyyaml and google-re2.
+# The rules module's dependencies (open-questions Q10):
+# - cel-python (Apache-2.0), the Common Expression Language conditions are written in.
+#   It brings lark, pendulum, jmespath, pyyaml and google-re2.
+# - starlark-pyo3 (Apache-2.0), Starlark for regimens, on the Rust implementation.
 cel-python>=0.5
+starlark-pyo3>=2025.1
