@@ -20,9 +20,13 @@ Start with [README.md](README.md) and the specification, [docs/spec/v0.1.md](doc
 ## Before a pull request
 
 ```sh
-make test     # every test: sdk, tools, sim, server, modules
+pip install -r requirements-tools.txt -r modules/rules/requirements.txt   # what CI installs
+make test     # every test: sdk, tools, sim, server, modules (about five minutes)
 make packs    # language packs complete and sound
 ```
+
+Tests that need a dependency you have not installed skip and say which; GreenLight's runs
+need the twin's own environment (`modules/twin/requirements.txt`).
 
 * Write code that reads like the code around it.
 * A change to the specification is recorded as an amendment in §17 of

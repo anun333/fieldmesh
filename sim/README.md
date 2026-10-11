@@ -4,22 +4,26 @@ Build-order steps 2–4 from [docs/VIRTUAL_FARM.md](../docs/VIRTUAL_FARM.md). St
 only (plus `cbor2`, via the SDK), Apache-2.0.
 
 ```sh
-cd sim && python3 -m unittest discover -p 'test_*.py'   # 144 tests (~30 s; the drills are slow)
+cd sim && python3 -m unittest discover -p 'test_*.py'   # 240 tests (~95 s; the drills are slow)
 python3 drill.py --compare                              # one probe against two
 python3 world_demo.py                                   # a day of Harrow Bend
 python3 world_demo.py --stuck-float                     # the fault, and the catch
 python3 world_demo.py --outage 10 --days 2              # buffer, evict, report
 python3 world_demo.py --dr 3                            # a better link
 python3 forecast_drill.py                               # forecasts on real 2007 weather, scored
+python3 forecast_drill.py --springs 1991-2020 --weather W.csv --ensemble 20   # heavy: ~1.6 GB a spring
 python3 irrigation_drill.py                             # watering by timer, forecast and probe
 ```
 
 | Module | What it is |
 | --- | --- |
-| `physics.py` | Ground truth: a seeded seasonal climate — or `RecordedClimate`, a real place's daily weather replayed at the 5-minute tick — a soil water balance, a trough with a float valve, an unheated tunnel (tested by modules/advise/tunnel_gain.py) |
-| `data/` | Recorded weather from NASA POWER (CC BY 4.0): McAllister Farm's spring of 2007, the Easter freeze in it, and its summer of 2013, the wettest of thirty. `tools/weather_csv.py` writes any site's years |
-| `forecaster.py` | Forecast runs read from the world's own future, with an error of declared size that grows with lead time |
-| `forecast_drill.py` | Forecasts through layer zero (Q26) on recorded weather: scored against the farm's station by lead day, and a frost watch scored on the alert standing 12 h before each frost and on false alert episodes; `--springs` over many years |
+| `physics.py` | Ground truth: a seeded seasonal climate — or `RecordedClimate`, a real place's daily weather replayed at the 5-minute tick — a soil water balance, a trough with a float valve, an unheated tunnel fitted to GreenLight per film (tested by modules/advise/tunnel_gain.py). Given the sky's cloud, from its long-wave (`cloud_from_longwave`), the tunnel's nights follow it, and a clear night under plain polyethylene is colder inside than out |
+| `data/` | Recorded weather from NASA POWER (CC BY 4.0): McAllister Farm's spring of 2007, the Easter freeze in it; its summer of 2013, the wettest of thirty; and its summer of 2012, kept to test what was tuned on 2013. `tools/weather_csv.py` writes any site's years |
+| `forecaster.py` | Forecast runs read from the world's own future, with an error of declared size that grows with lead time; and ensembles whose members share the run's error and spread about it |
+| `forecast_drill.py` | Forecasts through layer zero (Q26) on recorded weather: scored against the farm's station by lead day, and a frost watch scored on the alert standing 12 h before each frost and on false alert episodes; `--springs` over many years, and `--ensemble` to warn at a chance of frost rather than a margin |
+| `harrow_bend.py` | **Harrow Bend**, the canonical farm: built from a seed, every device and series declared, a season lived through; the completeness matrix (`test_harrow_bend.py`) is enforced against it |
+| `siting_drill.py` | The depth and two-peer siting checks scored on a control farm and on one where five probes are moved, pulled or swapped and nobody logs it |
+| `export_demo.py` | A season exported and verified, printing what a farmer would receive |
 | `irrigation_drill.py` | Five watering rules on identical recorded summers and forecasts — timer, skip on forecast rain, skip knowing the rain, soil probe, probe with skip — by water applied, drained and transpired, and stress |
 | `node.py` | A duty-cycled node: sampling, buffering, transmit-time restamping, eviction, resend, reboot |
 | `link.py` | A radio that loses, delays, duplicates, drops acks and goes out — seeded |

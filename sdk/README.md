@@ -21,7 +21,7 @@ python3 demo.py --json                        # the served Observations collecti
 | `hlc.py` | §7.4 | Hybrid logical clocks. Event ordering a bad clock cannot reorder, which §2 says to expect |
 | `model.py` | §1–§4 | The contract types, frozen, rejecting at construction what the spec forbids |
 | `codec.py` | §7.1, §7.6 | Exact JSON round-trip for every record — the log and the export share one encoding |
-| `log.py` | §7.1, §7.3 | The append-only log. No update, no delete, by construction |
+| `log.py` | §7.1, §7.3 | The append-only log. No update, no delete, by construction. One file has several writers on a farm's computer, and `refresh` takes in what the others appended without writing it again; the first write after a line a power cut left half-written starts a fresh line |
 | `project.py` | §2, §3.2, §3.3, §4.2, §7.1 | Derived state: live rows, quality precedence and quality as known at a moment, calibration by `measured_at`, staleness, ordering |
 | `fixtures.py` | — | Record builders for tests, and the seed of the virtual farm's own |
 | `wire.py` | §5.2, §5.3 | The wire message: CBOR packed arrays, a CDDL schema, payload-budget-aware packing, transmit-time restamping, and `Window`, a node's aggregate of a low-urgency series (Q20) |
@@ -31,10 +31,18 @@ python3 demo.py --json                        # the served Observations collecti
 | `sensorthings.py` | §10, §3.2 | The SensorThings out-adapter. Serves **live observations only**, which is the compatibility promise v0 would have broken. Validated against FROST-Server |
 | `records.py` | §3, §7.4; Q14 | The farm's records, farmOS-shaped: land and its boundary, animals and groups, inputs applied, animal treatments and their withdrawal, harvest lots. Each declares the fields that never resolve silently and the ones that merge by union |
 | `edits.py` | §7.4; Q7 | Offline edits: each names the versions its writer had seen, so concurrency is decided by knowledge, not clocks. Conflicts keep both values and are noticed into the log; withdrawal and pre-harvest checks read every candidate |
-| `modhost.py` | §8.2, §8.3; Q11 | Modules as separate processes: a manifest that is a ceiling, a farmer's grant per point (a log record, the token's hash only), and a unix-socket host that checks every call, stamps every write with the module's name and lets a module read back only its own. `RemoteState` and `RemoteLog` let a module written against the SDK run unchanged in its own process |
+| `modhost.py` | §8.2, §8.3; Q11 | Modules as separate processes: a manifest that is a ceiling, a farmer's grant per point (a log record, the token's hash only), and a unix-socket host that checks every call, stamps every write with the module's name and lets a module read back only its own. `RemoteState` and `RemoteLog` let a module written against the SDK run unchanged in its own process. An owner may grant a module every module's decisions, read-only, by arrival cursor: the notifier's and the board's need. The host reads back every two seconds what other processes write to the farm's log, so a revocation made at the command line counts from the module's next call |
 | `sharing.py` | §7.6; Q16 | Sharing grants: what a grantee may read at a moment. A grant covers what had arrived when it was made unless it asks for more and says when that ends; revoking stops access from then on |
 | `erasure.py` | §7.3; Q17 | Erasure by key destruction: personal text sealed to a per-person key, wrapped by a farm key kept out of backups; erasing destroys the person's key and rotates the farm key |
-| `forecast.py` | §3.1, §3.2, §10; Q26 | Weather forecasts as input data: runs onto a `forecast` datastream with `issued_at`, the latest issue live, every run kept and scored against the farm's sensors by lead time |
+| `forecast.py` | §3.1, §3.2, §10; Q26 | Weather forecasts as input data: runs onto a `forecast` datastream with `issued_at`, the latest issue live, every run kept and scored against the farm's sensors by lead time. Probabilities as a declared event, scored by Brier; ensembles as one forecast datastream per member, and an event's chance counted on the members' runs |
+| `subscribe.py` | §7.5 | Subscriptions with a durable cursor in the log's arrival order: at-least-once, replayable, and an edit that syncs late is never skipped |
+| `export.py` | §7.6 | The log out in open formats — a JSONL archive, per-type CSV, GeoJSON — with a checksummed manifest, verified by replaying it into an identical log |
+| `csv_import.py` | §10 | A farm's or a station's existing records in from CSV onto declared datastreams, so its history lands in the same log |
+| `mqtt_bridge.py`, `mqtt_emulator.py` | §10 | MQTT into the log for the device families that already publish there — ESPHome, Tasmota, Shelly, Zigbee, Home Assistant, ChirpStack LoRaWAN — and an emulator of what each really sends |
+| `siting.py` | §4.1, §4.2 | Is a probe where its installation says? Depth from the damping and delay of its daily temperature wave; a two-peer check for a move nobody logged; a GPS node's fix |
+| `airtime.py` | §5.2 | LoRa airtime and the duty-cycle budget, at runtime, so a fleet that reports too often fails here and not in a field |
+| `vocab.py` | §3.4; Q4 | Observed-property terms and UCUM units: CF Standard Names for physical measurands, ODM2 for what CF lacks, AGROVOC for records, and a counted few local terms for real gaps, each with its reason |
+| `i18n.py`, `packs/` | §11 | Language packs: codes in the log, sentences in the reader's language; a module ships its own pack under its own prefix |
 | `demo.py` | — | One command that exercises the whole chain, no hardware and no site data |
 | `spool.py` | §5.2 | Gateway-side store-and-forward: retry, auth, spool, drain |
 | `modbus_rtu.py` | §9 | Modbus RTU framing over serial, read function codes only (see [PROVENANCE.md](PROVENANCE.md)) |

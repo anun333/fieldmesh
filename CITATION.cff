@@ -5,8 +5,11 @@ title: "fieldmesh: layer zero of a farmer-owned farm stack"
 abstract: >-
   The data and device contract underneath a farmer-owned farm stack: an OGC
   SensorThings 1.1 view over an append-only log the farmer owns, quality judgements
-  that carry their provenance, a wire format for unreliable radio links, a simulated
-  farm that tests it, and a planting advisor built on top. Pre-release.
+  that carry their provenance, a wire format for unreliable radio links, and a
+  simulated farm that tests it. On top, as sandboxed modules: rules and regimens,
+  alerts to people by push and SMS, a livestock water monitor, a soil-moisture
+  advisory, a planting advisor, a hoop-house physics twin and a farm page.
+  Pre-release.
 type: software
 authors:
   - alias: anun333

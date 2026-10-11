@@ -3,7 +3,7 @@
 .PHONY: help pages test demo world drill siting forecast irrigation q5 q5-points power vocab vocab-resolve packs serve season export frost clean
 
 help:
-	@echo "test   run every test (sdk + tools + sim + server)"
+	@echo "test   run every test (sdk + tools + sim + server + modules)"
 	@echo "demo   log -> derived state -> SensorThings, no hardware"
 	@echo "world  a day of farm physics through a node to the gateway"
 	@echo "drill  seed faults and score the detectors against ground truth"

@@ -125,6 +125,17 @@ layer zero's. `make packs` checks both. A translator can take on layer zero's ~1
 — the ones a farmer meets in every quality flag and unit — without also taking on a crop
 report, and the other way round.
 
+Seven modules ship packs: `rules`, `notify`, `water`, `soilwater`, `twin`, `advise` and
+`board`. Their messages are what reach a farmer's phone and the farm's page, so they matter
+as much as layer zero's. One kind of string in them needs more than translation.
+**`notify.ack_words` and `notify.no_words` are lists of single words**, comma-separated,
+that decide whether a text message back acknowledges an alert: a reply acknowledges with one
+of the first and never with any of the second. A translator lists the words the people
+replying will actually type, with and without accents ("sí, si"). A word that means yes in
+one language and something else in another does not belong: Spanish's "y" ("and") was
+removed from the English list for that reason. A wrong word here stops an alert climbing to
+the next person when nobody has taken it.
+
 ## Licence
 
 Packs live in `sdk/` and are Apache-2.0 like the SDK, so a device maker can ship your
