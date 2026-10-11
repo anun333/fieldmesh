@@ -46,14 +46,14 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [docs/VIRTUAL_FARM.md](docs/VIRTUAL_FARM.md) | Why the build is simulator-first, and the completeness matrix that turns a spec clause with nothing exercising it into a failing test |
 | [docs/LANGUAGE_PACKS.md](docs/LANGUAGE_PACKS.md) | For a university adding its farmers' language — one JSON file, no code |
 | [docs/notes/](docs/notes/) | Measurements and validations behind decisions: encoding, power, FROST, QGIS, public datasets, validation sites |
-| [sdk/](sdk/) | The contract as code: model, append-only log, projection, quality checks, wire format, gateway, SensorThings view, export, subscriptions, siting checks, CSV and MQTT adapters, language packs |
+| [sdk/](sdk/) | The contract as code: model, append-only log, projection, farm records with offline edits, quality checks, wire format, gateway, SensorThings view, export, subscriptions, siting checks, CSV and MQTT adapters, language packs |
 | [sim/](sim/) | **Harrow Bend**, a fictional farm on the prime meridian: soil water and heat physics, troughs, simulated nodes and radio links, fault injection, scored drills |
 | [server/](server/) | A read-only SensorThings 1.1 HTTP service — the reference implementation |
 | [tools/](tools/) | The measurements behind decisions, weather and forecast adapters, and the language-pack tool |
 | [modules/rules/](modules/rules/) | **Layer 1, rules and alerts**: CEL conditions over the log, each evaluation a logged decision. First rule: a frost watch, backtested on NOAA's forecasts against McAllister Farm's station |
 | [modules/advise/](modules/advise/) | **The first module above layer zero** (layer 3, decision support): for any point, what grows and when to sow it, which fruit cultivars get their chill and how often frost follows bloom, what the soil needs, bees, livestock heat, and the 2050s — in English and Spanish |
 
-About 1,130 tests. The simulator runs a 180-day season in under eight minutes.
+About 1,200 tests. The simulator runs a 180-day season in under eight minutes.
 
 ## A few things this does that are easy to get wrong
 
@@ -69,6 +69,10 @@ About 1,130 tests. The simulator runs a 180-day season in under eight minutes.
 - **The installation record is checked against physics.** A probe's daily temperature
   wave shows its depth, and a GPS-timed node's fix shows where it stands. A move nobody
   logged gets flagged — with the check's blind spots stated rather than hidden.
+- **Two phones, one record, no signal.** An edit names what its writer had already
+  seen, so a later edit follows an earlier one whatever either clock said. Concurrent
+  changes to a harvest's weight, a spray's rate or an animal's withdrawal keep both
+  values and ask a person, and the withdrawal check reads the longer of the two meanwhile.
 - **Records store codes, never translated text.** Interfaces render them in the
   reader's language, including languages that had no pack when the record was written.
 - **Every export verifies.** The archive replays into an identical log, and each file
@@ -105,8 +109,9 @@ Plainly, so nobody has to discover it:
 - **Little above layer zero.** Two modules exist: the advisor (layer 3) and rules and
   alerts (layer 1), whose one rule is a frost watch. Domain modules (2), apps (4) and the
   ecosystem (5) are described in §11 and do not; the irrigation rules in `sim/` stand in.
-- **Three rows of the completeness matrix are skipped**: offline-edit conflicts (Q14 named
-  the fields; the records they belong to are not built) and the two that need §6.
+- **Two rows of the completeness matrix are skipped**, the two that need §6. The farm's
+  records exist (land, animals, inputs, treatments, harvests, with offline conflicts), but
+  no app writes them yet and nothing projects them to farmOS (Q8).
 - **The Spanish language pack is an unreviewed draft.** It needs a native-speaking
   agronomist before farmers see it.
 - **Not hardened for a network.** The HTTP server is single-threaded and read-only by

@@ -410,12 +410,84 @@ class TestStorage(Matrix):
         self.assertEqual(replayed.validate(), [])
 
     def test_an_offline_edit_conflict_resolved_by_hlc(self):
-        self.skipTest(
-            "§7.4's HLC exists in sdk/hlc.py and the log stamps every event with "
-            "it. Q14 now names the fields that must never resolve silently — inputs "
-            "applied, animal treatments, harvest lots, boundaries, anything an "
-            "interlock reads — but none of those records is in layer zero yet, so "
-            "there is nothing a second writer could edit concurrently.")
+        """§7.4 on the farm. Two phones in bed 3 with no signal, one clock six hours
+        fast. An edit made after seeing another follows it though its clock says it is
+        older; concurrent edits to the harvest's weight and the bed's boundary keep both
+        values and ask a person; the person resolves; every replica agrees.
+
+        The farm's season log is shared by every matrix row, so the records live in
+        their own replicas here, keyed by the farm's real feature and site ids.
+        """
+        import edits as E
+        from hlc import Hlc
+        from log import Log
+        from records import HarvestLot, InputApplication, Land, Quantity
+
+        class Clock:
+            def __init__(self, ms):
+                self.ms = ms
+
+            def __call__(self):
+                return self.ms
+
+        now = 1_780_000_000_000
+        hub, fast, slow = (Log(hlc=Hlc(clock=Clock(ms)))
+                           for ms in (now, now + 6 * 3_600_000, now))
+
+        def sync():
+            for a in (hub, fast, slow):
+                for b in (hub, fast, slow):
+                    if a is not b:
+                        for ev in a.events:
+                            b.receive(ev)
+
+        bed3 = self.farm.features["bed3"]["id"]
+        day = _dt.datetime(2026, 7, 14, 7, tzinfo=_dt.timezone.utc)
+        bed = Land(bed3, self.farm.site, "bed", boundary=hb._boundary("bed3"))
+        spray = InputApplication(uuid7(), self.farm.site, day - _dt.timedelta(days=5),
+                                 [bed3], "spinosad", Quantity(0.4, "L/har"),
+                                 preharvest_interval_days=1)
+        lot = HarvestLot(uuid7(), self.farm.site, day, [bed3], "tomato",
+                         Quantity(120, "kg"), "HB-0714-3")
+        for rec in (bed, spray, lot):
+            E.create(hub, rec)
+        sync()
+
+        # Sequential, across disagreeing clocks: the slow phone's edit follows the fast
+        # phone's, because it had seen it — not because of what either clock said.
+        first = E.edit(fast, lot.id, at=day, set={"note": "two crates bruised"})
+        sync()
+        second = E.edit(slow, lot.id, at=day, set={"note": "one crate; recounted"})
+        self.assertGreaterEqual(first.stamp.wall_ms - now, 6 * 3_600_000,
+                                "the slow phone's own clock is six hours behind the "
+                                "edit it is following")
+        self.assertGreater(second.stamp, first.stamp)
+
+        # Concurrent: both phones offline, both change protected fields.
+        E.edit(fast, lot.id, at=day, set={"quantity": Quantity(118, "kg")})
+        E.edit(slow, lot.id, at=day, set={"quantity": Quantity(121, "kg")})
+        moved = hb._boundary("bed3", half=0.00005)
+        E.edit(fast, bed3, at=day, set={"boundary": moved})
+        E.edit(slow, bed3, at=day, set={"boundary": hb._boundary("bed3", half=0.00003)})
+        sync()
+
+        s = E.project(hub)
+        self.assertEqual(s.get(lot.id).note, "one crate; recounted")
+        self.assertEqual({(c.record, c.field) for c in s.conflicts()},
+                         {(lot.id, "quantity"), (bed3, "boundary")})
+        self.assertEqual(len(E.notice_conflicts(hub, at=day)), 2)
+        self.assertEqual(s.harvest_problems(), [])
+
+        E.resolve(hub, lot.id, "quantity", Quantity(121, "kg"), at=day,
+                  reason="re-weighed at the pack shed")
+        E.resolve(hub, bed3, "boundary", moved, at=day, reason="walked with the GPS")
+        sync()
+        states = [E.project(r) for r in (hub, fast, slow)]
+        for st in states:
+            self.assertEqual(st.conflicts(), [])
+            self.assertEqual(st.get(lot.id), states[0].get(lot.id))
+            self.assertEqual(st.get(bed3).boundary, moved)
+            self.assertEqual(st.problems, [])
 
     def test_a_grant_issued_used_and_revoked(self):
         """§7.6 on the farm: the research plot's two probes shared with a partner for a

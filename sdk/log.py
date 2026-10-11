@@ -54,6 +54,15 @@ RECORD_KINDS = {
     "QualityAssertion": "quality_assertion",
     "Grant": "grant",
     "GrantRevocation": "grant_revocation",
+    # The farm's records (§3, §7.4; Q14) — edits.py projects them.
+    "Land": "land",
+    "Animal": "animal",
+    "AnimalGroup": "animal_group",
+    "InputApplication": "input_application",
+    "AnimalTreatment": "animal_treatment",
+    "HarvestLot": "harvest_lot",
+    "RecordEdit": "record_edit",
+    "ConflictNotice": "conflict",
 }
 
 CORRECTION = "correction"

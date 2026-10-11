@@ -614,7 +614,7 @@ The binding constraint eliminates most options: v0.1 §11 requires rules to be b
 
 ## Q7. Conflict rules for offline edits
 
-**Status: DECIDED 2026-10-09 — hybrid logical clocks plus resolution at projection time, union for set-like fields, a conflict event for the fields Q14 lists (the maintainer adopted the recommendation).** The records those fields belong to are not in layer zero yet; the list is normative now so they are built to it. Plan B, if conflict events pile up in practice: latest edit wins for low-stakes fields with a visible "edited on two devices" mark, and Q14's fields stay manual. Was: blocks the pilot. The moment two people edit on two phones in one field, this is live.
+**Status: DECIDED 2026-10-09 — hybrid logical clocks plus resolution at projection time, union for set-like fields, a conflict event for the fields Q14 lists (the maintainer adopted the recommendation).** Built 2026-10-10: [sdk/records.py](../../sdk/records.py) and [sdk/edits.py](../../sdk/edits.py). Concurrency is decided by each edit's *base*, the versions its writer had seen, because HLC stamps alone cannot tell concurrent writes from sequential ones (§17). Plan B, if conflict events pile up in practice: latest edit wins for low-stakes fields with a visible "edited on two devices" mark, and Q14's fields stay manual. Was: blocks the pilot. The moment two people edit on two phones in one field, this is live.
 
 | Option | For | Against |
 | --- | --- | --- |
@@ -728,7 +728,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q24 | Flatline thresholds that know the probe's depth, soil and climate | **Decided 2026-10-09** — learned, floored at the soil's default |
 | Q25 | When a two-peer siting check fires, which probe moved? | **Decided 2026-10-08** |
 | Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed |
-| Q27 | What crosses between fieldmesh and ERPNext, and who owns each fact? | Blocks nothing yet — the records most of it needs are not built; recorded so they are built to it |
+| Q27 | What crosses between fieldmesh and ERPNext, and who owns each fact? | Blocks nothing yet — the records it needs exist since 2026-10-10 (land, inputs applied, harvest lots); the adapter waits on a partner that runs ERPNext |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
@@ -769,8 +769,10 @@ knowing:
 
 For these, both versions are kept and a conflict event asks a person. Everything else is
 latest-edit-wins in HLC order, and set-like fields (tags, animal groups, applied inputs as
-a list) merge by union. The records are not in layer zero yet; the list is normative now
-so they are built to it rather than retrofitted.
+a list) merge by union. **Built 2026-10-10** to this list: `records.py` declares each
+record's protected fields, and a void concurrent with any of them is a conflict too, because
+field by field it would otherwise remove a withdrawal unseen. The fifth item, what an
+interlock reads, waits on §6.
 
 ## Q15. Retention: does a farmer ever lose raw data to a policy?
 

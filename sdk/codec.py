@@ -27,6 +27,8 @@ from model import (Assertor, Calibration, ClockQuality, Datastream,
                    DatastreamKind, Device, DeviceKind, Grant, GrantRevocation,
                    Installation, Label, MaintenanceAction, MaintenanceEvent, Observation,
                    QualityAssertion, QualityFlag, Threshold, Usable)
+from records import (Animal, AnimalGroup, AnimalTreatment, ConflictNotice, EDITABLE,
+                     HarvestLot, InputApplication, Land, LandKind, Quantity, RecordEdit)
 
 TYPE_KEY = "_t"
 
@@ -78,6 +80,30 @@ def _enc_uuids(v):
 
 def _dec_uuids(v):
     return tuple(_dec_uuid(x) for x in v)
+
+
+def _enc_uuid_set(v):
+    return sorted(str(x) for x in v)
+
+
+def _dec_uuid_set(v):
+    return frozenset(UUID(x) for x in v)
+
+
+def _enc_text_set(v):
+    return sorted(v)
+
+
+def _dec_text_set(v):
+    return frozenset(v)
+
+
+def _enc_qty(v):
+    return None if v is None else {"value": v.value, "unit": v.unit}
+
+
+def _dec_qty(v):
+    return None if v is None else Quantity(v["value"], v["unit"])
 
 
 # ----------------------------------------------------------- per-type tables
@@ -209,9 +235,120 @@ _CONVERTERS = {
         "note": (_same, _same),
         "evidence": (_same, _same),
     },
+    # ------------------------------------------- records (§3, §7.4; Q14)
+    Land: {
+        "id": (_enc_uuid, _dec_uuid),
+        "site": (_enc_uuid, _dec_uuid),
+        "kind": (_enc_enum, _dec_enum(LandKind)),
+        "boundary": (_same, _same),
+        "parent": (_enc_uuid, _dec_uuid),
+        "archived": (_same, _same),
+        "tags": (_enc_text_set, _dec_text_set),
+    },
+    Animal: {
+        "id": (_enc_uuid, _dec_uuid),
+        "site": (_enc_uuid, _dec_uuid),
+        "species": (_same, _same),
+        "tag": (_same, _same),
+        "born": (_enc_time, _dec_time),
+        "sex": (_same, _same),
+        "archived": (_same, _same),
+        "tags": (_enc_text_set, _dec_text_set),
+    },
+    AnimalGroup: {
+        "id": (_enc_uuid, _dec_uuid),
+        "site": (_enc_uuid, _dec_uuid),
+        "members": (_enc_uuid_set, _dec_uuid_set),
+        "archived": (_same, _same),
+        "tags": (_enc_text_set, _dec_text_set),
+    },
+    InputApplication: {
+        "id": (_enc_uuid, _dec_uuid),
+        "site": (_enc_uuid, _dec_uuid),
+        "applied_at": (_enc_time, _dec_time),
+        "land": (_enc_uuids, _dec_uuids),
+        "product": (_same, _same),
+        "rate": (_enc_qty, _dec_qty),
+        "area": (_enc_qty, _dec_qty),
+        "method": (_same, _same),
+        "purpose": (_same, _same),
+        "registration": (_same, _same),
+        "product_lot": (_same, _same),
+        "preharvest_interval_days": (_same, _same),
+        "reentry_interval_h": (_same, _same),
+        "applied_by": (_enc_uuid, _dec_uuid),
+        "note": (_same, _same),
+        "void": (_same, _same),
+        "tags": (_enc_text_set, _dec_text_set),
+    },
+    AnimalTreatment: {
+        "id": (_enc_uuid, _dec_uuid),
+        "site": (_enc_uuid, _dec_uuid),
+        "administered_at": (_enc_time, _dec_time),
+        "animals": (_enc_uuid_set, _dec_uuid_set),
+        "product": (_same, _same),
+        "dose": (_enc_qty, _dec_qty),
+        "withdrawal_days": (_same, _same),
+        "route": (_same, _same),
+        "reason": (_same, _same),
+        "registration": (_same, _same),
+        "product_lot": (_same, _same),
+        "administered_by": (_enc_uuid, _dec_uuid),
+        "note": (_same, _same),
+        "void": (_same, _same),
+        "tags": (_enc_text_set, _dec_text_set),
+    },
+    HarvestLot: {
+        "id": (_enc_uuid, _dec_uuid),
+        "site": (_enc_uuid, _dec_uuid),
+        "harvested_at": (_enc_time, _dec_time),
+        "land": (_enc_uuids, _dec_uuids),
+        "crop": (_same, _same),
+        "quantity": (_enc_qty, _dec_qty),
+        "lot": (_same, _same),
+        "note": (_same, _same),
+        "void": (_same, _same),
+        "tags": (_enc_text_set, _dec_text_set),
+    },
+    # `set`, `add` and `remove` are encoded by the converters of the record the edit
+    # names, so they are handled in dump() and load() rather than in this table.
+    RecordEdit: {
+        "id": (_enc_uuid, _dec_uuid),
+        "record": (_enc_uuid, _dec_uuid),
+        "kind": (_same, _same),
+        "base": (_enc_uuids, _dec_uuids),
+        "edited_at": (_enc_time, _dec_time),
+        "edited_by": (_enc_uuid, _dec_uuid),
+        "reason": (_same, _same),
+    },
+    ConflictNotice: {
+        "id": (_enc_uuid, _dec_uuid),
+        "record": (_enc_uuid, _dec_uuid),
+        "kind": (_same, _same),
+        "field": (_same, _same),
+        "versions": (_enc_uuids, _dec_uuids),
+        "noticed_at": (_enc_time, _dec_time),
+    },
 }
 
 _BY_NAME = {cls.__name__: cls for cls in _CONVERTERS}
+
+
+def dump_fields(kind: str, values: dict) -> dict:
+    """Field values of an editable record, encoded as that record encodes them, so an
+    edit's `set` reads back as the same types the record holds."""
+    table = _CONVERTERS[EDITABLE[kind]]
+    return {name: table[name][0](value) for name, value in values.items()}
+
+
+def load_fields(kind: str, doc: dict) -> dict:
+    table = _CONVERTERS[EDITABLE[kind]]
+    out = {}
+    for name, value in doc.items():
+        if name not in table:
+            raise ValueError(f"{kind} has no field {name!r}")
+        out[name] = table[name][1](value)
+    return out
 
 
 #: Fields added after logs existed, written only when set — so every log line written
@@ -231,6 +368,10 @@ def dump(record) -> dict:
         if value is None and (type(record), name) in _OMIT_WHEN_NONE:
             continue
         out[name] = enc(value)
+    if isinstance(record, RecordEdit):
+        out["set"] = dump_fields(record.kind, record.set)
+        out["add"] = dump_fields(record.kind, record.add)
+        out["remove"] = dump_fields(record.kind, record.remove)
     return out
 
 
@@ -250,6 +391,9 @@ def load(doc: dict):
     for field_name, (_, dec) in table.items():
         if field_name in doc:
             kwargs[field_name] = dec(doc[field_name])
+    if cls is RecordEdit:
+        for part in ("set", "add", "remove"):
+            kwargs[part] = load_fields(kwargs["kind"], doc.get(part, {}))
     return cls(**kwargs)
 
 

@@ -206,12 +206,11 @@ class Farm:
 
 #: Where each feature sits, as GeoJSON, in metres-ish degrees off null island.
 #:
-#: Geometry is **not** a log record and deliberately has no place in §3. A real farm's
-#: field boundaries are exactly the material docs/VIRTUAL_FARM.md keeps in a gitignored
-#: `.site/` directory — a farmer's boundaries, wells and contacts are theirs, and a
-#: public repository is the wrong home for them. So geometry reaches the SensorThings
-#: view the same way names do: as a side table the service is handed, not as something
-#: the append-only log carries.
+#: These points are what the SensorThings view draws, handed to it as a side table the
+#: way names once were. A field's *boundary* is a record — `records.Land`, in the farm's
+#: own log, where Q14 protects it from a silent overwrite. What never belongs in a
+#: public repository is a real farm's log: its boundaries, wells and contacts are the
+#: farmer's, which is why docs/VIRTUAL_FARM.md keeps them in a gitignored `.site/`.
 #:
 #: Harrow Bend is fictional and anchored on the prime meridian, so its geometry *can*
 #: live in the repository. That is the privilege of a farm that does not exist.
@@ -239,6 +238,14 @@ def _geometry(name: str) -> dict:
     """
     lon, lat = _LAYOUT.get(name, (0.0, 0.0))
     return {"type": "Point", "coordinates": [round(lon, 7), round(lat, 7)]}
+
+
+def _boundary(name: str, half: float = 0.00004) -> dict:
+    """A bed's edges: a square about 9 m across, centred on its point."""
+    lon, lat = _LAYOUT.get(name, (0.0, 0.0))
+    ring = [[lon - half, lat - half], [lon + half, lat - half], [lon + half, lat + half],
+            [lon - half, lat + half], [lon - half, lat - half]]
+    return {"type": "Polygon", "coordinates": [[[round(x, 7), round(y, 7)] for x, y in ring]]}
 
 
 #: Spanish names for the features, because layer 4 must be bilingual (§11) and a
