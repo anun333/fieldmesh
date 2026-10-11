@@ -96,8 +96,11 @@ A tunnel has one air sensor more often than two, and one sensor cannot see its o
 [twin_check.py](twin_check.py) sets the twin beside it, and says, as an advisory decision,
 when the two part company and stay apart:
 
-> invernadero's air sensor and the twin have disagreed by −6.4 °C for 3 hours. Check the
+> hoop house's air sensor and the twin have disagreed by -8.3 °C for 3 hours. Check the
 > sensor and its sun shield, and whether the sides or a door are open.
+
+That is what it said two hours after the sensor was knocked outside on the morning of
+April 16 (the backtest below).
 
 It never marks a reading bad. A module does not write quality verdicts (§8.3), and the twin
 may be the one that is wrong.
