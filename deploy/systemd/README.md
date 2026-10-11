@@ -7,7 +7,7 @@ the module host's unix socket, and the host answers only what the module's grant
 
 | unit | what it is |
 | --- | --- |
-| [fieldmesh-host.service](fieldmesh-host.service) | the host, over the farm's log, for a farm that runs it on its own (on a gateway it runs inside the gateway) |
+| [fieldmesh-host.service](fieldmesh-host.service) | the host, over the farm's log file, reading back every two seconds what other processes append to it: readings, grants, revocations |
 | [fieldmesh-module@.service](fieldmesh-module@.service) | one module: `fieldmesh-module@water`, `fieldmesh-module@soilwater` |
 | [fieldmesh-server.service](fieldmesh-server.service) | the SensorThings data service, read-only over the farm's log, tokens required ([server/](../../server/)) |
 | [fieldmesh-module@notify.service.d/](fieldmesh-module@notify.service.d/channels.conf) | the notifier's one exception: the network, for its push server, and its ntfy tokens as credentials ([modules/notify/](../../modules/notify/)) |
@@ -30,7 +30,7 @@ sudoedit /etc/fieldmesh/modules/water.json        # {"troughs": [{"datastream": 
 sudo cp deploy/systemd/*.service /etc/systemd/system/
 sudo systemctl enable --now fieldmesh-host fieldmesh-module@water
 
-# Taking it back: the next call it makes is refused.
+# Taking it back: within two seconds, the next call it makes is refused.
 sudo python3 /opt/fieldmesh/sdk/modhost.py revoke --log /var/lib/fieldmesh/farm.jsonl <grant id>
 ```
 

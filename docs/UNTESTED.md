@@ -45,12 +45,10 @@ link to the evidence; do not delete it.
   the farm's own time zone, but the tests run in July only.
 * **A notifier that runs for a year.** It keeps every alert it has seen in memory, and
   none of them is ever dropped. Nobody has measured how that grows.
-* **The gateway with the module host inside it.** The host is tested on its own and as its
-  own service. "On a gateway it runs inside the gateway" is how the systemd notes describe
-  it, but nothing in `sdk/gateway.py` starts the host yet.
 
 ## Checked since this list began
 
 | Checked | How | Evidence |
 | --- | --- | --- |
 | **The farm page served with TLS** (2026-10-11) | A generated certificate: the pages over TLS, nothing over plain HTTP, an untrusted certificate refused, and a client that stalls its handshake stalling only itself | [modules/board/test_board.py](../modules/board/test_board.py), `TestTls` |
+| **The module host and the other writers of the farm's log** (2026-10-11) | The notes said the host "runs inside the gateway", but no gateway process exists (it waits on the radio, build step 7). The real gap was worse: the host never read what other processes appended, so a revocation made at the command line was not seen until a restart, nor a new grant, nor a reading from the ingest. It now reads the file back every two seconds; tests show each counts, and fail on the old host. Found on the way: the first event after a power cut was glued to the cut line and lost; it now starts a fresh line | [sdk/test_modhost.py](../sdk/test_modhost.py) `TestOtherWritersOfTheLog`, [sdk/test_log.py](../sdk/test_log.py) `TestOtherWritersOfOneFile`, `test_the_first_event_after_a_power_cut_is_not_lost` |

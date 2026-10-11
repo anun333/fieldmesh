@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The foundation's side of the module socket (spec v0.1 §8.3; Q11), over the farm's log.
-# On a gateway the host runs inside the gateway process; this unit is for a farm that
-# runs it on its own.
+# Other processes append to the same log file — the radio or MQTT ingest, `modhost.py
+# grant` and `revoke`, the token tool — and the host reads them back every two seconds,
+# so a new grant, a revocation or a reading counts without a restart.
 
 [Unit]
 Description=fieldmesh module host

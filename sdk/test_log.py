@@ -93,6 +93,19 @@ class TestPersistence(LogCase):
         self.assertEqual(len(recovered.skipped_lines), 1)
         self.assertIn("line 3", recovered.skipped_lines[0])
 
+    def test_the_first_event_after_a_power_cut_is_not_lost(self):
+        """The cut line is reported and skipped; the next append must not be glued to
+        it, or the first event after the power returns is lost on the next replay."""
+        lg = L.Log(self.path)
+        lg.append("note", {"n": 1})
+        with open(self.path, "a") as f:
+            f.write('{"id": "half-writ')
+        after = L.Log(self.path)
+        after.append("note", {"n": 3})
+        replayed = L.Log(self.path)
+        self.assertEqual([e.payload["n"] for e in replayed.events], [1, 3])
+        self.assertEqual(len(replayed.skipped_lines), 1)
+
     def test_an_illegal_record_fails_on_replay_rather_than_becoming_state(self):
         with open(self.path, "w") as f:
             bad = {"id": str(uuid7()), "stamp": "1.0", "kind": "observation",
@@ -177,3 +190,50 @@ class TestOrdering(LogCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestOtherWritersOfOneFile(LogCase):
+    """§7.1 on one machine: the ingest, the grant and token tools and the module host
+    each append to the farm's one log file. A replica takes in what the others wrote
+    without writing it again."""
+
+    def test_refresh_takes_in_another_writers_lines_and_writes_nothing(self):
+        mine, theirs = L.Log(self.path), L.Log(self.path)
+        mine.append("note", {"who": "me", "n": 1})
+        theirs.append("note", {"who": "them", "n": 2})
+        mine.append("note", {"who": "me", "n": 3})
+        with open(self.path) as f:
+            lines = len(f.readlines())
+        new = mine.refresh()
+        self.assertEqual([e.payload["n"] for e in new], [2])
+        self.assertEqual({e.payload["n"] for e in mine.events}, {1, 2, 3})
+        with open(self.path) as f:
+            self.assertEqual(len(f.readlines()), lines, "nothing written twice")
+        self.assertEqual(mine.refresh(), ())
+        self.assertEqual(mine.arrivals_since(2)[0].payload["n"], 2, "a cursor sees it arrive")
+        # Its clock has seen theirs: the next stamp follows everything it took in.
+        later = mine.append("note", {"n": 4})
+        self.assertTrue(all(before(e.stamp, later.stamp) for e in mine.events if e is not later))
+
+    def test_a_line_still_being_written_waits_for_its_end(self):
+        mine = L.Log(self.path)
+        other = L.Log(self.path)
+        event = other.append("note", {"n": 1})
+        text = open(self.path).read()
+        with open(self.path, "w") as f:
+            f.write(text[: len(text) // 2])
+        self.assertEqual(mine.refresh(), ())
+        with open(self.path, "w") as f:
+            f.write(text)
+        self.assertEqual([e.id for e in mine.refresh()], [event.id])
+
+    def test_a_listener_hears_what_arrived_from_another_writer(self):
+        mine, heard = L.Log(self.path), []
+        mine.on_commit(heard.append)
+        L.Log(self.path).append("note", {"n": 1})
+        mine.refresh()
+        self.assertEqual([e.payload["n"] for e in heard], [1])
+
+
+if __name__ == "__main__":
+    unittest.main()

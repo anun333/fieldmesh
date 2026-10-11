@@ -250,7 +250,16 @@ class ModuleHost:
 
     # ----------------------------------------------------------- lifecycle
 
-    def start(self) -> "ModuleHost":
+    def refresh(self) -> tuple:
+        """Take in what other processes appended to the farm's log file — readings from
+        the ingest, a grant or a revocation made at the command line — under the lock
+        the answers are given under, so a revocation counts from the next call."""
+        with self.lock:
+            return self.log.refresh() if hasattr(self.log, "refresh") else ()
+
+    def start(self, *, follow_s: float | None = None) -> "ModuleHost":
+        """Serve; and with `follow_s`, read the log file for other writers' events that
+        often (`refresh`)."""
         if os.path.exists(self.path):
             os.unlink(self.path)
         host = self
@@ -278,9 +287,20 @@ class ModuleHost:
         os.chmod(self.path, 0o660)
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
+        self._stop = threading.Event()
+        if follow_s:
+            def follow():
+                while not self._stop.wait(follow_s):
+                    try:
+                        self.refresh()
+                    except OSError as exc:          # a log file briefly unreadable
+                        print(f"modhost: could not read the log: {exc}", file=sys.stderr)
+            threading.Thread(target=follow, daemon=True).start()
         return self
 
     def stop(self) -> None:
+        if getattr(self, "_stop", None) is not None:
+            self._stop.set()
         if self._server is not None:
             self._server.shutdown()
             self._server.server_close()
@@ -613,7 +633,9 @@ def main(argv=None) -> int:
         return 0
     state = P.state_from_log(lg)
     lg.on_commit(lambda e: state.add(e.record()) if e.record() is not None else None)
-    host = ModuleHost(lg, state, args.socket).start()
+    # Other processes write this file too — the ingest, `grant`, `revoke`, the token
+    # tool — so the host reads it back every two seconds (`Log.refresh`).
+    host = ModuleHost(lg, state, args.socket).start(follow_s=2.0)
     print(f"serving modules on {args.socket}", flush=True)
     try:
         threading.Event().wait()

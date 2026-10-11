@@ -239,6 +239,65 @@ class TestHost(unittest.TestCase):
             self.assertEqual([e.payload["rule"] for e in log.events], ["water-low"])
 
 
+class TestOtherWritersOfTheLog(unittest.TestCase):
+    """The host serves the farm's log file, which other processes append to: the grant
+    and revoke commands, the ingest. What they write counts without a restart."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="fm-", dir="/tmp" if os.path.isdir("/tmp") else None)
+        self.file = os.path.join(self.dir, "farm.jsonl")
+        self.log = Log(self.file)
+        self.trough = fx.raw_datastream(unit="1", observed_property=V.VESSEL_FILL_FRACTION)
+        self.log.append_record(self.trough)
+        self.state = State()
+        self.state.add(self.trough)
+        self.log.on_commit(lambda e: self.state.add(e.record()) if e.record() is not None else None)
+        self.path = os.path.join(self.dir, "m.sock")
+        self.host = M.ModuleHost(self.log, self.state, self.path).start(follow_s=0.05)
+
+    def tearDown(self):
+        self.host.stop()
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def eventually(self, check, seconds=5.0):
+        import time
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            if check():
+                return True
+            time.sleep(0.02)
+        return check()
+
+    def test_a_grant_and_a_revocation_made_by_another_process_count_without_a_restart(self):
+        g, token = M.grant(Log(self.file), manifest(), properties=[V.VESSEL_FILL_FRACTION])
+        with M.ModuleClient(self.path, token) as c:
+            self.assertTrue(self.eventually(lambda: self._answers(c)), "the new grant counts")
+            M.revoke(Log(self.file), g.id)                      # `modhost.py revoke`
+            self.assertTrue(self.eventually(lambda: not self._answers(c)), "and so does its end")
+            with self.assertRaisesRegex(M.Refused, "revoked"):
+                c.call("whoami")
+
+    def _answers(self, c):
+        try:
+            c.call("whoami")
+            return True
+        except M.Refused:
+            return False
+
+    def test_a_reading_another_process_wrote_reaches_the_module(self):
+        _, token = M.grant(self.log, manifest(), properties=[V.VESSEL_FILL_FRACTION])
+        o = fx.observation(self.trough, result=0.42, measured_at=fx.at(5), seq=1)
+        Log(self.file).append_record(o)                          # the ingest
+        with M.ModuleClient(self.path, token) as c:
+            rows = lambda: c.call("observations", datastream=str(self.trough.id),
+                                  at=fx.at(60).isoformat())
+            self.assertTrue(self.eventually(lambda: len(rows()) == 1))
+            self.assertEqual(rows()[0]["o"]["result"], 0.42)
+        with open(self.file) as f:
+            ids = [json.loads(line)["id"] for line in f if line.strip()]
+        self.assertEqual(len(ids), len(set(ids)), "nothing written twice")
+
+
 class TestASeparateProcess(unittest.TestCase):
     """The point of Q11: the module is another process, with nothing of the foundation's
     in its memory, and the socket is all it has."""

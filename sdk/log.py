@@ -119,7 +119,8 @@ class Log:
     """
 
     __slots__ = ("_events", "_ids", "_path", "_hlc", "_skipped", "_arrivals",
-                 "_listeners", "_listener_errors")
+                 "_listeners", "_listener_errors",
+                 "_read_to", "_cut")
 
     def __init__(self, path: str | os.PathLike | None = None, *, hlc: Hlc | None = None):
         self._events: list[Event] = []
@@ -132,6 +133,11 @@ class Log:
         self._arrivals: list[Event] = []
         self._listeners: list = []
         self._listener_errors: list[str] = []
+        #: How far into the file this replica has read: other processes append to it
+        #: too (`refresh`).
+        self._read_to = 0
+        #: The file ends in a line cut short, so the next write starts a fresh line.
+        self._cut = False
         if self._path and os.path.exists(self._path):
             self._replay()
 
@@ -250,6 +256,41 @@ class Log:
             raise LogError(f"no event kind for {type(record).__name__}")
         return self.append(kind, codec.dump(record), encoded=True)
 
+    def refresh(self) -> tuple[Event, ...]:
+        """Take in what other processes appended to this log's file since this replica
+        last read it, and write nothing. Returns the events new to it, in file order.
+
+        **One file, several writers, on one machine** (§7.1): the radio ingest, the
+        grant and token tools and the module host each append to the farm's log. A
+        replica that never reads back what the others wrote serves stale state — a
+        module host that does not see a revocation made at the command line goes on
+        answering the module it was meant to stop. Its own lines come back too and are
+        skipped by id. A line not yet ended is left for next time. Each event taken in
+        merges its stamp (§7.4), so what this replica writes next follows it.
+        """
+        if not self._path or not os.path.exists(self._path):
+            return ()
+        with open(self._path, "rb") as f:
+            f.seek(self._read_to)
+            data = f.read()
+        end = data.rfind(b"\n") + 1
+        new = []
+        for line in data[:end].split(b"\n"):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = Event.from_jsonable(json.loads(line))
+            except Exception as exc:
+                self._skipped.append(f"byte {self._read_to}: {exc}")
+                continue
+            if event.id in self._ids:
+                continue
+            self._hlc.update(event.stamp)
+            new.append(self._commit(event, write=False))
+        self._read_to += end
+        return tuple(new)
+
     def correct(self, target: UUID, reason: str, *, replacement=None) -> Event:
         """Record a correction as a compensating event (§7.3).
 
@@ -285,7 +326,7 @@ class Log:
     def _order(event: Event):
         return (event.stamp.wall_ms, event.stamp.counter, event.id.int)
 
-    def _commit(self, event: Event) -> Event:
+    def _commit(self, event: Event, *, write: bool = True) -> Event:
         if event.id in self._ids:
             raise LogError(f"duplicate event id {event.id}")
         # HLC stamps are monotonic for events this log issues itself, so the
@@ -299,9 +340,14 @@ class Log:
             self._events.append(event)
         self._ids.add(event.id)
         self._arrivals.append(event)
-        if self._path:
+        if self._path and write:
+            line = json.dumps(event.to_jsonable(), separators=(",", ":")) + "\n"
+            if self._cut:
+                # The line a power cut left half-written is skipped on replay; glued
+                # to it, this event would be lost with it.
+                line, self._cut = "\n" + line, False
             with open(self._path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(event.to_jsonable(), separators=(",", ":")) + "\n")
+                f.write(line)
                 f.flush()
         # Wake subscribers only after the event is durable, so a subscriber that
         # reacts immediately can never see an event the log would lose in a crash.
@@ -313,22 +359,25 @@ class Log:
         return event
 
     def _replay(self) -> None:
-        with open(self._path, encoding="utf-8") as f:
-            for lineno, line in enumerate(f, 1):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    event = Event.from_jsonable(json.loads(line))
-                except Exception as exc:
-                    # A half-written final line after a power cut is ordinary on a
-                    # farm gateway. Report it; never discard the rest of history.
-                    self._skipped.append(f"line {lineno}: {exc}")
-                    continue
-                if event.id in self._ids:
-                    continue
-                self._events.append(event)
-                self._arrivals.append(event)      # file order *is* arrival order
-                self._ids.add(event.id)
-                self._hlc.update(event.stamp)
+        with open(self._path, "rb") as f:
+            data = f.read()
+        self._read_to = len(data)
+        self._cut = bool(data) and not data.endswith(b"\n")
+        for lineno, line in enumerate(data.decode("utf-8", "replace").split("\n"), 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = Event.from_jsonable(json.loads(line))
+            except Exception as exc:
+                # A half-written final line after a power cut is ordinary on a
+                # farm gateway. Report it; never discard the rest of history.
+                self._skipped.append(f"line {lineno}: {exc}")
+                continue
+            if event.id in self._ids:
+                continue
+            self._events.append(event)
+            self._arrivals.append(event)      # file order *is* arrival order
+            self._ids.add(event.id)
+            self._hlc.update(event.stamp)
         self._events.sort(key=self._order)
