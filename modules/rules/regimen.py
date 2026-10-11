@@ -14,9 +14,11 @@ steps built with three functions it is given:
 
 * `say(key, subject=None, label=None, **params)` — a message for a person, now;
 * `wait(minutes)` — the time before the next step;
-* `check(condition, key, subject=None, label=None, show=[...], **params)` — a CEL
-  condition over what the module knows then (its context, plus these params); when it
-  fails, the message `key`, with the context values named in `show`.
+* `check(condition, key, subject=None, label=None, show=[...], variants=[...], **params)`
+  — a CEL condition over what the module knows then (its context, plus these params);
+  when it fails, the message `key`, with the context values named in `show`, or the
+  first of `variants`, `[condition, key]` pairs, whose condition holds: the sentence that
+  fits the case, chosen then, as a rule's `message_variants` are.
 
 `subject` is what the step is about, by id, and `label` the message parameter its name
 fills, in the reader's language (`rules.render`).
@@ -60,9 +62,9 @@ def say(key, subject = None, label = None, **params):
 def wait(minutes):
     return {"kind": "wait", "minutes": minutes}
 
-def check(condition, key, subject = None, label = None, show = [], **params):
+def check(condition, key, subject = None, label = None, show = [], variants = [], **params):
     return {"kind": "check", "condition": condition, "key": key, "subject": subject,
-            "label": label, "show": show, "params": params}
+            "label": label, "show": show, "variants": variants, "params": params}
 '''
 
 
@@ -143,12 +145,18 @@ def _checked(regimen: Regimen, steps) -> list[dict]:
         if kind == "check":
             if not isinstance(s.get("condition"), str):
                 raise RegimenError(f"{where}: a check's condition is CEL text")
-            try:
-                import celpy
-                env = celpy.Environment()
-                env.compile(s["condition"])
-            except Exception as exc:          # noqa: BLE001 — celpy's own error types vary
-                raise RegimenError(f"{where}: the condition does not compile: {exc}") from None
+            variants = s.get("variants", [])
+            if not isinstance(variants, list) or not all(
+                    isinstance(v, list) and len(v) == 2 and all(isinstance(x, str) for x in v)
+                    and KEY.fullmatch(v[1]) for v in variants):
+                raise RegimenError(f"{where}: variants are [condition, message key] pairs")
+            for condition in [s["condition"]] + [v[0] for v in variants]:
+                try:
+                    import celpy
+                    env = celpy.Environment()
+                    env.compile(condition)
+                except Exception as exc:      # noqa: BLE001 — celpy's own error types vary
+                    raise RegimenError(f"{where}: {condition!r} does not compile: {exc}") from None
     return steps
 
 
@@ -240,10 +248,13 @@ class Runner:
                     alert, context, message = True, {}, self._message(step, {}, subject)
                 else:
                     context = {**context_fn(subject, run), **step["params"]}
-                    passed = R._cel(step["condition"],
-                                    {k: v for k, v in context.items() if not isinstance(v, str)})
-                    alert = not passed
-                    message = self._message(step, context, subject) if alert else None
+                    numeric = {k: v for k, v in context.items() if not isinstance(v, str)}
+                    alert = not R._cel(step["condition"], numeric)
+                    message = None
+                    if alert:
+                        key = next((k for c, k in step.get("variants", []) if R._cel(c, numeric)),
+                                   step["key"])
+                        message = self._message(dict(step, key=key), context, subject)
                 payload = {"rule": run.regimen, "version": run.version,
                            "regimen_sha256": run.sha256, "regimen_run": run.id, "step": n,
                            "due_at": due.isoformat(), "trust": run.trust,

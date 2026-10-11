@@ -55,7 +55,7 @@ class TestTerms(unittest.TestCase):
         interoperability principle failing quietly. Breaking this test is the
         reminder to publish the gap upstream — update the number when you have.
         """
-        self.assertEqual(V.local_terms(), [V.VESSEL_FILL_FRACTION])
+        self.assertEqual(sorted(V.local_terms()), sorted([V.VESSEL_FILL_FRACTION, V.VALVE_OPEN]))
 
     def test_fill_fraction_is_not_declared_as_a_length(self):
         """Why the local term is local: ODM2 `waterLevel` is metres, this is a ratio."""
@@ -93,8 +93,17 @@ class TestTheGate(unittest.TestCase):
     def test_every_registered_term_has_accepted_units_including_its_own(self):
         for uri, (unit, _) in V.TERMS.items():
             with self.subTest(term=uri):
+                if unit is None:
+                    continue                      # a truth: the next test
                 self.assertIn(unit, V.ACCEPTED_UNITS.get(uri, frozenset({unit})))
                 self.assertIn(uri, V.ACCEPTED_UNITS)
+
+    def test_a_truth_takes_no_unit_and_refuses_one(self):
+        """A valve is open or shut (§3.4: a boolean datastream has no unit)."""
+        self.assertEqual(V.check(V.VALVE_OPEN, None), [])
+        for unit in ("1", "%", "s"):
+            self.assertTrue(V.check(V.VALVE_OPEN, unit), unit)
+        self.assertTrue(V.check(V.VALVE_OPEN, "1", raw=True), "not even a raw count")
 
     def test_validate_reports_a_bad_declaration(self):
         import fixtures as fx

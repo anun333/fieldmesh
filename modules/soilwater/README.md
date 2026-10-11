@@ -88,6 +88,23 @@ blocked drip line: the person waters, and the bed gets nothing.
 | 2013, where the threshold was chosen (five sets of blocked days) | 51 | 16 of 16 | 0 of 35 | watered beds rose at least 0.74 of their expected rise; blocked ones at most 0.27 |
 | 2012, a summer not looked at until the threshold was set (four sets) | 46 | 9 of 9 | 0 of 37 | a watered bed at **0.55**, close to the 0.5 line |
 
+**With the valve reporting, it says which.** A bed can name the series of the valve that
+waters it (`Bed.valve`, the `valve_open` term). An OpenSprinkler controller reports each
+station opening and shutting over MQTT, and the bridge puts that in the log
+([sdk/mqtt_bridge.py](../../sdk/mqtt_bridge.py)). The check then tells the two cases apart:
+
+> bed 3's valve ran 60 minutes this morning, but its probes show almost no new water: the
+> root zone rose 0.4 points, where 18 mm should add about 6.0. Check the drip line and its
+> emitters for a blockage, and the line for a leak.
+
+> bed 3 was due 18 mm of water this morning, and its valve did not open. It still needs
+> water.
+
+On the 2013 summer, with three waterings blocked and two forgotten, it named each one
+rightly, all five, and said nothing on the seven that arrived. A shutting reported for a valve
+never seen opening is a lost message, so the check falls back to saying both rather than
+guessing.
+
 The 2012 margin is the honest caveat. A bed that soaks its water up slowly, or a probe set
 deep, could fall below half on a day the water did arrive. The share is a parameter, and a
 season of a real bed's waterings is what would set it.

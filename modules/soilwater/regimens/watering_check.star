@@ -5,7 +5,8 @@
 # (params["water_after_min"] after the advice, at params["mm_per_hour"]) and for the water
 # to soak down to the probes (params["soak_min"]), then checks that the root zone rose by
 # at least params["share"] of what the watering should add. A blocked drip line and a bed
-# nobody watered look the same to a probe, so the message says both.
+# nobody watered look the same to a probe. When the bed's valve reports, the message says
+# which it was; when it does not, it says both.
 
 def plan(ctx, params):
     if ctx["advice"] != "soil-water-now":
@@ -16,7 +17,11 @@ def plan(ctx, params):
     return [
         wait(minutes),
         check("has_reading && rise >= expected * share", "soilwater.regimen.no_response",
-              subject = ctx["bed"], label = "bed", show = ["rise_percent"],
+              subject = ctx["bed"], label = "bed", show = ["rise_percent", "valve_open_min"],
+              variants = [
+                  ["valve_known && valve_open_min >= 1.0", "soilwater.regimen.no_water_arrived"],
+                  ["valve_known", "soilwater.regimen.not_watered"],
+              ],
               expected = expected, expected_percent = expected * 100.0,
               share = params["share"], mm = mm),
     ]

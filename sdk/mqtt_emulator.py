@@ -54,6 +54,14 @@ def messages(*, vent_open: bool = True, leak: bool = False,
             "object": {"water_SOIL": soil_water_pct, "temp_SOIL": 19.6,
                        "conduct_SOIL": 412, "Bat": 3.58},
             "rxInfo": [{"rssi": -112, "snr": 4.5}]}},
+        # OpenSprinkler on the beds' drip zones, as its firmware publishes: zone 3 opens
+        # for its 90 scheduled minutes and closes with its flow; the rain delay ends.
+        {"topic": "opensprinkler/station/3", "payload": {"state": 1, "duration": 5400}},
+        {"topic": "opensprinkler/station/3", "payload": {"state": 0, "duration": 5400,
+                                                         "flow": 2.41}},
+        {"topic": "opensprinkler/raindelay", "payload": {"state": 0}},
+        {"topic": "opensprinkler/weather", "payload": {"water level": 84}},
+        {"topic": "opensprinkler/availability", "payload": "online"},
         {"topic": "some/other/thing", "payload": "ignored"},
     ]
 

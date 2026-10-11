@@ -361,6 +361,23 @@ class TestTheWateringCheck(unittest.TestCase):
         self.assertEqual((got["missed"], got["false"]), (0, 0))
         self.assertGreater(got["caught"], 0)
 
+    def test_with_the_valve_reporting_it_says_which_of_the_two_it_was(self):
+        """An OpenSprinkler's station through the MQTT bridge: on a blocked day the valve
+        ran and no water came; on a forgotten one it never opened."""
+        import irrigation_drill as D
+        import physics as ph
+        start = _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc)
+        r = S.backtest(ph.RecordedClimate.from_csv(D.SUMMER, seed=1), start, 92, seed=1,
+                       check=S.watering_check(), blocked=frozenset({14, 46, 90}),
+                       forgotten=frozenset({30, 78}), valve=True)
+        said = {c["day"]: c["key"] for c in r["checks"] if c["alert"]}
+        self.assertEqual(said, {14: "soilwater.regimen.no_water_arrived",
+                                46: "soilwater.regimen.no_water_arrived",
+                                90: "soilwater.regimen.no_water_arrived",
+                                30: "soilwater.regimen.not_watered",
+                                78: "soilwater.regimen.not_watered"})
+        self.assertTrue(all(not c["alert"] for c in r["checks"] if c["day"] not in said))
+
     def test_advice_not_to_water_plans_nothing(self):
         import regimen as G
         bed = S.Bed(uuid7(), 0.30, 0.12, root_depth_mm=300.0)
@@ -371,6 +388,59 @@ class TestTheWateringCheck(unittest.TestCase):
         steps = G.plan(S.watering_check(), ctx)
         self.assertEqual(steps[0], {"kind": "wait", "minutes": 60.0 + 90.0 + 180.0})
         self.assertEqual(steps[1]["params"]["expected_percent"], 6.0)
+
+
+
+class TestValveMinutes(unittest.TestCase):
+    """How long a valve stood open, from its open-and-shut series (vocab.VALVE_OPEN)."""
+
+    def setUp(self):
+        import vocab as V
+        from model import ClockQuality, Datastream, Observation
+        self.Obs, self.CQ = Observation, ClockQuality
+        self.state = State()
+        self.valve = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(), feature=uuid7(),
+                                observed_property=V.VALVE_OPEN, kind=DatastreamKind.RAW, unit=None)
+        self.state.add(self.valve)
+        self.t0 = _dt.datetime(2026, 7, 14, 4, tzinfo=_dt.timezone.utc)
+        self.seq = 0
+
+    def says(self, minutes, is_open, *, late=0):
+        self.seq += 1
+        when = self.t0 + _dt.timedelta(minutes=minutes)
+        self.state.add(self.Obs(uuid7(), self.valve.id, when, 1.0,
+                                when + _dt.timedelta(minutes=late), is_open, self.CQ.NETWORK,
+                                node="os", boot=1, seq=self.seq))
+
+    def minutes(self, until=600):
+        return S.valve_minutes(self.state, self.valve.id, self.t0,
+                               self.t0 + _dt.timedelta(minutes=until))
+
+    def test_an_opening_and_a_closing(self):
+        self.says(-60, False)
+        self.says(60, True)
+        self.says(150, False)
+        self.assertEqual(self.minutes(), (True, 90.0))
+
+    def test_shut_all_along_is_known_and_none(self):
+        self.says(-60, False)
+        self.assertEqual(self.minutes(), (True, 0.0))
+
+    def test_never_heard_from_is_not_known(self):
+        self.assertEqual(self.minutes(), (False, 0.0))
+
+    def test_a_closing_never_seen_opening_is_a_lost_message_not_a_shut_valve(self):
+        self.says(150, False)
+        self.assertEqual(self.minutes(), (False, 0.0))
+
+    def test_open_across_the_window_counts_from_its_start_to_now(self):
+        self.says(-30, True)
+        self.assertEqual(self.minutes(until=45), (True, 45.0))
+
+    def test_a_report_not_yet_received_is_not_known_yet(self):
+        self.says(-60, False)
+        self.says(60, True, late=600)
+        self.assertEqual(self.minutes(until=120), (True, 0.0))
 
 
 if __name__ == "__main__":

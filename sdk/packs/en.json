@@ -96,6 +96,7 @@
   "term.http://vocabulary.odm2.org/variablename/batteryVoltage/": "battery voltage",
   "term.http://vocabulary.odm2.org/variablename/receivedSignalStrenghtIndication/": "received signal strenght indication",
   "term.https://anun333.github.io/fieldmesh/vocab/vessel_fill_fraction/": "vessel fill fraction",
+  "term.https://anun333.github.io/fieldmesh/vocab/valve_open/": "valve open",
   "unit.%": "percent",
   "unit.1": "fraction",
   "unit.Cel": "degree Celsius",

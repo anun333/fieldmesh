@@ -121,6 +121,24 @@ class TestRuns(unittest.TestCase):
         self.assertEqual(len(again.tick(T0 + 200 * MIN, self.ctx)), 1)
         self.assertEqual(sum(1 for e in self.log.events if e.kind == "decision"), 3)
 
+    def test_a_failed_check_says_the_sentence_that_fits(self):
+        source = """
+def plan(ctx, params):
+    return [check("rise >= 0.05", "rules.test.dry", show = ["rise"],
+                  variants = [["valve_min >= 1.0", "rules.test.blocked"],
+                              ["valve_known", "rules.test.forgotten"]])]
+"""
+        for valve, key in (({"valve_known": True, "valve_min": 60.0}, "rules.test.blocked"),
+                           ({"valve_known": True, "valve_min": 0.0}, "rules.test.forgotten"),
+                           ({"valve_known": False, "valve_min": 0.0}, "rules.test.dry")):
+            runner = G.Runner(Log())
+            runner.start(G.Regimen("v", "1", source), {}, T0)
+            [d] = runner.tick(T0, lambda subject, run: {"rise": 0.0, **valve})
+            self.assertEqual(d.payload["message"]["key"], key)
+        for bad in ('[["valve_min >=", "rules.test.x"]]', '[["true", "Not a key"]]', '["true"]'):
+            with self.assertRaises(G.RegimenError, msg=bad):
+                G.plan(G.Regimen("v", "1", f"def plan(ctx, params):\n    return [check('true', 'rules.test.x', variants = {bad})]\n"), {})
+
     def test_nothing_to_do_starts_nothing(self):
         self.assertIsNone(self.runner.start(regimen(), {"need_mm": 1.0, "bed": BED}, T0))
         self.assertEqual(self.log.events, ())

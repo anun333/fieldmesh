@@ -118,6 +118,18 @@ RSSI = ODM2 + "receivedSignalStrenghtIndication/"
 #: adding a local term.
 VESSEL_FILL_FRACTION = LOCAL + "vessel_fill_fraction/"
 
+#: Whether a valve is open: an irrigation zone's, a trough's supply, a main valve. A truth,
+#: so it has no unit (§3.4).
+#:
+#: A genuine gap. CF names physical quantities and has no term for an actuator's state;
+#: the nearest it has, `surface_downward_mass_flux_of_water_due_to_irrigation`, is a rate
+#: of water, which a valve's state is not. ODM2 has water pumped for agriculture, a volume,
+#: but nothing for whether a valve stood open. A controller reports exactly this, opening
+#: and closing (OpenSprinkler over MQTT, docs/notes/irrigation-projects.md), and the
+#: watering check needs it to tell a blocked drip line from a bed nobody watered.
+#: To be published upstream to ODM2 with `vessel_fill_fraction`.
+VALVE_OPEN = LOCAL + "valve_open/"
+
 
 #: Every term this project declares, by URI, with the UCUM unit it is normally
 #: reported in and where the term comes from. `make vocab` prints it; the point is
@@ -137,6 +149,7 @@ TERMS: dict[str, tuple[str, str]] = {
     BATTERY_VOLTAGE: ("V", "ODM2"),
     RSSI: ("dB[mW]", "ODM2"),
     VESSEL_FILL_FRACTION: ("1", "local"),
+    VALVE_OPEN: (None, "local"),
 }
 
 
@@ -190,6 +203,11 @@ def check(observed_property: str, unit: str | None, *, raw: bool = False,
             f"(`python3 vocab.py --resolve`) — an unregistered URI is how an invented "
             f"term got in before (§3.4)")
         return problems
+    if TERMS[observed_property][0] is None:
+        # A truth: open or shut, wet or dry. §3.4 gives a boolean datastream no unit, and
+        # one declared in any unit is a measurement pretending.
+        return [] if unit is None else [
+            f"{observed_property} is a truth and takes no unit; {unit!r} declared (§3.4)"]
     accepted = ACCEPTED_UNITS.get(observed_property, frozenset({TERMS[observed_property][0]}))
     if probability_of is not None:
         # A probability is in % or 1 whatever its term; the event's threshold is what

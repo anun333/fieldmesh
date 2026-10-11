@@ -44,7 +44,9 @@ tunnel, a garden-sized field. Three things here touch them.
 
 ## What could flow each way, in the order worth doing
 
-1. **Read the valves into the log: buildable now, no commands.** OpenSprinkler publishes
+1. **Read the valves into the log: buildable now, no commands.** *Built 2026-10-11: an
+   OpenSprinkler profile in the MQTT bridge, a `valve_open` term, and the watering check
+   naming a blocked line or a bed nobody watered ([modules/soilwater](../../modules/soilwater/README.md#did-the-water-arrive)).* OpenSprinkler publishes
    each valve's opening and closing over MQTT, under its configured prefix
    (firmware `services/notifier.cpp`):
    * `station/<n>`, `{"state":1,"duration":…}` on opening;

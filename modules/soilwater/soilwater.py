@@ -79,6 +79,10 @@ class Bed:
     wet_margin: float = 0.02
     soon_days: float = 2.0
     stale_after_h: float = 6.0
+    #: The series of the valve that waters this bed, open or shut (`vocab.VALVE_OPEN`),
+    #: when a controller reports it — an OpenSprinkler's station through the MQTT bridge.
+    #: With it the watering check can tell a blocked line from a bed nobody watered.
+    valve: UUID | None = None
 
     def __post_init__(self) -> None:
         if not 0 < self.wilting_point < self.field_capacity < 1:
@@ -302,12 +306,43 @@ def watering_check_context(decision: dict, bed: Bed) -> dict:
 
 def response_context(state, bed: Bed, since: _dt.datetime, at: _dt.datetime) -> dict:
     """How much the root zone's water rose between `since` and `at`, as a fraction and
-    in percentage points, from the same depth-weighted reading the advice uses."""
+    in percentage points, from the same depth-weighted reading the advice uses; and,
+    when the bed's valve reports, how long it stood open (`valve_open_min`) and whether
+    that is known (`valve_known`)."""
     before, _ = bed_context(state, bed, since)
     after, _ = bed_context(state, bed, at)
     ok = before["usable"] and after["usable"]
     rise = after["theta"] - before["theta"] if ok else 0.0
-    return {"has_reading": ok, "rise": round(rise, 4), "rise_percent": round(rise * 100.0, 1)}
+    known, minutes = valve_minutes(state, bed.valve, since, at) if bed.valve else (False, 0.0)
+    return {"has_reading": ok, "rise": round(rise, 4), "rise_percent": round(rise * 100.0, 1),
+            "valve_known": known, "valve_open_min": round(minutes, 1)}
+
+
+def valve_minutes(state, valve: UUID, since: _dt.datetime, at: _dt.datetime) -> tuple[bool, float]:
+    """How long a valve stood open between two times, from its open-and-shut series as
+    received by `at`: `(known, minutes)`. Known needs its state at `since` — its last
+    report before then — or a first report after it that opens it. A first report that
+    shuts a valve never seen opening is a lost message, not a valve that stayed shut."""
+    rows = sorted((o for o in state.live_observations_of(valve)
+                   if o.received_at <= at and o.measured_at <= at and isinstance(o.result, bool)),
+                  key=lambda o: o.measured_at)
+    before = [o for o in rows if o.measured_at < since]
+    inside = [o for o in rows if o.measured_at >= since]
+    is_open = before[-1].result if before else None
+    if is_open is None and inside and not inside[0].result:
+        return False, 0.0
+    if is_open is None and not inside:
+        return False, 0.0
+    minutes, opened = 0.0, since if is_open else None
+    for o in inside:
+        if o.result and opened is None:
+            opened = o.measured_at
+        elif not o.result and opened is not None:
+            minutes += (o.measured_at - opened) / _dt.timedelta(minutes=1)
+            opened = None
+    if opened is not None:
+        minutes += (at - opened) / _dt.timedelta(minutes=1)
+    return True, minutes
 
 
 def render(decision: dict, language: str = "en", state=None) -> str | None:
@@ -318,7 +353,8 @@ def render(decision: dict, language: str = "en", state=None) -> str | None:
 # ---------------------------------------------------------------- backtest
 
 def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
-             probe_noise: float = 0.01, check=None, blocked=frozenset()) -> dict:
+             probe_noise: float = 0.01, check=None, blocked=frozenset(),
+             forgotten=frozenset(), valve: bool = False) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
@@ -328,8 +364,11 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     With `check`, a watering-check regimen (`watering_check()`) runs after each advice to
     water, and the days in `blocked` (counted from `start`) are waterings that never reach
     the bed, as through a blocked drip line: the person waters, the soil gets nothing.
-    The result's `checks` says, per watering, whether the regimen said the water did not
-    arrive."""
+    The days in `forgotten` are advice to water that nobody followed. With `valve`, the
+    bed's valve reports opening and shutting, as an OpenSprinkler station does through the
+    MQTT bridge: it runs on a blocked day and stays shut on a forgotten one. The result's
+    `checks` says, per watering, whether the regimen said the water did not arrive, and in
+    which words."""
     import statistics
     import random
 
@@ -355,8 +394,21 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     cal = uuid7()
     for rec in (raw, probe, Installation(uuid7(), sensor, land, start - 24 * HOUR, depth_m=0.20)):
         state.add(rec)
+    valve_ds = None
+    if valve:
+        valve_ds = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(),
+                              observed_property=V.VALVE_OPEN, feature=land,
+                              kind=DatastreamKind.RAW, unit=None)
+        state.add(valve_ds)
+        state.add(Observation(uuid7(), valve_ds.id, start - HOUR, 1.0, start - HOUR, False,
+                              ClockQuality.NETWORK, node="opensprinkler", boot=1, seq=0))
+
+    def report(when, is_open, seq=[1]):
+        seq[0] += 1
+        state.add(Observation(uuid7(), valve_ds.id, when, 1.0, when, is_open,
+                              ClockQuality.NETWORK, node="opensprinkler", boot=1, seq=seq[0] & 0xFFFF))
     bed = Bed(land, b.field_capacity, b.wilting_point, root_depth_mm=b.depth_mm,
-              skip_rain_mm=D.SKIP_MM)
+              skip_rain_mm=D.SKIP_MM, valve=valve_ds.id if valve_ds else None)
     advisor, noise = Advisor(Log()), random.Random(seed)
     applied, dose_now, stressed_h, stress, advice = 0.0, 0.0, 0.0, [], {}
     runner = None
@@ -381,14 +433,20 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             if runner is not None:
                 runner.start(check, watering_check_context(d, bed), when, subject=bed.feature)
         day = (when - start).days
-        if when.hour == D.WATER_HOUR and dose_now:
+        if when.hour == D.WATER_HOUR and dose_now and day not in forgotten:
+            if valve_ds is not None and when.minute == 0:
+                report(when, True)
             if day not in blocked:
                 world.irrigate("field", dose_now)
             applied += dose_now
+        if valve_ds is not None and when.hour == D.WATER_HOUR + 1 and when.minute == 0 \
+                and dose_now and day not in forgotten:
+            report(when, False)
         if runner is not None and when.minute == 0:
             for e in runner.tick(when, respond):
                 checks.append({"day": (_dt.datetime.fromisoformat(e.payload["due_at"]) - start).days,
                                "alert": e.payload["alert"],
+                               "key": (e.payload["message"] or {}).get("key"),
                                "rise_percent": e.payload["context"].get("rise_percent"),
                                "expected_percent": round(e.payload["context"]["expected_percent"], 1)})
         if when.hour == D.WATER_HOUR + 1 and when.minute == 0:

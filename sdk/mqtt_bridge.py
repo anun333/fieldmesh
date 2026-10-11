@@ -4,9 +4,11 @@
 
 Most cheap sensors already speak MQTT and differ only in topic shape and payload: a
 greenhouse ESPHome node, a Tasmota plug on the irrigation pump, a Shelly relay, a Zigbee
-soil sensor, a Home Assistant entity, and — the one that matters most for fields — a
-**ChirpStack v4** LoRaWAN uplink, which is what a farm gateway will commonly be running.
-Each profile below knows one family's shape.
+soil sensor, a Home Assistant entity, an **OpenSprinkler** irrigation controller opening and
+closing its valves, and — the one that matters most for fields — a **ChirpStack v4**
+LoRaWAN uplink, which is what a farm gateway will commonly be running. Each profile below
+knows one family's shape. A family whose root topic is not its default names it in the
+bindings: `{"prefixes": {"opensprinkler": "farm/os1"}, "devices": …}`.
 
 Derived from campus_twin's `mqtt_bridge.py` (see PROVENANCE.md). The profile parsers
 are the same; what they feed is not, and four rules changed on the way:
@@ -51,8 +53,9 @@ from model import ClockQuality, DatastreamKind, Observation
 
 UTC = _dt.timezone.utc
 
-PROFILES = ("esphome", "tasmota", "shelly", "zigbee2mqtt", "ha", "chirpstack")
-DEFAULT_PREFIXES = {"zigbee2mqtt": "zigbee2mqtt", "ha": "homeassistant"}
+PROFILES = ("esphome", "tasmota", "shelly", "zigbee2mqtt", "ha", "chirpstack", "opensprinkler")
+DEFAULT_PREFIXES = {"zigbee2mqtt": "zigbee2mqtt", "ha": "homeassistant",
+                    "opensprinkler": "opensprinkler"}
 #: Link-health keys a profile reports beside its points. Bindable like any point —
 #: §4.3 makes signal and battery ordinary datastreams, not a side channel.
 HEALTH_KEYS = ("rssi", "snr", "battery", "linkquality")
@@ -68,6 +71,9 @@ def detect(topic: str, prefixes: dict | None = None) -> str | None:
     """Which family published this topic, or None if it is not one of ours."""
     px = {**DEFAULT_PREFIXES, **(prefixes or {})}
     t = topic.split("/")
+    root = px["opensprinkler"].split("/")
+    if t[:len(root)] == root and len(t) > len(root):
+        return "opensprinkler"
     if t[0] == px["zigbee2mqtt"] and len(t) == 2 and t[1] != "bridge":
         return "zigbee2mqtt"
     if t[0] == px["ha"] and len(t) == 4 and t[3] == "state":
@@ -135,7 +141,7 @@ def _payload(raw):
         return raw
 
 
-def parse(profile: str, topic: str, raw) -> dict | None:
+def parse(profile: str, topic: str, raw, prefixes: dict | None = None) -> dict | None:
     """`(profile, topic, payload)` -> `{device, points, health, stamp}`, or None.
 
     `stamp` is the payload's own time string, untouched; deciding what it means is
@@ -143,6 +149,8 @@ def parse(profile: str, topic: str, raw) -> dict | None:
     """
     t = topic.split("/")
     p = _payload(raw)
+    if profile == "opensprinkler":
+        return _opensprinkler({**DEFAULT_PREFIXES, **(prefixes or {})}["opensprinkler"], t, p)
     if profile == "esphome":
         return {"device": t[0], "points": {t[2]: p}, "health": {}, "stamp": None}
     if profile == "tasmota":
@@ -177,6 +185,46 @@ def parse(profile: str, topic: str, raw) -> dict | None:
         return {"device": device, "points": _flat(p.get("object") or {}),
                 "health": health, "stamp": p.get("time")}
     return None
+
+
+def _opensprinkler(root: str, t: list, p) -> dict | None:
+    """An OpenSprinkler controller (GPL-3.0 firmware), as its firmware publishes under its
+    root topic (`services/notifier.cpp`; docs/notes/irrigation-projects.md):
+
+    * `station/<n>`: `{"state":1,"duration":s}` as a valve opens, the duration scheduled;
+      `{"state":0,"duration":s,"flow":f}` as it closes, the duration it ran and, with a
+      flow sensor, its flow. Points `station.<n>.open`, `.scheduled_s`, `.ran_s`, `.flow`;
+    * `raindelay`, `sensor1`… `sensor4`: `{"state":0|1}`, points of the same names;
+    * `sensor/flow`: `{"count","volume"}`, points `flow.count` and `flow.volume`;
+    * `weather`: `{"water level":%}`, the controller's watering scale, point `water_level`;
+    * `station/<n>/alert/flow`: point `station.<n>.alert_flow_rate`.
+
+    The device is the root topic, which names the controller. A valve's state is a truth,
+    never 1 and 0. Its messages carry no time, so they are stamped on arrival."""
+    rest = t[len(root.split("/")):]
+    out = {"device": root, "points": {}, "health": {}, "stamp": None}
+    if not isinstance(p, dict):
+        return None if rest != ["availability"] else out
+    if len(rest) == 2 and rest[0] == "station" and rest[1].isdigit() and "state" in p:
+        n, opened = rest[1], bool(p["state"])
+        out["points"][f"station.{n}.open"] = opened
+        if "duration" in p:
+            out["points"][f"station.{n}.{'scheduled_s' if opened else 'ran_s'}"] = p["duration"]
+        if not opened and "flow" in p:
+            out["points"][f"station.{n}.flow"] = p["flow"]
+    elif len(rest) == 4 and rest[0] == "station" and rest[2:] == ["alert", "flow"]:
+        if "flow_rate" in p:
+            out["points"][f"station.{rest[1]}.alert_flow_rate"] = p["flow_rate"]
+    elif len(rest) == 1 and (rest[0] == "raindelay" or (rest[0].startswith("sensor") and rest[0][6:].isdigit())):
+        if "state" in p:
+            out["points"][rest[0]] = bool(p["state"])
+    elif rest == ["sensor", "flow"]:
+        out["points"].update({f"flow.{k}": p[k] for k in ("count", "volume") if k in p})
+    elif rest == ["weather"] and "water level" in p:
+        out["points"]["water_level"] = p["water level"]
+    else:
+        return None
+    return out
 
 
 # --------------------------------------------------------------------- bridge
@@ -290,7 +338,7 @@ class Bridge:
         if profile is None:
             self.report.not_ours += 1
             return 0
-        parsed = parse(profile, topic, raw)
+        parsed = parse(profile, topic, raw, self.prefixes)
         if parsed is None:
             self.report.not_ours += 1
             return 0
@@ -363,7 +411,8 @@ def main(argv=None) -> int:
             log.receive(event)
     state = P.state_from_log(log)
     with open(args.bindings, encoding="utf-8") as handle:
-        bridge = Bridge(log, state, json.load(handle))
+        bindings = json.load(handle)
+        bridge = Bridge(log, state, bindings, prefixes=bindings.get("prefixes"))
     report = bridge.feed(sys.stdin)
     summary = {k: (sorted(v) if isinstance(v, set) else v)
                for k, v in report.__dict__.items()}

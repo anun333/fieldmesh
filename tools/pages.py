@@ -408,6 +408,8 @@ def vocab_pages(md, links: Links) -> tuple[list[Page], dict]:
         names = labels.get(uri, {})
         label = names.get("en", code.replace("_", " "))
         unit = vocab.TERMS.get(uri, ("", ""))[0]
+        unit_cell = (f"<code>{esc(unit)}</code>" if unit is not None
+                     else "none: a truth, open or shut (§3.4)")
         line = next(i for i, s in enumerate(source.splitlines(), 1)
                     if re.match(rf"\s*{name}\s*=", s))
         label_rows = "".join(f'<li lang="{esc(lang)}"><span class="code">{esc(lang)}</span> '
@@ -417,7 +419,7 @@ def vocab_pages(md, links: Links) -> tuple[list[Page], dict]:
             f'<h1 id="top">{esc(label)}</h1>\n'
             f'<p class="uri"><code>{esc(uri)}</code></p>\n'
             f'<p class="lede">{esc(definition)}</p>\n'
-            f'<dl class="facts">\n<dt>Unit (UCUM)</dt><dd><code>{esc(unit)}</code></dd>\n'
+            f'<dl class="facts">\n<dt>Unit (UCUM)</dt><dd>{unit_cell}</dd>\n'
             f'<dt>Labels</dt><dd><ul class="plain">{label_rows}</ul></dd>\n'
             f'<dt>Status</dt><dd>Local, because neither CF nor ODM2 has the term, and '
             f'owed upstream to ODM2. Its durable identifier will be a w3id.org address that '
@@ -447,13 +449,14 @@ def vocab_pages(md, links: Links) -> tuple[list[Page], dict]:
         concepts.append(concept)
         local_rows.append(f'<tr><td><a href="{esc(relative(out, index_out))}">{esc(label)}'
                           f"</a></td><td><code>{esc(uri)}</code></td>"
-                          f"<td><code>{esc(unit)}</code></td></tr>")
+                          f"<td>{unit_cell}</td></tr>")
     every = []
     for uri, (unit, src) in sorted(vocab.TERMS.items(), key=lambda kv: (kv[1][1], kv[0])):
         shown = relative(f"vocab/{uri[len(vocab.LOCAL):].strip('/')}/index.html", index_out) \
             if src == "local" else uri
+        cell = f"<code>{esc(unit)}</code>" if unit is not None else "none (a truth)"
         every.append(f'<tr><td><a href="{esc(shown)}"><code>{esc(uri)}</code></a></td>'
-                     f"<td><code>{esc(unit)}</code></td><td>{esc(src)}</td></tr>")
+                     f"<td>{cell}</td><td>{esc(src)}</td></tr>")
     body = (
         '<h1 id="top">Vocabulary</h1>\n'
         '<p class="lede">Every observed-property term fieldmesh uses, by URI, with the '
