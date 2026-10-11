@@ -31,7 +31,6 @@ link to the evidence; do not delete it.
 | **Dropping capabilities** (`CapabilityBoundingSet=`) | Nothing: a user manager is refused it. The notifier's live run on 2026-10-11 had to leave it out | The unit started by the system manager, then `grep Cap /proc/<pid>/status` | [deploy/systemd](../deploy/systemd/README.md) |
 | **Push reaching a real phone**: the ntfy app showing the alert, and its "I'm on it" button sending the acknowledgement | A real ntfy server (v2.11.0), open and locked down. The button was pressed by making the exact request its action describes. Per ntfy's documentation, an iPhone gets instant notifications from a self-hosted server only when that server relays through ntfy.sh (`upstream-base-url`); not tried | The ntfy app on an Android phone and an iPhone, subscribed to a test topic on the server the pilot will use | [modules/notify](../modules/notify/README.md) |
 | **The data service facing the internet** | Real sockets on this machine: tokens, grants, TLS with a generated certificate, rate limits, timeouts | Someone outside trying to break it | [README](../README.md), [server](../server/README.md) |
-| **The farm page served with TLS** | Its refusal to serve beyond the machine without TLS; the data service's TLS, whose handling it copies | A test with a generated certificate, as the data service has | [modules/board](../modules/board/README.md) |
 
 ## Needs a person
 
@@ -49,3 +48,9 @@ link to the evidence; do not delete it.
 * **The gateway with the module host inside it.** The host is tested on its own and as its
   own service. "On a gateway it runs inside the gateway" is how the systemd notes describe
   it, but nothing in `sdk/gateway.py` starts the host yet.
+
+## Checked since this list began
+
+| Checked | How | Evidence |
+| --- | --- | --- |
+| **The farm page served with TLS** (2026-10-11) | A generated certificate: the pages over TLS, nothing over plain HTTP, an untrusted certificate refused, and a client that stalls its handshake stalling only itself | [modules/board/test_board.py](../modules/board/test_board.py), `TestTls` |

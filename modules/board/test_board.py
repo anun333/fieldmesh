@@ -190,6 +190,86 @@ class TestServing(unittest.TestCase):
             B.make_server(self.dir, "0.0.0.0", 0)
 
 
+try:
+    import cryptography  # noqa: F401
+    HAVE_CRYPTOGRAPHY = True
+except ImportError:
+    HAVE_CRYPTOGRAPHY = False
+
+
+@unittest.skipUnless(HAVE_CRYPTOGRAPHY, "cryptography is not installed (requirements-tools.txt)")
+class TestTls(unittest.TestCase):
+    """Given a certificate, it serves the pages over TLS and nothing over plain HTTP, and
+    a client that stalls its handshake stalls only itself."""
+
+    def setUp(self):
+        import ipaddress
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.x509.oid import NameOID
+        key = ec.generate_private_key(ec.SECP256R1())
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "127.0.0.1")])
+        now = _dt.datetime.now(tz=UTC)
+        cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name)
+                .public_key(key.public_key()).serial_number(x509.random_serial_number())
+                .not_valid_before(now - _dt.timedelta(days=1))
+                .not_valid_after(now + _dt.timedelta(days=1))
+                .add_extension(x509.SubjectAlternativeName(
+                    [x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), critical=False)
+                .sign(key, hashes.SHA256()))
+        self.dir = tempfile.mkdtemp()
+        self.cert, key_path = os.path.join(self.dir, "c.pem"), os.path.join(self.dir, "k.pem")
+        with open(self.cert, "wb") as h:
+            h.write(cert.public_bytes(serialization.Encoding.PEM))
+        with open(key_path, "wb") as h:
+            h.write(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                      serialization.NoEncryption()))
+        pages = os.path.join(self.dir, "pages")
+        B.write(BOARD, [], T0, pages)
+        self.server = B.make_server(pages, "127.0.0.1", 0, tls=B.tls_context(self.cert, key_path))
+        self.port = self.server.server_address[1]
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def get(self, path, context=None):
+        import http.client
+        conn = (http.client.HTTPSConnection("127.0.0.1", self.port, context=context, timeout=10)
+                if context else http.client.HTTPConnection("127.0.0.1", self.port, timeout=10))
+        try:
+            conn.request("GET", path)
+            r = conn.getresponse()
+            return r.status, r.read()
+        finally:
+            conn.close()
+
+    def test_it_speaks_tls_and_nothing_else(self):
+        import http.client
+        import ssl
+        trusted = ssl.create_default_context(cafile=self.cert)
+        code, body = self.get("/index.es.html", trusted)
+        self.assertEqual(code, 200)
+        self.assertIn("Necesita a alguien".encode(), body)
+        with self.assertRaises((http.client.HTTPException, OSError)):
+            self.get("/")
+        with self.assertRaises(ssl.SSLError):
+            self.get("/", ssl.create_default_context())     # a certificate it does not trust
+
+    def test_a_stalled_handshake_stalls_only_itself(self):
+        import socket
+        import ssl
+        stalled = socket.create_connection(("127.0.0.1", self.port))   # says nothing
+        try:
+            code, _ = self.get("/", ssl.create_default_context(cafile=self.cert))
+            self.assertEqual(code, 200)
+        finally:
+            stalled.close()
+
+
 class TestAsItsOwnProcess(unittest.TestCase):
     """Through the host, granted the farm's decisions and their names, it writes the
     pages and writes nothing to the log."""

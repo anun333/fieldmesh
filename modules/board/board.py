@@ -295,6 +295,15 @@ def is_loopback(host: str) -> bool:
         return host == "localhost"
 
 
+def tls_context(cert: str, key: str):
+    """A server context, TLS 1.2 at least, as the data service's."""
+    import ssl
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.load_cert_chain(cert, key)
+    return ctx
+
+
 def make_server(out_dir: str, host: str = "127.0.0.1", port: int = 8080, *, tls=None):
     """Serves the board's pages and nothing else, read-only. The data service's rule
     (server/serve.py): beyond this machine, only with TLS, since the page names the
@@ -372,7 +381,6 @@ def main(argv=None) -> int:
     """The board as its own process (§8.3): follows the log through the host, writes
     the pages every minute, and serves them if asked."""
     import argparse
-    import ssl
     import threading
     import time
     import modhost as M
@@ -391,11 +399,7 @@ def main(argv=None) -> int:
         board = Board.from_json(json.load(h))
     if args.serve:
         host, _, port = args.serve.rpartition(":")
-        tls = None
-        if args.tls_cert:
-            tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            tls.minimum_version = ssl.TLSVersion.TLSv1_2
-            tls.load_cert_chain(args.tls_cert, args.tls_key)
+        tls = tls_context(args.tls_cert, args.tls_key) if args.tls_cert else None
         server = make_server(args.out, host or "127.0.0.1", int(port), tls=tls)
         threading.Thread(target=server.serve_forever, daemon=True).start()
     with M.ModuleClient(args.socket, M.token_from_environment()) as client:
