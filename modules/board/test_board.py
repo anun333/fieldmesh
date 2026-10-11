@@ -112,6 +112,85 @@ class TestWhatStands(unittest.TestCase):
         self.assertEqual(B.snapshot(f.log.events, T0)["standing"], [])
 
 
+class TestReadings(unittest.TestCase):
+    """The newest reading of each series the board is granted, beside the alerts."""
+
+    def setUp(self):
+        import fixtures as FX
+        import vocab as V
+        self.FX = FX
+        self.f = Farm()
+        raw = FX.raw_datastream(unit="1", observed_property=V.VESSEL_FILL_FRACTION,
+                                expected_interval=300.0, max_latency=300.0)
+        self.trough = FX.derived_datastream(raw)
+        self.air = FX.derived_datastream(FX.raw_datastream(unit="Cel", observed_property=V.AIR_TEMPERATURE,
+                                                           expected_interval=900.0, max_latency=900.0))
+        for ds in (raw, self.trough, self.air):
+            self.f.state.add(ds)
+        for entity, name in ((self.trough.id, "bebedero norte"), (self.air.id, "invernadero")):
+            self.f.state.add(Label(uuid7(), entity, name, T0 - 600 * MIN, language="es"))
+        self.board = B.Board("Harrow Bend", "America/Chicago", ("en", "es"), {},
+                             (self.trough.id, self.air.id, uuid7()))
+
+    def add(self, ds, value, minute):
+        o = self.FX.observation(ds, result=value, measured_at=T0 + minute * MIN,
+                                received_at=T0 + minute * MIN, seq=minute)
+        self.f.state.add(o)
+        return o
+
+    def page(self, at):
+        snap = B.snapshot(self.f.log.events, at)
+        snap["readings"] = B.latest_readings(self.f.state, self.board.series, at)
+        return B.render(self.board, snap, "es", at, self.f.state)
+
+    def test_the_newest_reading_each_in_its_own_terms(self):
+        self.add(self.trough, 0.44, 0)
+        self.add(self.trough, 0.46, 5)
+        self.add(self.air, 3.25, 0)
+        page = self.page(T0 + 10 * MIN)
+        self.assertIn("Últimas lecturas", page)
+        self.assertIn("<strong>bebedero norte</strong>: 46 %", page)
+        self.assertIn("<strong>invernadero</strong>: 3,2 °C", page, "a decimal comma in Spanish")
+        self.assertIn("Sin lecturas en los últimos tres días.", page, "a series it was not given")
+
+    def test_a_flagged_or_late_reading_says_so(self):
+        from model import QualityFlag
+        o = self.add(self.trough, 0.05, 0)
+        self.f.state.add(self.FX.assertion(o.id, flags={QualityFlag.STUCK}, check="stuck",
+                                           asserted_at=T0 + MIN))
+        self.add(self.air, 3.0, 0)
+        page = self.page(T0 + 60 * MIN)
+        self.assertIn("Los controles marcaron esta lectura: estancada.", page)
+        # Both are late: three five-minute intervals and three of fifteen are under an hour.
+        self.assertEqual(page.count("Nada más reciente desde hace 1,0 horas."), 2)
+        self.assertEqual(page.count('<article class="alert"><p><strong>'), 2)
+
+    def test_a_reading_not_yet_received_is_not_shown(self):
+        o = self.FX.observation(self.trough, result=0.9, measured_at=T0, received_at=T0 + 30 * MIN, seq=1)
+        self.f.state.add(o)
+        [r, *_] = B.latest_readings(self.f.state, self.board.series, T0 + 10 * MIN)
+        self.assertIsNone(r["value"])
+
+
+class TestPruning(unittest.TestCase):
+    def test_a_board_that_runs_for_months_holds_days_and_shows_the_same(self):
+        f = Farm()
+        start = T0
+        for d in range(120):
+            at = start + d * 24 * 60 * MIN
+            up = f.water(NORTH, "water-low", True, at, key="water.low")
+            f.told(up, MARIA, "sms", at)
+            f.water(NORTH, "water-low", False, at + 60 * MIN)
+        standing = f.water(SOUTH, "water-empty", True, start + 30 * 24 * 60 * MIN)
+        f.told(standing, MARIA, "sms", start + 30 * 24 * 60 * MIN)
+        now = start + 119 * 24 * 60 * MIN + 2 * 60 * MIN
+        kept = B.prune(list(f.log.events), now)
+        self.assertLess(len(kept), 20)
+        self.assertEqual(B.render(BOARD, B.snapshot(kept, now), "en", now, f.state),
+                         B.render(BOARD, B.snapshot(f.log.events, now), "en", now, f.state))
+        self.assertIn(str(standing.id), {str(e.id) for e in kept}, "an old alert still standing")
+
+
 class TestThePage(unittest.TestCase):
     def test_everything_written_by_a_farm_or_a_module_is_escaped(self):
         f = Farm()
@@ -280,14 +359,24 @@ class TestAsItsOwnProcess(unittest.TestCase):
         d = tempfile.mkdtemp(prefix="fm-", dir="/tmp" if os.path.isdir("/tmp") else None)
         host = M.ModuleHost(f.log, f.state, os.path.join(d, "m.sock")).start()
         try:
-            _, token = M.grant(f.log, M.Manifest.load(os.path.join(HERE, "module.json")))
+            import fixtures as FX
+            import vocab as V
             now = _dt.datetime.now(tz=UTC)
+            trough = FX.derived_datastream(FX.raw_datastream(
+                unit="1", observed_property=V.VESSEL_FILL_FRACTION, expected_interval=300.0))
+            f.state.add(trough)
+            f.state.add(Label(uuid7(), trough.id, "bebedero sur", now - 60 * MIN, language="es"))
+            f.state.add(FX.observation(trough, result=0.61, measured_at=now - 4 * MIN,
+                                       received_at=now - 4 * MIN, seq=1))
+            _, token = M.grant(f.log, M.Manifest.load(os.path.join(HERE, "module.json")),
+                               datastreams=[trough.id])
             up = f.water(NORTH, "water-empty", True, now - 5 * MIN)
             f.told(up, MARIA, "sms", now - 5 * MIN)
             config = os.path.join(d, "board.json")
             with open(config, "w", encoding="utf-8") as h:
                 json.dump({"farm": "Harrow Bend", "timezone": "America/Chicago",
-                           "languages": ["en", "es"], "people": {MARIA: "María"}}, h)
+                           "languages": ["en", "es"], "people": {MARIA: "María"},
+                           "series": [str(trough.id)]}, h)
             before = len(f.log.events)
             done = subprocess.run([sys.executable, "-I", os.path.join(HERE, "board.py"),
                                    "--socket", os.path.join(d, "m.sock"), "--config", config,
@@ -299,6 +388,7 @@ class TestAsItsOwnProcess(unittest.TestCase):
                 page = h.read()
             self.assertIn("bebedero norte está casi vacío", page)
             self.assertIn("María (SMS", page)
+            self.assertIn("<strong>bebedero sur</strong>: 61 %", page, "a granted reading, by name")
             self.assertEqual(len(f.log.events), before, "it writes nothing")
         finally:
             host.stop()

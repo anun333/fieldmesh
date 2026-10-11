@@ -38,7 +38,8 @@ sudo python3 /opt/fieldmesh/sdk/modhost.py revoke --log /var/lib/fieldmesh/farm.
 ## The notifier and the board
 
 Both read every module's decisions, which an owner grants by installing them: their
-manifests ask for it, and the grant record says so (§8.3). Neither is granted a reading.
+manifests ask for it, and the grant record says so (§8.3). The notifier is granted no
+reading; the board only the series its page shows, named in its grant.
 
 ```sh
 sudo python3 /opt/fieldmesh/sdk/modhost.py grant --log /var/lib/fieldmesh/farm.jsonl \
@@ -50,8 +51,9 @@ sudo cp -r deploy/systemd/fieldmesh-module@notify.service.d /etc/systemd/system/
 sudo systemctl enable --now fieldmesh-module@notify
 
 sudo python3 /opt/fieldmesh/sdk/modhost.py grant --log /var/lib/fieldmesh/farm.jsonl \
-    --manifest /opt/fieldmesh/modules/board/module.json --token-out /etc/fieldmesh/modules/board.token
-sudoedit /etc/fieldmesh/modules/board.json       # farm, time zone, languages, people's names
+    --manifest /opt/fieldmesh/modules/board/module.json \
+    --datastream <each series the page shows> --token-out /etc/fieldmesh/modules/board.token
+sudoedit /etc/fieldmesh/modules/board.json       # farm, time zone, languages, names, series
 sudo cp -r deploy/systemd/fieldmesh-module@board.service.d /etc/systemd/system/
 sudo systemctl enable --now fieldmesh-module@board   # http://127.0.0.1:8080/
 ```

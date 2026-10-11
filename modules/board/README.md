@@ -10,6 +10,11 @@ language:
   takes it, then green.
 * **Also standing:** what the modules say now that went to nobody, such as this morning's
   soil advice.
+* **Latest readings:** the newest reading of each series the board is given (a trough's
+  level, a bed's water, the tunnel's air), with its time. A reading the health checks
+  flagged says so and names the flag, and one more than three of its intervals old says
+  how long nothing newer has come. A fraction shows as a percentage, and each language
+  writes its own decimal mark.
 * **Cleared in the last day:** what stopped being the case, and when.
 
 Like the [notifier](../notify/), it reads any module's decisions without importing any
@@ -45,8 +50,15 @@ notifier's business):
 
 ```json
 {"farm": "Harrow Bend", "timezone": "America/Chicago", "languages": ["en", "es"],
- "people": {"0192…": "María", "0192…": "Sam"}}
+ "people": {"0192…": "María", "0192…": "Sam"},
+ "series": ["<trough level datastream id>", "<hoop house air datastream id>"]}
 ```
+
+The series it shows are the ones its grant names (`modhost.py grant --datastream …`); a
+series it was not given shows as having no reading, never as an error. It keeps what it
+reads of the log to what a page needs: on each question its last two answers, every
+decision of the last day, and what was sent about those. A board that runs for months
+holds days of decisions, and the page is the same (tested).
 
 **Serving it:**
 
@@ -64,6 +76,5 @@ notifier's business):
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)); strings in [packs/](packs/) under the
 `board.` prefix, with the Spanish an unreviewed draft.
 
-**Next:** the troughs' and beds' latest readings beside their alerts, which needs a grant
-of those datastreams; a certificate story for the farm's own network that does not ask a
-farmer to run a certificate authority.
+**Next:** a certificate story for the farm's own network that does not ask a farmer to run
+a certificate authority.

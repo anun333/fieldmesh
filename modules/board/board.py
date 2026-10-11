@@ -61,11 +61,16 @@ class Board:
     #: Names of the people acknowledgements and notifications name by id. Names only:
     #: how to reach them is the notifier's business.
     people: dict = field(default_factory=dict)
+    #: The series whose newest reading the page shows — troughs, beds, the tunnel's air —
+    #: by datastream id. The board's grant must name them.
+    series: tuple = ()
 
     @classmethod
     def from_json(cls, doc: dict) -> "Board":
+        from uuid import UUID
         return cls(doc.get("farm", ""), doc.get("timezone", "UTC"),
-                   tuple(doc.get("languages", ("en",))), dict(doc.get("people", {})))
+                   tuple(doc.get("languages", ("en",))), dict(doc.get("people", {})),
+                   tuple(UUID(s) for s in doc.get("series", ())))
 
     def local(self, at: _dt.datetime) -> _dt.datetime:
         from zoneinfo import ZoneInfo
@@ -133,7 +138,58 @@ def snapshot(events, at: _dt.datetime) -> dict:
             "cleared": sorted(cleared, key=newest, reverse=True)}
 
 
+def latest_readings(state, series, at: _dt.datetime) -> list[dict]:
+    """The newest reading of each series received by `at`, with its quality as asserted
+    by then and whether it is late: more than three of its intervals old."""
+    from model import Usable
+    out = []
+    for ds_id in series:
+        ds = state.datastreams.get(ds_id)
+        row = {"datastream": ds_id, "found": ds is not None}
+        if ds is None:
+            out.append(row)
+            continue
+        rows = [o for o in state.live_observations_of(ds_id)
+                if o.received_at <= at and o.measured_at <= at
+                and isinstance(o.result, (int, float)) and not isinstance(o.result, bool)]
+        row["unit"] = ds.unit
+        if not rows:
+            out.append({**row, "value": None})
+            continue
+        latest = max(rows, key=lambda o: o.measured_at)
+        usable, flags = state.quality_as_of(latest.id, at)
+        every = ds.expected_interval or ds.max_latency or 3600.0
+        age_h = (at - latest.measured_at).total_seconds() / 3600.0
+        out.append({**row, "value": float(latest.result), "measured_at": latest.measured_at,
+                    "good": usable is Usable.GOOD, "flags": sorted(f for f in flags),
+                    "late": age_h * 3600.0 > 3 * every, "age_h": age_h})
+    return out
+
+
+def prune(events: list, at: _dt.datetime) -> list:
+    """What the board still needs of what it has read: on each question its last two
+    answers (the standing one and what it replaced, for "cleared"), every decision of the
+    last day, and what was sent and acknowledged about those. A board that runs for
+    years holds days of decisions, not years."""
+    decisions = [e for e in events if e.kind == "decision" and "evaluated_at" in e.payload]
+    by_topic = {}
+    for e in decisions:
+        by_topic.setdefault((e.payload.get("module"), R.topic_of(e.payload)), []).append(e)
+    keep = {str(e.id) for es in by_topic.values() for e in es[-2:]}
+    since = at - CLEARED_FOR - _dt.timedelta(hours=2)
+    keep |= {str(e.id) for e in decisions
+             if _dt.datetime.fromisoformat(e.payload["evaluated_at"]) >= since}
+    return [e for e in events if (str(e.id) in keep if e.kind == "decision"
+                                   else e.payload.get("decision") in keep)]
+
+
 # ---------------------------------------------------------------------- render
+
+#: Units as a page shows them; a fraction — a trough's level, a soil's water — as a
+#: percentage.
+SYMBOLS = {"Cel": "°C", "[degF]": "°F", "%": "%", "mm": "mm", "m/s": "m/s", "kPa": "kPa",
+           "L": "L", "V": "V"}
+FRACTIONS = {"1", "cm3/cm3", "m3/m3"}
 
 STYLE = """
 :root{--ink:#111;--paper:#fff;--line:#999;--alert:#b00020;--ok:#1b5e20;--quiet:#555}
@@ -234,6 +290,33 @@ def render(board: Board, snap: dict, language: str, at: _dt.datetime, state=None
                    + "</p></article>")
     out.append("</section>")
 
+    if snap.get("readings"):
+        out.append(f"<section><h2>{say('board.readings')}</h2>")
+        for r in snap["readings"]:
+            entity = r["datastream"]
+            label = state.label_for(entity, language) if state is not None and r["found"] else None
+            name = e(label.name if label is not None else str(entity)[:8])
+            if not r["found"] or r.get("value") is None:
+                out.append(f'<article><p><strong>{name}</strong></p>'
+                           f'<p class="state">{say("board.no_reading")}</p></article>')
+                continue
+            # Numbers through the pack, so each language writes its own decimal mark.
+            shown = (say("board.percent", value=r["value"] * 100.0) if r["unit"] in FRACTIONS
+                     else say("board.value", value=r["value"],
+                              unit=SYMBOLS.get(r["unit"], r["unit"] or "")))
+            notes = []
+            if not r["good"]:
+                from model import QualityFlag
+                names = ", ".join(str(t.enum(QualityFlag(f))) for f in r["flags"]) or "?"
+                notes.append(say("board.flagged", flags=names))
+            if r["late"]:
+                notes.append(say("board.late_reading", hours=r["age_h"]))
+            cls = ' class="alert"' if notes else ""
+            out.append(f'<article{cls}><p><strong>{name}</strong>: {shown}'
+                       f' <span class="meta">· {clock(r["measured_at"])}</span></p>'
+                       + "".join(f'<p class="state">{n}</p>' for n in notes) + "</article>")
+        out.append("</section>")
+
     if snap["standing"]:
         out.append(f"<section><h2>{say('board.standing')}</h2>")
         for item in snap["standing"]:
@@ -267,6 +350,8 @@ def render_index(board: Board) -> str:
 def write(board: Board, events, at: _dt.datetime, out_dir: str, state=None) -> list[str]:
     """Every page, each replaced whole so a reader never sees half of one."""
     snap = snapshot(events, at)
+    if board.series and state is not None:
+        snap["readings"] = latest_readings(state, board.series, at)
     pages = {f"index.{tag}.html": render(board, snap, tag, at, state) for tag in board.languages}
     pages["index.html"] = render_index(board)
     os.makedirs(out_dir, exist_ok=True)
@@ -414,6 +499,7 @@ def main(argv=None) -> int:
                 cursor = nxt
             now = _dt.datetime.now(tz=_dt.timezone.utc)
             write(board, events, now, args.out, client.state(now))
+            events = prune(events, now)
             if args.once:
                 return 0
             time.sleep(args.every)

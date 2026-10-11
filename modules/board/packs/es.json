@@ -20,6 +20,12 @@
   "board.someone": "alguien",
   "board.via.sms": "SMS",
   "board.via.ntfy": "notificación",
-  "board.via.none": "?"
+  "board.via.none": "?",
+  "board.readings": "Últimas lecturas",
+  "board.no_reading": "Sin lecturas en los últimos tres días.",
+  "board.flagged": "Los controles marcaron esta lectura: {flags}.",
+  "board.late_reading": "Nada más reciente desde hace {hours:.1f} horas.",
+  "board.value": "{value:.1f} {unit}",
+  "board.percent": "{value:.0f} %"
  }
 }

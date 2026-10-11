@@ -2,9 +2,14 @@
  "name": "board",
  "version": "1",
  "layer": 4,
- "description": "The farm's board: one read-only page per language of the alerts that stand, who was told, who is on it, today's advice and what cleared.",
+ "description": "The farm's board: one read-only page per language of the alerts that stand, who was told, who is on it, today's advice, what cleared, and the newest reading of the series it is granted.",
  "reads": {
-  "observed_properties": [],
+  "observed_properties": [
+   "https://anun333.github.io/fieldmesh/vocab/vessel_fill_fraction/",
+   "http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil/",
+   "http://vocab.nerc.ac.uk/standard_name/air_temperature/",
+   "http://vocab.nerc.ac.uk/standard_name/relative_humidity/"
+  ],
   "events": [
    "decision",
    "notification",
