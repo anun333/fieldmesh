@@ -22,7 +22,7 @@ From cheapest:
 | **Weather-based adjustment** | Either a WaterSense controller, or an add-on that sets the existing controller's seasonal percentage each day from the weather. Hunter's Solar Sync is one: it measures sunlight and temperature and includes rain and freeze shutoff. | EPA: a WaterSense weather-based controller in place of a clock saves an average home nearly 7,600 gallons a year |
 | **Rotary nozzles** | Screw into the existing spray bodies | Rain Bird's RN puts down 0.6 in/h (15 mm/h), against 1.58 in/h (40 mm/h) for its 15 Series spray nozzle at 30 psi. The maker says it "reduces or eliminates run-off on slopes and hard clay soils" and improves efficiency "by up to 30%". |
 | **Pressure-regulating spray bodies** | Hold each head at its design pressure | High pressure means "excessive flow rates, misting, fogging, and uneven coverage". EPA estimates nearly 5,600 gallons a year for a home at 60 psi or more. |
-| **Flow sensor** | Counts the water each zone takes, so a broken head or a leak shows | OpenSprinkler takes one on its sensor input. No study of its savings was found. |
+| **Flow sensor** | Counts the water each zone takes, so a broken head or a leak shows | OpenSprinkler takes one on its sensor input. No study of its savings was found. Which meters, and the arithmetic of a clogged head: [water meters](water-meters.md) |
 
 **One warning about soil sensors.** UF tested four commercial bypass sensors buried 7 to
 10 cm deep. Only one brand's readings tracked the soil's water closely, and one more
