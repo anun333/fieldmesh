@@ -75,7 +75,8 @@ sends first and writes second, so a crash in between can repeat a message, never
 * it says yes in the sender's language or in English and gives an alert's number;
 * it is one or more numbers alone;
 * it says yes with no number: then it takes every open alert its sender was told about.
-  Two troughs on one silent radio are one errand, and "Sí, voy" covers both.
+  Two troughs on one silent radio are one errand, sent as one message, and "Sí, voy"
+  covers both.
 
 A reply that says no is never an acknowledgement, whatever else it contains. "No puedo
 417", "si no puedo" and "can't 417" are all ignored, and the alert keeps climbing. The
@@ -92,13 +93,16 @@ phone; Sam has the push app. Nobody answers, so every alert climbs to Sam.
 | ten days, two troughs | |
 | --- | --- |
 | alerts raised | 5 (two for the outage, three as the float failed) |
-| messages | 16: 5 to María on raising, 5 escalated to Sam, 3 clears to each |
-| SMS segments | 23. Spanish needs "á", which is outside the GSM alphabet, so each SMS holds 70 characters, not 160 |
+| messages | 12: 4 to María on raising, 4 escalated to Sam, 2 clears to each |
+| SMS segments | 22. Spanish needs "á", which is outside the GSM alphabet, so each SMS holds 70 characters, not 160. The longest, the outage's two alerts together, is 6 |
 | first message after a decision | at the next look, within 10 minutes |
 | escalation | exactly 30 minutes after the first message |
 
-**One outage cost two messages to each person.** Both troughs hang off one radio, so
-grouping alerts that share a cause is the obvious next saving.
+**Alerts due together go as one message.** When the radio both troughs hang off went
+quiet, María got one SMS listing both, with a number for each, and Sam got one push with
+one button that takes both. Sent one alert at a time, the same season was 16 messages
+and 23 segments. The log still holds one notification per alert, tied by a `batch` id,
+with the message's cost counted once.
 
 ## What was checked, and what was not
 
@@ -153,5 +157,4 @@ standard library, plus `mmcli` for SMS.
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)); strings in [packs/](packs/) under the
 `notify.` prefix, with the Spanish an unreviewed draft.
 
-**Next:** one message for alerts that share a cause, such as two troughs on one silent
-radio; a weekly digest of what was sent and what it cost; SMS checked on a real modem.
+**Next:** a weekly digest of what was sent and what it cost; SMS checked on a real modem.

@@ -13,6 +13,9 @@
   "notify.acknowledged": "{who} is on it: {text}",
   "notify.cleared": "No longer the case ({time}): {text}",
   "notify.ack_words": "ok, okay, yes, yep, seen, got, going, coming, onit",
-  "notify.no_words": "no, not, nope, cant, cannot, unable, wont, dont, later"
+  "notify.no_words": "no, not, nope, cant, cannot, unable, wont, dont, later",
+  "notify.several": "{n} alerts:",
+  "notify.escalated_several": "Nobody has answered these for {minutes:.0f} minutes. {text}",
+  "notify.reply_sms_several": "Reply OK to take them all, or OK and a number to take one: {codes}."
  }
 }

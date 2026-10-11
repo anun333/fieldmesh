@@ -82,4 +82,4 @@ stand on the farm's page, [modules/board/](../board/). Neither imports this modu
 decision names its own sentence and what it is about (`rules.render`).
 
 **Not yet:** per-trough marks learned from a trough's own history, as Q24 did for
-flatlines; one message for both troughs when the radio they share goes quiet.
+flatlines.

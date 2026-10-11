@@ -101,7 +101,8 @@ class Farm:
         if alert and key == "rules.frost.alert":
             message = {"key": key, "params": {"low": -1.5, "warn": 0.0}}
         elif alert:
-            message = {"key": key, "params": {"percent": 6.0}, "subject_param": "trough"}
+            params = {"hours": 0.6} if key == "water.unseen" else {"percent": 6.0}
+            message = {"key": key, "params": params, "subject_param": "trough"}
         return self.log.append("decision", {"rule": rule, "subject": str(subject) if subject else None,
                                             "alert": alert, "evaluated_at": at.isoformat(),
                                             "message": message, **extra})
@@ -175,6 +176,27 @@ class TestEscalation(unittest.TestCase):
         f.step(T0 + 151 * MIN)
         self.assertIn("Ya no es así (15:30): bebedero norte", f.sms.to("+16155550101")[-1])
         self.assertIn("No longer the case (15:30): north trough", f.ntfy.sent[-1][1])
+
+    def test_alerts_due_together_go_as_one_message_with_one_button(self):
+        f = Farm()
+        north, south = f.decide("water-unseen", True, T0, key="water.unseen"), \
+            f.decide("water-unseen", True, T0, subject=uuid7(), key="water.unseen")
+        f.step(T0)
+        [(_, sms, _)] = f.sms.sent
+        codes = [n["code"] for n in f.notifications(reason="raised")]
+        self.assertTrue(sms.startswith("Harrow Bend: 2 alertas: 1) No llega nada de bebedero norte"), sms)
+        self.assertIn(f"u OK y un número para una: {codes[0]}, {codes[1]}.", sms)
+        raised = f.notifications(reason="raised")
+        self.assertEqual(len(raised), 2, "one event per alert")
+        self.assertEqual(len({n["batch"] for n in raised}), 1, "tied by one batch")
+        self.assertEqual([("segments" in n) for n in raised], [True, False], "its cost counted once")
+        f.step(T0 + 30 * MIN)
+        [(_, push, kw)] = f.ntfy.sent
+        self.assertIn("Nobody has answered these for 30 minutes. 2 alerts: 1) Nothing heard", push)
+        f.ntfy.inbox.append(N.Reply("ntfy", None, f"ack {kw['token']}", T0 + 31 * MIN, "m"))
+        f.step(T0 + 31 * MIN)
+        acked = {e.payload["decision"] for e in f.log.events if e.kind == "acknowledgement"}
+        self.assertEqual(acked, {str(north.id), str(south.id)}, "one button takes them all")
 
     def test_a_restart_carries_on_from_the_log(self):
         f = Farm()
@@ -303,7 +325,7 @@ class TestReplies(unittest.TestCase):
         f.decide("water-unseen", True, T0, key="water.unseen")
         f.decide("water-unseen", True, T0, subject=uuid7(), key="water.unseen")   # one radio
         f.step(T0)
-        self.assertEqual(len(f.sms.sent), 2)
+        self.assertEqual(len(f.sms.sent), 1, "two alerts due together are one message")
         f.sms.inbox.append(N.Reply("sms", "6155550101", "Sí, voy", T0 + 5 * MIN, "x"))
         f.step(T0 + 5 * MIN)
         self.assertEqual(len([e for e in f.log.events if e.kind == "acknowledgement"]), 2)
@@ -497,16 +519,27 @@ class TestOnHarrowBend(unittest.TestCase):
         self.assertTrue(any("no se ha vuelto a llenar" in t for t in to_maria))
         self.assertTrue(any("has not refilled" in t for _, t, _ in self.ntfy.sent))
 
+    def test_the_outage_was_one_message_to_each_person_not_one_per_trough(self):
+        unseen = {d for d, p in self.decisions.items() if p["alert"] and p["rule"] == "water-unseen"}
+        self.assertEqual(len(unseen), 2)
+        for reason in ("raised", "escalated", "cleared"):
+            notes = [n for n in self.notes if n["decision"] in unseen and n["reason"] == reason]
+            self.assertEqual(len(notes), 2 if reason != "cleared" else 4, reason)
+            self.assertEqual(len({(n["person"], n["batch"]) for n in notes}),
+                             1 if reason != "cleared" else 2, reason)
+
     def test_what_a_season_of_alerts_costs(self):
-        """Ten days, two troughs: the count a farmer would live with. Every alert is
-        told to two people and every clear to both again, so this is four messages an
-        alert, and SMS segments are what a modem's plan bills."""
+        """Ten days, two troughs: the count a farmer would live with. A message is one
+        batch, and SMS segments are what a modem's plan bills."""
         alerts = sum(1 for p in self.decisions.values() if p["alert"])
-        self.assertEqual(len({(n["decision"], n["person"], n["reason"]) for n in self.notes}),
-                         len(self.sms.sent) + len(self.ntfy.sent))
-        self.assertLessEqual(len(self.sms.sent) + len(self.ntfy.sent), 4 * alerts)
+        sent = [n for n in self.notes if n["outcome"] == "sent"]
+        messages = {n.get("batch") or (n["decision"], n["person"], n["reason"]) for n in sent}
+        self.assertEqual(len(messages), len(self.sms.sent) + len(self.ntfy.sent))
+        self.assertLess(len(messages), 4 * alerts, "fewer than one message per alert per person")
         segments = sum(n.get("segments", 0) for n in self.notes)
-        self.assertLessEqual(segments, 3 * len(self.sms.sent))
+        self.assertEqual(segments, sum(N.sms_segments(t) for _, t, _ in self.sms.sent))
+        self.assertLessEqual(max(N.sms_segments(t) for _, t, _ in self.sms.sent), 6,
+                             "the outage's two alerts in Spanish are the longest message")
         self.__class__.summary = (alerts, len(self.sms.sent), len(self.ntfy.sent), segments)
 
 

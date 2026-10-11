@@ -13,6 +13,9 @@
   "notify.acknowledged": "{who} se encarga: {text}",
   "notify.cleared": "Ya no es así ({time}): {text}",
   "notify.ack_words": "ok, sí, si, voy, visto, listo, entendido, vale, enterado",
-  "notify.no_words": "no, nadie, imposible, tampoco, nunca, luego"
+  "notify.no_words": "no, nadie, imposible, tampoco, nunca, luego",
+  "notify.several": "{n} alertas:",
+  "notify.escalated_several": "Nadie ha respondido a estas en {minutes:.0f} minutos. {text}",
+  "notify.reply_sms_several": "Responda OK para encargarse de todas, u OK y un número para una: {codes}."
  }
 }

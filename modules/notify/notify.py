@@ -429,23 +429,40 @@ def words_of(key: str, language: str) -> set[str]:
 
 # ------------------------------------------------------------------ messages
 
-def message(roster: Roster, ep: Episode, person: Person, reason: str, via: str, state,
+def message(roster: Roster, eps: list, person: Person, reason: str, via: str, state,
             now: _dt.datetime) -> str:
-    """The text one person gets, in their language."""
+    """The text one person gets, in their language, about one alert or several that
+    fell due together."""
     t = i18n.Translator(person.language)
-    said = R.render(ep.decision, person.language, state) or ep.decision.get("rule", "?")
+    texts = [R.render(ep.decision, person.language, state) or ep.decision.get("rule", "?")
+             for ep in eps]
+    several = len(eps) > 1
+    said = texts[0] if not several else " ".join(
+        [str(t.text("notify.several", n=len(eps)))] + [f"{i}) {x}" for i, x in enumerate(texts, 1)])
     if reason == "escalated":
-        minutes = (now - ep.opened_at) / MIN
-        said = str(t.text("notify.escalated", minutes=minutes, text=said))
+        minutes = min((now - ep.opened_at) / MIN for ep in eps)
+        key = "notify.escalated_several" if several else "notify.escalated"
+        said = str(t.text(key, minutes=minutes, text=said))
     elif reason == "cleared":
-        when = roster.local(ep.ended_at or now).strftime("%H:%M")
+        when = roster.local(max(ep.ended_at or now for ep in eps)).strftime("%H:%M")
         said = str(t.text("notify.cleared", time=when, text=said))
     elif reason == "acknowledged":
-        who = roster.people.get(ep.acked[0]) if ep.acked else None
+        who = roster.people.get(eps[0].acked[0]) if eps[0].acked else None
         said = str(t.text("notify.acknowledged", who=who.name if who else "?", text=said))
     if via == "sms" and reason in ("raised", "escalated"):
-        said = f"{said} {t.text('notify.reply_sms', code=ep.code)}"
+        hint = (t.text("notify.reply_sms_several", codes=", ".join(ep.code for ep in eps))
+                if several else t.text("notify.reply_sms", code=eps[0].code))
+        said = f"{said} {hint}"
     return str(t.text("notify.from", farm=roster.farm, text=said)) if roster.farm else said
+
+
+def batches(sends: list) -> list[list]:
+    """Sends due together for one person for one reason go as one message: when a radio
+    goes quiet, every trough on it goes unseen in the same look, and that is one errand."""
+    groups: dict = {}
+    for send in sends:
+        groups.setdefault((send.person, send.reason), []).append(send)
+    return list(groups.values())
 
 
 _GSM7 = set("@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡"
@@ -653,39 +670,53 @@ class Notifier:
             sends = self.dispatcher.due(now)
             if not sends:
                 break
-            for send in sends:
-                written += self._deliver(send, now, state)
+            for group in batches(sends):
+                written += self._deliver(group, now, state)
         return written
 
-    def _deliver(self, send: Send, now: _dt.datetime, state) -> list:
-        ep = self.dispatcher.episodes[send.episode]
-        person = self.roster.people[send.person]
-        code = self.dispatcher.code_for(ep)
+    def _deliver(self, group: list, now: _dt.datetime, state) -> list:
+        """One message to one person about every alert in `group`, by their first
+        channel that takes it; one notification event per alert, so who was told what
+        stays exact, tied by a batch id when there are several."""
+        eps = [self.dispatcher.episodes[s.episode] for s in group]
+        person = self.roster.people[group[0].person]
+        reason = group[0].reason
+        for ep in eps:
+            self.dispatcher.code_for(ep)
         t = i18n.Translator(person.language)
+        batch = secrets.token_hex(8) if len(group) > 1 else None
         written = []
         for via, address in person.contacts:
             channel = self.channels.get(via)
             if channel is None:
                 continue
-            payload = {"decision": ep.decision_id, "topic": ep.key[1], "person": str(person.id),
-                       "reason": send.reason, "tier": send.tier, "code": code, "via": via,
-                       "at": now.isoformat()}
-            text = message(self.roster, ep, person, send.reason, via, state, now)
-            token = None
-            if via == "ntfy" and send.reason in ("raised", "escalated"):
-                token = secrets.token_urlsafe(18)
-                payload["token_sha256"] = hashlib.sha256(token.encode()).hexdigest()
+            text = message(self.roster, eps, person, reason, via, state, now)
+            token = digest = None
+            if via == "ntfy" and reason in ("raised", "escalated"):
+                token = secrets.token_urlsafe(18)       # one button takes them all
+                digest = hashlib.sha256(token.encode()).hexdigest()
             try:
                 got = channel.send(address, text, title=self.roster.farm or "fieldmesh",
-                                   urgent=ep.route.urgent,
+                                   urgent=any(ep.route.urgent for ep in eps),
                                    button=str(t.text("notify.button")), token=token)
-                payload["outcome"] = "sent"
-                if got.get("segments"):
-                    payload["segments"] = got["segments"]
+                outcome, error = "sent", None
             except DeliveryError as exc:
-                payload["outcome"], payload["error"] = "failed", str(exc)[:200]
-            written.append(self._write(NOTIFICATION, payload))
-            if payload["outcome"] == "sent":
+                got, outcome, error = {}, "failed", str(exc)[:200]
+            for n, (send, ep) in enumerate(zip(group, eps)):
+                payload = {"decision": ep.decision_id, "topic": ep.key[1],
+                           "person": str(person.id), "reason": reason, "tier": send.tier,
+                           "code": ep.code, "via": via, "at": now.isoformat(),
+                           "outcome": outcome}
+                if batch:
+                    payload["batch"] = batch
+                if digest:
+                    payload["token_sha256"] = digest
+                if error:
+                    payload["error"] = error
+                if n == 0 and got.get("segments"):
+                    payload["segments"] = got["segments"]    # what the message cost, once
+                written.append(self._write(NOTIFICATION, payload))
+            if outcome == "sent":
                 break
         return written
 
