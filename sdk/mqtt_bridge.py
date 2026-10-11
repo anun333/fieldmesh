@@ -56,6 +56,9 @@ UTC = _dt.timezone.utc
 
 PROFILES = ("esphome", "tasmota", "shelly", "zigbee2mqtt", "ha", "chirpstack", "opensprinkler",
             "rtl_433")
+#: Families that do not publish over MQTT but speak their own local protocol, read by
+#: `station_adapters.py` and written here by the same bindings and rules.
+DIRECT = ("tempest", "weatherlink", "ecowitt")
 DEFAULT_PREFIXES = {"zigbee2mqtt": "zigbee2mqtt", "ha": "homeassistant",
                     "opensprinkler": "opensprinkler", "rtl_433": "rtl_433"}
 #: Link-health keys a profile reports beside its points. Bindable like any point —
@@ -319,9 +322,9 @@ class Bridge:
         devices = {}
         for key, spec in (bindings.get("devices") or {}).items():
             profile, _, _ = key.partition(":")
-            if profile not in PROFILES:
+            if profile not in PROFILES + DIRECT:
                 raise BindingError(f"{key}: unknown profile {profile!r} "
-                                   f"(known: {', '.join(PROFILES)})")
+                                   f"(known: {', '.join(PROFILES + DIRECT)})")
             uncertainty = spec.get("uncertainty_s")
             if not isinstance(uncertainty, (int, float)) or uncertainty <= 0:
                 raise BindingError(
@@ -390,6 +393,14 @@ class Bridge:
         if parsed is None:
             self.report.not_ours += 1
             return 0
+        return self.ingest(profile, parsed, arrived=arrived,
+                           provenance={"mqtt_topic": topic, "mqtt_profile": profile})
+
+    def ingest(self, profile: str, parsed: dict, *, arrived: _dt.datetime,
+               provenance: dict) -> int:
+        """Write one parsed message, `{device, points, health, stamp}`, under the
+        bindings: what MQTT messages come to after `parse`, and what a station read over
+        its own protocol comes to (`station_adapters.py`)."""
         key = f"{profile}:{parsed['device']}"
         binding = self._devices.get(key)
         if binding is None:
@@ -419,8 +430,7 @@ class Bridge:
                 id=uuid7(), datastream=ds.id, measured_at=measured,
                 measured_at_uncertainty=binding["uncertainty"], received_at=arrived,
                 result=result, clock_quality=binding["quality"],
-                provenance={"mqtt_topic": topic, "mqtt_profile": profile,
-                            "stamped_on_arrival": stamped is None})
+                provenance={**provenance, "stamped_on_arrival": stamped is None})
             self.log.append_record(obs)
             self.state.add(obs)
             written += 1

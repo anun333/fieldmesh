@@ -48,6 +48,7 @@ python3 demo.py --json                        # the served Observations collecti
 | `demo.py` | — | One command that exercises the whole chain, no hardware and no site data |
 | `spool.py` | §5.2 | Gateway-side store-and-forward: retry, auth, spool, drain |
 | `modbus_rtu.py` | §9 | Modbus RTU framing over serial, read function codes only (see [PROVENANCE.md](PROVENANCE.md)) |
+| `station_adapters.py` | §10 | Weather stations on their own local protocols, written by the MQTT bridge's bindings and rules: WeatherFlow Tempest's UDP broadcast, Davis WeatherLink Live's local HTTP API, an Ecowitt gateway's customized upload (plain HTTP, so it takes only bound PASSKEYs and, from the command line, only the gateway's address) |
 | `modbus_collector.py` | §10 | Modbus RTU devices into the log: one burst read a poll from a register map written from the maker's guide (METER's ATMOS 41 Gen 2 first), what the bindings name written to raw datastreams, each reading saying the span it covers |
 
 ## The four rules worth knowing

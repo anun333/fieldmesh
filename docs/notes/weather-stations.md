@@ -48,8 +48,8 @@ crop". Neither a roof nor a fence by the barn will do.
 | **Build it: ESPHome** | An ESP32 with a cup anemometer, vane and tipping bucket, such as SparkFun's Weather Meter Kit: passive reed switches, 0.2794 mm per tip. Add a temperature and humidity sensor in a radiation shield. | wind, rain, temperature, humidity; sunshine only with a pyranometer added | **Today**, through the MQTT bridge's ESPHome profile | firmware and wiring yours | you calibrate and maintain it; the shield matters |
 | **Build it: 3D-PAWS** | UCAR and the National Weather Service's international office's 3D-printed station, built locally for a few hundred dollars, with "open-source electronics", used by weather services in many countries | wind, wind direction, rain, temperature, humidity, pressure; no solar sensor in the typical build | Through MQTT or its own outputs (to build) | open designs | a project to build, not a product to buy |
 | **Ready-made, cheap: the Fine Offset family** | Sold as Ecowitt, Ambient, Misol and others, read through an Ecowitt gateway (GW1100, GW2000 and others, which serve a local HTTP API with no cloud account) or straight off the air by `rtl_433` | temperature, humidity, wind, rain, light/UV; some models add more | **Today**: off the air through `rtl_433` and the bridge's `rtl_433` profile, or through Home Assistant's MQTT state stream | protocols decoded openly (`rtl_433`, GPL-2.0, 386 device protocols) | sunshine from a light sensor; plastic mechanics |
-| **Ready-made: WeatherFlow Tempest** | One unit, no moving parts; the hub broadcasts each minute's observation on the local network (UDP port 50222) | temperature, humidity, pressure, wind, rain by impact, solar radiation | Through Home Assistant today; a UDP listener to build | documented local broadcast | the maker calls the local broadcast a backup to its cloud |
-| **Ready-made, durable: Davis Vantage Pro2 with WeatherLink Live** | A long-serving station whose WeatherLink Live unit serves current conditions over local HTTP and broadcasts wind and rain over UDP, both documented | temperature, humidity, wind, rain; solar with the optional sensor | Through Home Assistant today; an HTTP poller to build | documented local API | Davis's AirLink is an air-quality monitor, not this |
+| **Ready-made: WeatherFlow Tempest** | One unit, no moving parts; the hub broadcasts each minute's observation on the local network (UDP port 50222) | temperature, humidity, pressure, wind, rain by impact, solar radiation | **Today**: its UDP broadcast through `sdk/station_adapters.py`, or Home Assistant | documented local broadcast | the maker calls the local broadcast a backup to its cloud |
+| **Ready-made, durable: Davis Vantage Pro2 with WeatherLink Live** | A long-serving station whose WeatherLink Live unit serves current conditions over local HTTP and broadcasts wind and rain over UDP, both documented | temperature, humidity, wind, rain; solar with the optional sensor | **Today**: its local API polled by `sdk/station_adapters.py`, or Home Assistant | documented local API | Davis's AirLink is an air-quality monitor, not this |
 | **Research grade: METER ATMOS 41 Gen 2** | All-in-one, no moving parts, SDI-12 or Modbus RTU over RS-485 on enabled units, with its registers documented | solar radiation (±5%), temperature (±0.2 °C at 25 °C), humidity, pressure, wind, rain, lightning | Through fieldmesh's Modbus RTU driver, which reads holding and input registers; the register binding is to build | documented protocol | the most to buy; the way to a pilot's reference station |
 
 **Software that sits between.**
@@ -140,6 +140,18 @@ In the order I'd do them:
    the probe's 155 and 208, with no stressed hour.
 5. **Ecowitt's local API, Tempest's broadcast and WeatherLink Live's HTTP API** as
    direct adapters (§10), for farms without Home Assistant.
+   *Built 2026-10-11* ([sdk/station_adapters.py](../../sdk/station_adapters.py)). Each
+   station's own messages are parsed and written by the MQTT bridge's bindings and rules.
+   * **Tempest**: its hub's `obs_st` UDP broadcast, field by field as WeatherFlow's UDP
+     reference lays it out.
+   * **WeatherLink Live**: its `current_conditions`, rain left as counts of the gauge's
+     own size for a calibration to turn into millimetres.
+   * **Ecowitt**: the gateway's customized upload, rather than its less documented
+     polling API. It is plain HTTP on the farm's network, so it takes only bound
+     PASSKEYs and will not start without the gateway's address.
+
+   Tested over real sockets on loopback with the makers' documented messages, not yet
+   with a station.
 
 ## Sources
 
