@@ -68,7 +68,8 @@ tunnel, a garden-sized field. Three things here touch them.
    That gives water applied, drained and stress for each. It is a comparison none of those
    projects can easily make for itself, and the kind they could use to set defaults. Shared
    as a note and an issue in each project, it is a contribution of evidence, not code.
-3. **Take pyfao56's water balance where a bed has no probe.** It is public domain and
+3. **Take pyfao56's water balance where a bed has no probe.** *Scored 2026-10-11, its
+   scheduler run as published: [below](#pyfao56-without-a-probe).* It is public domain and
    CC0, so it can be used in an AGPL module outright, with credit. Its dual crop
    coefficient and layered soil go further than the advisory's single bucket. It could
    advise beds without probes, and check the advisory's bucket where they have them.
@@ -121,6 +122,7 @@ day's maximum and minimum.
 | OpenSprinkler Zimmerman | 385 | 271 | 434 | 0 |
 | OpenSprinkler ETo, a summer baseline | 367 | 252 | 435 | 0 |
 | Home Assistant Smart Irrigation | 294 | 177 | 436 | 0 |
+| pyfao56's scheduler, no probe | 322 | 237 | 407 | 0 |
 | this project's soil probe rule | 219 | 146 | 395 | 0.3 (8.5 h in 1993) |
 
 The first five rows reproduce the timer's figures in [forecasts.md](forecasts.md#watering-by-forecast-and-by-soil)
@@ -145,4 +147,37 @@ One place, one soil and one crop, in a humid climate whose summers average 315 m
 Over thirty summers the virtual bed's own water use averages 4.8 mm a day, the same as the
 reference ET the controllers compute, so none of them is scored against a demand it could not
 know. A drier place, a sandier soil or a crop factor other than 1 would move every row.
+
+## pyfao56 without a probe
+
+[tools/pyfao56_schedules.py](../../tools/pyfao56_schedules.py) runs pyfao56 1.4.3's automatic
+scheduler (Thorp, DeJonge and Kukal 2025) as published, in its own environment, on each of the
+thirty summers. It is configured with the drill's bed: a 30 cm root zone, field capacity 0.30,
+wilting point 0.12, a full canopy with a basal crop coefficient of 1.05. It waters when a third
+of the available water is gone, the probe rule's refill point, back to field capacity. The
+irrigation drill then waters the virtual bed on that schedule
+(`sim/data/pyfao56-mcallister-summers.csv`, policy `pyfao56`): 12 waterings a summer of about
+25 mm.
+
+* **With no probe it saves 42%** of the timer's water, with no stress. That is more than
+  Zimmerman's or the ETo method's savings and less than Home Assistant's bucket, which waters
+  every day.
+* **It drains more than the probe rule**, 237 mm against 146. It refills by its own model's
+  depletion, which runs ahead of what the virtual bed actually lost, so part of each 25 mm
+  goes below the roots. An open-loop water balance drifts from the soil. This is where the
+  two projects fit together: pyfao56 can update its balance from measured soil water content
+  (its `Update` class), and the probes here, each reading with its quality verdict, are that
+  input. A probe that is flagged need not reach it.
+* **Our reference ET agrees with pyfao56's**: over 10,958 days at McAllister, `sim/physics.fao56_eto`
+  ran 0.013 mm a day above pyfao56's ASCE routine (`refet.ascedaily`) on average. The spread
+  was 0.04 mm, and the worst single day differed by 0.35 mm. So the controllers above are fed
+  the same ET a published implementation computes.
+* **A bug worth reporting**: pyfao56 1.4.3 divides by zero for a canopy whose basal crop
+  coefficient does not change over the season (`Kcbini == Kcbmid`; `model.py`, the plant
+  height step). A turf, a pasture, a bed already in full leaf all hit it. The script steps
+  around it with 1.049 and says so.
+
+Still to build: the advisory itself for a bed without a probe, which needs daily
+sunshine and humidity in the farm's log to compute ET from. Those are the forecast
+collector's `dswrf` and `relative_humidity`, or a station's.
 

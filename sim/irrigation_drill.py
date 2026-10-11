@@ -26,6 +26,7 @@ And, with `--controllers`, what the free irrigation controllers would do on the 
 | `os_eto_annual` | the timer's program scaled by OpenSprinkler's ETo method, ETo less rain over its default annual baseline |
 | `os_eto_summer` | the same over a summer baseline, as a grower who set the program for summer would have |
 | `ha_bucket` | Home Assistant's Smart Irrigation: each day's FAO-56 reference ET less its rain, put back |
+| `pyfao56` | USDA ARS's pyfao56 scheduler, run as published by `tools/pyfao56_schedules.py` on McAllister Farm's summers (`data/pyfao56-mcallister-summers.csv`): from its own water balance, with no probe, at a third of the available water gone |
 
 Scored per policy: water applied; water drained below the roots, which is water paid for
 and nitrate carried off; mean crop stress; and hours of stress at 0.5 or more — the
@@ -69,7 +70,22 @@ POLICIES = ("timer", "rain_skip", "oracle_skip", "soil", "soil_skip")
 #: OpenSprinkler's weather service scales the timer's program by the day before — Zimmerman's
 #: percentage, or its evapotranspiration less its rain over a baseline, annual by default; Home
 #: Assistant's Smart Irrigation puts back each day's evapotranspiration less its rain.
-CONTROLLERS = ("os_zimmerman", "os_eto_annual", "os_eto_summer", "ha_bucket")
+CONTROLLERS = ("os_zimmerman", "os_eto_annual", "os_eto_summer", "ha_bucket", "pyfao56")
+#: pyfao56's own scheduler, run as published by tools/pyfao56_schedules.py on McAllister
+#: Farm's summers: the days and depths it waters this bed from its water balance alone.
+PYFAO56 = os.path.join(HERE, "data", "pyfao56-mcallister-summers.csv")
+
+
+def pyfao56_schedule(path: str = PYFAO56) -> dict:
+    """`{date: mm}` from the saved schedule."""
+    out = {}
+    with open(path, encoding="utf-8") as h:
+        for line in h:
+            if line.startswith("#") or line.startswith("date"):
+                continue
+            day, mm = line.strip().split(",")
+            out[_dt.date.fromisoformat(day)] = float(mm)
+    return out
 LAT, ELEVATION_M = 35.06, 243.0          # McAllister Farm, for the ETo the controllers compute
 
 
@@ -132,6 +148,7 @@ def run_policy(policy: str, climate, start: _dt.datetime, days: float, state, fc
                seed: int = 1, probe_noise: float = 0.01, base: dict | None = None) -> dict:
     b = bed()
     bucket = 0.0
+    schedule = pyfao56_schedule() if policy == "pyfao56" else None
     world = ph.World(start=start, climate=climate, beds=[b])
     rain_by_hour = {t: mm for t, _, mm in truth}
     probe = random.Random(seed)
@@ -156,6 +173,8 @@ def run_policy(policy: str, climate, start: _dt.datetime, days: float, state, fc
                 ref = (base or baselines(climate))["annual" if policy == "os_eto_annual" else "summer"]
                 scale = min(200.0, max(0.0, (e - seen["PRECTOTCORR"]) / ref * 100.0))
                 want = DOSE_MM * scale / 100.0
+            elif policy == "pyfao56":
+                want = (schedule if schedule is not None else pyfao56_schedule()).get(when.date(), 0.0)
             elif policy == "ha_bucket" and seen:
                 # The bucket gains the day's rain and loses its ET (crop factor 1, the
                 # default); a surplus drains away within the day at the default rate.
