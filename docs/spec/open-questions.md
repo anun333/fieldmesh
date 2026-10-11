@@ -730,6 +730,7 @@ Recorded so each decision can be revisited with its alternatives intact.
 | Q26 | How does a weather forecast enter layer zero? | **Decided 2026-10-09** — A, confirmed |
 | Q27 | What crosses between fieldmesh and ERPNext, and who owns each fact? | Blocks nothing yet — the records it needs exist since 2026-10-10 (land, inputs applied, harvest lots); the adapter waits on a partner that runs ERPNext |
 | Q28 | Should a process-based greenhouse model — GreenLight — be the hoop house's physics twin? | **Open, recommended yes; steps 1 and 2 done 2026-10-11** — the virtual farm's tunnel refitted to it; a covered-crop frost watch backtested on a season; see below |
+| Q29 | How do alerts reach people on the pilot farm: SMS through the farm's own modem, push through ntfy, or both? | **Open, recommended: SMS through a modem as the floor, push through a self-hosted ntfy** — the notifier speaks both; blocks the pilot; see below |
 
 **Q18 is no longer what it looked like.** A search of the OGC repository before
 drafting anything found issue **#174**, opened by the 2.0 editor in January 2024 and
@@ -1025,3 +1026,29 @@ open monitoring and regulation stack at small scale. What nobody combines is an 
 controller with a data contract, quality with provenance, hardwired interlocks and a physics
 twin.
 
+
+## Q29. How do alerts reach people on the pilot farm?
+
+**Status: open; recommended below; blocks the pilot.** Raised 2026-10-11, when
+[modules/notify/](../../modules/notify/) was built. The notifier speaks both push and SMS;
+which ones a pilot farm runs is a choice about its connectivity, its people's phones and
+who holds a server. The farm Q1 prefers has poor connectivity, and the people who check
+its troughs may carry basic phones and read Spanish.
+
+| Option | For | Against |
+| --- | --- | --- |
+| **SMS through a cellular modem on the farm's computer** (ModemManager) | Works with no internet and on any phone; the farm holds every part | A SIM and a plan, and Spanish costs more segments; one more device; not yet tried on a real modem, nor ModemManager's permission for the service's user |
+| Push through ntfy.sh | Nothing to run; works today | A third party carries the farm's alerts, and there a topic name is the only lock; the phone needs data |
+| **Push through a self-hosted ntfy** (an extension office's or a co-op's) | Access control checked: deny by default, with a button token that can only acknowledge; the alerts stay with people the farm trusts | Someone runs a server the phones can reach from a field, which a farm's own computer behind its router usually is not |
+| An old Android phone as the SMS gateway | Cheap: a phone and a SIM | Not built; a phone's battery and updates are one more thing to fail |
+
+**Recommendation: SMS through a modem as the floor, push through a self-hosted ntfy for
+the people with smartphones.** SMS is the only channel that works when the farm's
+internet does not, and the alert that matters most, a dry trough on a hot afternoon,
+cannot wait for the internet to return. Push is better where it works: a button rather
+than a reply, and no segments to pay for. It belongs on a server run by whoever hosts
+the pilot, not on the farm's computer and not on a public service. Use ntfy.sh only to try
+it. For scale, on Harrow Bend's ten days one Spanish-reading worker cost 23 segments.
+First step: a modem ModemManager supports, with a SIM, on the gateway, to check the two
+things not yet checked: sending and receiving through `mmcli`, and the service user's
+permission to do it. Plan B, if the pilot farm has reliable mobile data: push alone.

@@ -42,7 +42,7 @@ from __future__ import annotations
 import datetime as _dt
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -102,11 +102,13 @@ def rules_for(bed: Bed) -> list:
     p = {"raw_mm": round(bed.raw_mm, 2), "skip_rain_mm": bed.skip_rain_mm,
          "stale_after_h": bed.stale_after_h, "soon_days": bed.soon_days}
     usable = "has_probe && has_reading && usable && hours_since_reading <= stale_after_h"
-    return [
+    rules = [
         R.Rule("soil-no-probe", "1", "!has_probe", p, alert_key="soilwater.no_probe",
                message_params={"depth": "root_depth_cm"}),
         R.Rule("soil-unseen", "1", "!has_reading || hours_since_reading > stale_after_h", p,
-               alert_key="soilwater.unseen", message_params={"hours": "hours_since_reading"}),
+               alert_key="soilwater.unseen", message_params={"hours": "hours_since_reading"},
+               message_variants=((f"hours_since_reading >= {NO_ESTIMATE!r}",
+                                  "soilwater.never_seen"),)),
         R.Rule("soil-untrusted", "1", "!usable", p, alert_key="soilwater.untrusted",
                message_params={"flags": "flags"}),
         R.Rule("soil-too-wet", "1", f"{usable} && wetter_than_capacity", p,
@@ -123,6 +125,7 @@ def rules_for(bed: Bed) -> list:
         R.Rule("soil-enough", "1", usable, p, alert_key="soilwater.enough",
                message_params={"left": "left_percent"}),
     ]
+    return [replace(r, subject_param="bed") for r in rules]
 
 
 # ----------------------------------------------------------------- context
@@ -260,7 +263,11 @@ class Advisor:
         for rule in rules_for(bed):
             d = R.judge(rule, context, inputs, at)
             if d["alert"]:
+                # One answer per bed per morning, whichever rule gave it (§7.7): the
+                # morning's advice replaces yesterday's, and stands for a day.
                 d["subject"] = str(bed.feature)
+                d["topic"] = f"advice/{bed.feature}"
+                d["valid_until"] = (at + _dt.timedelta(days=1)).isoformat()
                 return d
         raise AssertionError("the last rule holds whenever none before it does")
 
@@ -271,18 +278,7 @@ class Advisor:
 
 def render(decision: dict, language: str = "en", state=None) -> str | None:
     """A decision's advice in `language`, naming the bed by its label there."""
-    m = decision.get("message")
-    if not m:
-        return None
-    name = None
-    if state is not None and decision.get("subject"):
-        label = state.label_for(UUID(decision["subject"]), language)
-        name = label.name if label is not None else None
-    params = {**m["params"], "bed": name or decision.get("subject", "?")}
-    key = m["key"]
-    if key == "soilwater.unseen" and params.get("hours", 0) >= NO_ESTIMATE:
-        key = "soilwater.never_seen"
-    return str(i18n.Translator(language).text(key, **params))
+    return R.render(decision, language, state)
 
 
 # ---------------------------------------------------------------- backtest

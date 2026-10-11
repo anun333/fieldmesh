@@ -66,6 +66,12 @@ FOUNDATION_ONLY = frozenset({
     "device", "installation", "maintenance", "label", "correction", "grant",
     "grant_revocation", GRANT, REVOCATION, REFUSAL})
 MAX_REQUEST = 1 << 20
+#: What a module may be granted to read of *other* modules' writes: decisions (§7.7),
+#: and what was done about them — who was told, who acknowledged. A notifier or a page
+#: reads these; nothing else written by a module is anyone else's to read.
+EVENT_READS = frozenset({"decision", "notification", "acknowledgement"})
+#: The most events one `follow` call returns; the cursor takes the rest.
+FOLLOW_LIMIT = 2000
 
 
 def _now() -> _dt.datetime:
@@ -95,6 +101,7 @@ class Manifest:
     reads: frozenset             # observed-property URIs
     writes: frozenset            # event kinds
     commands: frozenset = frozenset()
+    events: frozenset = frozenset()   # kinds of other modules' writes it reads
 
     def __post_init__(self) -> None:
         if not self.name or not self.name.replace("-", "").replace("_", "").isalnum():
@@ -102,6 +109,9 @@ class Manifest:
         bad = self.writes & FOUNDATION_ONLY
         if bad:
             raise ValueError(f"no module may write {sorted(bad)}: those are the foundation's")
+        if not self.events <= EVENT_READS:
+            raise ValueError(f"no module may read {sorted(self.events - EVENT_READS)} "
+                             f"of others; only {sorted(EVENT_READS)}")
         if self.commands:
             raise ValueError("commands are deferred from the first release (§6)")
 
@@ -112,7 +122,8 @@ class Manifest:
         return cls(name=doc["name"], version=str(doc["version"]),
                    reads=frozenset(doc.get("reads", {}).get("observed_properties", [])),
                    writes=frozenset(doc.get("writes", [])),
-                   commands=frozenset(doc.get("commands", [])))
+                   commands=frozenset(doc.get("commands", [])),
+                   events=frozenset(doc.get("reads", {}).get("events", [])))
 
 
 # --------------------------------------------------------------------- grant
@@ -131,6 +142,9 @@ class Grant:
     writes: frozenset = frozenset()
     granted_at: _dt.datetime | None = None
     granted_by: UUID | None = None
+    #: Kinds of every module's writes it may read (`EVENT_READS`): a notifier's
+    #: decisions to deliver, a page's alerts to show.
+    events: frozenset = frozenset()
 
     def payload(self) -> dict:
         return {"id": str(self.id), "module": self.module, "version": self.version,
@@ -139,6 +153,7 @@ class Grant:
                 "properties": sorted(self.properties),
                 "features": sorted(str(f) for f in self.features),
                 "writes": sorted(self.writes),
+                "events": sorted(self.events),
                 "granted_at": self.granted_at.isoformat() if self.granted_at else None,
                 "granted_by": str(self.granted_by) if self.granted_by else None}
 
@@ -151,7 +166,8 @@ class Grant:
                    features=frozenset(UUID(f) for f in p.get("features", [])),
                    writes=frozenset(p.get("writes", [])),
                    granted_at=_time(p["granted_at"]) if p.get("granted_at") else None,
-                   granted_by=UUID(p["granted_by"]) if p.get("granted_by") else None)
+                   granted_by=UUID(p["granted_by"]) if p.get("granted_by") else None,
+                   events=frozenset(p.get("events", [])) & EVENT_READS)
 
     def may_read(self, ds) -> bool:
         if ds.id in self.datastreams:
@@ -162,12 +178,14 @@ class Grant:
 
 
 def grant(log, manifest: Manifest, *, datastreams=(), properties=(), features=(),
-          writes=None, by: UUID | None = None, at: _dt.datetime | None = None):
+          writes=None, events=None, by: UUID | None = None, at: _dt.datetime | None = None):
     """Grant a module what its manifest allows, for these points. Returns
     `(grant, token)`; the token is shown once and only its hash is logged.
 
     An owner's act (§8.2): like a sharing grant, it moves the farm's data, here to a
-    piece of software.
+    piece of software. Reading other modules' decisions (`events`) defaults to what the
+    manifest declares, as writing does; a decision carries what it was judged on, so
+    the grant record says it plainly.
     """
     props = frozenset(properties)
     if not props <= manifest.reads:
@@ -175,9 +193,13 @@ def grant(log, manifest: Manifest, *, datastreams=(), properties=(), features=()
     kinds = frozenset(manifest.writes if writes is None else writes)
     if not kinds <= manifest.writes:
         raise ValueError(f"{manifest.name} does not declare writing {sorted(kinds - manifest.writes)}")
+    reads = frozenset(manifest.events if events is None else events)
+    if not reads <= manifest.events:
+        raise ValueError(f"{manifest.name} does not declare reading {sorted(reads - manifest.events)}")
     token = secrets.token_urlsafe(32)
     g = Grant(uuid7(), manifest.name, manifest.version, token_hash(token),
-              frozenset(datastreams), props, frozenset(features), kinds, at or _now(), by)
+              frozenset(datastreams), props, frozenset(features), kinds, at or _now(), by,
+              reads)
     log.append(GRANT, g.payload())
     return g, token
 
@@ -202,6 +224,8 @@ class ModuleHost:
         self.lock = lock or threading.RLock()
         self._grants: dict[str, Grant] = {}          # token hash -> grant
         self._revoked: set[UUID] = set()
+        #: What decisions are about: a module granted decisions may read their names.
+        self._subjects: set[UUID] = set()
         for event in log.events:
             self._learn(event)
         self._unsubscribe = log.on_commit(self._learn)
@@ -218,6 +242,11 @@ class ModuleHost:
             self._grants[g.token_sha256] = g
         elif event.kind == REVOCATION:
             self._revoked.add(UUID(event.payload["grant"]))
+        elif event.kind == "decision" and event.payload.get("subject"):
+            try:
+                self._subjects.add(UUID(event.payload["subject"]))
+            except (TypeError, ValueError):
+                pass
 
     # ----------------------------------------------------------- lifecycle
 
@@ -335,7 +364,8 @@ class ModuleHost:
 
     def _op_whoami(self, g, req):
         return {"module": g.module, "version": g.version, "grant": str(g.id),
-                "writes": sorted(g.writes)}
+                "writes": sorted(g.writes), "events": sorted(g.events),
+                "granted_at": g.granted_at.isoformat() if g.granted_at else None}
 
     def _op_datastreams(self, g, req):
         return [codec.dump(ds) for ds in self.state.datastreams.values() if g.may_read(ds)]
@@ -367,7 +397,8 @@ class ModuleHost:
 
     def _op_label(self, g, req):
         entity = UUID(req["entity"])
-        if entity not in self._readable_entities(g):
+        named = "decision" in g.events and entity in self._subjects
+        if not named and entity not in self._readable_entities(g):
             raise Refused(f"entity {entity} is not granted")
         label = self.state.label_for(entity, req.get("language", "en"))
         return codec.dump(label) if label is not None else None
@@ -387,6 +418,23 @@ class ModuleHost:
         kinds = set(req.get("kinds") or g.writes) & g.writes
         return [e.to_jsonable() for e in self.log.events
                 if e.kind in kinds and e.payload.get("module") == g.module]
+
+    def _op_follow(self, g, req):
+        """Events after an arrival offset (§7.5): its own writes, and every module's
+        writes of the kinds its grant reads. The cursor is the log's arrival order, so
+        an event synced late is never skipped. `{"events": [...], "next": offset}`."""
+        after = req.get("after", 0)
+        if not isinstance(after, int) or isinstance(after, bool) or after < 0:
+            raise ValueError("after is an arrival offset")
+        kinds = set(req.get("kinds") or (g.writes | g.events))
+        out, offset = [], after
+        for offset, e in enumerate(self.log.arrivals_since(after), start=after + 1):
+            if e.kind in kinds and (e.kind in g.events or (e.kind in g.writes and
+                                                           e.payload.get("module") == g.module)):
+                out.append(e.to_jsonable())
+                if len(out) >= FOLLOW_LIMIT:
+                    break
+        return {"events": out, "next": offset}
 
 
 # -------------------------------------------------------------------- client
@@ -424,6 +472,12 @@ class ModuleClient:
 
     def log(self):
         return RemoteLog(self)
+
+    def follow(self, after: int = 0, kinds=None) -> tuple:
+        """`(events, next offset)`: see the host's `follow`."""
+        from log import Event
+        found = self.call("follow", after=after, **({"kinds": sorted(kinds)} if kinds else {}))
+        return [Event.from_jsonable(e) for e in found["events"]], found["next"]
 
 
 @dataclass
@@ -531,6 +585,8 @@ def main(argv=None) -> int:
     g.add_argument("--datastream", action="append", default=[])
     g.add_argument("--property", action="append", default=[])
     g.add_argument("--feature", action="append", default=[])
+    g.add_argument("--no-events", action="store_true",
+                   help="withhold other modules' decisions even if the manifest asks")
     g.add_argument("--token-out", required=True)
     r = sub.add_parser("revoke", help="revoke a grant")
     r.add_argument("--log", required=True)
@@ -544,7 +600,8 @@ def main(argv=None) -> int:
     if args.cmd == "grant":
         manifest = Manifest.load(args.manifest)
         made, token = grant(lg, manifest, datastreams=[UUID(d) for d in args.datastream],
-                            properties=args.property, features=[UUID(f) for f in args.feature])
+                            properties=args.property, features=[UUID(f) for f in args.feature],
+                            events=() if args.no_events else None)
         fd = os.open(args.token_out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as h:
             h.write(token + "\n")

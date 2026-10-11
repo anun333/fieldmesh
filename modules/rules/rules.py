@@ -43,6 +43,13 @@ class Rule:
     alert_key: str = ""        # the message a true condition raises, for any language
     #: The message's parameters, each named for a value in the context or `params`.
     message_params: dict = field(default_factory=dict)
+    #: Sentences that fit a case better, as `(CEL condition, key)`, first true wins: a
+    #: trough the stock are not drinking from has no "hours left". Chosen when the rule
+    #: is judged, so the decision names the sentence and any renderer can say it.
+    message_variants: tuple = ()
+    #: The message parameter the decision's subject fills, by its label in the
+    #: reader's language ("trough", "bed"), resolved when the message is rendered.
+    subject_param: str = ""
 
 
 def frost_watch(warn_at_c: float = 0.0, *, window_h: tuple = (2.0, 16.0)) -> Rule:
@@ -95,21 +102,29 @@ def judge(rule: Rule, context: dict, inputs: dict, at: _dt.datetime) -> dict:
     offered to the condition, which is written over numbers and truths.
     """
     values = {**context, **rule.params}
-    alert = _cel(rule.condition, {k: v for k, v in values.items() if not isinstance(v, str)})
+    numeric = {k: v for k, v in values.items() if not isinstance(v, str)}
+    alert = _cel(rule.condition, numeric)
+    message = None
+    if alert:
+        key = next((k for condition, k in rule.message_variants if _cel(condition, numeric)),
+                   rule.alert_key)
+        message = {"key": key, "params": {name: values[source]
+                                          for name, source in rule.message_params.items()}}
+        if rule.subject_param:
+            message["subject_param"] = rule.subject_param
     return {"rule": rule.id, "version": rule.version, "condition": rule.condition,
             "params": dict(rule.params), "trust": rule.trust,
             "evaluated_at": at.isoformat(), "inputs": inputs,
-            "context": context, "alert": alert,
-            "message": ({"key": rule.alert_key,
-                         "params": {name: values[source]
-                                    for name, source in rule.message_params.items()}}
-                        if alert else None)}
+            "context": context, "alert": alert, "message": message}
 
 
 def evaluate(rule: Rule, state, forecast_id, at: _dt.datetime) -> dict:
-    """The frost watch's decision event payload for one evaluation (§7.7)."""
+    """The frost watch's decision event payload for one evaluation (§7.7). Tonight's
+    answer stands until the end of the night it is about."""
     context, inputs = frost_context(state, forecast_id, at, rule.params)
-    return judge(rule, context, {"forecast": str(forecast_id), "observations": inputs}, at)
+    d = judge(rule, context, {"forecast": str(forecast_id), "observations": inputs}, at)
+    d["valid_until"] = (at + _dt.timedelta(hours=rule.params["window_end_h"])).isoformat()
+    return d
 
 
 def decide(log, rule: Rule, state, forecast_id, at: _dt.datetime):
@@ -117,11 +132,52 @@ def decide(log, rule: Rule, state, forecast_id, at: _dt.datetime):
     return log.append(DECISION, evaluate(rule, state, forecast_id, at))
 
 
-def render(decision: dict, language: str = "en") -> str | None:
-    if not decision.get("message"):
+def render(decision: dict, language: str = "en", state=None) -> str | None:
+    """Any module's decision in `language`, from the decision alone: its message key,
+    its parameters, and its subject named by its label in that language (§1) — which
+    is how a notifier or a page says what a module decided without importing it. The
+    module's language pack must be registered (`i18n.register`); packs are data."""
+    m = decision.get("message")
+    if not m:
         return None
-    m = decision["message"]
-    return str(i18n.Translator(language).text(m["key"], **m["params"]))
+    params = dict(m["params"])
+    slot = m.get("subject_param")
+    if slot:
+        name = None
+        if state is not None and decision.get("subject"):
+            from uuid import UUID
+            label = state.label_for(UUID(decision["subject"]), language)
+            name = label.name if label is not None else None
+        params[slot] = name or decision.get("subject", "?")
+    return str(i18n.Translator(language).text(m["key"], **params))
+
+
+def standing(decisions, at: _dt.datetime) -> dict:
+    """The standing answer on each topic at `at`: `{(module, topic): decision payload}`.
+
+    A decision answers a question — its **topic** (§7.7): "is the north trough empty?",
+    "what does bed 3 need today?", "will it frost tonight?". The latest decision on a
+    topic is the standing answer, so a module that writes only when an alert is raised
+    or cleared and one that writes a fresh report every morning read the same way. An
+    answer past its `valid_until` stands no longer: last night's frost warning is not
+    tonight's. Decisions are `(stamp, payload)` pairs or log events, in log order.
+    """
+    out = {}
+    for d in decisions:
+        p = d.payload if hasattr(d, "payload") else d
+        if _dt.datetime.fromisoformat(p["evaluated_at"]) > at:
+            continue
+        out[(p.get("module"), topic_of(p))] = p
+    return {k: p for k, p in out.items()
+            if not p.get("valid_until") or _dt.datetime.fromisoformat(p["valid_until"]) > at}
+
+
+def topic_of(decision: dict) -> str:
+    """The question a decision answers: the module's own `topic` when it names one, or
+    else its rule and subject — one question per rule per trough, say."""
+    if decision.get("topic"):
+        return decision["topic"]
+    return f"{decision['rule']}/{decision['subject']}" if decision.get("subject") else decision["rule"]
 
 
 def backtest(rule: Rule, state, forecast_id, measured_id, *, to_c=lambda v: v,

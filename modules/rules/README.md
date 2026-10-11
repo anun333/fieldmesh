@@ -28,6 +28,23 @@ python3 modules/rules/frost_backtest.py --cache NBM_CACHE --from 2025-10-15 --to
 cd modules/rules && python3 -m unittest discover -p 'test_*.py'
 ```
 
+## A decision anyone can read
+
+A decision carries enough to be said and placed without the module that made it, so a
+notifier or a page can carry any module's alerts without importing any module:
+
+* **Its sentence.** `message.key` is chosen when the rule is judged — a rule's
+  `message_variants` pick the sentence that fits ("not refilling, and the stock are not
+  drinking" has no hours left to give) — and `message.params` fill it.
+* **What it is about.** `subject` names an entity and `message.subject_param` the slot
+  its label fills, in the reader's language (`rules.render(decision, language, state)`).
+* **Which question it answers.** `topic` defaults to the rule and its subject: "is the
+  north trough empty?" The soil advisory answers "what does bed 3 need today?" whichever
+  rule held, so it names its own. The latest decision on a topic is the standing answer
+  (`rules.standing`), and `valid_until` says when an answer goes stale: tonight's frost
+  watch stands until dawn, a morning's soil advice for a day, a raised trough alert until
+  the monitor clears it.
+
 Code AGPL-3.0-or-later ([LICENSE](LICENSE)), like the reference server; strings in
 [packs/](packs/) under the `rules.` prefix. It imports layer zero (the SDK and
 `tools/nbm_verify.py` for the backtest) and nothing in layer zero imports it.

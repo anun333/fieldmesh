@@ -271,6 +271,7 @@ def main(argv=None) -> int:
         result = None
         print(f"no watch tonight: {exc}", file=sys.stderr)
     decision = judge(rule, result, now, {"dusk": dusk.isoformat(), "cover": args.cover})
+    decision["valid_until"] = (dusk + NIGHT_H * HOUR).isoformat()     # tonight's, until dawn
     if write is not None:
         write.append(R.DECISION, decision)
     print(json.dumps({"alert": decision["alert"], "context": decision["context"],

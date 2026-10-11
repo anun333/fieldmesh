@@ -1,0 +1,18 @@
+{
+ "_meta": {
+  "language": "es",
+  "module": "notify",
+  "license": "AGPL-3.0-or-later",
+  "note": "Borrador: sin revisar por un hablante nativo."
+ },
+ "strings": {
+  "notify.from": "{farm}: {text}",
+  "notify.reply_sms": "Responda OK {code} cuando alguien se encargue.",
+  "notify.button": "Me encargo",
+  "notify.escalated": "Nadie ha respondido a esto en {minutes:.0f} minutos. {text}",
+  "notify.acknowledged": "{who} se encarga: {text}",
+  "notify.cleared": "Ya no es así ({time}): {text}",
+  "notify.ack_words": "ok, sí, si, voy, visto, listo, entendido, vale, enterado",
+  "notify.no_words": "no, nadie, imposible, tampoco, nunca, luego"
+ }
+}

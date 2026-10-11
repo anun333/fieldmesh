@@ -1,0 +1,16 @@
+{
+ "name": "board",
+ "version": "1",
+ "layer": 4,
+ "description": "The farm's board: one read-only page per language of the alerts that stand, who was told, who is on it, today's advice and what cleared.",
+ "reads": {
+  "observed_properties": [],
+  "events": [
+   "decision",
+   "notification",
+   "acknowledgement"
+  ]
+ },
+ "writes": [],
+ "commands": []
+}

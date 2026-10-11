@@ -24,8 +24,8 @@ from project import State
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def manifest(name="water", reads=(V.VESSEL_FILL_FRACTION,), writes=("decision",)):
-    return M.Manifest(name, "1", frozenset(reads), frozenset(writes))
+def manifest(name="water", reads=(V.VESSEL_FILL_FRACTION,), writes=("decision",), events=()):
+    return M.Manifest(name, "1", frozenset(reads), frozenset(writes), events=frozenset(events))
 
 
 class Farm:
@@ -77,6 +77,19 @@ class TestManifestAndGrant(unittest.TestCase):
         self.assertEqual(event.kind, M.GRANT)
         self.assertNotIn(token, json.dumps(event.to_jsonable()))
         self.assertEqual(event.payload["token_sha256"], M.token_hash(token))
+
+    def test_reading_others_writes_is_only_decisions_and_what_was_done_about_them(self):
+        for kind in ("observation", "module_grant", "access_token", "record_edit"):
+            with self.assertRaisesRegex(ValueError, "may read"):
+                manifest("notify", reads=(), writes=("notification",), events=(kind,))
+        log = Log()
+        with self.assertRaisesRegex(ValueError, "reading"):
+            M.grant(log, manifest(), events=["decision"])
+        notify = manifest("notify", reads=(), writes=("notification",), events=("decision",))
+        g, _ = M.grant(log, notify)
+        self.assertEqual(log.events[-1].payload["events"], ["decision"], "said in the grant")
+        withheld, _ = M.grant(log, notify, events=())
+        self.assertEqual(withheld.events, frozenset())
 
     def test_the_shipped_manifests_load(self):
         modules = os.path.join(HERE, os.pardir, "modules")
@@ -154,6 +167,51 @@ class TestHost(unittest.TestCase):
             with self.assertRaises(M.Refused):
                 w.call("label", entity=str(self.farm.soil.feature))
             self.assertIsNone(w.call("label", entity=str(self.farm.trough.feature)))
+
+    def test_a_notifier_granted_decisions_follows_every_modules_and_nothing_else(self):
+        notify = manifest("notify", reads=(), writes=("notification", "acknowledgement"),
+                          events=("decision", "acknowledgement"))
+        n, n_token = M.grant(self.farm.log, notify)
+        soil, soil_token = M.grant(self.farm.log, manifest("soilwater", reads=(V.SOIL_WATER,)),
+                                   properties=[V.SOIL_WATER])
+        with self.farm.client(self.token) as w, self.farm.client(soil_token) as s, \
+                self.farm.client(n_token) as c:
+            w.call("append", kind="decision",
+                   payload={"rule": "water-low", "subject": str(self.farm.trough.id)})
+            s.call("append", kind="decision", payload={"rule": "soil-water-now"})
+            c.call("append", kind="notification", payload={"decision": "x"})
+            events, cursor = c.follow()
+            self.assertEqual([(e.kind, e.payload["module"]) for e in events],
+                             [("decision", "water"), ("decision", "soilwater"),
+                              ("notification", "notify")])
+            self.assertTrue(all(e.kind not in (M.GRANT, "observation") for e in events))
+            again, same = c.follow(cursor)
+            self.assertEqual((again, same), ([], cursor), "the cursor moves on")
+            w.call("append", kind="decision", payload={"rule": "water-empty"})
+            [late], _ = c.follow(cursor)
+            self.assertEqual(late.payload["rule"], "water-empty")
+            # Its decisions' subjects it may name; nothing else of the farm.
+            self.assertIsNone(c.call("label", entity=str(self.farm.trough.id)))
+            with self.assertRaises(M.Refused):
+                c.call("label", entity=str(self.farm.soil.id))
+            with self.assertRaises(M.Refused):
+                c.call("observations", datastream=str(self.farm.trough.id),
+                       at=fx.at(30).isoformat())
+            # A module not granted decisions follows only its own writes.
+            mine, _ = w.follow()
+            self.assertEqual([e.payload["rule"] for e in mine], ["water-low", "water-empty"])
+            self.assertEqual(c.call("whoami")["events"], ["acknowledgement", "decision"])
+
+    def test_following_a_long_log_comes_in_pages(self):
+        notify = manifest("notify", reads=(), writes=("notification",), events=("decision",))
+        _, n_token = M.grant(self.farm.log, notify)
+        for i in range(M.FOLLOW_LIMIT + 5):
+            self.farm.log.append("decision", {"rule": f"r{i}"})
+        with self.farm.client(n_token) as c:
+            first, cursor = c.follow()
+            rest, end = c.follow(cursor)
+        self.assertEqual((len(first), len(rest)), (M.FOLLOW_LIMIT, 5))
+        self.assertEqual(end, self.farm.log.arrival_count)
 
     def test_a_malformed_request_and_a_dying_module_do_not_stop_the_host(self):
         raw = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

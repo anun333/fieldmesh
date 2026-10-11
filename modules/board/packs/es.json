@@ -1,0 +1,25 @@
+{
+ "_meta": {
+  "language": "es",
+  "module": "board",
+  "license": "AGPL-3.0-or-later",
+  "note": "Borrador: sin revisar por un hablante nativo."
+ },
+ "strings": {
+  "board.made": "Al día de las {time}. Esta página se actualiza sola cada minuto.",
+  "board.stale": "Esta página lleva más de {minutes:.0f} minutos sin actualizarse. La computadora de la finca o el tablero se detuvo: lo que sigue puede ya no ser cierto.",
+  "board.alerts": "Necesita a alguien",
+  "board.no_alerts": "No hay ninguna alerta en pie.",
+  "board.nobody_yet": "Nadie ha dicho todavía que se encarga.",
+  "board.acked": "{who} se encarga, desde las {time}.",
+  "board.since": "Desde las {time}",
+  "board.told": "Avisados:",
+  "board.standing": "También vigente",
+  "board.cleared": "Resuelto en el último día",
+  "board.cleared_at": "Ya no es así desde las {time}:",
+  "board.someone": "alguien",
+  "board.via.sms": "SMS",
+  "board.via.ntfy": "notificación",
+  "board.via.none": "?"
+ }
+}

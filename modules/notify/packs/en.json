@@ -1,0 +1,18 @@
+{
+ "_meta": {
+  "language": "en",
+  "module": "notify",
+  "license": "AGPL-3.0-or-later",
+  "note": "The notifier's strings, merged over layer zero's pack at load. Every key starts with `notify.`. `notify.ack_words` and `notify.no_words` are comma-separated single words: a reply acknowledges with one of the first and never with any of the second, so \"no puedo 417\" is not an acknowledgement. A translation lists its own."
+ },
+ "strings": {
+  "notify.from": "{farm}: {text}",
+  "notify.reply_sms": "Reply OK {code} when someone is on it.",
+  "notify.button": "I'm on it",
+  "notify.escalated": "Nobody has answered this for {minutes:.0f} minutes. {text}",
+  "notify.acknowledged": "{who} is on it: {text}",
+  "notify.cleared": "No longer the case ({time}): {text}",
+  "notify.ack_words": "ok, okay, yes, yep, seen, got, going, coming, onit",
+  "notify.no_words": "no, not, nope, cant, cannot, unable, wont, dont, later"
+ }
+}

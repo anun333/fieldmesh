@@ -33,6 +33,8 @@ test:
 	@cd modules/water && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/soilwater && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/twin && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
+	@cd modules/notify && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
+	@cd modules/board && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 
 demo:
 	@cd sdk && python3 demo.py

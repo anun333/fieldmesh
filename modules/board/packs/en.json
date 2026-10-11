@@ -1,0 +1,25 @@
+{
+ "_meta": {
+  "language": "en",
+  "module": "board",
+  "license": "AGPL-3.0-or-later",
+  "note": "The farm board's strings, merged over layer zero's pack at load. Every key starts with `board.`."
+ },
+ "strings": {
+  "board.made": "As of {time}. This page updates itself every minute.",
+  "board.stale": "This page has not updated for more than {minutes:.0f} minutes. The farm's computer or the board has stopped: what is below may no longer be true.",
+  "board.alerts": "Needs someone",
+  "board.no_alerts": "No alert stands.",
+  "board.nobody_yet": "Nobody has said they are on it yet.",
+  "board.acked": "{who} is on it, since {time}.",
+  "board.since": "Since {time}",
+  "board.told": "Told:",
+  "board.standing": "Also standing",
+  "board.cleared": "Cleared in the last day",
+  "board.cleared_at": "No longer the case since {time}:",
+  "board.someone": "someone",
+  "board.via.sms": "SMS",
+  "board.via.ntfy": "push",
+  "board.via.none": "?"
+ }
+}

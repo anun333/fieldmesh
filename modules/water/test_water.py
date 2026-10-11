@@ -178,13 +178,21 @@ class TestMonitor(unittest.TestCase):
         es = W.render(event.payload, "es", p.state)
         self.assertTrue(en.startswith("north trough has not refilled for 2.0 hours"), en)
         self.assertIn("bebedero norte no se ha vuelto a llenar en 2,0 horas", es)
-        idle = dict(event.payload, message={"key": "water.not_refilling",
-                                            "params": {"hours": 3.0, "rate": 0.0,
-                                                       "left": W.NO_ESTIMATE}})
-        self.assertIn("before the stock start drinking", W.render(idle, "en", p.state))
-        never = dict(event.payload, message={"key": "water.unseen",
-                                             "params": {"hours": W.NO_ESTIMATE}})
-        self.assertIn("No reading has ever arrived", W.render(never, "en", p.state))
+        # The sentence that fits is chosen when the rule is judged, so the decision
+        # names it and any renderer says it without knowing this module.
+        import rules as R
+        rules = {r.id: r for r in W.rules_for(p.trough)}
+        resting = {"has_reading": True, "usable": True, "low_side_range": False,
+                   "level": 0.8, "level_percent": 80.0, "hours_since_reading": 0.1,
+                   "below_setpoint_h": 3.0, "fall_l_per_h": 0.0,
+                   "hours_to_empty": W.NO_ESTIMATE}
+        idle = dict(R.judge(rules["water-not-refilling"], resting, {}, T0), subject=str(p.ds.id))
+        self.assertEqual(idle["message"]["key"], "water.not_refilling_idle")
+        self.assertIn("north trough", R.render(idle, "en", p.state))
+        self.assertIn("before the stock start drinking", R.render(idle, "en", p.state))
+        silent, _ = W.trough_context(State(), p.trough, T0)
+        never = dict(R.judge(rules["water-unseen"], silent, {}, T0), subject=str(p.ds.id))
+        self.assertIn("No reading has ever arrived from north trough", R.render(never, "en", p.state))
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")

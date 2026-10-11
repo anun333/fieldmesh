@@ -76,6 +76,10 @@ Code AGPL-3.0-or-later ([LICENSE](LICENSE)); strings in [packs/](packs/) under t
 `water.` prefix, the Spanish an unreviewed draft like the rest. It imports layer zero and
 layer 1, and nothing below imports it.
 
-**Not yet:** escalation of an alert nobody acknowledges (layer 1's job, §11); per-trough
-marks learned from a trough's own history, as Q24 did for flatlines; a message channel
-to a phone (layer 4).
+Its alerts reach people through [modules/notify/](../notify/) — by SMS or push, in
+each person's language, climbing to the next person when nobody says "on it" — and
+stand on the farm's page, [modules/board/](../board/). Neither imports this module: a
+decision names its own sentence and what it is about (`rules.render`).
+
+**Not yet:** per-trough marks learned from a trough's own history, as Q24 did for
+flatlines; one message for both troughs when the radio they share goes quiet.

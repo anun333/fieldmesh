@@ -1,0 +1,18 @@
+{
+ "name": "notify",
+ "version": "1",
+ "layer": 1,
+ "description": "Notifications: every module's decisions to people by push or SMS, in their language, escalating until someone acknowledges.",
+ "reads": {
+  "observed_properties": [],
+  "events": [
+   "decision",
+   "acknowledgement"
+  ]
+ },
+ "writes": [
+  "notification",
+  "acknowledgement"
+ ],
+ "commands": []
+}

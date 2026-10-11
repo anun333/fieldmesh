@@ -10,6 +10,8 @@ the module host's unix socket, and the host answers only what the module's grant
 | [fieldmesh-host.service](fieldmesh-host.service) | the host, over the farm's log, for a farm that runs it on its own (on a gateway it runs inside the gateway) |
 | [fieldmesh-module@.service](fieldmesh-module@.service) | one module: `fieldmesh-module@water`, `fieldmesh-module@soilwater` |
 | [fieldmesh-server.service](fieldmesh-server.service) | the SensorThings data service, read-only over the farm's log, tokens required ([server/](../../server/)) |
+| [fieldmesh-module@notify.service.d/](fieldmesh-module@notify.service.d/channels.conf) | the notifier's one exception: the network, for its push server, and its ntfy tokens as credentials ([modules/notify/](../../modules/notify/)) |
+| [fieldmesh-module@board.service.d/](fieldmesh-module@board.service.d/serve.conf) | the farm page: its own state directory for the pages, served on this machine only ([modules/board/](../../modules/board/)) |
 
 ## Installing a module
 
@@ -31,6 +33,35 @@ sudo systemctl enable --now fieldmesh-host fieldmesh-module@water
 # Taking it back: the next call it makes is refused.
 sudo python3 /opt/fieldmesh/sdk/modhost.py revoke --log /var/lib/fieldmesh/farm.jsonl <grant id>
 ```
+
+## The notifier and the board
+
+Both read every module's decisions, which an owner grants by installing them: their
+manifests ask for it, and the grant record says so (§8.3). Neither is granted a reading.
+
+```sh
+sudo python3 /opt/fieldmesh/sdk/modhost.py grant --log /var/lib/fieldmesh/farm.jsonl \
+    --manifest /opt/fieldmesh/modules/notify/module.json --token-out /etc/fieldmesh/modules/notify.token
+sudoedit /etc/fieldmesh/modules/notify.json      # the roster: people, routes, channels
+# optional, if the ntfy server asks for tokens (modules/notify/README.md):
+sudoedit /etc/fieldmesh/modules/notify.ntfy-token /etc/fieldmesh/modules/notify.ntfy-ack-token
+sudo cp -r deploy/systemd/fieldmesh-module@notify.service.d /etc/systemd/system/
+sudo systemctl enable --now fieldmesh-module@notify
+
+sudo python3 /opt/fieldmesh/sdk/modhost.py grant --log /var/lib/fieldmesh/farm.jsonl \
+    --manifest /opt/fieldmesh/modules/board/module.json --token-out /etc/fieldmesh/modules/board.token
+sudoedit /etc/fieldmesh/modules/board.json       # farm, time zone, languages, people's names
+sudo cp -r deploy/systemd/fieldmesh-module@board.service.d /etc/systemd/system/
+sudo systemctl enable --now fieldmesh-module@board   # http://127.0.0.1:8080/
+```
+
+The notifier is the one module given the network, so `systemd-analyze security` scores
+its unit at 1.3 ("OK"), and the board, which serves on this machine only, at 1.2; a
+module with no network scores 0.4. Run live under a user manager with the notifier's
+settings, it read its roster and token as credentials, fell back to no ntfy token when
+that file was missing, and published to a real ntfy server through the host. **Not
+checked:** SMS through ModemManager from the service's own user, which polkit decides;
+check it on the first gateway with a SIM.
 
 ## What the sandbox does, and what was checked
 

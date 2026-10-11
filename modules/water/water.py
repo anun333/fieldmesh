@@ -39,7 +39,7 @@ from __future__ import annotations
 import datetime as _dt
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -96,10 +96,11 @@ def rules_for(trough: Trough) -> list:
     p = {"empty_at": trough.empty_at, "low_at": trough.low_at,
          "refill_hold_h": trough.refill_hold_h, "stale_after_h": trough.stale_after_h}
     fresh = "has_reading && hours_since_reading <= stale_after_h"
-    return [
+    rules = [
         R.Rule("water-unseen", "1",
                "!has_reading || hours_since_reading > stale_after_h", p,
-               alert_key="water.unseen", message_params={"hours": "hours_since_reading"}),
+               alert_key="water.unseen", message_params={"hours": "hours_since_reading"},
+               message_variants=(("!has_reading", "water.never_seen"),)),
         R.Rule("water-untrusted", "1", f"{fresh} && !usable && !low_side_range", p,
                alert_key="water.untrusted", message_params={}),
         R.Rule("water-empty", "1", f"{fresh} && usable && level < empty_at", p,
@@ -114,8 +115,12 @@ def rules_for(trough: Trough) -> list:
                f"{fresh} && (usable || low_side_range) && below_setpoint_h >= refill_hold_h",
                p, alert_key="water.not_refilling",
                message_params={"hours": "below_setpoint_h", "rate": "fall_l_per_h",
-                               "left": "hours_to_empty"}),
+                               "left": "hours_to_empty"},
+               # Stock not drinking: no "hours left" to give.
+               message_variants=((f"hours_to_empty >= {NO_ESTIMATE!r}",
+                                  "water.not_refilling_idle"),)),
     ]
+    return [replace(r, subject_param="trough") for r in rules]
 
 
 # ----------------------------------------------------------------- context
@@ -262,24 +267,9 @@ class Monitor:
 
 
 def render(decision: dict, language: str = "en", state=None) -> str | None:
-    """A decision's message in `language`, naming the trough by its label there."""
-    if not decision.get("message"):
-        return None
-    m = decision["message"]
-    name = None
-    if state is not None and decision.get("subject"):
-        label = state.label_for(UUID(decision["subject"]), language)
-        name = label.name if label is not None else None
-    params = {**m["params"], "trough": name or decision.get("subject", "?")}
-    key = m["key"]
-    # The decision is one per rule; the sentence can still fit the case. A trough the
-    # stock are not drinking from has no "hours left", and one never heard from has no
-    # "hours since".
-    if key == "water.not_refilling" and params.get("left", 0) >= NO_ESTIMATE:
-        key = "water.not_refilling_idle"
-    elif key == "water.unseen" and params.get("hours", 0) >= NO_ESTIMATE:
-        key = "water.never_seen"
-    return str(i18n.Translator(language).text(key, **params))
+    """A decision's message in `language`, naming the trough by its label there. Any
+    renderer can do the same from the decision alone (`rules.render`)."""
+    return R.render(decision, language, state)
 
 
 # ------------------------------------------------------------------ process
