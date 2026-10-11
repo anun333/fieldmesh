@@ -8,6 +8,10 @@ out.
 
 *Formerly librefarm; renamed on 2026-10-10.*
 
+It is **free software**: anyone may run it, study it, change it and share it, and the parts
+a farm runs as a service stay free when someone changes them. Who decides, and how much of
+it an AI wrote, is in [GOVERNANCE.md](GOVERNANCE.md).
+
 Everything here is designed for the farm that cannot afford a good answer. That means
 intermittent connectivity, battery power, cheap radios, and a log the farmer owns
 outright.
@@ -87,8 +91,8 @@ About 1,340 tests. The simulator runs a 180-day season in under eight minutes.
 
 ## Licensing
 
-Three licences, one per kind of artifact. The full reasoning is in
-[LICENSING.md](LICENSING.md).
+Three licences, one per kind of artifact, all of them free-software and free-culture
+licences. The full reasoning is in [LICENSING.md](LICENSING.md).
 
 | | |
 | --- | --- |

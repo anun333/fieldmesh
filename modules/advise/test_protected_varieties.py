@@ -59,5 +59,39 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(PV.verdict(PV.check(self.rows, "Honeycrisp", today=self.today)), "not found")
 
 
+
+class OssiTest(unittest.TestCase):
+    """The flag the other way round: pledged free, from a list the farm supplies."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self.dir.name, "ossi.csv")
+        with open(self.path, "w", encoding="utf-8") as h:
+            h.write("variety,crop\nAbundant Bloomsdale,Spinach\n21st Century Fire,Lettuce\n"
+                    "Green Ice,Lettuce\n")
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_a_pledged_variety_is_flagged_and_an_unlisted_one_is_not(self):
+        ossi = PV.read_ossi(self.path)
+        self.assertEqual(len(PV.pledged(ossi, "abundant  bloomsdale")), 1)
+        self.assertEqual(PV.pledged(ossi, "Abundant Bloomsdale", "Corn"), [])
+        note = PV.ossi_note(PV.pledged(ossi, "21st Century Fire", "lettuce"), "not found")
+        self.assertTrue(note.startswith("OSSI-pledged (Lettuce): free to use, save, breed"))
+        self.assertEqual(PV.ossi_note([], "not found"), "not on the OSSI list given")
+
+    def test_pledged_and_under_a_certificate_is_called_out(self):
+        ossi = PV.read_ossi(self.path)
+        self.assertIn("ask the breeder", PV.ossi_note(PV.pledged(ossi, "Green Ice"), "protected"))
+        self.assertNotIn("ask the breeder", PV.ossi_note(PV.pledged(ossi, "Green Ice"), "not under PVP"))
+
+    def test_a_list_without_varieties_is_refused(self):
+        with open(self.path, "w", encoding="utf-8") as h:
+            h.write("name,crop\nX,Y\n")
+        with self.assertRaisesRegex(ValueError, "variety"):
+            PV.read_ossi(self.path)
+
+
 if __name__ == "__main__":
     unittest.main()

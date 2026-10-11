@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Contributing
 
-Thank you for looking. fieldmesh is a farmer-owned farm-data stack: a specification, an SDK
+Thank you for looking. fieldmesh is free software, and a farmer-owned farm-data stack: a specification, an SDK
 that implements it, a simulated farm that tests it, a reference server, and modules above it.
 Start with [README.md](README.md) and the specification, [docs/spec/v0.1.md](docs/spec/v0.1.md).
 
@@ -41,6 +41,12 @@ A contribution is taken under the licence of the directory it lands in — the s
 and prose CC BY 4.0, the SDK, simulator and tools Apache-2.0, the server and modules
 AGPL-3.0-or-later — and its author keeps their copyright. There is no contributor licence
 agreement. See [LICENSING.md](LICENSING.md).
+
+## Written with an AI tool
+
+Welcome, disclosed: add a `Co-Authored-By:` trailer naming the tool, as every commit here
+does. The same tests and evidence apply. Why it is disclosed is in
+[GOVERNANCE.md](GOVERNANCE.md#written-with-ai).
 
 ## Conduct
 

@@ -81,7 +81,8 @@ NAV = (("Spec", "docs/spec/v0.1.md"), ("Open questions", "docs/spec/open-questio
 #: llms.txt sections, in order; a page goes in the first whose test it passes.
 SECTIONS = (
     ("Start here", lambda p: p in ("README.md", "docs/VIRTUAL_FARM.md", "CONTRIBUTING.md",
-                                   "LICENSING.md", "docs/LANGUAGE_PACKS.md")),
+                                   "LICENSING.md", "GOVERNANCE.md", "docs/UNTESTED.md",
+                                   "docs/LANGUAGE_PACKS.md")),
     ("Specification", lambda p: p in ("docs/spec/v0.1.md", "docs/spec/open-questions.md")),
     ("Components", lambda p: p.endswith("/README.md")),
     ("Notes", lambda p: p.startswith("docs/notes/")),

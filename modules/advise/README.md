@@ -71,5 +71,5 @@ packs' prose are CC BY 4.0 like the rest of the documentation.
 | `plant_names.py` | plant names in other languages from AGROVOC (CC BY 4.0) and Wikidata (CC0) |
 | `nutrients.py` | manure supplied against nutrients the harvests remove (NRCS handbook tables) |
 | `erosion_map.py` | RUSLE on every 10 m cell of a field, from USGS 3DEP and the soil survey's polygons |
-| `protected_varieties.py` | whether a variety is under Plant Variety Protection, before propagating it for sale |
+| `protected_varieties.py` | whether a variety is under Plant Variety Protection, before propagating it for sale; and with `--ossi`, whether it is pledged free to the Open Source Seed Initiative, from a list the farm supplies (OSSI's own is not licensed for reuse) |
 | `module.py` | version, data manifest, language packs |

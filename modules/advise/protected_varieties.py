@@ -19,6 +19,14 @@ What a match means:
 * **not under PVP** — a certificate expired, or the application was abandoned, withdrawn,
   denied or found ineligible.
 
+**And the other way round: is it free?** The Open Source Seed Initiative's breeders pledge
+their varieties free to use, save, breed and share, provided nobody downstream restricts
+them by patent or certificate and the pledge goes with the seed. `--ossi FILE` flags the
+varieties on such a list — a CSV with a `variety` column and, if it has one, `crop`. OSSI
+publishes its list as web pages under its own copyright, with no licence for reuse, so the
+list is not shipped here until OSSI licenses it for reuse; a farm supplies its own copy. A variety both pledged and under a certificate is a contradiction worth a
+call to its breeder, and the check says so.
+
 **What this does not check: patents.** PVP covers varieties grown from seed and tubers.
 Fruit trees, berries, grapes and most ornamentals propagated from cuttings or grafts are
 usually protected by a plant patent instead, and some seed varieties by a utility patent;
@@ -125,12 +133,43 @@ def verdict(matches: list) -> str:
     return "not under PVP" if matches else "not found"
 
 
+def read_ossi(path: str) -> list[dict]:
+    """A list of OSSI-pledged varieties: a CSV with `variety`, and `crop` if known."""
+    import csv
+    with open(path, encoding="utf-8", newline="") as h:
+        rows = list(csv.DictReader(h))
+    if rows and "variety" not in rows[0]:
+        raise ValueError(f"{path}: an OSSI list needs a `variety` column")
+    return rows
+
+
+def pledged(ossi: list, variety: str, crop: str | None = None) -> list[dict]:
+    """The list's entries for this variety, matched as `check` matches a name; a crop,
+    if given, must appear in the entry's crop ("lettuce" in "Lettuce, Romaine")."""
+    want = _name(variety)
+    return [r for r in ossi if _name(r.get("variety")) == want
+            and (not crop or not r.get("crop") or crop.lower() in r["crop"].lower())]
+
+
+def ossi_note(entries: list, pvp: str) -> str:
+    if not entries:
+        return "not on the OSSI list given"
+    crops = ", ".join(sorted({e.get("crop") for e in entries if e.get("crop")}))
+    note = "OSSI-pledged" + (f" ({crops})" if crops else "") + \
+        ": free to use, save, breed and share, provided the pledge goes with the seed"
+    if pvp in ("protected", "provisionally protected"):
+        note += "; yet also under PVP, which the pledge forbids: ask the breeder"
+    return note
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("varieties", nargs="+", help="variety, or variety:scientific name")
     ap.add_argument("--cache", required=True)
+    ap.add_argument("--ossi", help="a CSV of OSSI-pledged varieties (variety, crop) to flag")
     args = ap.parse_args(argv)
     rows = read(fetch(args.cache))
+    ossi = read_ossi(args.ossi) if args.ossi else None
     for item in args.varieties:
         variety, _, scientific = item.partition(":")
         matches = check(rows, variety, scientific or None)
@@ -139,6 +178,9 @@ def main(argv=None) -> int:
                            + (f", issued {m['issued']} for {m['years']} years" if m.get("issued") else "")
                            for m in matches)
         print(f"{variety}: {v}" + (f" — {detail}" if detail else ""))
+        if ossi is not None:
+            common = matches[0].get("common") if matches else None
+            print(f"  {ossi_note(pledged(ossi, variety, common), v)}")
     print("\nPlant and utility patents are not checked: fruit trees, berries and plants "
           "propagated from cuttings are usually patented, not certificated.")
     return 0
