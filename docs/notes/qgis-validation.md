@@ -153,7 +153,7 @@ it.
 ## Reproducing
 
 ```sh
-make serve                      # or: cd server && python3 serve.py --days 1 --port 8099
+make serve                      # or: cd server && python3 serve.py --days 1 --port 8099 --open
 docker pull qgis/qgis:ltr
 docker run --rm --network host -e QT_QPA_PLATFORM=offscreen \
   -v "$PWD/probe.py:/probe.py:ro" qgis/qgis:ltr python3 /probe.py

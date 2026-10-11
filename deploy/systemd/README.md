@@ -9,6 +9,7 @@ the module host's unix socket, and the host answers only what the module's grant
 | --- | --- |
 | [fieldmesh-host.service](fieldmesh-host.service) | the host, over the farm's log, for a farm that runs it on its own (on a gateway it runs inside the gateway) |
 | [fieldmesh-module@.service](fieldmesh-module@.service) | one module: `fieldmesh-module@water`, `fieldmesh-module@soilwater` |
+| [fieldmesh-server.service](fieldmesh-server.service) | the SensorThings data service, read-only over the farm's log, tokens required ([server/](../../server/)) |
 
 ## Installing a module
 

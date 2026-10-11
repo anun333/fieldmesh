@@ -66,6 +66,40 @@ def shared(state: P.State, grantee: str, at: _dt.datetime) -> list[Observation]:
     return P.order_observations(out)
 
 
+def view(state: P.State, grantee: str, at: _dt.datetime) -> P.State:
+    """What `grantee` sees at `at`, as a state of its own (§7.6).
+
+    The granted datastreams, the observations their grants cover, the quality
+    assertions made about those by `at`, and the names and devices behind them — and
+    nothing else. A service answers a grantee from this rather than filtering each
+    answer, so a path nobody thought to filter (an `$expand`, a navigation link, an
+    entity fetched by id) cannot leak: what is not in the view does not exist, and a
+    request for it is a 404, which also does not say that it exists.
+    """
+    grants = grants_for(state, grantee, at)
+    out = P.State()
+    streams = [state.datastreams[d] for d in {d for g in grants for d in g.datastreams}
+               if d in state.datastreams]
+    entities = set()
+    for ds in streams:
+        out.add(ds)
+        entities |= {ds.id, ds.thing, ds.sensor, ds.feature}
+        if ds.sensor in state.devices:
+            out.add(state.devices[ds.sensor])
+    for label in state.labels:
+        if label.entity in entities:
+            out.add(label)
+    for ds in streams:
+        mine = [g for g in grants if ds.id in g.datastreams]
+        for obs in state.observations_of(ds.id):
+            if any(covers(g, obs) for g in mine):
+                out.add(obs)
+                for a in state.assertions_about(obs.id):
+                    if a.asserted_at <= at:
+                        out.add(a)
+    return out
+
+
 def describe(grant: Grant) -> str:
     """What to tell the farmer at the moment they grant, in plain words (§7.6)."""
     scope = ("observations already received and those that arrive until "

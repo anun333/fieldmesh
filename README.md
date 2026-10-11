@@ -26,7 +26,7 @@ need `protobuf` — `pip install -r requirements-tools.txt` installs both. On Wi
 ```sh
 make test       # every test, about a minute
 make demo       # a log becomes derived state becomes a SensorThings document
-make serve      # a SensorThings 1.1 endpoint over two simulated days, on :8080
+make serve      # a SensorThings 1.1 endpoint over two simulated days, on this machine's :8080
 make drill      # seed sensor faults, score the detectors against ground truth
 make siting     # score the depth check against probe moves nobody logged
 make export     # a week out in open formats, then verify it replays identically
@@ -120,5 +120,7 @@ Plainly, so nobody has to discover it:
   no app writes them yet and nothing projects them to farmOS (Q8).
 - **The Spanish language pack is an unreviewed draft.** It needs a native-speaking
   agronomist before farmers see it.
-- **Not hardened for a network.** The HTTP server is single-threaded and read-only by
-  design, and has never faced the internet.
+- **Hardened, but never yet faced the internet.** The HTTP server asks every request for
+  a token, answers a sharing grantee from what their grant covers and nothing else,
+  refuses to listen beyond the machine without TLS, and rate-limits and times out its
+  clients. Nobody outside has tried to break it.

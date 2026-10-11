@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: Apache-2.0
+# The SensorThings data service over the farm's log (spec v0.1 §10), sandboxed and
+# read-only. Bound to loopback, for a reverse proxy that holds the certificate. To listen
+# beyond the machine itself instead, change ExecStart to
+#   --host 0.0.0.0 --tls-cert %d/cert --tls-key %d/key
+# and add LoadCredential=cert:/etc/fieldmesh/tls/cert.pem and
+# LoadCredential=key:/etc/fieldmesh/tls/key.pem; it refuses to listen beyond loopback
+# without them. systemd-analyze security: 1.3, "OK" (it needs the network).
+
+[Unit]
+Description=fieldmesh data service
+
+[Service]
+Type=simple
+User=fieldmesh
+ExecStart=/usr/bin/python3 -I /opt/fieldmesh/server/serve.py \
+    --log /var/lib/fieldmesh/farm.jsonl --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=5s
+ReadOnlyPaths=/var/lib/fieldmesh
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+LockPersonality=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

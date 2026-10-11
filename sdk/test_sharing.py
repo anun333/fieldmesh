@@ -54,6 +54,23 @@ class Q16Test(unittest.TestCase):
         self.assertTrue(SH.may_read(s, g.grantee, self.before, fx.at(90)))
         self.assertFalse(SH.may_read(s, g.grantee, self.before, fx.at(100)))
 
+    def test_the_view_holds_what_the_grant_covers_and_nothing_else(self):
+        """A service answers a grantee from this view, so what is not in it does not
+        exist for them: the other series, the reading that arrived after the grant,
+        and its quality verdict."""
+        other = fx.raw_datastream()
+        hidden = fx.observation(other, result=0.3, seq=9)
+        g = _grant(self.ds, 30)
+        verdict = fx.assertion(self.before.id, asserted_at=fx.at(10))
+        late = fx.assertion(self.after.id, asserted_at=fx.at(70))
+        s = self.state(g, other, hidden, verdict, late)
+        v = SH.view(s, g.grantee, fx.at(120))
+        self.assertEqual(list(v.datastreams), [self.ds.id])
+        self.assertEqual(v.observations, [self.before])
+        self.assertEqual(v.assertions, [verdict])
+        self.assertEqual(SH.view(s, "a buyer", fx.at(120)).observations, [])
+        self.assertEqual(list(SH.view(s, "a buyer", fx.at(120)).datastreams), [])
+
     def test_another_grantee_sees_nothing(self):
         s = self.state(_grant(self.ds, 30))
         self.assertEqual(SH.shared(s, "a buyer", fx.at(120)), [])

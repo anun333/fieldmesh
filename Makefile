@@ -70,7 +70,7 @@ packs:
 	@cd tools && python3 packs.py
 
 serve:
-	@cd server && python3 serve.py --days $${DAYS:-2}
+	@cd server && python3 serve.py --days $${DAYS:-2} --open
 
 season:
 	@cd sim && python3 -c "import time, harrow_bend as hb; \

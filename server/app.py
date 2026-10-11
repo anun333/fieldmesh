@@ -25,10 +25,12 @@ says so in its own comment.
 """
 from __future__ import annotations
 
+import copy
 import datetime as _dt
 import json
 import os
 import sys
+import threading
 from urllib.parse import parse_qsl, unquote, urlencode
 from uuid import UUID
 
@@ -39,6 +41,7 @@ import odata  # noqa: E402
 
 import project as P  # noqa: E402
 import sensorthings as ST  # noqa: E402
+import sharing as SH  # noqa: E402
 
 JSON = "application/json"
 
@@ -354,44 +357,88 @@ def preferred_language(header: str | None, default: str = "en") -> str:
 class App:
     """Routes requests onto a `sensorthings.Service`."""
 
-    def __init__(self, service: ST.Service):
+    def __init__(self, service: ST.Service, *, lock=None):
         self.service = service
         self.state = service.state
         self.base_path = service.dialect.base_path
-        self._by_language: dict[str, ST.Service] = {service.language: service}
+        #: Held while a request reads the state. Whatever folds new records into the
+        #: state (a gateway, a log being followed) holds the same lock, so a request
+        #: never sees a half-folded state. Re-entrant, so a request that reads twice
+        #: does not deadlock on itself.
+        self.lock = lock or threading.RLock()
+        self._variants: dict[tuple, ST.Service] = {}
+        self._views: dict[tuple, ST.Service] = {}
+        self._cache_lock = threading.Lock()
 
-    def _service_for(self, language: str) -> ST.Service:
-        """A view of the same state that names things in `language` (§1, §11)."""
-        if language not in self._by_language:
-            base = self.service
-            self._by_language[language] = ST.Service(
-                base.state, base.base_url, dialect=base.dialect, labels=base.labels,
-                interval_times=base.interval_times, language=language,
-                geometries=base.geometries)
-        return self._by_language[language]
+    def _variant(self, base: ST.Service, language: str) -> ST.Service:
+        """The same state, naming things in `language` (§1, §11)."""
+        if base.language == language:
+            return base
+        key = (id(base), language)
+        with self._cache_lock:
+            if key not in self._variants:
+                self._variants[key] = ST.Service(
+                    base.state, base.base_url, dialect=base.dialect, labels=base.labels,
+                    interval_times=base.interval_times, language=language,
+                    geometries=base.geometries)
+            return self._variants[key]
+
+    def _grantee_service(self, grantee: str, at: _dt.datetime) -> ST.Service:
+        """What a grantee sees (§7.6), as a service over `sharing.view` — so every path,
+        an `$expand` or a navigation link included, answers from the grant and nothing
+        else. Rebuilt when the state grows, and at least once a minute, since a grant
+        ends or is revoked at a moment."""
+        st = self.state
+        key = (grantee, len(st.observations), len(st.assertions), len(st.grants),
+               len(st.revocations), len(st.labels), len(st.datastreams),
+               at.replace(second=0, microsecond=0))
+        with self._cache_lock:
+            found = self._views.get(key)
+        if found is not None:
+            return found
+        view = SH.view(st, grantee, at)
+        seen = set()
+        for ds in view.datastreams.values():
+            seen |= {ds.id, ds.thing, ds.sensor, ds.feature}
+        base = self.service
+        service = ST.Service(view, base.base_url, dialect=base.dialect,
+                             labels={k: v for k, v in base.labels.items() if k in seen},
+                             interval_times=base.interval_times, language=base.language,
+                             geometries={k: v for k, v in base.geometries.items() if k in seen})
+        with self._cache_lock:
+            if len(self._views) > 64:
+                self._views.clear()
+                self._variants.clear()
+            self._views[key] = service
+        return service
 
     # ------------------------------------------------------------- entry point
 
     def handle(self, method: str, path: str, query: str = "",
-               headers: dict | None = None):
+               headers: dict | None = None, *, principal=None,
+               at: _dt.datetime | None = None):
         """Serve one request. Never raises — every failure becomes a response.
 
         `Accept-Language` chooses the language entity names are given in (layer 4 is
         bilingual, §11); a name that has no translation falls back, and says so in
-        `properties.nameLanguage`.
+        `properties.nameLanguage`. A `principal` who is a grantee (§7.6) is answered
+        from what their grants cover at `at`, and anything else is a 404.
+
+        Each request works on its own shallow copy of the app holding its own service,
+        so two requests on two threads never see each other's language or grantee.
         """
         headers = {k.lower(): v for k, v in (headers or {}).items()}
         language = preferred_language(headers.get("accept-language"),
                                       self.service.language)
-        # Swapping the view for the length of one request is safe only because the
-        # server is single-threaded by design (serve.py). A threaded server would
-        # need the language threaded through the call instead.
-        previous = self.service
-        self.service = self._service_for(language)
-        try:
-            return self._handle(method, path, query)
-        finally:
-            self.service = previous
+        with self.lock:
+            base = self.service
+            if principal is not None and principal.kind == "grantee":
+                base = self._grantee_service(
+                    principal.name, at or _dt.datetime.now(tz=_dt.timezone.utc))
+            request = copy.copy(self)
+            request.service = self._variant(base, language)
+            request.state = request.service.state
+            return request._handle(method, path, query)
 
     def _handle(self, method: str, path: str, query: str):
         try:
