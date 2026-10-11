@@ -20,14 +20,20 @@ sets the two side by side.
 | --- | --- | --- | --- | --- | --- | --- |
 | the virtual farm's tunnel, as first guessed | +3.1 °C | +1.6 | 2 | 1 | +9.5 | 32.6 °C |
 | the virtual farm's tunnel, fitted to GreenLight (IR film) | +1.2 °C | +1.0 | 3 | 1 | +7.5 | 31.1 °C |
+| the same, knowing the sky from its long-wave (IR film) | +1.4 °C | +1.1 | 3 | 1 | +7.5 | 31.1 °C |
+| the same, knowing the sky (clear film) | +0.2 °C | −0.4 | 6 | 1 | +6.5 | 30.6 °C |
 | GreenLight, thermic (IR) film | +1.4 °C | −0.4 | 1 | 0 | +7.3 | 29.3 °C |
 | GreenLight, clear film | +0.3 °C | −1.1 | 5 | 1 | +6.7 | 29.2 °C |
 
 * **The virtual farm's tunnel was too kind at night.** It ran 1.6 °C warmer than
   GreenLight's tunnel under IR film and 2.7 °C warmer than under clear film. Its defaults
   are now fitted to GreenLight per film (`sim/physics.FILMS`: night-low error 0.87 °C, down
-  from 1.95), and agree with it on average by night and day. What it still cannot do is be
-  colder inside than out: it has no long-wave radiation and knows cloud only by rain.
+  from 1.95), and agree with it on average by night and day. Knowing only rain, it cannot be
+  colder inside than out. Given the sky's long-wave, as recorded hourly weather carries it
+  (`physics.cloud_from_longwave`), it can: under clear film it was colder inside than out on
+  22 of the spring's nights, against GreenLight's 23, though by less (at worst −0.4 °C against
+  −1.1). Under IR film the sky barely matters, to either model. The seeded farm still knows
+  cloud only by rain.
 * **The film decides the frost.** Under clear polyethylene five of the six frosts still got
   in, and on clear nights the tunnel was colder than the open air: thermal radiation goes
   straight through to the sky. That is the inversion growers report under single poly.
@@ -103,7 +109,7 @@ A tunnel has one air sensor more often than two, and one sensor cannot see its o
 [twin_check.py](twin_check.py) sets the twin beside it, and says, as an advisory decision,
 when the two part company and stay apart:
 
-> hoop house's air sensor and the twin have disagreed by -8.3 °C for 3 hours. Check the
+> hoop house's air sensor and the twin have disagreed by -8.4 °C for 3 hours. Check the
 > sensor and its sun shield, and whether the sides or a door are open.
 
 That is what it said two hours after the sensor was knocked outside on the morning of
@@ -126,13 +132,13 @@ virtual farm's tunnel as the sensor, with faults put in:
 | fault | said after |
 | --- | --- |
 | none, seven weeks; five noise seeds | never: no false alert |
-| the sensor reads 4 °C high (miscalibrated, replaced) | 12 h; across five placings, 8 to 39 h |
+| the sensor reads 4 °C high (miscalibrated, replaced) | 12 h; across five placings, 8 to 40 h |
 | its sun shield is gone, reading up to 8 °C high in full sun | 8 h |
 | the sides are left up for two days | 15 h, at the first sunny midday |
 | it reads the outside air (knocked down, moved) | 2 h by day; at night a tunnel is barely warmer than outside |
 
-**What it cannot see:** a sensor 1.5 °C off (no case in five), 2 °C off (two in five) or 3 °C
-off (three or four in five). The twin is a second opinion for gross faults; a sensor slowly
+**What it cannot see:** a sensor 1.5 °C off (no case in five), 2 °C off (one in five) or 3 °C
+off (four in five). The twin is a second opinion for gross faults; a sensor slowly
 going wrong is a second sensor's to catch. And the "sensor" here is a second model, not a
 thermometer in a tunnel: what a real one's residuals look like is
 [untested](../../docs/UNTESTED.md).

@@ -66,7 +66,9 @@ def compare() -> dict:
     result = {}
     for period, name in PERIODS.items():
         hours = T.read_hours(data(name))
-        models = {"virtual farm": T.run_sim_tunnel(hours, lon=LON)}
+        models = {"virtual farm": T.run_sim_tunnel(hours, lon=LON, sky=False),
+                  "virtual farm, sky known": T.run_sim_tunnel(hours, lon=LON),
+                  "virtual farm, sky known, clear film": T.run_sim_tunnel(hours, lon=LON, film="clear")}
         for cover in T.COVERS:
             path = greenlight_file(period, cover)
             if os.path.exists(path):

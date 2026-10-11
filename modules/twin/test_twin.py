@@ -97,12 +97,20 @@ class TestTheComparison(unittest.TestCase):
         self.assertAlmostEqual(farm["mean_day_excess_c"], thermic["mean_day_excess_c"], delta=1.0)
         self.assertGreater(thermic["all"]["mean_gain"] - spring["GreenLight, clear film"]["all"]["mean_gain"], 0.8)
 
-    def test_what_the_virtual_tunnel_still_cannot_do(self):
-        """It has no long-wave radiation, so it is never colder inside than out — the
-        clear-film inversion GreenLight shows. Anything that needs that uses the twin."""
+    def test_knowing_the_sky_it_can_be_colder_inside_than_out_under_clear_film(self):
+        """Without the sky, rain its only sign of cloud, the virtual tunnel is never colder
+        inside than out. Given the sky's long-wave, under clear film it is on most of the
+        nights GreenLight is, though by less; under IR film the sky barely matters."""
         spring = self.r["spring"]
         self.assertGreater(spring["virtual farm"]["all"]["min_gain"], 0.5)
-        self.assertLess(spring["GreenLight, clear film"]["all"]["min_gain"], 0.0)
+        clear = spring["virtual farm, sky known, clear film"]
+        self.assertLess(clear["all"]["min_gain"], 0.0)
+        self.assertLess(clear["clear"]["mean_gain"], 0.2, "clear nights hold almost no heat")
+        self.assertGreater(spring["GreenLight, clear film"]["all"]["min_gain"], -1.5)
+        self.assertLess(spring["GreenLight, clear film"]["all"]["min_gain"], clear["all"]["min_gain"],
+                        "GreenLight's inversions are the deeper")
+        self.assertAlmostEqual(spring["virtual farm, sky known"]["all"]["mean_gain"],
+                               spring["GreenLight, thermic film"]["all"]["mean_gain"], delta=0.2)
 
     def test_the_film_decides_how_many_frosts_get_in(self):
         spring = self.r["spring"]

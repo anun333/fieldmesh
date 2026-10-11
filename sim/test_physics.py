@@ -259,5 +259,41 @@ class TestWorld(unittest.TestCase):
             truth.when = JUNE
 
 
+
+FILMS_COLD = {film: v["cold_night_gain_c"] for film, v in ph.FILMS.items()}
+
+
+class SkyTest(unittest.TestCase):
+    """The tunnel's nights when the weather knows its cloud (A7, Q28)."""
+
+    def test_cloud_comes_back_from_the_sky_s_long_wave(self):
+        sigma, t, rh = ph.SIGMA, 2.0, 80.0
+        black = sigma * (t + 273.15) ** 4
+        self.assertAlmostEqual(ph.cloud_from_longwave(t, rh, black), 1.0, places=6)
+        self.assertEqual(ph.cloud_from_longwave(t, rh, 0.6 * black), 0.0)
+        half = ph.cloud_from_longwave(t, rh, 0.85 * black)
+        self.assertTrue(0.0 < half < 1.0)
+
+    def night(self, film, cloud, outside=2.0, hours=10):
+        tun = ph.Tunnel.of("hoop", film)
+        w = ph.Weather(air_temp_c=outside, relative_humidity=85.0, rain_mm=0.0, et0_mm=0.0,
+                       raining=False, cloud=cloud)
+        inside = None
+        for _ in range(hours * 12):
+            inside = tun.step(w, 0.0)
+        return inside - outside
+
+    def test_a_clear_night_under_clear_film_is_colder_inside_than_out(self):
+        self.assertLess(self.night("clear", 0.0), 0.0)
+        self.assertGreater(self.night("clear", 1.0), 1.0, "under cloud the soil's heat holds")
+        self.assertGreater(self.night("thermic", 0.0), 0.5, "IR film keeps it on a clear night")
+
+    def test_without_cloud_the_tunnel_runs_as_it_always_has(self):
+        for film in ("thermic", "clear"):
+            tun = ph.Tunnel.of("hoop", film)
+            self.assertEqual(tun.night_gain(2.0, False, None), tun.night_gain(2.0, False))
+            self.assertEqual(tun.night_gain(-8.0, False, None), FILMS_COLD[film])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

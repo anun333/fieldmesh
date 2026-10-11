@@ -260,13 +260,15 @@ def read_greenlight(out_csv: str, start: _dt.datetime) -> dict:
     return {k: v[0] / v[1] for k, v in sums.items()}
 
 
-def run_sim_tunnel(hours: list, *, lon: float) -> dict:
+def run_sim_tunnel(hours: list, *, lon: float, film: str = "thermic", sky: bool = True) -> dict:
     """The virtual farm's tunnel on the same weather, stepped every five minutes as the
     farm steps it: {UTC hour: mean inside °C}. Its daylight is the farm's — a sine of
-    local solar time — and its only sign of cloud is rain, as in `sim/physics.py`."""
+    local solar time. With `sky`, its nights know the cloud from the sky's long-wave
+    (`physics.cloud_from_longwave`); without, rain is its only sign of cloud, as on the
+    seeded farm."""
     sys.path.insert(0, os.path.join(HERE, os.pardir, os.pardir, "sim"))
     import physics as ph
-    tunnel = ph.Tunnel(name="hoop")
+    tunnel = ph.Tunnel.of("hoop", film)
     out = {}
     offset = _dt.timedelta(hours=lon / 15.0)
     for a, b in zip(hours, hours[1:] + hours[-1:]):
@@ -279,7 +281,8 @@ def run_sim_tunnel(hours: list, *, lon: float) -> dict:
             daylight = max(0.0, math.sin(math.pi * (hour - 6.0) / 12.0))
             raining = a.rain > 0.1
             w = ph.Weather(air_temp_c=t, relative_humidity=a.rh, rain_mm=a.rain / 12.0,
-                           et0_mm=0.0, raining=raining)
+                           et0_mm=0.0, raining=raining,
+                           cloud=ph.cloud_from_longwave(a.t, a.rh, a.lw) if sky else None)
             acc.append(tunnel.step(w, daylight))
         out[a.when] = sum(acc) / len(acc)
     return out

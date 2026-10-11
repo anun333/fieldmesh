@@ -51,6 +51,23 @@ class Weather:
     rain_mm: float           # over this tick
     et0_mm: float            # reference evapotranspiration over this tick
     raining: bool
+    #: Cloud cover, 0 clear to 1 overcast, when the weather knows it (recorded hourly
+    #: weather does, from the sky's long-wave: `cloud_from_longwave`). None leaves rain as
+    #: the only sign of cloud, as the seeded climate has.
+    cloud: float | None = None
+
+
+SIGMA = 5.670374419e-8          # Stefan–Boltzmann, W m-2 K-4
+
+
+def cloud_from_longwave(t_c: float, rh_pct: float, lw_w_m2: float) -> float:
+    """Cloud cover from the long-wave the sky sends: how far it lies between what a clear
+    sky would send (Brutsaert 1975) and what a black one would (Crawford and Duchon 1999,
+    inverted)."""
+    e_hpa = rh_pct / 100.0 * 6.1078 * math.exp(17.27 * t_c / (t_c + 237.3))   # Tetens, as the twin
+    clear = 1.24 * (e_hpa / (t_c + 273.15)) ** (1.0 / 7.0)
+    emitted = lw_w_m2 / (SIGMA * (t_c + 273.15) ** 4)
+    return min(1.0, max(0.0, (emitted - clear) / (1.0 - clear)))
 
 
 @dataclass
@@ -487,9 +504,13 @@ class Tunnel:
       and cut again by the share the sides let out when they are up;
     * **by night**, the heat the soil inside stored by day and gives back. Single poly
       passes long-wave radiation, so a clear sky draws much of that heat away, and
-      clear nights can be the cold ones: the gain shrinks from `night_gain_c` on a mild
-      night to `cold_night_gain_c` at `cold_night_c` and below. Under cloud (here,
-      rain) the full gain holds whatever the cold.
+      clear nights can be the cold ones. When the weather knows its cloud
+      (`Weather.cloud`, from the sky's long-wave), the gain runs from
+      `clear_night_gain_c` under a clear sky to `cloudy_night_gain_c` under an overcast
+      one, and a clear sky over plain polyethylene can pull the inside below the outside
+      air. When rain is the only sign of cloud, as on the seeded farm, the gain shrinks
+      from `night_gain_c` on a mild night to `cold_night_gain_c` at `cold_night_c` and
+      below, standing in for a clear sky; under rain the full gain holds.
 
     The sides go up when the inside passes `vent_at_c` and down below `close_at_c`, as
     a grower would; `vent_at_c=None` is a tunnel nobody opens, which overheats.
@@ -510,6 +531,12 @@ class Tunnel:
     cold_night_gain_c: float = 1.0
     cold_night_c: float = -5.0
     solar_gain_c: float = 12.0
+    #: The night gain under a clear and under an overcast sky, used when the weather says
+    #: how cloudy it is (`Weather.cloud`) and in between in proportion; a negative clear-sky
+    #: gain is an inversion. None keeps the cold-night rule above, which stands in for a
+    #: clear sky where only rain is known, so a farm without cloud runs as it always has.
+    clear_night_gain_c: float | None = 1.0
+    cloudy_night_gain_c: float | None = 1.5
     vent_at_c: float | None = 27.0
     close_at_c: float = 20.0
     vent_cut: float = 0.75
@@ -522,7 +549,11 @@ class Tunnel:
         """A tunnel covered in one of `FILMS`."""
         return cls(name=name, **{**FILMS[film], **kw})
 
-    def night_gain(self, outside_c: float, overcast: bool) -> float:
+    def night_gain(self, outside_c: float, overcast: bool, cloud: float | None = None) -> float:
+        if cloud is not None and None not in (self.clear_night_gain_c, self.cloudy_night_gain_c):
+            # The sky known: a clear one draws the soil's heat out through the film, and
+            # under plain polyethylene can pull the inside below the outside air.
+            return self.clear_night_gain_c + cloud * (self.cloudy_night_gain_c - self.clear_night_gain_c)
         if overcast:
             return self.night_gain_c
         share = min(1.0, max(0.0, (outside_c - self.cold_night_c) / 10.0))
@@ -534,7 +565,7 @@ class Tunnel:
         if self.sides_up:
             solar *= 1.0 - self.vent_cut
         target = (outside + solar
-                  + (1.0 - daylight) * self.night_gain(outside, weather.raining))
+                  + (1.0 - daylight) * self.night_gain(outside, weather.raining, weather.cloud))
         if self.inside_c is None:
             self.inside_c = target
         self.inside_c += (target - self.inside_c) * (1.0 - math.exp(-HOURS_PER_STEP / self.tau_h))
@@ -549,8 +580,10 @@ class Tunnel:
 #: Fitted to GreenLight's tunnel per film (modules/twin, Q28): night-low error 0.87 °C
 #: for IR film and 0.81 °C for clear, against 1.95 °C for the first guesses.
 FILMS = {
-    "thermic": {"night_gain_c": 1.0, "cold_night_gain_c": 1.0, "solar_gain_c": 12.0},
-    "clear": {"night_gain_c": 0.0, "cold_night_gain_c": 0.0, "solar_gain_c": 10.0},
+    "thermic": {"night_gain_c": 1.0, "cold_night_gain_c": 1.0, "solar_gain_c": 12.0,
+                "clear_night_gain_c": 1.0, "cloudy_night_gain_c": 1.5},
+    "clear": {"night_gain_c": 0.0, "cold_night_gain_c": 0.0, "solar_gain_c": 10.0,
+              "clear_night_gain_c": -0.5, "cloudy_night_gain_c": 1.5},
 }
 
 

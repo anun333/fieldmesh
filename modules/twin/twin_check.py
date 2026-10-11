@@ -146,7 +146,8 @@ def sensor_series(hours: list, *, faults=(), seed: int = 1, noise_c: float = 0.2
         for i in range(12):
             f = i / 12.0
             w = ph.Weather(air_temp_c=a.t + (b.t - a.t) * f, relative_humidity=a.rh,
-                           rain_mm=a.rain / 12.0, et0_mm=0.0, raining=False)
+                           rain_mm=a.rain / 12.0, et0_mm=0.0, raining=False,
+                           cloud=ph.cloud_from_longwave(a.t, a.rh, a.lw))
             acc.append(tunnel.step(w, min(1.0, (a.sw + (b.sw - a.sw) * f) / full_sun)))
         reading = sum(acc) / len(acc)
         if "outside" in active:

@@ -974,8 +974,9 @@ its core into a separate app.
 **Step 1, what it found.** On McAllister Farm's spring of 2025 (60 nights, 6 frosts outside),
 the virtual farm's tunnel averages 3.1 °C warmer than the air at night; GreenLight's tunnel
 1.4 °C under IR film and 0.3 °C under clear film, where five of the six frosts still got in
-and clear nights were colder inside than out. The virtual farm's tunnel has no long-wave
-radiation and knows cloud only by rain. By day they are closer (hottest July hour within
+and clear nights were colder inside than out. The virtual farm's tunnel then had no
+long-wave radiation and knew cloud only by rain; given the sky's long-wave it now has clear-film
+inversions too, on 22 of GreenLight's 23 nights, if shallower. By day they are closer (hottest July hour within
 1.6 °C). To run at all, GreenLight needed one fix in its crop model. Its canopy CO2
 compensation point goes negative below one leaf layer, which puts a pole at a leaf CO2 of
 about 300 ppm, and a tunnel that is not enriched passes through that every sunny morning. A
