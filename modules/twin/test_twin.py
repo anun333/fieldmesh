@@ -260,7 +260,8 @@ class TestGreenLightAsATunnel(unittest.TestCase):
     def test_it_runs_a_tunnel_through_sunrise_only_with_the_compensation_point_fixed(self):
         self.assertTrue(self.run_days(2, fix=True))
         self.assertFalse(self.run_days(1, fix=False),
-                         "if this passes, GreenLight has fixed gamma upstream and FORMULAS can go")
+                         "if this passes, GreenLight has fixed gamma upstream (davkat1/GreenLight#23) "
+                         "and FORMULAS can go")
 
 
 if __name__ == "__main__":

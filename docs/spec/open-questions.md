@@ -121,7 +121,7 @@ Whatever is chosen, the rule in v0.1 §3.4 stands: a URI, never free text.
 
 ## Q4c. The durable namespace for local vocabulary terms
 
-**Status: DECIDED 2026-10-09 — w3id.org, with `vessel_fill_fraction` submitted to ODM2 in parallel, both when the repository goes public (the maintainer adopted the recommendation).** The repository went public on 2026-10-09 as librefarm and was renamed fieldmesh the next day, so the namespace moved from `https://anun333.github.io/librefarm/vocab/` to `https://anun333.github.io/fieldmesh/vocab/` after one day and before anything outside this repository used it. That is the cost Q4c predicted for a namespace tied to hosting, paid while it was cheap; w3id now means `https://w3id.org/fieldmesh/`. The term pages now resolve: `tools/pages.py` writes one at each local term's path. The w3id request and the ODM2 submission are the maintainer's to send; until w3id answers, `vocab.LOCAL` is still the whole migration surface. Plan B: a domain the project owns, with a promise its addresses always redirect. Was: blocks publication of the vocabulary; blocks nothing in code. Raised by the
+**Status: DECIDED 2026-10-09 — w3id.org, with `vessel_fill_fraction` submitted to ODM2 in parallel, both when the repository goes public (the maintainer adopted the recommendation).** The repository went public on 2026-10-09 as librefarm and was renamed fieldmesh the next day, so the namespace moved from `https://anun333.github.io/librefarm/vocab/` to `https://anun333.github.io/fieldmesh/vocab/` after one day and before anything outside this repository used it. That is the cost Q4c predicted for a namespace tied to hosting, paid while it was cheap; w3id now means `https://w3id.org/fieldmesh/`. The term pages now resolve: `tools/pages.py` writes one at each local term's path. The w3id request and the ODM2 submission are the maintainer's to send; until w3id answers, `vocab. **Deferred 2026-10-11, on purpose:** nothing outside the repository uses the term yet, and the github.io address costs nothing until something does. Send the w3id request before the first real trough sensor reports (a pilot), before anyone else implements the spec, or before the repository moves to an organisation — whichever comes first; GitHub Pages does not redirect after a move. ODM2 is optional and on its own clock: until it answers, the local term stands.LOCAL` is still the whole migration surface. Plan B: a domain the project owns, with a promise its addresses always redirect. Was: blocks publication of the vocabulary; blocks nothing in code. Raised by the
 Q4 decision of 2026-10-07, which produced exactly one local term and therefore a
 namespace to put it in.
 
@@ -965,7 +965,7 @@ radiation and knows cloud only by rain. By day they are closer (hottest July hou
 1.6 °C). To run at all, GreenLight needed one fix in its crop model. Its canopy CO2
 compensation point goes negative below one leaf layer, which puts a pole at a leaf CO2 of
 about 300 ppm, and a tunnel that is not enriched passes through that every sunny morning. A
-report to the GreenLight authors is drafted (the maintainer's to send). The virtual farm's
+report went to the GreenLight authors on 2026-10-11 as [davkat1/GreenLight#23](https://github.com/davkat1/GreenLight/issues/23). The virtual farm's
 tunnel now takes GreenLight's night gains by film (`sim/physics.FILMS`; night-low error
 0.87 °C, from 1.95), at the cost of running about 3 °C cool at a July peak.
 

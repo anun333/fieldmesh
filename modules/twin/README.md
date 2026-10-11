@@ -104,6 +104,7 @@ Capping the ratio at 1 (one formula override, `FORMULAS` in [twin.py](twin.py)) 
 configuration; without it, every one fails. The test
 `test_it_runs_a_tunnel_through_sunrise_only_with_the_compensation_point_fixed` keeps both
 halves of that true, and will say when an upstream fix makes the override unnecessary.
+Reported upstream as [davkat1/GreenLight#23](https://github.com/davkat1/GreenLight/issues/23).
 
 ## Running it
 
