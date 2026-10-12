@@ -111,6 +111,10 @@ class Bed:
     #: valve's minutes become millimetres.
     crop_coefficient: float = 1.0
     application_mm_per_h: float | None = None
+    #: For a bed advised by the weather, the land of a bed nearby whose probes correct its
+    #: balance (`reference_factor`): how fast that bed's root zone dries on dry days, against
+    #: what the balance says for the same days. A bed of the same crop, on the same station.
+    reference: UUID | None = None
 
     def __post_init__(self) -> None:
         if not 0 < self.wilting_point < self.field_capacity < 1:
@@ -126,6 +130,8 @@ class Bed:
         if self.crop_coefficient <= 0 or (self.application_mm_per_h is not None
                                           and self.application_mm_per_h <= 0):
             raise ValueError("a crop coefficient and an application rate are positive")
+        if self.reference is not None and self.reference == self.feature:
+            raise ValueError("a bed cannot be its own reference")
         bottoms = [layer[0] for layer in self.layers]
         if bottoms != sorted(set(bottoms)) or any(
                 not (b > 0 and 0 < wp < fc < 1) for b, fc, wp in self.layers):
@@ -163,18 +169,24 @@ def rules_for(bed: Bed) -> list:
                f"{weather} && depletion_mm >= raw_mm && rain_mm >= skip_rain_mm", p,
                alert_key="soilwater.weather_rain_coming",
                message_params={"used": "used_percent", "rain": "rain_mm",
-                               "hours": "probe_silent_hours"},
-               message_variants=(("anchored", "soilwater.weather_rain_coming_anchored"),)),
+                               "hours": "probe_silent_hours", "et": "et_percent"},
+               message_variants=(("anchored", "soilwater.weather_rain_coming_anchored"),
+                                 ("corrected", "soilwater.weather_rain_coming_corrected"))),
         R.Rule("soil-weather-water-now", "1", f"{weather} && depletion_mm >= raw_mm", p,
                alert_key="soilwater.weather_water_now",
                message_params={"used": "used_percent", "mm": "refill_mm",
-                               "hours": "probe_silent_hours"},
+                               "hours": "probe_silent_hours", "et": "et_percent"},
                message_variants=(("anchored", "soilwater.weather_water_now_anchored"),
+                                 ("corrected && !watering_recorded",
+                                  "soilwater.weather_water_now_unrecorded_corrected"),
                                  ("!watering_recorded",
-                                  "soilwater.weather_water_now_unrecorded"))),
+                                  "soilwater.weather_water_now_unrecorded"),
+                                 ("corrected", "soilwater.weather_water_now_corrected"))),
         R.Rule("soil-weather-enough", "1", weather, p, alert_key="soilwater.weather_enough",
-               message_params={"left": "left_percent", "hours": "probe_silent_hours"},
-               message_variants=(("anchored", "soilwater.weather_enough_anchored"),)),
+               message_params={"left": "left_percent", "hours": "probe_silent_hours",
+                               "et": "et_percent"},
+               message_variants=(("anchored", "soilwater.weather_enough_anchored"),
+                                 ("corrected", "soilwater.weather_enough_corrected"))),
         R.Rule("soil-no-probe", "1", "!has_probe", p, alert_key="soilwater.no_probe",
                message_params={"depth": "root_depth_cm"}),
         R.Rule("soil-unseen", "1", "!has_reading || hours_since_reading > stale_after_h", p,
@@ -452,6 +464,169 @@ def weather_balance(state, bed: Bed, station, at: _dt.datetime, *,
             "watering_recorded": recorded, "estimated": estimated}
 
 
+#: A bed's probes correct the weather balance (`reference_factor`) from the dry days of the
+#: last REFERENCE_DAYS: at least REFERENCE_MIN_DAYS of them, and REFERENCE_MIN_MM of the
+#: balance's ET over them, or there is no correction.
+REFERENCE_DAYS = 30
+REFERENCE_MIN_DAYS = 5
+REFERENCE_MIN_MM = 10.0
+#: A correction outside these is not made: a probe or the station is more likely wrong
+#: than FAO-56's balance is that far off.
+REFERENCE_LIMITS = (0.5, 1.5)
+#: How far toward a probe's slower rate the balance moves: half. Faster, it moves all the
+#: way, since more water is the safe error. Over thirty recorded summers, moving all the way
+#: saved a tenth of the water and left the bed short in five summers, up to 33 hours: the
+#: rate a probe saw over a month does not hold through a hot spell, and the balance's own
+#: excess was the bed's margin. Half saved a twentieth, and the bed was never short.
+REFERENCE_SHARE = 0.5
+#: Rain on the gauge that makes a day wet, and a rise in the probes' three-hour mean over
+#: the day's start that says it was watered.
+DRY_DAY_RAIN_MM = 1.0
+DRY_DAY_RISE = 0.02
+
+
+def _root_zone_hours(state, bed: Bed, at: _dt.datetime, since: _dt.datetime):
+    """A bed's root-zone water hour by hour from `since` to `at`, from its probes' readings
+    the checks had passed by `at`, each probe weighted by its slice, on the hours every probe
+    has one; with the zone's field capacity (learned where there is enough), its wilting
+    point, and whether every probe has learned its own. `({hour: theta}, capacity, wilting,
+    learned)`, or None with no probe in the root zone."""
+    probes = probes_of(state, bed, at)
+    ws = weights([d for _, d in probes], bed.root_depth_mm / 1000.0)
+    in_zone = [(ds, d, w) for (ds, d), w in zip(probes, ws) if w > 0]
+    if not in_zone:
+        return None
+    by_hour, capacity, wilting, total, learned_all = {}, 0.0, 0.0, 0.0, True
+    for ds, depth, w in in_zone:
+        inst = state.installation_of(ds.sensor, at)
+        rows = sorted((o for o in state.live_observations_of(ds.id)
+                       if o.received_at <= at and o.measured_at <= at
+                       and o.measured_at >= inst.installed_at
+                       and isinstance(o.result, (int, float)) and not isinstance(o.result, bool)),
+                      key=lambda o: o.measured_at)
+        fc, wp = bed.limits_at(depth)
+        learned = _capacity(state, bed, ds, depth, wp, rows, at)
+        learned_all = learned_all and learned is not None
+        capacity += w * (learned["field_capacity"] if learned else fc)
+        wilting += w * wp
+        total += w
+        for o in rows:
+            if o.measured_at >= since and state.quality_as_of(o.id, at)[0] is Usable.GOOD:
+                hour = o.measured_at.replace(minute=0, second=0, microsecond=0)
+                by_hour.setdefault(hour, {})[ds.id] = (w, float(o.result))
+    hours = {t: sum(w * v for w, v in vals.values()) / sum(w for w, _ in vals.values())
+             for t, vals in by_hour.items() if len(vals) == len(in_zone)}
+    return hours, capacity / total, wilting / total, learned_all
+
+
+def reference_factor(state, bed: Bed, station, at: _dt.datetime, *,
+                     days: int = REFERENCE_DAYS) -> dict | None:
+    """How fast a bed's depletion actually grows, as its probes see it, against the weather
+    balance's `Kc · ETo` on the same days: the factor that corrects the balance of a bed
+    nearby that has no probe (`Bed.reference`), or of this bed's own once its probes fall
+    silent.
+
+    **It reads the probes' rate, not their level.** A probe is a point: the water where it
+    sits need not be the zone's. How fast the zone's store runs down after a wetting is the
+    crop, the soil and the weather, which the beds around it share.
+
+    **Depletion, not water lost.** After rain the soil holds more than field capacity for a
+    day or two, and the crop draws on water that would have drained anyway. The balance
+    counts that day's ET as depletion; the probes show the store still full. So a day's
+    measured depletion is the growth, from one midnight to the next, of the water missing
+    below field capacity, each midnight the mean of the readings within two hours of it,
+    when the crop is barely drawing. A local day counts when:
+
+    * no rain reached the gauge, its valve (when it has one) did not open, and the probes
+      did not rise (a watering);
+    * it started with less than the readily available water gone, so the crop was not yet
+      slowing (FAO-56's `Ks` is 1).
+
+    The factor is the sum of the measured depletion over the sum of the balance's ET. Outside
+    `REFERENCE_LIMITS` there is no correction: on the drought, a probe reading low learned
+    a field capacity that sank through the season until the bed read wetter than it on
+    most dry days, which would have halved the balance of the bed it corrected.
+
+    **Only a probe whose level has been checked corrects anything**: every probe in the
+    root zone must have learned its own field capacity from its drain-downs
+    (`learned_capacity`). A probe reading high sees the first of each spell's depletion as
+    water above field capacity, so it would slow the balance of every bed it corrects: on
+    the 2012 drought, one reading 0.05 high took a bed advised by the weather from no
+    stressed hours to 397. Such a probe is never watered enough to learn, and so never
+    corrects. Returns `factor`, `days`, `measured_mm` and `predicted_mm`, or None: no probe,
+    a probe that has not learned, too few dry days to say, or a factor out of bounds."""
+    import eto as E
+    from zoneinfo import ZoneInfo
+    tz = ZoneInfo(station.timezone)
+    today = at.astimezone(tz).date()
+    first, last = today - _dt.timedelta(days=days), today - _dt.timedelta(days=1)
+    start = lambda day: _dt.datetime.combine(day, _dt.time(), tzinfo=tz).astimezone(_dt.timezone.utc)
+    zone = _root_zone_hours(state, bed, at, start(first - _dt.timedelta(days=1)) - 2 * HOUR)
+    if zone is None or not zone[3]:
+        return None
+    hours, capacity, wilting, _ = zone
+    raw = bed.depletion_fraction * (capacity - wilting) * bed.root_depth_mm
+    summaries = E.summaries(state, station, first - _dt.timedelta(days=1), last, at)
+
+    def midnight(day):
+        t0 = start(day)
+        values = [hours[t] for t in (t0 + k * HOUR for k in range(-2, 3)) if t in hours]
+        return sum(values) / len(values) if len(values) >= 3 else None
+
+    def wet(day) -> bool:
+        got = E.eto_of(station, day, summaries[day]) if day in summaries else None
+        if got is not None and (got[1] or 0.0) >= DRY_DAY_RAIN_MM:
+            return True
+        begin = midnight(day)
+        t0 = start(day)
+        if bed.valve is not None and valve_minutes(state, bed.valve, t0, t0 + 24 * HOUR)[1] > 0:
+            return True
+        values = [hours.get(t0 + k * HOUR) for k in range(24)]
+        means = [sum(v) / 3.0 for v in zip(values, values[1:], values[2:]) if None not in v]
+        return begin is None or any(m > begin + DRY_DAY_RISE for m in means)
+
+    measured = predicted = 0.0
+    counted, day, ratios = 0, first, []
+    while day <= last:
+        a, b = midnight(day), midnight(day + _dt.timedelta(days=1))
+        got = E.eto_of(station, day, summaries[day]) if day in summaries else None
+        if (a is not None and b is not None and got is not None
+                and (capacity - a) * bed.root_depth_mm < raw and not wet(day)):
+            gained = (max(0.0, capacity - b) - max(0.0, capacity - a)) * bed.root_depth_mm
+            measured += gained
+            predicted += bed.crop_coefficient * got[0]
+            counted += 1
+            if got[0] > 0:
+                ratios.append(gained / (bed.crop_coefficient * got[0]))
+        day += _dt.timedelta(days=1)
+    if counted < REFERENCE_MIN_DAYS or predicted < REFERENCE_MIN_MM:
+        return None
+    lo, hi = REFERENCE_LIMITS
+    ratio = measured / predicted
+    if not lo <= ratio <= hi:
+        return None
+    import statistics
+    spread = statistics.stdev(ratios) / math.sqrt(len(ratios)) if len(ratios) >= 2 else 1.0
+    return {"factor": ratio, "days": counted, "measured_mm": round(measured, 1),
+            "predicted_mm": round(predicted, 1), "standard_error": round(spread, 3)}
+
+
+def _corrected(state, bed: Bed, station, at, base: dict, inputs: dict, source: Bed | None) -> Bed:
+    """`bed` with its crop coefficient corrected by `source`'s probes (`reference_factor`):
+    all the way to a faster rate, `REFERENCE_SHARE` of the way to a slower one. The
+    correction is written into the context and inputs; `bed` is unchanged without one."""
+    found = reference_factor(state, source, station, at) if source is not None else None
+    if found is None:
+        return bed
+    factor = found["factor"]
+    applied = factor if factor >= 1.0 else 1.0 - REFERENCE_SHARE * (1.0 - factor)
+    base.update({"corrected": True, "et_percent": round(100.0 * applied),
+                 "reference_days": found["days"]})
+    inputs["reference"] = {"bed": str(source.feature), **found, "factor": round(factor, 3),
+                           "applied": round(applied, 3)}
+    return replace(bed, crop_coefficient=bed.crop_coefficient * applied)
+
+
 def _capacity(state, bed: Bed, ds, depth_m: float, wilting: float, rows: list,
               at: _dt.datetime):
     """A probe's learned field capacity at `at`, from its readings of the last
@@ -510,7 +685,7 @@ def _last_good(state, rows: list, at: _dt.datetime):
 
 
 def _anchored(state, bed: Bed, station, at, forecast, base: dict, inputs: dict,
-              probes: list, assumed: dict | None) -> None:
+              probes: list, assumed: dict | None, reference: Bed | None = None) -> None:
     """A bed whose probes have gone silent or untrusted, carried on the farm's weather from
     their last good readings: the root zone's depletion then, at each probe's soil's limits
     and learned field capacity, stepped forward by the weather balance."""
@@ -524,6 +699,12 @@ def _anchored(state, bed: Bed, station, at, forecast, base: dict, inputs: dict,
                    for (w, *_), c, (fc, _) in zip(probes, caps, limits)) / total
     wilting = sum(w * wp for (w, *_), (_, wp) in zip(probes, limits)) / total
     eff = replace(bed, field_capacity=capacity, wilting_point=wilting)
+    # The bed's own probes, before they fell silent, say how fast it dries; failing that, its
+    # reference's.
+    corrected = _corrected(state, eff, station, at, base, inputs, bed)
+    if corrected is eff and reference is not None:
+        corrected = _corrected(state, eff, station, at, base, inputs, reference)
+    eff = corrected
     when = min(good[0] for *_, good in probes)
     dr0 = (capacity - theta) * bed.root_depth_mm
     balance = weather_balance(state, eff, station, at, assumed=assumed,
@@ -535,10 +716,11 @@ def _anchored(state, bed: Bed, station, at, forecast, base: dict, inputs: dict,
 
 
 def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = None,
-                station=None, assumed: dict | None = None):
+                station=None, assumed: dict | None = None, reference: Bed | None = None):
     """What the advisory knew about a bed at `at`: `(context, inputs)`. A bed with no
     probe in its root zone is advised from the farm's `station` (`eto.Station`) when
-    there is one (`weather_balance`)."""
+    there is one (`weather_balance`), corrected by its `reference` bed's probes when they
+    have seen enough dry days (`reference_factor`)."""
     root_m = bed.root_depth_mm / 1000.0
     probes = probes_of(state, bed, at)
     ws = weights([d for _, d in probes], root_m)
@@ -552,11 +734,13 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
             "field_capacity": bed.field_capacity, "wilting_point": bed.wilting_point,
             "learned_probes": 0, "layered": False, "layers_configured": bool(bed.layers),
             "by_weather": False, "weather_missing_days": 0, "watering_recorded": False,
-            "anchored": False, "probe_silent_hours": 0.0}
+            "anchored": False, "probe_silent_hours": 0.0,
+            "corrected": False, "et_percent": 100.0, "reference_days": 0}
     inputs = {"bed": str(bed.feature), "observations": [], "forecast": None}
     inputs.update({k: getattr(bed, k) for k in ("surface", "planting") if getattr(bed, k)})
     if not in_zone:
         if station is not None:
+            bed = _corrected(state, bed, station, at, base, inputs, reference)
             _by_weather(state, bed, station, at, forecast, base, inputs,
                         weather_balance(state, bed, station, at, assumed=assumed))
         return base, inputs
@@ -596,7 +780,8 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
         # weather from their last good readings, for up to FALLBACK_DAYS.
         if (station is not None and len(fallback) == len(in_zone)
                 and all(fb[4] is not None for fb in fallback)):
-            _anchored(state, bed, station, at, forecast, base, inputs, fallback, assumed)
+            _anchored(state, bed, station, at, forecast, base, inputs, fallback, assumed,
+                      reference)
         return base, inputs
 
     total = sum(w for w, _ in series)
@@ -659,11 +844,12 @@ class Advisor:
         self.log = log
 
     def judge(self, state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = None,
-              station=None) -> dict:
-        """The decision for one bed, without writing it."""
+              station=None, reference: Bed | None = None) -> dict:
+        """The decision for one bed, without writing it; `reference` is the bed its
+        `Bed.reference` names."""
         assumed = self._assumed(bed, station) if station is not None else None
         context, inputs = bed_context(state, bed, at, forecast=forecast, station=station,
-                                      assumed=assumed)
+                                      assumed=assumed, reference=reference)
         for rule in rules_for(replace(bed, field_capacity=context["field_capacity"],
                                       wilting_point=context["wilting_point"])):
             d = R.judge(rule, context, inputs, at)
@@ -692,10 +878,11 @@ class Advisor:
     def advise(self, state, beds, at: _dt.datetime, *, forecast: UUID | None = None,
                station=None) -> list:
         """The morning's decision for each bed, and for a bed its probes show is
-        layered, a note saying so (`layering`)."""
-        out = []
+        layered, a note saying so (`layering`). A bed's reference is found among `beds`."""
+        out, by_land = [], {b.feature: b for b in beds}
         for bed in beds:
-            decision = self.judge(state, bed, at, forecast=forecast, station=station)
+            decision = self.judge(state, bed, at, forecast=forecast, station=station,
+                                  reference=by_land.get(bed.reference))
             out.append(self.log.append(R.DECISION, decision))
             note = self.layering(decision, bed, at)
             if note is not None:
@@ -934,7 +1121,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
 def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                      rate_mm_per_h: float = 12.0, record_valve: bool = True,
                      probe: bool = False, outage: tuple | None = None,
-                     fallback: bool = True, probe_noise: float = 0.01) -> dict:
+                     fallback: bool = True, probe_noise: float = 0.01,
+                     reference: bool = False, reference_bias: float = 0.0) -> dict:
     """The advisory for the backtest bed with **no probe**, from a station on the farm:
     hourly air temperature, humidity, sunshine and rain, as the virtual farm's recorded
     weather gives them (`backtest` for the rest). Sunshine is each recorded day's total
@@ -950,7 +1138,13 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     it. During `outage`, `(first day, last day)` counted from `start`, the probe sends
     nothing, as a node whose radio is down. With `fallback` the advisory carries the bed
     on the weather from the probe's last good reading; without it, the station is not
-    given, and the bed has no advice while the probe is silent."""
+    given, and the bed has no advice while the probe is silent.
+
+    With `reference`, a second bed of the same soil and crop beside it has a probe at 20 cm
+    and a recorded valve, and is watered on its own advice; the bed scored names it as its
+    reference (`Bed.reference`), so its balance is corrected by how fast that bed dries.
+    `reference_mm` is what the second bed was given; `reference_bias` is added to every
+    reading of its probe, as a probe that reads off."""
     import random
     import statistics
 
@@ -966,8 +1160,10 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
 
     state, fc, truth = D.forecasts(climate, start, days, FCS.Skill(), seed)
     b = D.bed()
-    world = ph.World(start=start, climate=climate, beds=[b])
-    land = uuid7()
+    rb = D.bed()
+    rb.name = "reference"
+    world = ph.World(start=start, climate=climate, beds=[b, rb] if reference else [b])
+    land, ref_land = uuid7(), uuid7()
 
     def series(prop, unit):
         ds = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(), observed_property=prop,
@@ -977,27 +1173,36 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         return ds
     air, rh = series(V.AIR_TEMPERATURE, "Cel"), series(V.RELATIVE_HUMIDITY, "%")
     sunshine, rain = series(V.SOLAR_RADIATION, "W/m2"), series(V.PRECIPITATION_DEPTH, "mm")
-    valve = series(V.VALVE_OPEN, None)
-    probe_ds, cal, noise = None, uuid7(), random.Random(seed)
-    if probe:
+    valve, ref_valve = series(V.VALVE_OPEN, None), series(V.VALVE_OPEN, None)
+    cal, noise = uuid7(), random.Random(seed)
+
+    def add_probe(where):
         sensor = uuid7()
         raw = Datastream(id=uuid7(), thing=uuid7(), sensor=sensor,
-                         observed_property=V.SOIL_WATER, feature=land, kind=DatastreamKind.RAW,
+                         observed_property=V.SOIL_WATER, feature=where, kind=DatastreamKind.RAW,
                          unit="1", expected_interval=3600.0, max_latency=3600.0)
-        probe_ds = Datastream(id=uuid7(), thing=raw.thing, sensor=sensor,
-                              observed_property=V.SOIL_WATER, feature=land,
-                              kind=DatastreamKind.DERIVED, derived_from=raw.id,
-                              unit="cm3/cm3", expected_interval=3600.0, max_latency=3600.0)
-        for rec in (raw, probe_ds, Installation(uuid7(), sensor, land, start - 24 * HOUR,
-                                                depth_m=0.20)):
+        ds = Datastream(id=uuid7(), thing=raw.thing, sensor=sensor,
+                        observed_property=V.SOIL_WATER, feature=where,
+                        kind=DatastreamKind.DERIVED, derived_from=raw.id,
+                        unit="cm3/cm3", expected_interval=3600.0, max_latency=3600.0)
+        for rec in (raw, ds, Installation(uuid7(), sensor, where, start - 24 * HOUR,
+                                          depth_m=0.20)):
             state.add(rec)
+        return ds
+    probe_ds = add_probe(land) if probe else None
+    ref_ds = add_probe(ref_land) if reference else None
     # The virtual farm's hours are local solar time, so its station's day is UTC's.
     station = E.Station(lat=D.LAT, elevation_m=D.ELEVATION_M, timezone="UTC",
                         air_temperature=air.id, relative_humidity=rh.id,
                         solar_radiation=sunshine.id, precipitation=rain.id)
     bed = Bed(land, b.field_capacity, b.wilting_point, root_depth_mm=b.depth_mm,
               skip_rain_mm=D.SKIP_MM, valve=valve.id if record_valve else None,
-              application_mm_per_h=rate_mm_per_h if record_valve else None)
+              application_mm_per_h=rate_mm_per_h if record_valve else None,
+              reference=ref_land if reference else None)
+    ref_bed = Bed(ref_land, rb.field_capacity, rb.wilting_point, root_depth_mm=rb.depth_mm,
+                  skip_rain_mm=D.SKIP_MM, valve=ref_valve.id, application_mm_per_h=rate_mm_per_h)
+    beds = [bed, ref_bed] if reference else [bed]
+    sim_bed = {str(land): (b, valve, record_valve), str(ref_land): (rb, ref_valve, True)}
     seq = [0]
 
     def write(ds, when, value):
@@ -1016,8 +1221,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         return {e: w * scale for e, w in zip(ends, shape)}
 
     advisor = Advisor(Log())
-    applied, stressed_h, stress, advice = 0.0, 0.0, [], {}
-    rain_hour, sun_today, water_until = 0.0, {}, None
+    applied, stressed_h, stress, advice = {b.name: 0.0, rb.name: 0.0}, 0.0, [], {}
+    rain_hour, sun_today, water_until = 0.0, {}, {}
     for n in range(int(days * 24 * 12)):
         when = world.when
         if when.minute == 0:
@@ -1029,31 +1234,40 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                 write(sunshine, when, round(sun_today.get(when, 0.0), 1))
             rain_hour = 0.0
         day_n = (when - start).days
-        if probe_ds is not None and when.minute == 0 and not (
-                outage and outage[0] <= day_n <= outage[1]):
-            state.add(Observation(uuid7(), probe_ds.id, when, 60.0, when,
-                                  round(b.theta + noise.gauss(0.0, probe_noise), 3),
-                                  ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
-                                  calibration=cal))
+        for ds, sb, silent, bias in ((probe_ds, b, outage and outage[0] <= day_n <= outage[1], 0.0),
+                                     (ref_ds, rb, False, reference_bias)):
+            if ds is not None and when.minute == 0 and not silent:
+                state.add(Observation(uuid7(), ds.id, when, 60.0, when,
+                                      round(sb.theta + bias + noise.gauss(0.0, probe_noise), 3),
+                                      ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
+                                      calibration=cal))
         if when.hour == D.DECIDE_HOUR and when.minute == 0:
             given = station if (probe_ds is None or fallback) else None
-            d = advisor.advise(state, [bed], when, forecast=fc.id, station=given)[0].payload
-            advice[d["rule"]] = advice.get(d["rule"], 0) + 1
-            if d["rule"] in ("soil-weather-water-now", "soil-water-now"):
-                begin = when + HOUR
-                water_until = begin + _dt.timedelta(hours=d["context"]["refill_mm"] / rate_mm_per_h)
-                if record_valve:
-                    write(valve, begin, True)
-                    write(valve, water_until, False)
-        if water_until is not None and when.hour >= D.WATER_HOUR:
+            for event in advisor.advise(state, beds, when, forecast=fc.id, station=given):
+                d = event.payload
+                if not d["topic"].startswith("advice/"):
+                    continue
+                sb, its_valve, recorded = sim_bed[d["subject"]]
+                if sb is b:
+                    advice[d["rule"]] = advice.get(d["rule"], 0) + 1
+                if d["rule"] in ("soil-weather-water-now", "soil-water-now"):
+                    begin = when + HOUR
+                    until = begin + _dt.timedelta(hours=d["context"]["refill_mm"] / rate_mm_per_h)
+                    water_until[sb.name] = until
+                    if recorded:
+                        write(its_valve, begin, True)
+                        write(its_valve, until, False)
+        for name, until in list(water_until.items()):
+            if when.hour < D.WATER_HOUR:
+                continue
             step_end = when + ph.STEP
-            minutes = max(0.0, (min(step_end, water_until) - when) / _dt.timedelta(minutes=1))
+            minutes = max(0.0, (min(step_end, until) - when) / _dt.timedelta(minutes=1))
             if minutes > 0:
                 mm = rate_mm_per_h * minutes / 60.0
-                world.irrigate(b.name, mm)
-                applied += mm
-            if step_end >= water_until:
-                water_until = None
+                world.irrigate(name, mm)
+                applied[name] += mm
+            if step_end >= until:
+                del water_until[name]
         tick = world.step()
         if when.minute == 0:
             write(air, when, tick.weather.air_temp_c)
@@ -1063,9 +1277,9 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         stress.append(s)
         if s >= 0.5:
             stressed_h += 1.0 / 12.0
-    return {"policy": "weather", "applied_mm": applied, "drained_mm": b.drained_mm,
+    return {"policy": "weather", "applied_mm": applied[b.name], "drained_mm": b.drained_mm,
             "mean_stress": statistics.mean(stress), "stressed_h": stressed_h,
-            "advice": advice}
+            "advice": advice, "reference_mm": applied[rb.name] if reference else None}
 
 
 # ------------------------------------------------------------------ process
@@ -1091,6 +1305,7 @@ def main(argv=None) -> int:
     with open(args.config, encoding="utf-8") as h:
         config = json.load(h)
     beds = [Bed(**{**b, "feature": UUID(b["feature"]),
+                   "reference": UUID(b["reference"]) if b.get("reference") else None,
                    "layers": tuple(tuple(x) for x in b.get("layers", ()))})
             for b in config["beds"]]
     forecast = UUID(config["forecast"]) if config.get("forecast") else None

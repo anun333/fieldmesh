@@ -249,8 +249,64 @@ backtest bed's probe silent for the two weeks from 1 July:
 | without the station | 13 | 142 |
 | with it | 0 | **0** |
 
-What this does not do is the other half of combining the two: one probe correcting the
-balance of the beds around it, which would answer "a probe is a point". That is not built.
+### A probe nearby corrects the balance
+
+The objection to soil probes for lawns and fields is that a probe is a point: one square
+metre does not speak for a zone. The balance covers the zone but cannot see the soil. So a
+probe lends the balance only what carries from bed to bed: **its rate, not its level**.
+
+A bed with no probe can name a bed nearby, of the same crop on the same station, as its
+`reference`. Each morning `reference_factor` reads that bed's probes over the last 30
+days. It counts the days with no rain on the gauge, no watering (its valve shut, its
+probes not rising) and less than the readily available water gone. On each, it measures
+how much the water missing below field capacity grew, midnight to midnight, against the
+balance's `Kc · ETo` for the same day. Water held above field capacity after rain is not
+depletion, which the probe sees and the balance does not.
+
+The ratio corrects the bed's crop coefficient: **all the way when the probe sees the bed
+drying faster than the balance says, half way when slower**, because more water is the
+safe error. It is not used:
+
+* with fewer than five such days, or under 10 mm of the balance's ET over them;
+* until every probe in the reference has learned its own field capacity
+  ([above](#the-beds-own-soil)). A probe reading high sees the first of each spell's
+  depletion as water above field capacity, and never learns;
+* when the ratio is outside 0.5 to 1.5: then the probe or the station is wrong.
+
+The same rate, read from a bed's own probes before they fell silent, carries the
+fallback above, and every decision records the factor, its days and its standard error.
+
+> bed 3 is due water by the farm's weather, with its water use set at 85% of the weather's
+> estimate from a probe in a bed nearby: about 19 mm. Its watering is not recorded, so this
+> takes the last advice to water as followed; if it was not, it needs more.
+
+(The test's bed, 19 days into a summer with rain every fifth day, its reference's probe
+drying at 70% of the balance's rate.)
+
+Backtested on McAllister Farm's thirty summers, 1991 to 2020 (NASA POWER). The backtest
+bed has no probe and its watering unrecorded; a bed of the same soil and crop beside it
+has a probe at 20 cm and is watered on its own advice (`weather_backtest(reference=True)`):
+
+| the bed with no probe | water, mean a summer | summers with stressed hours |
+| --- | --- | --- |
+| by the weather alone | 241 mm | 0 of 30 |
+| corrected all the way, both ways (not built) | 217 mm | 5, up to 33 hours |
+| **corrected as built** | **229 mm**, 5% less | **0** |
+| as built, the reference's probe reading 0.05 low | 222 mm | 0 |
+| as built, the reference's probe reading 0.05 high | 241 mm: it never corrects | 0 |
+
+The probe-led bed beside it was given 177 mm a summer.
+
+**Why only half way.** The rate a probe saw over a month does not hold through a hot spell,
+and the balance's own excess was the bed's margin. Corrected all the way, the bed went
+short in one summer in six. A probe reading high, used without the learning check, took
+the bed to 397 stressed hours on the 2012 drought. With it, the probe was never used.
+
+On the two summers above: 2012 down from 314 mm to 274, and 2013 up from 157 to 179, one
+watering more late in the summer, when the probe saw the bed drying faster than the
+balance did. Neither was short. The probe's own fallback through its fortnight's outage
+was unchanged, 199 mm. A pyfao56-style reset of the balance from a probe in the same zone
+is not built.
 
 The balance's ET is Penman–Monteith, while the virtual bed loses water by Hargreaves'
 formula. So it runs on a model of the bed that is not the bed, as it would on a farm.

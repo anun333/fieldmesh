@@ -52,18 +52,20 @@ class Garden:
         self.land = uuid7()
         self.bed = S.Bed(self.land, field_capacity=0.30, wilting_point=0.12)
 
-    def probe(self, theta, *, depth=0.20, hours=52, land=None, installed=None, removed=None):
+    def probe(self, theta, *, depth=0.20, hours=52, land=None, installed=None, removed=None,
+              start=None):
         raw = FX.raw_datastream(unit="1", observed_property=V.SOIL_WATER,
                                 expected_interval=3600.0, max_latency=3600.0)
         ds = FX.derived_datastream(raw, unit="cm3/cm3")
         cal = FX.calibration(raw.sensor)
+        base = start or T0
         inst = Installation(uuid7(), raw.sensor, land or self.land,
-                            installed or T0 - 24 * HOUR, removed_at=removed, depth_m=depth)
+                            installed or base - 24 * HOUR, removed_at=removed, depth_m=depth)
         for rec in (raw, ds, cal, inst):
             self.state.add(rec)
         obs = []
         for h in range(0, hours + 1):
-            when = T0 + h * HOUR
+            when = base + h * HOUR
             o = FX.observation(ds, result=round(theta(h), 3), measured_at=when,
                                calibration=cal.id, seq=h)
             self.state.add(o)
@@ -444,6 +446,121 @@ class TestByTheWeather(unittest.TestCase):
                         "anchored on 0.25, not the flagged 0.05")
 
 
+class ReferenceGarden(WeatherGarden):
+    """The weather garden's station, rain of 30 mm on days 0, 5, 10 and 15, and a second bed
+    nearby whose probe dries at `share` of the balance's `Kc · ETo`: each rain lifts it to
+    0.34, it drains to 0.28 within hours, and its root zone then runs down at that rate."""
+
+    START = _dt.datetime(2026, 7, 1, 5, tzinfo=_dt.timezone.utc)      # local midnight, day 0
+    RAIN_DAYS = (0, 5, 10, 15)
+
+    def __init__(self, share, *, days=20, silent_after_h=None):
+        super().__init__()
+        import eto as E
+        self.station_ = self.station(days, rain={d: 30.0 for d in self.RAIN_DAYS})
+        day = self.START.astimezone(_dt.timezone(-_dt.timedelta(hours=5))).date() + _dt.timedelta(days=2)
+        self.eto_mm = E.eto_of(self.station_, day, E.summaries(
+            self.state, self.station_, day, day, self.morning(days - 1))[day])[0]
+        self.reference_land = uuid7()
+        self.reference = S.Bed(self.reference_land, field_capacity=0.30, wilting_point=0.12)
+        per_h = share * self.eto_mm / 300.0 / 24.0
+        wettings = [24.0 * d + 8.0 for d in self.RAIN_DAYS]
+
+        def theta(h):
+            since = [h - w for w in wettings if h >= w]
+            if not since:
+                return 0.28
+            t = since[-1]
+            return 0.28 + 0.06 * math.exp(-t / 3.0) - per_h * t
+        self.theta = theta
+        self.probe(theta, hours=24 * days, land=self.reference_land, start=self.START)
+
+    def morning(self, day):
+        return self.START + _dt.timedelta(days=day, hours=4)
+
+
+class TestAProbeCorrectsTheWeather(unittest.TestCase):
+    """A bed with no probe takes the rate a probe in a bed nearby sees its root zone run down,
+    on dry days, against what the balance says for them (`reference_factor`)."""
+
+    def test_it_reads_the_share_of_the_balances_et_the_probe_sees(self):
+        g = ReferenceGarden(0.7)
+        found = S.reference_factor(g.state, g.reference, g.station_, g.morning(19))
+        self.assertAlmostEqual(found["factor"], 0.7, delta=0.03)
+        self.assertEqual(found["days"], 15, "days 1-4, 6-9, 11-14 and 16-18; rain days are wet")
+
+    def test_a_probe_that_has_not_learned_its_level_corrects_nothing(self):
+        """A probe reading high sees each spell's first depletion as water above field
+        capacity; until its drain-downs have taught it its own level, it is not used."""
+        g = ReferenceGarden(0.7)
+        self.assertIsNone(S.reference_factor(g.state, S.replace(g.reference, learn=False),
+                                             g.station_, g.morning(19)))
+
+    def test_a_rate_out_of_bounds_is_a_fault_not_a_correction(self):
+        g = ReferenceGarden(0.3)
+        self.assertIsNone(S.reference_factor(g.state, g.reference, g.station_, g.morning(19)))
+
+    def test_too_few_dry_days_and_there_is_nothing_to_say(self):
+        g = ReferenceGarden(0.7, days=8)
+        self.assertIsNone(S.reference_factor(g.state, g.reference, g.station_, g.morning(7)))
+
+    def test_a_bed_cannot_be_its_own_reference(self):
+        land = uuid7()
+        with self.assertRaises(ValueError):
+            S.Bed(land, field_capacity=0.30, wilting_point=0.12, reference=land)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestAdviceCorrectedByAProbeNearby(unittest.TestCase):
+
+    def test_the_balance_moves_halfway_to_a_slower_rate_and_says_so(self):
+        g = ReferenceGarden(0.7)
+        at = g.morning(19)
+        bed = S.replace(g.bed, reference=g.reference_land)
+        [plain] = S.Advisor(Log()).advise(g.state, [g.bed], at, station=g.station_)
+        events = S.Advisor(Log()).advise(g.state, [bed, g.reference], at, station=g.station_)
+        corrected = next(e.payload for e in events if e.payload["subject"] == str(g.land))
+        ctx = corrected["context"]
+        self.assertTrue(ctx["corrected"])
+        self.assertAlmostEqual(ctx["et_percent"], 85, delta=2, msg="halfway from 100% to 70%")
+        self.assertAlmostEqual(ctx["depletion_mm"] / plain.payload["context"]["depletion_mm"],
+                               0.85, delta=0.05)
+        self.assertEqual(corrected["inputs"]["reference"]["bed"], str(g.reference_land))
+        self.assertTrue(corrected["message"]["key"].endswith("_corrected"))
+        g.state.add(Label(uuid7(), g.land, "bed 3", T0, language="en"))
+        self.assertIn("by the farm's weather, with its water use set at "
+                      f"{ctx['et_percent']:.0f}% of the weather's estimate from a probe in a bed nearby",
+                      S.render(corrected, "en", g.state))
+        self.assertIn("una sonda en un bancal cercano", S.render(corrected, "es", g.state))
+
+    def test_a_faster_rate_is_taken_all_the_way(self):
+        """More water is the safe error."""
+        g = ReferenceGarden(1.2)
+        bed = S.replace(g.bed, reference=g.reference_land)
+        events = S.Advisor(Log()).advise(g.state, [bed, g.reference], g.morning(19),
+                                         station=g.station_)
+        ctx = next(e.payload["context"] for e in events if e.payload["subject"] == str(g.land))
+        self.assertAlmostEqual(ctx["et_percent"], 120, delta=2)
+
+    def test_without_its_reference_among_the_beds_it_is_the_balance_alone(self):
+        g = ReferenceGarden(0.7)
+        bed = S.replace(g.bed, reference=g.reference_land)
+        [d] = S.Advisor(Log()).advise(g.state, [bed], g.morning(19), station=g.station_)
+        self.assertFalse(d.payload["context"]["corrected"])
+
+    def test_a_bed_whose_probe_falls_silent_takes_its_own_probes_rate(self):
+        """The probe is in the bed itself and stops at the end of day 16. Two mornings later
+        the fallback carries the bed on the weather, at the rate its probe saw before."""
+        g = ReferenceGarden(0.7, days=17)
+        station = g.station(20, rain={d: 30.0 for d in g.RAIN_DAYS})
+        d = S.Advisor(Log()).judge(g.state, g.reference, g.morning(19), station=station)
+        self.assertTrue(d["context"]["anchored"])
+        self.assertTrue(d["context"]["corrected"])
+        self.assertAlmostEqual(d["context"]["et_percent"], 85, delta=2)
+        self.assertTrue(d["message"]["key"].endswith("_anchored"),
+                        "the probes' silence is the message; the rate is in the record")
+
+
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
     """The backtest bed with no probe, advised from a station on the farm, on McAllister
@@ -464,6 +581,34 @@ class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
 
     def test_a_station_installed_today_has_no_estimate_for_two_days(self):
         self.assertEqual(self.r["advice"]["soil-weather-unseen"], 2)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestAProbeNearbyOnTheDrought(unittest.TestCase):
+    """The backtest bed with no probe through the 2012 drought, its watering unrecorded, a
+    bed of the same soil and crop beside it with a probe (`weather_backtest`). By the
+    weather alone it was given 314.4 mm with no stressed hour."""
+
+    @classmethod
+    def setUpClass(cls):
+        import physics as ph
+        path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
+        start = _dt.datetime(2012, 6, 1, tzinfo=_dt.timezone.utc)
+        cls.r = {bias: S.weather_backtest(ph.RecordedClimate.from_csv(path, seed=1), start, 92,
+                                          seed=1, record_valve=False, reference=True,
+                                          reference_bias=bias)
+                 for bias in (0.0, 0.05)}
+
+    def test_corrected_by_the_probe_it_waters_an_eighth_less_and_is_never_short(self):
+        r = self.r[0.0]
+        self.assertLess(r["applied_mm"], 0.9 * 314.4)
+        self.assertEqual(r["stressed_h"], 0.0)
+
+    def test_a_probe_reading_high_never_learns_and_so_corrects_nothing(self):
+        """Uncorrected, such a probe took the bed to 397 stressed hours."""
+        r = self.r[0.05]
+        self.assertAlmostEqual(r["applied_mm"], 314.4, delta=0.5)
+        self.assertEqual(r["stressed_h"], 0.0)
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
