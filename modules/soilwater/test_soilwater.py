@@ -413,6 +413,36 @@ class TestByTheWeather(unittest.TestCase):
         self.assertEqual(fresh.payload["rule"], "soil-weather-water-now",
                          "an advisory with no memory of its advice sees no watering")
 
+    def test_a_silent_probe_is_carried_on_the_weather_from_its_last_good_reading(self):
+        """Heard until 11 July, then silent: three days on, with the station, the advice
+        goes on from the probe's last reading, and says to check the probe. Without the
+        station, there is no advice, as before."""
+        g = WeatherGarden()
+        station = g.station(15, rain={0: 80.0})
+        g.probe(lambda h: 0.25, hours=24)
+        rule, d = g.advice(self.MORNING(13), station=station)
+        self.assertEqual(rule, "soil-weather-water-now")
+        self.assertTrue(d["context"]["anchored"])
+        self.assertGreater(d["context"]["probe_silent_hours"], 72)
+        self.assertGreater(d["context"]["depletion_mm"], 0.05 * 300.0,
+                           "more gone than at the last reading, by the weather since")
+        self.assertIn("check the probes", S.render(d, "en"))
+        self.assertEqual(g.advice(self.MORNING(13))[0], "soil-unseen")
+
+    def test_a_flagged_reading_is_not_the_anchor(self):
+        g = WeatherGarden()
+        station = g.station(15, rain={0: 80.0})
+        _, obs = g.probe(lambda h: 0.25 if h < 40 else 0.05, hours=48)
+        for o in obs[40:]:
+            g.state.add(FX.assertion(o.id, flags={QualityFlag.OUT_OF_RANGE}, check="range",
+                                     asserted_at=o.received_at))
+        at = T0 + 48 * HOUR + 5 * HOUR
+        rule, d = g.advice(at, station=station)
+        self.assertTrue(d["context"]["anchored"])
+        self.assertAlmostEqual(d["context"]["probe_silent_hours"], 14.0, delta=1.0)
+        self.assertLess(d["context"]["depletion_mm"], 0.10 * 300.0,
+                        "anchored on 0.25, not the flagged 0.05")
+
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
@@ -561,6 +591,33 @@ class TestAProbeThatReadsOff(unittest.TestCase):
         self.assertEqual(high["field_capacity"], 0.30)
         self.assertLess(high["applied_mm"], 50)
         self.assertGreater(high["stressed_h"], 100)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestAProbeOutageCarriedOnTheWeather(unittest.TestCase):
+    """The backtest bed with its probe and a station, through the 2012 drought, the probe's
+    radio down for two weeks in July (`weather_backtest`)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import physics as ph
+        path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
+        start = _dt.datetime(2012, 6, 1, tzinfo=_dt.timezone.utc)
+        cls.r = {fallback: S.weather_backtest(ph.RecordedClimate.from_csv(path, seed=1), start,
+                                              92, seed=1, probe=True, outage=(30, 43),
+                                              fallback=fallback)
+                 for fallback in (False, True)}
+
+    def test_without_the_fallback_two_weeks_without_advice_dry_the_bed(self):
+        r = self.r[False]
+        self.assertEqual(r["advice"]["soil-unseen"], 13)
+        self.assertGreater(r["stressed_h"], 100)
+
+    def test_with_it_the_advice_goes_on_and_the_bed_is_never_short(self):
+        r = self.r[True]
+        self.assertNotIn("soil-unseen", r["advice"])
+        self.assertGreater(r["advice"]["soil-weather-water-now"], 0)
+        self.assertEqual(r["stressed_h"], 0.0)
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")

@@ -16,7 +16,7 @@ module's evidence base before that module exists.
 | **no probe** | nothing is installed within the root zone |
 | **unseen** | no reading for six hours |
 | **untrusted** | the newest readings failed the health checks |
-| **by the weather**: water now, rain coming, enough, or the station unseen | the bed has no probe, and the farm's station is given ([below](#by-the-weather-with-no-probe)) |
+| **by the weather**: water now, rain coming, enough, or the station unseen | the bed has no probe, or its probes have gone silent or untrusted, and the farm's station is given ([below](#by-the-weather-with-no-probe)) |
 | **layered**, beside the morning's advice | two of its probes learned field capacities far apart, and the bed was given one soil's values ([below](#the-beds-own-soil)) |
 
 The arithmetic is FAO-56's root-zone balance read from the probes rather than modelled:
@@ -224,6 +224,33 @@ Backtested with no probe on the same bed and summers, with an hourly station:
 | --- | --- | --- | --- |
 | 2013 | 157 mm | 155 mm | 0 |
 | 2012, a drought | 314 mm | 208 mm | 0 |
+
+**When a bed's probes go silent or untrusted**, the advisory used to say "unseen" or
+"untrusted" and give no advice until they came back. With the station, it now carries the
+bed on the weather from the probes' last good readings:
+
+* that reading's depletion, at each probe's soil and learned field capacity, is the
+  balance's starting point;
+* the days after it are stepped by the weather;
+* every advice says to check the probes.
+
+> bed 3's probes have given no reading to trust for 81 hours. By the farm's weather since
+> their last good one, about 55% of the water its plants can use is gone: water it today,
+> about 30 mm. And check the probes.
+
+(The test's bed, its probe silent from 11 July.)
+
+It runs as long as the balance does, sixty days, because a bed anchored on its last
+reading is never worse off than one that never had a probe. On the 2012 drought, with the
+backtest bed's probe silent for the two weeks from 1 July:
+
+| | days with no advice | stressed hours |
+| --- | --- | --- |
+| without the station | 13 | 142 |
+| with it | 0 | **0** |
+
+What this does not do is the other half of combining the two: one probe correcting the
+balance of the beds around it, which would answer "a probe is a point". That is not built.
 
 The balance's ET is Penman–Monteith, while the virtual bed loses water by Hargreaves'
 formula. So it runs on a model of the bed that is not the bed, as it would on a farm.
