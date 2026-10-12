@@ -272,7 +272,13 @@ DRAIN_MIN_H = 16
 #: the level it drained back to: a watering that only refilled the soil part way does not
 #: drain at all.
 DRAIN_MIN_EXCESS = 0.02
-#: The drainage time constants tried, hours.
+#: A drain-down slower than a quarter of its span counts only with this much excess: the
+#: crop's daily rhythm and a probe's noise of 0.01 faked slow drainage of up to 0.05
+#: (`drain_fit`). Water perched on clay drains slowly and carries more: 0.12 and 0.13 in
+#: the layered yard's subsoil.
+SLOW_DRAIN_MIN_EXCESS = 0.06
+#: The drainage time constants tried, hours: only those at least the readings' interval
+#: (`drain_fit`).
 DRAIN_TAUS_H = (0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0, 24.0, 36.0)
 
 
@@ -308,9 +314,24 @@ def drain_fit(points: list):
 
     For each τ in `DRAIN_TAUS_H`, `fc`, `a` and `r` are a linear least-squares fit; a
     drain-down cannot gain water, so `a` and `r` are not negative; the τ that fits best
-    wins. Returns `{"field_capacity", "excess", "drying_per_day", "tau_h"}` or None."""
+    wins. Returns `{"field_capacity", "excess", "drying_per_day", "tau_h"}` or None.
+
+    **A drain-down counts only if its drainage can be told from the crop's drying.** The τ
+    tried are at least the interval between readings, so two or more readings see the
+    excess leave. When the best τ is more than a quarter of the drain-down's span, so the
+    excess would not be gone (to under 2%) before it ends, the drain-down counts only with
+    an excess of `SLOW_DRAIN_MIN_EXCESS`. A crop draws less as the soil dries, and by day
+    only, so the soil dries along a gentle curve. Over a 72-hour drain-down a slow, small
+    "drainage" of τ 24 or 36 hours is that curve. It put field capacity below the level the
+    bed was watered to, the next watering stopped there, and the learned value sank with
+    each round: from 0.248 to 0.206 over the 2012 drought, on a probe whose true level was
+    0.25. A τ of half an hour, on hourly readings, was one noisy reading."""
+    if len(points) < 4:
+        return None
+    gaps = sorted(b[0] - a[0] for a, b in zip(points, points[1:]))
+    step, span = gaps[len(gaps) // 2], points[-1][0] - points[0][0]
     best = None
-    for tau in DRAIN_TAUS_H:
+    for tau in (t for t in DRAIN_TAUS_H if t >= step):
         rows = [(1.0, math.exp(-t / tau), -t) for t, _ in points]
         m = [[sum(x[i] * x[j] for x in rows) for j in range(3)] for i in range(3)]
         b = [sum(x[i] * y for x, (_, y) in zip(rows, points)) for i in range(3)]
@@ -321,7 +342,7 @@ def drain_fit(points: list):
         sse = sum((y - fc - a * x[1] - r * x[2]) ** 2 for x, (_, y) in zip(rows, points))
         if best is None or sse < best[0]:
             best = (sse, fc, a, r, tau)
-    if best is None:
+    if best is None or (best[4] > span / 4.0 and best[2] < SLOW_DRAIN_MIN_EXCESS):
         return None
     _, fc, a, r, tau = best
     return {"field_capacity": fc, "excess": a, "drying_per_day": r * 24.0, "tau_h": tau}
@@ -477,7 +498,8 @@ REFERENCE_LIMITS = (0.5, 1.5)
 #: way, since more water is the safe error. Over thirty recorded summers, moving all the way
 #: saved a tenth of the water and left the bed short in five summers, up to 33 hours: the
 #: rate a probe saw over a month does not hold through a hot spell, and the balance's own
-#: excess was the bed's margin. Half saved a twentieth, and the bed was never short.
+#: excess was the bed's margin. Half saved a twentieth, and the bed was never short; since
+#: learning stopped counting slow, small drainages (`drain_fit`), a fiftieth.
 REFERENCE_SHARE = 0.5
 #: Rain on the gauge that makes a day wet, and a rise in the probes' three-hour mean over
 #: the day's start that says it was watered.

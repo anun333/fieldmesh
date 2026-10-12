@@ -95,6 +95,14 @@ Set up with the survey's values, the advisory misjudges such a bed. So each prob
 * **Only drain-downs from clearly above field capacity count:** at least 0.02 above it
   (`a ≥ 0.02`). A watering that only refilled the soil part way never drained, and
   says nothing.
+* **Only drainage that can be told from the crop's drying counts.** A τ shorter than the
+  readings' interval is not tried: on hourly readings, half an hour's "drainage" is one
+  noisy reading. And a drainage slower than a quarter of the drain-down's span must carry
+  0.06 or more (`SLOW_DRAIN_MIN_EXCESS`). A crop draws by day and less as the soil dries,
+  so the soil dries along a gentle curve, and a slow, small "drainage" fits that curve.
+  Counted, it put field capacity below the level the bed had been watered to; the next
+  watering stopped there, and the learned value sank round by round (below). Water perched
+  on clay does drain slowly, and with more: 0.12 and 0.13 in the yard's subsoil.
 * **The probe's field capacity** is the median of the last 60 days' drain-downs, once
   there are three. It replaces the configured value for that probe's slice of the root
   zone.
@@ -138,11 +146,11 @@ water gone:
 | one, 5 cm | the survey | 680 mm, 693 drained, 0 h | 810 mm, 662, 0 h |
 | | the survey, **learning** | **178 mm, 232, 0 h** | **272 mm, 196, 16 h** |
 | | the topsoil's values | 94 mm, 196, 140 h | 110 mm, 131, 421 h |
-| | the topsoil's values, **learning** | **181 mm, 232, 0 h** | **227 mm, 155, 76 h** |
+| | the topsoil's values, **learning** | **181 mm, 232, 0 h** | **236 mm, 161, 76 h** |
 | 5 and 12 cm | the survey | 136 mm, 209, 4 h | 196 mm, 141, 45 h |
-| | the survey, learning | 147 mm, 210, 4 h, and the note | 208 mm, 147, 75 h, and the note |
+| | the survey, learning | 131 mm, 202, 8 h, and the note | 213 mm, 163, 116 h, and the note |
 | | each layer's values | 119 mm, 203, 0 h | 183 mm, 145, 68 h |
-| | each layer's values, **learning** | **165 mm, 219, 0 h** | **229 mm, 158, 0 h** |
+| | each layer's values, **learning** | **145 mm, 205, 0 h** | **213 mm, 143, 14 h** |
 
 **What the table shows:**
 
@@ -155,23 +163,43 @@ water gone:
   spells. Learning closes most of that.
 * **Learning field capacity does not fix a layered bed on its own.** With a probe in
   each layer, the survey's 0.30 happens to sit near the two layers' depth-weighted mix,
-  and learning changes little. In the 2012 drought it did slightly worse, 75 stressed
-  hours against 45. The trouble is the wilting point: one value for two soils counts
-  water the clay holds that the roots cannot take, so the advice waits too long. The note
-  is what helps here. Given each layer's values, as the note asks, and with learning on,
-  the yard was never short in either summer.
+  and learning changes little. In the 2012 drought it did worse, 116 stressed hours
+  against 45. The trouble is the wilting point: one value for two soils counts water the
+  clay holds that the roots cannot take, so the advice waits too long. The note is what
+  helps here. Given each layer's values, as the note asks, and with learning on, the yard
+  was short for 14 hours in 2012 and none in 2013.
 * **Learning leaves a correctly set-up bed alone.** On the advisory's own backtest bed it
-  changed the 2013 summer by less than a millimetre (154.5 mm against 155.4) and 2012
+  changed the 2013 summer by less than a millimetre (155.7 mm against 155.4) and 2012
   not at all.
 
 A uniform sandy fill, 60 cm of the same sandy loam with a probe at 5 cm, behaves like
-the single-probe yard: 725 mm on the survey's values against 177 learning in 2013. On
+the single-probe yard: 725 mm on the survey's values against 176 learning in 2013. On
 its nominal values it had 107 stressed hours, and none learning.
 
-**What is still not right.** The 16 to 76 hours left in 2012 come from the morning
+**What is still not right.** The 14 to 76 hours left in 2012 come from the morning
 cadence on a shallow, sandy root zone. It holds about 17 mm its roots can use, and in
 2012 a hot day took up to 7.7 mm. With water at a third gone, one morning's "water soon" can be past
-half by the next morning. For such a bed, `p` should be lower.
+half by the next morning. Over McAllister Farm's thirty summers, 1991 to 2020, the yard
+set up with each layer's values was short in 18, by up to 57 hours. Two summers do not
+show that; thirty do. For such a bed, `p` should be lower.
+
+**A learned value that sank, and why it no longer does.** A bed watered by its probe is
+watered back to the field capacity it learned, so after most waterings nothing drains.
+The crop then draws by day and less as the soil dries, and the old fit read that gentle
+curve as a slow drainage, with field capacity below the level the bed had been watered
+to. The next watering stopped there, and round by round the learned value sank: from
+0.248 to 0.206 over the 2012 drought, on a probe whose true level was 0.25. Now such a
+slow, small "drainage" does not count ([above](#the-beds-own-soil)). On 200 simulated
+three-day curves with no drainage at all, the old fit took 34 for drain-downs, down to
+0.23 on a bed watered to 0.27; the new one 10, none below 0.253. The advisory's
+backtest bed with its probe, over the thirty summers:
+
+| | water, mean a summer | summers short | hours short, in all | learned value at the end, worst |
+| --- | --- | --- | --- | --- |
+| before | 176 mm | 7 | 186 | 0.048 low |
+| **now** | **188 mm** | **3** | **72** | **0.031 low** |
+| a probe 0.05 low, before | 306 mm | 0 | 0 | 0.039 low |
+| a probe 0.05 low, now | 324 mm | 0 | 0 | 0.025 low |
 
 The 25 mm that ran off the yard in 2013 was rain on topsoil already holding water over the
 clay, the same with or without learning. A watering can do the same when it is run
@@ -290,23 +318,26 @@ has a probe at 20 cm and is watered on its own advice (`weather_backtest(referen
 | the bed with no probe | water, mean a summer | summers with stressed hours |
 | --- | --- | --- |
 | by the weather alone | 241 mm | 0 of 30 |
-| corrected all the way, both ways (not built) | 217 mm | 5, up to 33 hours |
-| **corrected as built** | **229 mm**, 5% less | **0** |
-| as built, the reference's probe reading 0.05 low | 222 mm | 0 |
+| corrected all the way, both ways (not built; measured with the earlier learning) | 217 mm | 5, up to 33 hours |
+| **corrected as built** | **237 mm**, 2% less | **0** |
+| as built, the reference's probe reading 0.05 low | 228 mm | 0 |
 | as built, the reference's probe reading 0.05 high | 241 mm: it never corrects | 0 |
 
-The probe-led bed beside it was given 177 mm a summer.
+The probe-led bed beside it was given 187 mm a summer. Before learning stopped counting
+slow, small drainages ([above](#the-beds-own-soil)), the correction saved 5% (229 mm); the
+reference now learns its level less often, and so corrects less often.
 
 **Why only half way.** The rate a probe saw over a month does not hold through a hot spell,
 and the balance's own excess was the bed's margin. Corrected all the way, the bed went
 short in one summer in six. A probe reading high, used without the learning check, took
 the bed to 397 stressed hours on the 2012 drought. With it, the probe was never used.
 
-On the two summers above: 2012 down from 314 mm to 274, and 2013 up from 157 to 179, one
+On the two summers above: 2012 unchanged at 314 mm, because the reference's probe never
+saw enough drain-downs that summer to learn its level, and 2013 up from 157 to 179, one
 watering more late in the summer, when the probe saw the bed drying faster than the
 balance did. Neither was short. The probe's own fallback through its fortnight's outage
-was unchanged, 199 mm. A pyfao56-style reset of the balance from a probe in the same zone
-is not built.
+used 209 mm, and the bed was never short. A pyfao56-style reset of the balance from a
+probe in the same zone is not built.
 
 The balance's ET is Penman–Monteith, while the virtual bed loses water by Hargreaves'
 formula. So it runs on a model of the bed that is not the bed, as it would on a farm.

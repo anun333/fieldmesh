@@ -258,6 +258,34 @@ class TestLearnedCapacity(unittest.TestCase):
         self.assertIsNone(S.learned_capacity(_timed(_drains(4, excess=0.0))))
         self.assertIsNone(S.learned_capacity(rising))
 
+    def test_a_crop_drying_more_slowly_as_the_soil_dries_is_not_drainage(self):
+        """Watered back to 0.27, below its field capacity of 0.30, so nothing drains. The
+        crop then draws about 5 mm a day by daylight, less as the soil dries: a gentle curve
+        over three days, read hourly with a probe's noise of 0.01. Fitted with "drainage"
+        as slow as 36 hours, 34 of 200 such curves passed for drain-downs, down to 0.23:
+        the ratchet that sank a learned value from 0.248 to 0.206 over the 2012 drought.
+        Now a few still pass on noise alone, none more than 0.02 below the level watered
+        to."""
+        import random
+
+        def curve(seed):
+            rng, out, theta = random.Random(seed), [], 0.27
+            for h in range(73):
+                out.append((float(h), round(theta + rng.gauss(0.0, 0.01), 3)))
+                sun = max(0.0, math.sin(math.pi * ((h % 24) - 6) / 12.0)) * math.pi
+                theta -= 5.0 / 24.0 * sun * (theta - 0.12) / 0.18 / 300.0
+            return out
+        kept = [f["field_capacity"] for f in map(S.drain_fit, map(curve, range(200)))
+                if f is not None and f["excess"] >= S.DRAIN_MIN_EXCESS]
+        self.assertLessEqual(len(kept), 15)
+        self.assertGreaterEqual(min(kept, default=0.27), 0.25)
+
+    def test_drainage_faster_than_the_readings_cannot_be_seen(self):
+        """On hourly readings, no τ under an hour is tried: half an hour's "drainage" is one
+        reading."""
+        points = [(float(h - 12), v) for h, v in _drains(1)[12:]]
+        self.assertGreaterEqual(S.drain_fit(points)["tau_h"], 1.0)
+
     def test_a_gap_ends_a_drain_down(self):
         readings = [(t, v) for t, v in _timed(_drains(4))
                     if not 8 <= ((t - T0) / HOUR - 12) % 72 < 14]
@@ -587,7 +615,8 @@ class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
 class TestAProbeNearbyOnTheDrought(unittest.TestCase):
     """The backtest bed with no probe through the 2012 drought, its watering unrecorded, a
     bed of the same soil and crop beside it with a probe (`weather_backtest`). By the
-    weather alone it was given 314.4 mm with no stressed hour."""
+    weather alone it was given 314.4 mm with no stressed hour. Over thirty summers a true
+    reference took that to 237 mm a summer on average, never short (README)."""
 
     @classmethod
     def setUpClass(cls):
@@ -599,9 +628,11 @@ class TestAProbeNearbyOnTheDrought(unittest.TestCase):
                                           reference_bias=bias)
                  for bias in (0.0, 0.05)}
 
-    def test_corrected_by_the_probe_it_waters_an_eighth_less_and_is_never_short(self):
+    def test_a_probe_that_has_not_learned_its_level_by_the_drought_corrects_nothing(self):
+        """Watered on its own advice through the drought, the reference's probe saw too few
+        drain-downs to learn its own field capacity, so it never corrected the bed."""
         r = self.r[0.0]
-        self.assertLess(r["applied_mm"], 0.9 * 314.4)
+        self.assertAlmostEqual(r["applied_mm"], 314.4, delta=0.5)
         self.assertEqual(r["stressed_h"], 0.0)
 
     def test_a_probe_reading_high_never_learns_and_so_corrects_nothing(self):
@@ -696,13 +727,16 @@ class TestLearningOnTheVirtualFarm(unittest.TestCase):
         self.assertAlmostEqual(learned[0.12]["field_capacity"], 0.40, delta=0.02)
         self.assertTrue(self.survey_2012["layered"])
 
-    def test_given_each_layers_values_as_the_note_asks_its_roots_are_never_short(self):
+    def test_given_each_layers_values_as_the_note_asks_it_waits_far_less(self):
         """One wilting point for two soils counts water the clay holds and the roots
-        cannot take, so through the dry summer of 2012 the advice waited too long: 75
+        cannot take, so through the dry summer of 2012 the advice waited too long: 116
         hours of stress. With each layer's own values, and the capacities still learned,
-        none, and no note."""
-        self.assertGreater(self.survey_2012["stressed_h"], 40)
-        self.assertEqual(self.tested_2012["stressed_h"], 0.0)
+        14, and no note. Not none: the roots hold about 17 mm they can use, and a hot day
+        can take that past half between two mornings. Over thirty summers this yard was
+        short in 18, with learning as it is and as it was before drain-downs too slow to
+        tell from the crop's drying stopped counting."""
+        self.assertGreater(self.survey_2012["stressed_h"], 80)
+        self.assertLess(self.tested_2012["stressed_h"], 0.25 * self.survey_2012["stressed_h"])
         self.assertFalse(self.tested_2012["layered"])
 
 
