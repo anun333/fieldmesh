@@ -52,7 +52,13 @@ tunnel, a garden-sized field. Three things here touch them.
    * `station/<n>`, `{"state":1,"duration":…}` on opening;
    * `{"state":0,"duration":…,"flow":…}` on closing, the flow from its flow sensor if
      one is fitted;
-   * `sensor/flow`, `raindelay`, `weather`, and alerts on flow and current.
+   * `sensor/flow`, `raindelay`, `weather`, and alerts on flow and current;
+   * from 2.2.1(6), `program/<n>` as a program starts: run or skipped, and the weather,
+     sensor and total scales it ran at (read since 2026-10-11).
+
+   *The station flow is checked since 2026-10-11*: each zone's runs against its usual
+   flow and its heads, saying when a head is clogged or broken
+   ([modules/zoneflow](../../modules/zoneflow/README.md)).
 
    An OpenSprinkler profile in the MQTT bridge ([sdk/mqtt_bridge.py](../../sdk/mqtt_bridge.py)),
    beside its ESPHome and Home Assistant profiles, would put each watering in the log as

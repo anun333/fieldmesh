@@ -120,6 +120,11 @@
   "term.http://vocab.nerc.ac.uk/standard_name/cloud_area_fraction/": "cloud cover",
   "term.http://vocab.nerc.ac.uk/standard_name/surface_downwelling_shortwave_flux_in_air/": "solar radiation",
   "unit.W/m2": "watt per square metre",
-  "check.clear_sky.above": "{value:.0f} W/m2 is more than a clear sky gives here at this hour ({limit:.0f} W/m2 at most): check the sensor's clock, its time zone and its units"
+  "check.clear_sky.above": "{value:.0f} W/m2 is more than a clear sky gives here at this hour ({limit:.0f} W/m2 at most): check the sensor's clock, its time zone and its units",
+  "term.http://vocabulary.odm2.org/variablename/discharge/": "flow rate",
+  "unit.[gal_us]/min": "US gallon per minute",
+  "unit.L/min": "litre per minute",
+  "unit.m3/h": "cubic metre per hour",
+  "unit.m3/s": "cubic metre per second"
  }
 }

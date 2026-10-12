@@ -145,6 +145,20 @@ class TestOpenSprinkler(unittest.TestCase):
         self.assertEqual(parse("opensprinkler/sensor2", {"state": 1})["points"], {"sensor2": True})
         self.assertIsNone(parse("opensprinkler/system", {"reboot": 1}))
 
+    def test_a_program_run_or_skipped_with_the_scales_it_ran_at(self):
+        """As 2.2.1(6)'s notifier formats them (`NOTIFY_PROGRAM_SCHED`): `wl` an integer
+        percentage, the scales `%.4g`."""
+        parse = lambda topic, text: B.parse("opensprinkler", topic, json.loads(text))
+        self.assertEqual(parse("opensprinkler/program/2",
+                               '{"state":1,"wl":84,"wa":0.84,"sa":0.5,"ta":0.42}')["points"],
+                         {"program.2.ran": True, "program.2.water_level": 84,
+                          "program.2.sensor_scale": 0.5, "program.2.total_scale": 0.42})
+        self.assertEqual(parse("opensprinkler/program/0", '{"state":"skipped","wtrestr":1}')["points"],
+                         {"program.0.ran": False, "program.0.weather_restricted": True})
+        self.assertEqual(parse("opensprinkler/program/0", '{"state":"skipped","wtrestr":0}')["points"],
+                         {"program.0.ran": False, "program.0.weather_restricted": False},
+                         "skipped at a 0% watering level, not by a restriction")
+
     def test_a_controller_under_its_own_root_topic(self):
         self.assertIsNone(B.detect("farm/os1/station/3"))
         self.assertEqual(B.detect("farm/os1/station/3", {"opensprinkler": "farm/os1"}), "opensprinkler")

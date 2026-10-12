@@ -242,7 +242,12 @@ def _opensprinkler(root: str, t: list, p) -> dict | None:
     * `raindelay`, `sensor1`… `sensor4`: `{"state":0|1}`, points of the same names;
     * `sensor/flow`: `{"count","volume"}`, points `flow.count` and `flow.volume`;
     * `weather`: `{"water level":%}`, the controller's watering scale, point `water_level`;
-    * `station/<n>/alert/flow`: point `station.<n>.alert_flow_rate`.
+    * `station/<n>/alert/flow`: point `station.<n>.alert_flow_rate`;
+    * `program/<n>` (2.2.1(6) and later), as a program starts:
+      `{"state":1,"wl":%,"wa":w,"sa":s,"ta":t}` when it runs, with the watering percentage
+      and the weather, sensor and total scales it ran at; `{"state":"skipped","wtrestr":r}`
+      when it does not, `r` above 0 for a weather restriction. Points `program.<n>.ran`,
+      `.water_level`, `.sensor_scale`, `.total_scale`, `.weather_restricted`.
 
     The device is the root topic, which names the controller. A valve's state is a truth,
     never 1 and 0. Its messages carry no time, so they are stamped on arrival."""
@@ -263,6 +268,17 @@ def _opensprinkler(root: str, t: list, p) -> dict | None:
     elif len(rest) == 1 and (rest[0] == "raindelay" or (rest[0].startswith("sensor") and rest[0][6:].isdigit())):
         if "state" in p:
             out["points"][rest[0]] = bool(p["state"])
+    elif len(rest) == 2 and rest[0] == "program" and rest[1].isdigit() and "state" in p:
+        n = rest[1]
+        if p["state"] == "skipped":
+            out["points"][f"program.{n}.ran"] = False
+            if isinstance(p.get("wtrestr"), (int, float)):
+                out["points"][f"program.{n}.weather_restricted"] = p["wtrestr"] > 0
+        else:
+            out["points"][f"program.{n}.ran"] = bool(p["state"])
+            for key, point in (("wl", "water_level"), ("sa", "sensor_scale"), ("ta", "total_scale")):
+                if isinstance(p.get(key), (int, float)) and not isinstance(p[key], bool):
+                    out["points"][f"program.{n}.{point}"] = p[key]
     elif rest == ["sensor", "flow"]:
         out["points"].update({f"flow.{k}": p[k] for k in ("count", "volume") if k in p})
     elif rest == ["weather"] and "water level" in p:

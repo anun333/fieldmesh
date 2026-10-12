@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Water meters and head flows: the arithmetic of a clogged head
 
-*Forward intents, saved 2026-10-11, not built.*
+*Saved 2026-10-11. Items 1–3 below were built the same day, as
+[modules/zoneflow](../../modules/zoneflow/README.md); item 4 is not.*
 
 A zone's flow is the sum of its heads' flows. With a meter on the irrigation line, each
 run of each zone has a measured flow, which can be set beside the flow its heads should
@@ -101,7 +102,7 @@ pressure term, and quarter heads come into view.
 * The drip zone through a 1-gallon-a-pulse meter for ten minutes is 17 pulses, ±6% from
   counting alone. That needs the finer meter, or a longer run.
 
-## What fieldmesh would build, when this is picked up
+## What fieldmesh builds: 1–3 built, 4 not
 
 1. **A zone's inventory as a record**: its heads and nozzles, and the pressure they were
    set for. From it, the zone's expected flow from the makers' charts, scaled by √P.
@@ -113,8 +114,12 @@ pressure term, and quarter heads come into view.
    flowing". And for drip, a drift over weeks.
 4. **A pressure series on the line**, so a pressure drop is not called a clog.
 
-These are notes for later. Nothing here is built ([UNTESTED](../UNTESTED.md) will carry
-it when it is).
+Items 1–3 are [modules/zoneflow](../../modules/zoneflow/README.md). Its drill over 300
+simulated seasons bears out the arithmetic above: no false alert in 12,000 healthy runs,
+when a low or high flow must hold for two runs; a clogged half head, a stuck rotor and a
+broken head caught every time, by their second run; a quarter head in a fifth of seasons;
+drip silting as drift in about two weeks. Item 4, the pressure series, is not built. None
+of it has met a meter ([UNTESTED](../UNTESTED.md)).
 
 ## Sources
 

@@ -1,0 +1,18 @@
+{
+ "_meta": {
+  "language": "en",
+  "module": "zoneflow",
+  "license": "AGPL-3.0-or-later",
+  "note": "The irrigation zone flow check's strings, merged over layer zero's pack at load. Every key starts with `zoneflow.`."
+ },
+ "strings": {
+  "zoneflow.low": "{zone} ran at {flow:.1f} gpm, {percent:.0f}% of its usual {usual:.1f}. Something is holding water back: a clogged nozzle or screen, a filter, or a valve not opening fully.",
+  "zoneflow.low_sized_spray_full": "{zone} ran at {flow:.1f} gpm, {percent:.0f}% of its usual {usual:.1f}: the missing flow is about what {heads:.0f} full-circle spray head(s) of {size:.0f} feet give. Look for a clogged nozzle or screen.",
+  "zoneflow.low_sized_spray_half": "{zone} ran at {flow:.1f} gpm, {percent:.0f}% of its usual {usual:.1f}: the missing flow is about what {heads:.0f} half-circle spray head(s) of {size:.0f} feet give. Look for a clogged nozzle or screen.",
+  "zoneflow.low_sized_spray_quarter": "{zone} ran at {flow:.1f} gpm, {percent:.0f}% of its usual {usual:.1f}: the missing flow is about what {heads:.0f} quarter-circle spray head(s) of {size:.0f} feet give. Look for a clogged nozzle or screen.",
+  "zoneflow.low_sized_rotor": "{zone} ran at {flow:.1f} gpm, {percent:.0f}% of its usual {usual:.1f}: the missing flow is about what {heads:.0f} rotor(s) with a #{size:.1f} nozzle give. Look for a stuck rotor or a clogged nozzle.",
+  "zoneflow.low_sized_emitter": "{zone} ran at {flow:.1f} gpm, {percent:.0f}% of its usual {usual:.1f}: the missing flow is about what {heads:.0f} emitter(s) of {size:.1f} gph give. Look for clogged emitters or a dirty filter.",
+  "zoneflow.high": "{zone} ran at {flow:.1f} gpm, {percent:.0f}% of its usual {usual:.1f}. Water is getting out where it should not: a broken head, a lost nozzle, or a leak. Walk the zone while it runs.",
+  "zoneflow.drift": "{zone} has run at {of_expected:.0f}% of what its heads should give ({expected:.1f} gpm) over its recent runs: emitters or nozzles clogging slowly, or a filter filling. Clean the filter and check the heads."
+ }
+}

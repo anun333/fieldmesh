@@ -1,0 +1,18 @@
+{
+ "_meta": {
+  "language": "es",
+  "module": "zoneflow",
+  "license": "AGPL-3.0-or-later",
+  "note": "Borrador: sin revisar por un agrónomo hispanohablante."
+ },
+ "strings": {
+  "zoneflow.low": "{zone} funcionó a {flow:.1f} gpm, el {percent:.0f} % de sus {usual:.1f} habituales. Algo retiene el agua: una boquilla o un filtro tapados, o una válvula que no abre del todo.",
+  "zoneflow.low_sized_spray_full": "{zone} funcionó a {flow:.1f} gpm, el {percent:.0f} % de sus {usual:.1f} habituales: el caudal que falta es más o menos el de {heads:.0f} aspersor(es) de círculo completo de {size:.0f} pies. Busque una boquilla o un filtro tapados.",
+  "zoneflow.low_sized_spray_half": "{zone} funcionó a {flow:.1f} gpm, el {percent:.0f} % de sus {usual:.1f} habituales: el caudal que falta es más o menos el de {heads:.0f} aspersor(es) de medio círculo de {size:.0f} pies. Busque una boquilla o un filtro tapados.",
+  "zoneflow.low_sized_spray_quarter": "{zone} funcionó a {flow:.1f} gpm, el {percent:.0f} % de sus {usual:.1f} habituales: el caudal que falta es más o menos el de {heads:.0f} aspersor(es) de cuarto de círculo de {size:.0f} pies. Busque una boquilla o un filtro tapados.",
+  "zoneflow.low_sized_rotor": "{zone} funcionó a {flow:.1f} gpm, el {percent:.0f} % de sus {usual:.1f} habituales: el caudal que falta es más o menos el de {heads:.0f} rotor(es) con boquilla n.º {size:.1f}. Busque un rotor atascado o una boquilla tapada.",
+  "zoneflow.low_sized_emitter": "{zone} funcionó a {flow:.1f} gpm, el {percent:.0f} % de sus {usual:.1f} habituales: el caudal que falta es más o menos el de {heads:.0f} gotero(s) de {size:.1f} gph. Busque goteros tapados o un filtro sucio.",
+  "zoneflow.high": "{zone} funcionó a {flow:.1f} gpm, el {percent:.0f} % de sus {usual:.1f} habituales. El agua sale por donde no debe: un aspersor roto, una boquilla perdida o una fuga. Recorra la zona mientras riega.",
+  "zoneflow.drift": "{zone} ha funcionado al {of_expected:.0f} % de lo que deberían dar sus aspersores ({expected:.1f} gpm) en sus últimos riegos: goteros o boquillas que se tapan poco a poco, o un filtro que se llena. Limpie el filtro y revise los aspersores."
+ }
+}

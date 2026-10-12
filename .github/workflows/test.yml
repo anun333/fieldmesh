@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install dependencies (cbor2, cryptography; protobuf for the Q5 tool; cel-python for modules/rules, water and soilwater)
+      - name: Install dependencies (cbor2, cryptography; protobuf for the Q5 tool; cel-python for modules/rules, water, soilwater and zoneflow)
         run: python -m pip install -r requirements-tools.txt -r modules/rules/requirements.txt
       - name: Every test (sdk, tools, sim, server)
         run: make test

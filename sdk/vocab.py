@@ -106,6 +106,12 @@ BATTERY_VOLTAGE = ODM2 + "batteryVoltage/"
 #: response; silently diverging is not.
 RSSI = ODM2 + "receivedSignalStrenghtIndication/"
 
+#: Water's flow through a pipe: an irrigation zone's flow on a run, as a meter on the line
+#: gives it. ODM2's `discharge`, its generic volume flow rate (its definition is the word
+#: itself; `streamflow` and `wellFlowRate` are the narrower ones). Canonical m3 s-1; a
+#: controller reports gallons or litres a minute.
+FLOW_RATE = ODM2 + "discharge/"
+
 
 # ------------------------------------------------------------------ local terms
 
@@ -154,6 +160,7 @@ TERMS: dict[str, tuple[str, str]] = {
     SOLAR_RADIATION: ("W/m2", "CF"),
     BATTERY_VOLTAGE: ("V", "ODM2"),
     RSSI: ("dB[mW]", "ODM2"),
+    FLOW_RATE: ("[gal_us]/min", "ODM2"),
     VESSEL_FILL_FRACTION: ("1", "local"),
     VALVE_OPEN: (None, "local"),
 }
@@ -177,6 +184,7 @@ ACCEPTED_UNITS: dict[str, frozenset] = {
     SOLAR_RADIATION: frozenset({"W/m2"}),
     BATTERY_VOLTAGE: frozenset({"V", "mV"}),
     RSSI: frozenset({"dB[mW]"}),
+    FLOW_RATE: frozenset({"[gal_us]/min", "L/min", "m3/h", "m3/s"}),
     VESSEL_FILL_FRACTION: frozenset({"1", "%"}),
 }
 
