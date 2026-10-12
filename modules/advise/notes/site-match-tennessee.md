@@ -85,9 +85,9 @@ forage grasses (16 of 18), forage legumes (11 of 12), timber (24 of 29) — and 
 of the food: vegetables 5 of 59, spices and herbs none of 34, cut flowers 1 of 23,
 tropical fruit 11 of 32, pulses 6 of 23. Apple and peach have entries and no
 characteristics. **So this first version answers conservation, forage and timber
-questions, and is mostly silent on food crops.** Filling that is the case for asking FAO
-about ECOCROP (a request is drafted), or for another open
-crop source.
+questions, and is mostly silent on food crops.** Filling that is the case for ECOCROP,
+which FAO's data catalog lists under CC BY 4.0 ([entry](https://data.apps.fao.org/catalog/dataset/ecocrop); FAO is being asked to
+confirm, and for a bulk file), or for another open crop source.
 
 **Its limits are guidance, not limits.** PLANTS lists white clover as needing 250
 frost-free days and dying below 22 °F, and bermudagrass, crimson clover and annual
@@ -500,8 +500,8 @@ recommended next source. Of the 285 plants with no PLANTS characteristics, 22 ha
 and their prose gives a pH, rainfall or hardiness range that a pattern can find for 4 —
 lentil with two different pH ranges in one guide. That is not a source to judge a plant by,
 so they stay as the report lists them, not judged, rather than judged on a guess. What
-would change it is a tabulated source: ECOCROP, if FAO answers the licence request that has
-been drafted.
+would change it is a tabulated source: ECOCROP, listed under CC BY 4.0 in FAO's data
+catalog, once FAO confirms that and a bulk file is found.
 
 **Blueberries, looked for and not found (2026-10-09).** No openly licensed table of chill
 by cultivar turned up — not in MDPI or Frontiers, where the apple and stone-fruit tables
