@@ -39,6 +39,8 @@ LAT, ELEVATION_M = 35.06, 243.0
 BED = {"thetaFC": 0.30, "thetaWP": 0.12, "theta0": 0.30, "Zrini": 0.30, "Zrmax": 0.30,
        # 1.049, not 1.05: pyfao56 1.4.3 scales plant height by (Kcb - Kcbini) / (Kcbmid -
        # Kcbini), which divides by zero for a canopy that does not grow over the season.
+       # Fixed upstream (kthorp/pyfao56#84, merged to develop 2026-10-13); keep this until a
+       # release carries it.
        "Kcbini": 1.049, "Kcbmid": 1.05, "Kcbend": 1.05, "Lini": 1, "Ldev": 1, "Lmid": 120,
        "Lend": 1, "hini": 1.0, "hmax": 1.0, "pbase": 0.5, "Ze": 0.10, "REW": 9.0, "CN2": 70}
 MAD = 1.0 / 3.0
