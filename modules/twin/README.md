@@ -58,6 +58,15 @@ humidity, wind and cloud. The cloud becomes the long-wave sky the tunnel radiate
 sun is a clear sky dimmed by cloud (Kasten and Czeplak). The inside low is judged by a CEL
 rule through modules/rules, in English and Spanish.
 
+**With probes in the tunnel's soil**, its soil starts from them (`frostwatch.tunnel_soil`,
+given the tunnel's id): each GreenLight soil layer a probe sits in starts at the probe's
+newest reading of the last six hours, a layer between two probes between them, and the
+rest at the air's estimate. It matters less than it sounds. On a clear January night
+started from a week of cool days, soil 3 °C colder or warmer through the top 28 cm moved
+the inside low by 0.18 °C either way (−5.46, −5.28, −5.10 °C): the 36-hour warm-up lets
+the top soil follow the air whatever it started at. The decision records how many probes
+it used (`soil_probes`).
+
 Live, everything comes from the forecast log the farm's cron keeps (`tools/forecast_collect.py`,
 which now keeps humidity, wind and cloud as well), each hour its latest issue (Q26). The
 warm-up hours are forecasts made a few hours ahead, near enough to what happened. It runs by

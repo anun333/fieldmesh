@@ -170,6 +170,42 @@ class TestTheFrostWatchInputs(unittest.TestCase):
         self.assertTrue(2.0 < init["tSo3"] < 8.0)
         self.assertEqual(init["tSo5"], 16.0)
 
+    def test_probes_in_the_tunnels_soil_set_the_layers_they_sit_in(self):
+        """A probe at 8 cm (GreenLight's second layer, 4 to 12 cm) and one at 45 cm (the
+        fourth, 28 to 60): those layers start at their readings, the third between them by
+        its middle, and the rest at the air's estimate."""
+        import frostwatch as F
+        start = _dt.datetime(2026, 1, 20, tzinfo=UTC)
+        observed = [T.Hour(start - k * F.HOUR, 2.0, 80, 2, 0, 250, 0, 98) for k in range(1, 40 * 24)]
+        plain = F.initial_state(observed, start, deep_c=16.0)
+        init = F.initial_state(observed, start, deep_c=16.0, soil=[(0.08, 3.0), (0.45, 8.0)])
+        self.assertEqual((init["tSo2"], init["tSo4"]), (3.0, 8.0))
+        self.assertAlmostEqual(init["tSo3"], 3.0 + 5.0 * (0.20 - 0.08) / (0.44 - 0.08), places=6)
+        self.assertEqual((init["tSo1"], init["tSo5"], init["tFlr"]),
+                         (plain["tSo1"], plain["tSo5"], plain["tFlr"]))
+
+    def test_the_tunnels_soil_is_read_from_the_probes_installed_in_it(self):
+        import frostwatch as F
+        import fixtures as FX
+        import vocab as V
+        from ids import uuid7
+        from model import Installation
+        from project import State
+        state, tunnel, field = State(), uuid7(), uuid7()
+        at = _dt.datetime(2026, 1, 20, 18, tzinfo=UTC)
+        for where, depth, age_h, value in ((tunnel, 0.10, 2, 4.5), (field, 0.10, 2, -1.0),
+                                          (tunnel, 0.40, 9, 7.0)):
+            raw = FX.raw_datastream(unit="Cel", observed_property=V.SOIL_TEMPERATURE)
+            ds = FX.derived_datastream(raw, unit="Cel")
+            cal = FX.calibration(raw.sensor)
+            for rec in (raw, ds, cal, Installation(uuid7(), raw.sensor, where, at - 48 * F.HOUR,
+                                                   depth_m=depth)):
+                state.add(rec)
+            state.add(FX.observation(ds, result=value, measured_at=at - age_h * F.HOUR,
+                                     calibration=cal.id))
+        self.assertEqual(F.tunnel_soil(state, tunnel, at), [(0.10, 4.5)],
+                         "the field's probe is not the tunnel's; a nine-hour-old reading is too old")
+
     def test_tonights_weather_comes_from_the_forecast_log(self):
         """Live, the warm-up and the night both come from the collected forecasts: each
         hour the latest issue for it (Q26), in the units NWS gives."""

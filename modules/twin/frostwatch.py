@@ -39,6 +39,11 @@ i18n.register(os.path.join(HERE, "packs"), "twin")
 HOUR = _dt.timedelta(hours=1)
 SPINUP_H = 36
 NIGHT_H = 14                       # 6 pm to 8 am local standard time
+#: GreenLight's soil under the tunnel (Vanthoor 2011): its layers, top and bottom, metres.
+SOIL_LAYERS = (("tSo1", 0.0, 0.04), ("tSo2", 0.04, 0.12), ("tSo3", 0.12, 0.28),
+               ("tSo4", 0.28, 0.60), ("tSo5", 0.60, 1.24))
+#: How old a soil temperature reading may be and still set the night's start.
+SOIL_READING_H = 6.0
 KNOT = 0.514444                    # m s-1
 
 
@@ -99,10 +104,16 @@ def forecast_hours(series: dict, *, lat: float, lon: float, ps_kpa: float = 98.5
     return out
 
 
-def initial_state(observed: list, start: _dt.datetime, *, deep_c: float) -> dict:
+def initial_state(observed: list, start: _dt.datetime, *, deep_c: float,
+                  soil: list | None = None) -> dict:
     """The tunnel at the start of the warm-up: air and surfaces at the outside air, and
     the soil layers at the mean air of the last week, fortnight and month, sinking toward
-    the deep soil — rather than GreenLight's 16.5 °C glasshouse floor in January."""
+    the deep soil — rather than GreenLight's 16.5 °C glasshouse floor in January.
+
+    With `soil`, `[(depth_m, °C)]` from probes in the tunnel's soil, each layer a probe sits
+    in starts at its reading; a layer between two measured depths, between them by its
+    middle; the floor, at the top layer's when that is measured. The rest keep the air's
+    estimate. The soil's stored heat is what carries a tunnel through a clear night."""
     def mean_over(days):
         xs = [h.t for h in observed if start - _dt.timedelta(days=days) <= h.when < start]
         return sum(xs) / len(xs) if xs else deep_c
@@ -110,8 +121,52 @@ def initial_state(observed: list, start: _dt.datetime, *, deep_c: float) -> dict
     now = max(before, key=lambda h: h.when).t if before else deep_c
     w1, w2, w4 = mean_over(7), mean_over(14), mean_over(30)
     surfaces = {k: now for k in ("tAir", "tTop", "tCan", "tCovIn", "tCovE", "tThScr", "tPipe")}
-    return {**surfaces, "tFlr": w1, "tSo1": w1, "tSo2": w2, "tSo3": w4,
-            "tSo4": (w4 + deep_c) / 2, "tSo5": deep_c}
+    state = {**surfaces, "tFlr": w1, "tSo1": w1, "tSo2": w2, "tSo3": w4,
+             "tSo4": (w4 + deep_c) / 2, "tSo5": deep_c}
+    if not soil:
+        return state
+    measured = {}
+    for depth, c in soil:
+        for name, top, bottom in SOIL_LAYERS:
+            if top <= depth < bottom:
+                measured.setdefault(name, []).append(c)
+    mids = {name: (top + bottom) / 2.0 for name, top, bottom in SOIL_LAYERS}
+    known = sorted((mids[n], sum(v) / len(v)) for n, v in measured.items())
+    for name, _, _ in SOIL_LAYERS:
+        if name in measured:
+            state[name] = sum(measured[name]) / len(measured[name])
+            continue
+        below = [(m, c) for m, c in known if m > mids[name]]
+        above = [(m, c) for m, c in known if m < mids[name]]
+        if above and below:
+            (m0, c0), (m1, c1) = above[-1], below[0]
+            state[name] = c0 + (c1 - c0) * (mids[name] - m0) / (m1 - m0)
+    if "tSo1" in measured:
+        state["tFlr"] = state["tSo1"]
+    return state
+
+
+def tunnel_soil(state, tunnel, at: _dt.datetime) -> list:
+    """`[(depth_m, °C)]`: the newest reading, within `SOIL_READING_H` before `at` and passed
+    by the checks, of each soil temperature probe installed in the tunnel's soil."""
+    import vocab as V
+    from model import DatastreamKind, Usable
+    out = []
+    for ds in state.datastreams.values():
+        if ds.kind is not DatastreamKind.DERIVED or ds.observed_property != V.SOIL_TEMPERATURE:
+            continue
+        inst = state.installation_of(ds.sensor, at)
+        if inst is None or inst.feature != tunnel or inst.depth_m is None:
+            continue
+        rows = [o for o in state.live_observations_of(ds.id)
+                if at - SOIL_READING_H * HOUR <= o.measured_at <= at and o.received_at <= at
+                and isinstance(o.result, (int, float)) and not isinstance(o.result, bool)
+                and state.quality_as_of(o.id, at)[0] is Usable.GOOD]
+        if rows:
+            newest = max(rows, key=lambda o: o.measured_at)
+            c = float(newest.result) - 273.15 if ds.unit == "K" else float(newest.result)
+            out.append((inst.depth_m, c))
+    return sorted(out)
 
 
 def run_twin(hours: list, *, cover: str, init: dict, soil_c: float, elevation_m: float) -> dict:
@@ -140,20 +195,23 @@ def run_twin(hours: list, *, cover: str, init: dict, soil_c: float, elevation_m:
 
 
 def night(observed: list, tonight: list, *, dusk: _dt.datetime, dawn: _dt.datetime,
-          cover: str = "thermic", soil_c: float = 16.05, elevation_m: float = 243.0) -> dict:
-    """The tunnel's night: warmed up on `observed` up to dusk, then run on `tonight`.
-    Returns the inside low, its hour and the outside low over dusk to dawn."""
+          cover: str = "thermic", soil_c: float = 16.05, elevation_m: float = 243.0,
+          soil: list | None = None) -> dict:
+    """The tunnel's night: warmed up on `observed` up to dusk, then run on `tonight`, its
+    soil started from `soil` where probes measured it (`initial_state`). Returns the inside
+    low, its hour and the outside low over dusk to dawn."""
     start = dusk - SPINUP_H * HOUR
     past = [h for h in observed if start <= h.when < dusk]
     ahead = [h for h in tonight if dusk <= h.when <= dawn]
     if len(past) < SPINUP_H - 2 or not ahead:
         raise ValueError("a night needs the 36 hours before it and a forecast for it")
     inside = run_twin(past + ahead, cover=cover, soil_c=soil_c, elevation_m=elevation_m,
-                      init=initial_state(observed, start, deep_c=soil_c))
+                      init=initial_state(observed, start, deep_c=soil_c, soil=soil))
     window = {w: t for w, t in inside.items() if dusk <= w <= dawn}
     low_at = min(window, key=window.get)
     return {"inside_low_c": round(window[low_at], 2), "low_at": low_at.isoformat(),
-            "outside_low_c": round(min(h.t for h in ahead), 2), "cover": cover}
+            "outside_low_c": round(min(h.t for h in ahead), 2), "cover": cover,
+            "soil_measured": len(soil or ())}
 
 
 #: Where the watch warns, by film, from the 2025-26 backtest (covered_backtest.py): the
@@ -181,6 +239,7 @@ def judge(rule, result: dict | None, at: _dt.datetime, inputs: dict) -> dict:
     context = {"has_forecast": result is not None,
                "inside_low_c": result["inside_low_c"] if result else 99.0,
                "outside_low_c": result["outside_low_c"] if result else 99.0,
+               "soil_probes": float(result.get("soil_measured", 0)) if result else 0.0,
                "cover": result["cover"] if result else ""}
     return R.judge(rule, context, inputs, at)
 
@@ -228,12 +287,14 @@ def live_weather(state, start: _dt.datetime, end: _dt.datetime, *, lat: float, l
 
 
 def tonight_from_log(state, dusk: _dt.datetime, *, lat: float, lon: float,
-                     cover: str = "thermic", night_h: int = NIGHT_H) -> dict:
-    """The covered-crop watch for the night beginning at `dusk`, from a forecast log."""
+                     cover: str = "thermic", night_h: int = NIGHT_H, tunnel=None) -> dict:
+    """The covered-crop watch for the night beginning at `dusk`, from a forecast log; with
+    the `tunnel`'s id, its soil started from probes in it (`tunnel_soil`)."""
     hours = live_weather(state, dusk - SPINUP_H * HOUR, dusk + night_h * HOUR, lat=lat, lon=lon)
     past = [h for h in hours if h.when < dusk]
+    soil = tunnel_soil(state, tunnel, dusk - SPINUP_H * HOUR) if tunnel is not None else None
     return night(past, [h for h in hours if h.when >= dusk], dusk=dusk,
-                 dawn=dusk + night_h * HOUR, cover=cover)
+                 dawn=dusk + night_h * HOUR, cover=cover, soil=soil)
 
 
 def main(argv=None) -> int:
@@ -282,7 +343,9 @@ def main(argv=None) -> int:
         client = M.ModuleClient(args.socket, M.token_from_environment())
         state, write = client.state(now, lookback=_dt.timedelta(days=3)), client.log()
     try:
-        result = tonight_from_log(state, dusk, lat=args.lat, lon=args.lon, cover=args.cover)
+        from uuid import UUID
+        result = tonight_from_log(state, dusk, lat=args.lat, lon=args.lon, cover=args.cover,
+                                  tunnel=UUID(args.tunnel) if args.tunnel else None)
     except (ValueError, RuntimeError) as exc:
         result = None
         print(f"no watch tonight: {exc}", file=sys.stderr)

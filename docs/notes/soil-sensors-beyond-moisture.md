@@ -25,9 +25,10 @@ by its installation, as the moisture advisory finds its probes.
 Other uses, not built:
 
 * **Under a tunnel**, the soil's stored heat carries the crop through a cold night. The
-  [hoop-house twin's](../../modules/twin/) frost watch starts each night from soil
-  temperatures estimated from the weeks before; a probe in the tunnel's soil would give
-  it the real ones.
+  [hoop-house twin's](../../modules/twin/README.md) frost watch now starts its soil from
+  probes in the tunnel where there are any (built 2026-10-12). It moves the predicted low
+  less than expected, about 0.2 °C for 3 °C of soil: the twin's 36-hour warm-up lets the
+  top soil follow the air.
 * **Pests that overwinter in the soil** are often timed by soil degree-days.
 * **The plant advisor's** rice model (`modules/advise/dssat_crops.py`) times germination
   by the sowing day's mean temperature from the weather; a season of a farm's soil
