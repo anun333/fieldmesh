@@ -746,6 +746,10 @@ class TestRootsThatStop(unittest.TestCase):
         self.assertIn("to 20 cm", text)
         self.assertIn("rooting limit", text)
         self.assertIn("30 cm", S.render(note, "es"))
+        us = S.render(note, "en", units="us")
+        self.assertIn("about 28 inches", us)
+        self.assertIn("at 12 inches has stayed level", us)
+        self.assertIn("12 pulgadas", S.render(note, "es", units="us"))
 
     def test_with_its_rooting_limit_set_the_advice_takes_it_and_says_nothing(self):
         """Set at 25 cm, as the note asks: the roots are counted to it, and the probe at

@@ -1248,6 +1248,7 @@ def roots_rule() -> R.Rule:
                   alert_key="soilwater.roots_blocked",
                   message_params={"expected": "roots_expected_cm", "blocked": "roots_blocked_cm",
                                   "seen": "roots_seen_cm", "used": "root_depth_cm"},
+                  unit_params={k: "cm" for k in ("expected", "blocked", "seen", "used")},
                   subject_param="bed")
 
 
