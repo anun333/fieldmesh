@@ -440,6 +440,15 @@ class TestLookingAheadToTomorrow(unittest.TestCase):
         rows = [(T0 + h * HOUR, 0.30 - 0.001 * h) for h in range(20)]
         self.assertEqual(S._drying_mm_per_day(rows, T0 + 19 * HOUR, 150.0), 0.0)
 
+    def test_inches_for_a_us_reader(self):
+        g = self.shallow(6.0)
+        g.state.add(Label(uuid7(), g.land, "bed 3", T0, language="en"))
+        _, d = g.advice()
+        said = S.render(d, "en", g.state, units="us")
+        self.assertIn(f"drying at {d['context']['drying_mm_per_day'] / 25.4:.2f} inches a day", said)
+        self.assertIn("About 0.3 inches brings it back to field capacity", said)
+        self.assertIn("pulgadas", S.render(d, "es", g.state, units="us"))
+
     def test_short_is_at_or_past_the_refill_point(self):
         with self.assertRaises(ValueError):
             S.Bed(uuid7(), 0.30, 0.12, depletion_fraction=0.4, short_fraction=0.3)

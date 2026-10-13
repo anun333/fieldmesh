@@ -232,7 +232,8 @@ def rules_for(bed: Bed) -> list:
         R.Rule("soil-enough", "1", usable, p, alert_key="soilwater.enough",
                message_params={"left": "left_percent"}),
     ]
-    return [replace(r, subject_param="bed") for r in rules]
+    units = {"mm": "mm", "rain": "mm", "drying": "mm/d"}
+    return [replace(r, subject_param="bed", unit_params=units) for r in rules]
 
 
 # ----------------------------------------------------------------- context
@@ -1137,9 +1138,9 @@ def valve_minutes(state, valve: UUID, since: _dt.datetime, at: _dt.datetime) -> 
     return True, minutes
 
 
-def render(decision: dict, language: str = "en", state=None) -> str | None:
+def render(decision: dict, language: str = "en", state=None, units: str | None = None) -> str | None:
     """A decision's advice in `language`, naming the bed by its label there."""
-    return R.render(decision, language, state)
+    return R.render(decision, language, state, units)
 
 
 # ---------------------------------------------------------------- backtest

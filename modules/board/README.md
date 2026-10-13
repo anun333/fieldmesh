@@ -45,12 +45,12 @@ python3 -I modules/board/board.py --socket /run/fieldmesh/modules.sock \
     --config board.json --out /var/lib/fieldmesh-board --serve 127.0.0.1:8080
 ```
 
-`board.json` names the farm, its time zone, the languages to write pages in, and the names
-of the people acknowledgements refer to by id (names only; reaching people is the
-notifier's business):
+`board.json` names the farm, its time zone, the languages to write pages in, the units its
+alerts are said in (`"metric"`, the default, or `"us"`), and the names of the people
+acknowledgements refer to by id (names only; reaching people is the notifier's business):
 
 ```json
-{"farm": "Harrow Bend", "timezone": "America/Chicago", "languages": ["en", "es"],
+{"farm": "Harrow Bend", "timezone": "America/Chicago", "languages": ["en", "es"], "units": "us",
  "people": {"0192…": "María", "0192…": "Sam"},
  "series": ["<trough level datastream id>", "<hoop house air datastream id>"]}
 ```

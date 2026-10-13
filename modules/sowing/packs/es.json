@@ -42,6 +42,15 @@
   "sowing.crop.squash": "calabacitas",
   "sowing.crop.tomato": "tomates",
   "sowing.crop.turnip": "nabos",
-  "sowing.crop.watermelon": "sandías"
+  "sowing.crop.watermelon": "sandías",
+  "sowing.no_probe.us": "No hay consejo de siembra para {crop} en {bed}: no tiene sonda de temperatura del suelo a menos de {depth:.0f} pulgadas de la superficie.",
+  "sowing.cold.us": "Todavía no para {crop} en {bed}: el suelo a {depth:.0f} pulgadas ha promediado {mean:.0f} °F en los últimos tres días, y la semilla necesita al menos {min:.0f} °F para germinar.",
+  "sowing.hot.us": "Demasiado calor para {crop} en {bed}: el suelo a {depth:.0f} pulgadas ha promediado {mean:.0f} °F en los últimos tres días, y por encima de {max:.0f} °F la semilla apenas germina.",
+  "sowing.good.us": "Buen suelo para sembrar {crop} en {bed}: {mean:.0f} °F a {depth:.0f} pulgadas en los últimos tres días, dentro del mejor rango de la semilla, de {lo:.0f} a {hi:.0f} °F.",
+  "sowing.good_days.us": "Buen suelo para sembrar {crop} en {bed}: {mean:.0f} °F a {depth:.0f} pulgadas en los últimos tres días, dentro del mejor rango de la semilla, de {lo:.0f} a {hi:.0f} °F. Plántulas en unos {days:.0f} días.",
+  "sowing.cool.us": "Si siembra {crop} en {bed} ahora, la germinación será lenta: el suelo a {depth:.0f} pulgadas ha promediado {mean:.0f} °F, por debajo del mejor rango de la semilla, de {lo:.0f} a {hi:.0f} °F.",
+  "sowing.cool_days.us": "Si siembra {crop} en {bed} ahora, la germinación será lenta: el suelo a {depth:.0f} pulgadas ha promediado {mean:.0f} °F, por debajo del mejor rango de la semilla, de {lo:.0f} a {hi:.0f} °F. Plántulas en unos {days:.0f} días.",
+  "sowing.warm.us": "Si siembra {crop} en {bed} ahora, germinará, pero no tan bien: el suelo a {depth:.0f} pulgadas ha promediado {mean:.0f} °F, por encima del mejor rango de la semilla, de {lo:.0f} a {hi:.0f} °F.",
+  "sowing.warm_days.us": "Si siembra {crop} en {bed} ahora, germinará, pero no tan bien: el suelo a {depth:.0f} pulgadas ha promediado {mean:.0f} °F, por encima del mejor rango de la semilla, de {lo:.0f} a {hi:.0f} °F. Plántulas en unos {days:.0f} días."
  }
 }

@@ -230,7 +230,9 @@ def rules_for(bed: Seedbed) -> list:
         R.Rule("sowing-warm", "1", seen, p, alert_key="sowing.warm", message_params=soil,
                message_variants=(("has_days", "sowing.warm_days"),)),
     ]
-    return [replace(r, subject_param="bed", key_params=("crop",)) for r in rules]
+    units = {"depth": "cm", "mean": "Cel", "min": "Cel", "lo": "Cel", "hi": "Cel", "max": "Cel"}
+    return [replace(r, subject_param="bed", key_params=("crop",), unit_params=units)
+            for r in rules]
 
 
 class Advisor:
@@ -263,9 +265,9 @@ class Advisor:
         return [self.log.append(R.DECISION, d) for bed in beds for d in self.judge(state, bed, at)]
 
 
-def render(decision: dict, language: str = "en", state=None) -> str | None:
+def render(decision: dict, language: str = "en", state=None, units: str | None = None) -> str | None:
     """A decision's message in `language`: the bed by its label, the crop by its name."""
-    return R.render(decision, language, state)
+    return R.render(decision, language, state, units)
 
 
 def main(argv=None) -> int:

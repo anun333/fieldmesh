@@ -42,6 +42,15 @@
   "sowing.crop.squash": "squash",
   "sowing.crop.tomato": "tomatoes",
   "sowing.crop.turnip": "turnips",
-  "sowing.crop.watermelon": "watermelons"
+  "sowing.crop.watermelon": "watermelons",
+  "sowing.no_probe.us": "No sowing advice for {crop} in {bed}: it has no soil temperature probe within {depth:.0f} inches of the surface.",
+  "sowing.cold.us": "Not yet for {crop} in {bed}: the soil at {depth:.0f} inches has averaged {mean:.0f} °F over the last three days, and the seed needs at least {min:.0f} °F to germinate.",
+  "sowing.hot.us": "Too warm for {crop} in {bed}: the soil at {depth:.0f} inches has averaged {mean:.0f} °F over the last three days, and above {max:.0f} °F the seed barely germinates.",
+  "sowing.good.us": "Good soil for sowing {crop} in {bed}: {mean:.0f} °F at {depth:.0f} inches over the last three days, within the seed's best range of {lo:.0f} to {hi:.0f} °F.",
+  "sowing.good_days.us": "Good soil for sowing {crop} in {bed}: {mean:.0f} °F at {depth:.0f} inches over the last three days, within the seed's best range of {lo:.0f} to {hi:.0f} °F. Seedlings in about {days:.0f} days.",
+  "sowing.cool.us": "Sown in {bed} now, {crop} would come up slowly: the soil at {depth:.0f} inches has averaged {mean:.0f} °F, below the seed's best range of {lo:.0f} to {hi:.0f} °F.",
+  "sowing.cool_days.us": "Sown in {bed} now, {crop} would come up slowly: the soil at {depth:.0f} inches has averaged {mean:.0f} °F, below the seed's best range of {lo:.0f} to {hi:.0f} °F. Seedlings in about {days:.0f} days.",
+  "sowing.warm.us": "Sown in {bed} now, {crop} would come up, but less well: the soil at {depth:.0f} inches has averaged {mean:.0f} °F, above the seed's best range of {lo:.0f} to {hi:.0f} °F.",
+  "sowing.warm_days.us": "Sown in {bed} now, {crop} would come up, but less well: the soil at {depth:.0f} inches has averaged {mean:.0f} °F, above the seed's best range of {lo:.0f} to {hi:.0f} °F. Seedlings in about {days:.0f} days."
  }
 }

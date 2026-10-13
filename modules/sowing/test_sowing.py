@@ -192,5 +192,20 @@ class TestTheMorningsAdvice(unittest.TestCase):
                          {f"sowing/{g.land}/{c}" for c in g.bed.crops})
 
 
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestInTheReadersUnits(unittest.TestCase):
+
+    def test_fahrenheit_and_inches_for_a_us_reader(self):
+        g = Garden()
+        g.probe(daily(12.0))
+        d = g.advice()["bean"]
+        mean_f = d["context"]["mean_c"] * 9 / 5 + 32
+        self.assertEqual(S.render(d, "en", g.state, units="us"),
+                         f"Not yet for beans in bed 3: the soil at 2 inches has averaged {mean_f:.0f} °F "
+                         "over the last three days, and the seed needs at least 60 °F to germinate.")
+        self.assertIn("a 2 pulgadas", S.render(d, "es", g.state, units="us"))
+        self.assertIn("°C", S.render(d, "en", g.state, units="metric"))
+
 if __name__ == "__main__":
     unittest.main()

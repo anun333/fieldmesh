@@ -54,6 +54,9 @@ class Rule:
     #: (`"sowing.crop.bean"`), said in the reader's language when the message is rendered:
     #: "beans", "frijoles".
     key_params: tuple = ()
+    #: Message parameters that carry a unit, `{param: UCUM unit}` as the context holds them:
+    #: said in the reader's unit system when the message has a sentence for it (`render`).
+    unit_params: dict = field(default_factory=dict)
 
 
 def frost_watch(warn_at_c: float = 0.0, *, window_h: tuple = (2.0, 16.0)) -> Rule:
@@ -118,6 +121,9 @@ def judge(rule: Rule, context: dict, inputs: dict, at: _dt.datetime) -> dict:
             message["subject_param"] = rule.subject_param
         if rule.key_params:
             message["key_params"] = list(rule.key_params)
+        units = {k: u for k, u in rule.unit_params.items() if k in rule.message_params}
+        if units:
+            message["units"] = units
     return {"rule": rule.id, "version": rule.version, "condition": rule.condition,
             "params": dict(rule.params), "trust": rule.trust,
             "evaluated_at": at.isoformat(), "inputs": inputs,
@@ -138,11 +144,31 @@ def decide(log, rule: Rule, state, forecast_id, at: _dt.datetime):
     return log.append(DECISION, evaluate(rule, state, forecast_id, at))
 
 
-def render(decision: dict, language: str = "en", state=None) -> str | None:
+#: The unit systems a reader may read in, and what a message's units become in each: the
+#: unit and the conversion. A message is written in the units its module computes in; a
+#: sentence for another system is its key with the system's name after a dot
+#: (`"sowing.cold.us"`), and is used only when the reader's language has it.
+UNIT_SYSTEMS = {
+    "metric": {"[degF]": ("Cel", lambda f: (f - 32.0) * 5.0 / 9.0),
+               "[gal_us]/min": ("L/min", lambda g: g * 3.785411784)},
+    "us": {"Cel": ("[degF]", lambda c: c * 9.0 / 5.0 + 32.0),
+           "cm": ("[in_i]", lambda c: c / 2.54),
+           "mm": ("[in_i]", lambda m: m / 25.4),
+           "mm/d": ("[in_i]/d", lambda m: m / 25.4),
+           "L": ("[gal_us]", lambda v: v / 3.785411784),
+           "L/min": ("[gal_us]/min", lambda v: v / 3.785411784)},
+}
+
+
+def render(decision: dict, language: str = "en", state=None, units: str | None = None) -> str | None:
     """Any module's decision in `language`, from the decision alone: its message key,
     its parameters, and its subject named by its label in that language (§1) — which
     is how a notifier or a page says what a module decided without importing it. The
-    module's language pack must be registered (`i18n.register`); packs are data."""
+    module's language pack must be registered (`i18n.register`); packs are data.
+
+    With `units` (`UNIT_SYSTEMS`: "metric", "us"), a message whose parameters carry units
+    is said in that system when the reader's language has a sentence for it; otherwise in
+    the units it was written in, so a number never meets another unit's word."""
     m = decision.get("message")
     if not m:
         return None
@@ -159,6 +185,15 @@ def render(decision: dict, language: str = "en", state=None) -> str | None:
             label = state.label_for(UUID(decision["subject"]), language)
             name = label.name if label is not None else None
         params[slot] = name or decision.get("subject", "?")
+    if units and m.get("units") and units in UNIT_SYSTEMS:
+        converted = dict(params)
+        for name, unit in m["units"].items():
+            change = UNIT_SYSTEMS[units].get(unit)
+            if change is not None and isinstance(converted.get(name), (int, float)):
+                converted[name] = change[1](converted[name])
+        said = translator.text(f"{m['key']}.{units}", **converted)
+        if said.language and not said.fell_back:
+            return str(said)
     return str(translator.text(m["key"], **params))
 
 

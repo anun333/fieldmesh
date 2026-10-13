@@ -102,3 +102,23 @@ class KeyParamsTest(unittest.TestCase):
         plain = R.judge(R.Rule("plain", "1", "warm", {}, alert_key="rules.frost.alert"),
                         {"warm": True}, {}, DUSK)
         self.assertNotIn("key_params", plain["message"])
+
+
+@unittest.skipIf(R is None, "needs cel-python (modules/rules/requirements.txt)")
+class UnitParamsTest(unittest.TestCase):
+    """A message's numbers carry their units, so a reader can have them in theirs
+    (`Rule.unit_params`, `rules.render(..., units=)`; the sowing advisory's tests render
+    °F and inches)."""
+
+    def test_only_the_messages_own_parameters_are_recorded(self):
+        rule = R.Rule("u", "1", "warm", {}, alert_key="rules.frost.alert",
+                      message_params={"low": "low_c", "warn": "low_c"},
+                      unit_params={"low": "Cel", "elsewhere": "mm"})
+        d = R.judge(rule, {"warm": True, "low_c": -2.0}, {}, DUSK)
+        self.assertEqual(d["message"]["units"], {"low": "Cel"})
+
+    def test_a_message_without_a_sentence_for_the_system_stays_as_written(self):
+        rule = R.Rule("u", "1", "warm", {}, alert_key="rules.frost.alert",
+                      message_params={"low": "low_c", "warn": "low_c"}, unit_params={"low": "Cel"})
+        d = R.judge(rule, {"warm": True, "low_c": -2.0}, {}, DUSK)
+        self.assertEqual(R.render(d, "en", units="us"), R.render(d, "en"))

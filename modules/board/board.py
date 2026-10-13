@@ -64,13 +64,19 @@ class Board:
     #: The series whose newest reading the page shows — troughs, beds, the tunnel's air —
     #: by datastream id. The board's grant must name them.
     series: tuple = ()
+    #: The units its alerts are said in: "metric" or "us" (`rules.UNIT_SYSTEMS`).
+    units: str = "metric"
+
+    def __post_init__(self) -> None:
+        if self.units not in R.UNIT_SYSTEMS:
+            raise ValueError(f"a board's units are one of {sorted(R.UNIT_SYSTEMS)}")
 
     @classmethod
     def from_json(cls, doc: dict) -> "Board":
         from uuid import UUID
         return cls(doc.get("farm", ""), doc.get("timezone", "UTC"),
                    tuple(doc.get("languages", ("en",))), dict(doc.get("people", {})),
-                   tuple(UUID(s) for s in doc.get("series", ())))
+                   tuple(UUID(s) for s in doc.get("series", ())), doc.get("units", "metric"))
 
     def local(self, at: _dt.datetime) -> _dt.datetime:
         from zoneinfo import ZoneInfo
@@ -257,7 +263,7 @@ def render(board: Board, snap: dict, language: str, at: _dt.datetime, state=None
         return board.people.get(person_id) or str(t.text("board.someone"))
 
     def said(item):
-        return e(R.render(item.decision, language, state) or item.decision.get("rule", "?"))
+        return e(R.render(item.decision, language, state, board.units) or item.decision.get("rule", "?"))
 
     out = [_head(language, t.direction, board.farm or "fieldmesh", SCRIPT, refresh=True),
            f'<body data-made="{e(at.isoformat())}">',

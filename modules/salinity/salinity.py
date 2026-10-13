@@ -257,8 +257,8 @@ class Monitor:
         return sorted(self._standing.values(), key=lambda e: (e.stamp, e.id.int))
 
 
-def render(decision: dict, language: str = "en", state=None) -> str | None:
-    return R.render(decision, language, state)
+def render(decision: dict, language: str = "en", state=None, units: str | None = None) -> str | None:
+    return R.render(decision, language, state, units)
 
 
 def main(argv=None) -> int:

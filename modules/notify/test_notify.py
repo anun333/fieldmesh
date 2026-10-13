@@ -128,6 +128,15 @@ class TestRoster(unittest.TestCase):
             with self.assertRaises(ValueError):
                 N.Roster.from_json(doc)
 
+    def test_each_person_reads_in_their_own_units(self):
+        doc = roster()
+        doc["people"]["sam"]["units"] = "us"
+        r = N.Roster.from_json(doc)
+        self.assertEqual((r.people["sam"].units, r.people["maria"].units), ("us", "metric"))
+        doc["people"]["sam"]["units"] = "imperial"
+        with self.assertRaisesRegex(ValueError, "units"):
+            N.Roster.from_json(doc)
+
     def test_quiet_hours_cross_midnight_in_the_farms_own_time(self):
         doc = roster()
         doc["people"]["sam"]["quiet"] = ["21:00", "06:00"]

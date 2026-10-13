@@ -208,9 +208,10 @@ def rules_for(zone: Zone) -> list:
                "has_expected && learned && percent_of_expected < low_percent", p,
                alert_key="zoneflow.drift", message_params=params),
     ]
+    units = {"flow": "[gal_us]/min", "usual": "[gal_us]/min", "expected": "[gal_us]/min"}
     return [R.Rule(r.id, r.version, r.condition, r.params, alert_key=r.alert_key,
                    message_params=r.message_params, message_variants=r.message_variants,
-                   subject_param="zone") for r in rules]
+                   subject_param="zone", unit_params=units) for r in rules]
 
 
 def runs_of(state, zone: Zone, at: _dt.datetime) -> list:
@@ -275,9 +276,9 @@ class Monitor:
         return sorted(self._standing.values(), key=lambda e: (e.stamp, e.id.int))
 
 
-def render(decision: dict, language: str = "en", state=None) -> str | None:
+def render(decision: dict, language: str = "en", state=None, units: str | None = None) -> str | None:
     """A decision's message in `language`, naming the zone by its label there."""
-    return R.render(decision, language, state)
+    return R.render(decision, language, state, units)
 
 
 # ------------------------------------------------------------- simulation

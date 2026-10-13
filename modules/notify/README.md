@@ -41,7 +41,7 @@ Who gets what is the farm's private configuration, not the log:
  "people": {
    "maria": {"id": "0192…", "name": "María", "language": "es",
              "contacts": [{"via": "sms", "address": "+16155550101"}]},
-   "sam":   {"id": "0192…", "name": "Sam", "language": "en", "quiet": ["21:00", "06:00"],
+   "sam":   {"id": "0192…", "name": "Sam", "language": "en", "units": "us", "quiet": ["21:00", "06:00"],
              "contacts": [{"via": "ntfy", "address": "hb-sam"},
                           {"via": "sms", "address": "+16155550102"}]}},
  "routes": [
@@ -54,6 +54,10 @@ Who gets what is the farm's private configuration, not the log:
   both attempts.
 * **Quiet hours** hold anything not marked `urgent` until morning. An empty trough is
   urgent; tomorrow's watering is not.
+* **Units** are each person's: `"metric"` (the default) or `"us"`. A message with numbers
+  in it is said in the person's units where its module wrote a sentence for them (°F and
+  inches for sowing and watering, litres a minute for zone flow); otherwise as it was
+  written (`rules.render`).
 * **A rule no route names goes nowhere.** It still stands on the [board](../board/).
 * **A weekly digest**, if the roster asks for one
   (`"digest": {"to": ["sam"], "weekday": "mon", "time": "08:00", "cost_per_segment": 0.0075,

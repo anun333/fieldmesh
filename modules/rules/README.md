@@ -60,6 +60,12 @@ notifier or a page can carry any module's alerts without importing any module:
 * **The things it names.** A parameter listed in `message.key_params` holds a
   language-pack key, not a word, and is said in the reader's language when rendered: the
   sowing advisory's crop is `sowing.crop.bean`, said "beans" or "frijoles".
+* **Its units.** `message.units` names the parameters that carry a unit, as UCUM codes.
+  `rules.render(decision, language, state, units="us")` says them in the reader's system
+  (`UNIT_SYSTEMS`: "metric", "us") when the module wrote a sentence for it, under its key
+  with the system after a dot (`sowing.cold.us`, `zoneflow.low.metric`) and in the reader's
+  own language; otherwise it says the message as written, so a number never meets another
+  unit's word.
 * **Which question it answers.** `topic` defaults to the rule and its subject: "is the
   north trough empty?" The soil advisory answers "what does bed 3 need today?" whichever
   rule held, so it names its own. The latest decision on a topic is the standing answer

@@ -191,5 +191,18 @@ class TestDecisions(unittest.TestCase):
         self.assertEqual(Z.alerts(Z.zone_context(self.state, after, at)[0], after), set())
 
 
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestInTheReadersUnits(unittest.TestCase):
+
+    def test_litres_a_minute_for_a_metric_reader(self):
+        zone = lawn()
+        ctx = Z.judge_runs([12.9, 13.0, 12.8, 12.95, 11.1, 11.05], zone)
+        rule = next(r for r in Z.rules_for(zone) if r.id == "zone-flow-low")
+        d = Z.R.judge(rule, ctx, {}, T0)
+        self.assertIn("ran at 11.1 gpm", Z.render(d, "en"))
+        self.assertIn("ran at 42 litres a minute", Z.render(d, "en", units="metric"))
+        self.assertIn("ran at 11.1 gpm", Z.render(d, "en", units="us"), "written in US units")
+
 if __name__ == "__main__":
     unittest.main()

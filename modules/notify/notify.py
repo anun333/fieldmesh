@@ -100,10 +100,15 @@ class Person:
     contacts: tuple = ()
     #: Local hours ("21:00", "06:00") when only urgent alerts reach them.
     quiet: tuple | None = None
+    #: The units they read in: "metric" or "us" (`rules.UNIT_SYSTEMS`). A message is said
+    #: in them where its module wrote a sentence for them.
+    units: str = "metric"
 
     def __post_init__(self) -> None:
         if not self.contacts:
             raise ValueError(f"{self.key}: nobody can be told without a way to reach them")
+        if self.units not in R.UNIT_SYSTEMS:
+            raise ValueError(f"{self.key}: units are one of {sorted(R.UNIT_SYSTEMS)}")
         for via, address in self.contacts:
             if via not in ("ntfy", "sms"):
                 raise ValueError(f"{self.key}: no channel {via!r}")
@@ -170,7 +175,8 @@ class Roster:
         for key, p in doc["people"].items():
             people[key] = Person(key, UUID(p["id"]), p.get("name", key), p.get("language", "en"),
                                  tuple((c["via"], c["address"]) for c in p["contacts"]),
-                                 tuple(p["quiet"]) if p.get("quiet") else None)
+                                 tuple(p["quiet"]) if p.get("quiet") else None,
+                                 p.get("units", "metric"))
         routes = tuple(Route(tuple(r["rules"]), tuple(tuple(t) for t in r["tiers"]),
                              float(r.get("escalate_after_min", 30.0)), bool(r.get("urgent", False)),
                              bool(r.get("notify_clear", True)), tuple(r.get("modules", ())))
@@ -526,7 +532,7 @@ def message(roster: Roster, eps: list, person: Person, reason: str, via: str, st
     """The text one person gets, in their language, about one alert or several that
     fell due together."""
     t = i18n.Translator(person.language)
-    texts = [R.render(ep.decision, person.language, state) or ep.decision.get("rule", "?")
+    texts = [R.render(ep.decision, person.language, state, person.units) or ep.decision.get("rule", "?")
              for ep in eps]
     several = len(eps) > 1
     said = texts[0] if not several else " ".join(
