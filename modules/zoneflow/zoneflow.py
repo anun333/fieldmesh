@@ -79,6 +79,17 @@ KINDS = {"spray-full": 1.0, "spray-half": 2.0, "spray-quarter": 3.0, "rotor": 4.
 #: Runs a zone's usual flow is the median of, and the fewest it is learned from.
 LEARN_RUNS = 7
 MIN_RUNS = 3
+#: The share of the usual flow a run may stray by, without and with a gauge on the line.
+#: Over 300 simulated seasons a gauge reading within 1% took the supply's swing out, and 6%
+#: then caught every clogged quarter-circle head by its second run, with one false alert
+#: in 12,000 runs; 5% gave 14 (`drill`).
+TOLERANCE = 0.10
+GAUGED_TOLERANCE = 0.06
+#: A line pressure series' units, to psi.
+TO_PSI = {"[psi]": 1.0, "kPa": 0.1450377377, "bar": 14.50377377}
+#: The minutes before a run's flow reading its pressure is read over: OpenSprinkler reports
+#: a run's flow as the zone closes, so the minutes before are the run.
+RUN_PRESSURE_MIN = 10.0
 
 
 @dataclass(frozen=True)
@@ -93,13 +104,22 @@ class Zone:
     flow: UUID
     heads: tuple = ()
     pressure_psi: float | None = None
-    tolerance: float = 0.10
+    #: The share of the usual flow a run may stray by: 10% by default, 6% with a gauge on
+    #: the line (`pressure`), which then sees a clogged quarter-circle head (`drill`).
+    tolerance: float | None = None
     since: _dt.datetime | None = None
     #: Runs in a row out of tolerance, the same way, before a low or high flow is said.
     #: Two: one run out is a pressure dip as often as a fault (`drill`).
     confirm_runs: int = 2
+    #: The line's gauge pressure, read during each run (`vocab.WATER_PRESSURE`). Each run's
+    #: flow is then taken to one pressure, by √P, so a supply that wanders does not read
+    #: as a clog or a break: `pressure_psi`, or the runs' median pressure. A narrower
+    #: `tolerance` then holds (`drill`).
+    pressure: UUID | None = None
 
     def __post_init__(self) -> None:
+        if self.tolerance is None:
+            object.__setattr__(self, "tolerance", GAUGED_TOLERANCE if self.pressure else TOLERANCE)
         for head, count in self.heads:
             if head not in HEADS:
                 raise ValueError(f"unknown head {head!r}; known: {', '.join(HEADS)}")
@@ -214,26 +234,72 @@ def rules_for(zone: Zone) -> list:
                    subject_param="zone", unit_params=units) for r in rules]
 
 
-def runs_of(state, zone: Zone, at: _dt.datetime) -> list:
-    """The zone's runs' flows, gpm, oldest first: readings received by `at` that the
-    health checks had passed by then, in the flow series' own unit."""
+def _good(state, series: UUID, at: _dt.datetime, since=None):
+    """A series' readings received by `at` that the checks had passed by then, oldest
+    first, as `(measured_at, value)`."""
+    rows = sorted((o for o in state.live_observations_of(series)
+                   if o.received_at <= at and o.measured_at <= at
+                   and (since is None or o.measured_at >= since)
+                   and isinstance(o.result, (int, float)) and not isinstance(o.result, bool)),
+                  key=lambda o: o.measured_at)
+    return [(o.measured_at, float(o.result)) for o in rows
+            if state.quality_as_of(o.id, at)[0] is Usable.GOOD]
+
+
+def _runs(state, zone: Zone, at: _dt.datetime) -> list:
     ds = state.datastreams.get(zone.flow)
     if ds is None or ds.unit not in TO_GPM:
         return []
-    to = TO_GPM[ds.unit]
-    rows = sorted((o for o in state.live_observations_of(zone.flow)
-                   if o.received_at <= at and o.measured_at <= at
-                   and (zone.since is None or o.measured_at >= zone.since)
-                   and isinstance(o.result, (int, float)) and not isinstance(o.result, bool)),
-                  key=lambda o: o.measured_at)
-    return [o.result * to for o in rows if state.quality_as_of(o.id, at)[0] is Usable.GOOD]
+    return [(t, v * TO_GPM[ds.unit]) for t, v in _good(state, zone.flow, at, zone.since)]
+
+
+def runs_of(state, zone: Zone, at: _dt.datetime) -> list:
+    """The zone's runs' flows, gpm, oldest first: readings received by `at` that the
+    health checks had passed by then, in the flow series' own unit."""
+    return [g for _, g in _runs(state, zone, at)]
+
+
+def run_pressures(state, zone: Zone, runs: list, at: _dt.datetime) -> list:
+    """Each run's line pressure, psi: the median gauge reading over `RUN_PRESSURE_MIN`
+    before its flow reading; None for a run with none, or without a gauge."""
+    ds = state.datastreams.get(zone.pressure) if zone.pressure else None
+    if ds is None or ds.unit not in TO_PSI:
+        return [None] * len(runs)
+    readings = [(t, v * TO_PSI[ds.unit]) for t, v in _good(state, zone.pressure, at)]
+    out = []
+    for t, _ in runs:
+        lo = t - _dt.timedelta(minutes=RUN_PRESSURE_MIN)
+        window = [p for u, p in readings if lo <= u <= t and p > 0]
+        out.append(statistics.median(window) if window else None)
+    return out
 
 
 def zone_context(state, zone: Zone, at: _dt.datetime):
-    """`(context, inputs)` for a zone at `at`."""
-    ctx = judge_runs(runs_of(state, zone, at), zone)
-    return ctx, {"zone": str(zone.feature), "flow": str(zone.flow),
-                 "heads": [list(h) for h in zone.heads], "pressure_psi": zone.pressure_psi}
+    """`(context, inputs)` for a zone at `at`. With a gauge, each run's flow is taken to
+    one pressure before it is judged; the latest run is then said at its own pressure,
+    and the usual and expected flows at that pressure too, so the meter's number and the
+    message's agree."""
+    runs = _runs(state, zone, at)
+    flows = [g for _, g in runs]
+    pressures = run_pressures(state, zone, runs, at)
+    known = [p for p in pressures if p is not None]
+    inputs = {"zone": str(zone.feature), "flow": str(zone.flow),
+              "heads": [list(h) for h in zone.heads], "pressure_psi": zone.pressure_psi}
+    if not known:
+        return judge_runs(flows, zone), inputs
+    p0 = zone.pressure_psi or statistics.median(known)
+    adjusted = [g * math.sqrt(p0 / p) if p else g for g, p in zip(flows, pressures)]
+    ctx = judge_runs(adjusted, zone)
+    last = pressures[-1]
+    if last:
+        at_run = math.sqrt(last / p0)
+        ctx.update({"flow_gpm": round(flows[-1], 2),
+                    "usual_gpm": round(ctx["usual_gpm"] * at_run, 2),
+                    "expected_gpm": round(ctx["expected_gpm"] * at_run, 2),
+                    "run_pressure_psi": round(last, 1)})
+    inputs.update({"pressure": str(zone.pressure), "reference_psi": round(p0, 1),
+                   "runs_with_pressure": len(known)})
+    return ctx, inputs
 
 
 class Monitor:
@@ -285,20 +351,27 @@ def render(decision: dict, language: str = "en", state=None, units: str | None =
 
 def simulate(expected: float, runs: int, *, seed: int, meter_sd: float = 0.02,
              pressure_sd: float = 0.10, fault_at: int | None = None,
-             fault_gpm: float = 0.0, drift_per_run: float = 0.0) -> list:
+             fault_gpm: float = 0.0, drift_per_run: float = 0.0,
+             gauge_sd: float | None = None) -> list:
     """A zone's runs' flows on a line whose pressure wanders and whose meter is not
     exact: `pressure_sd` is the supply pressure's spread as a share, which moves the flow
     by its square root, and `meter_sd` the meter's. From run `fault_at`, `fault_gpm` is
     added (negative for a clog); `drift_per_run` takes that share off each run after the
-    first, as drip emitters silting up."""
+    first, as drip emitters silting up. With `gauge_sd`, each run's flow is taken back to
+    the nominal pressure by a gauge that reads within that share, as `zone_context` does
+    with a pressure series."""
     import random
     rng, out = random.Random(seed), []
+    gauge = random.Random(seed + 1_000_003)
     for n in range(runs):
         pressure = max(0.5, 1.0 + rng.gauss(0.0, pressure_sd))
         flow = expected * math.sqrt(pressure) * (1.0 - drift_per_run * n)
         if fault_at is not None and n >= fault_at:
             flow += fault_gpm * math.sqrt(pressure)
-        out.append(max(0.0, flow * (1.0 + rng.gauss(0.0, meter_sd))))
+        flow = max(0.0, flow * (1.0 + rng.gauss(0.0, meter_sd)))
+        if gauge_sd is not None:
+            flow /= math.sqrt(pressure * (1.0 + gauge.gauss(0.0, gauge_sd)))
+        out.append(flow)
     return out
 
 
@@ -330,18 +403,22 @@ def _first(flows: list, zone: Zone, wanted: set, from_run: int) -> int | None:
 
 
 def drill(seasons: int = 300, runs: int = 40, *, pressure_sd: float = 0.05,
-          meter_sd: float = 0.02, confirm_runs: int = 2) -> dict:
+          meter_sd: float = 0.02, confirm_runs: int = 2, gauge_sd: float | None = None,
+          tolerance: float = TOLERANCE) -> dict:
     """The check on simulated seasons of runs (`simulate`): false alerts on healthy
     zones, and how many runs after it starts each fault is said. A lawn zone (`LAWN`,
     12.94 gpm), a rotor zone (`ROTORS`) and a drip zone (`DRIP`), at the default
     tolerance. The supply pressure wanders with a standard deviation of `pressure_sd`,
-    so ±10% at two deviations, and the meter's error is `meter_sd`."""
-    lawn, rotors, drip = (Zone(UUID(int=n), UUID(int=10 + n), heads=h, confirm_runs=confirm_runs)
+    so ±10% at two deviations, and the meter's error is `meter_sd`. With `gauge_sd`, a
+    pressure gauge on the line takes each run back to one pressure (`simulate`), and the
+    zones are judged at `tolerance`."""
+    lawn, rotors, drip = (Zone(UUID(int=n), UUID(int=10 + n), heads=h, confirm_runs=confirm_runs,
+                               tolerance=tolerance)
                           for n, h in ((1, LAWN), (2, ROTORS), (3, DRIP)))
     out = {"false_alert_runs": 0, "seasons_with_false": 0, "runs": seasons * runs,
            "half_head": [], "quarter_head": [], "rotor": [], "broken": [], "drip_drift": []}
     for seed in range(seasons):
-        kw = dict(seed=seed, pressure_sd=pressure_sd, meter_sd=meter_sd)
+        kw = dict(seed=seed, pressure_sd=pressure_sd, meter_sd=meter_sd, gauge_sd=gauge_sd)
         healthy = simulate(expected_gpm(lawn), runs, **kw)
         false = sum(bool(alerts(judge_runs(healthy[:n + 1], lawn), lawn)) for n in range(runs))
         out["false_alert_runs"] += false
@@ -369,7 +446,8 @@ def main(argv=None) -> int:
     ap.add_argument("--socket", required=True)
     ap.add_argument("--config", required=True,
                     help="JSON: {\"zones\": [{\"feature\": id, \"flow\": id, "
-                         "\"heads\": [[\"rainbird-mpr-15H\", 6], ...], \"pressure_psi\": 30}]}")
+                         "\"heads\": [[\"rainbird-mpr-15H\", 6], ...], \"pressure_psi\": 30, "
+                         "\"pressure\": id or absent}]}")
     ap.add_argument("--at", help="judge this one moment (ISO 8601) and exit")
     ap.add_argument("--every", type=float, default=900.0, help="seconds between looks")
     ap.add_argument("--language", default="en")
@@ -377,6 +455,7 @@ def main(argv=None) -> int:
     with open(args.config, encoding="utf-8") as h:
         config = json.load(h)
     zones = [Zone(**{**z, "feature": UUID(z["feature"]), "flow": UUID(z["flow"]),
+                     "pressure": UUID(z["pressure"]) if z.get("pressure") else None,
                      "heads": tuple(tuple(x) for x in z.get("heads", ())),
                      "since": (_dt.datetime.fromisoformat(z["since"]) if z.get("since") else None)})
              for z in config["zones"]]

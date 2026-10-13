@@ -5,6 +5,7 @@ decisions raised and cleared, and the drill on simulated seasons."""
 from __future__ import annotations
 
 import datetime as _dt
+import math
 import os
 import statistics
 import sys
@@ -120,6 +121,15 @@ class TestTheDrill(unittest.TestCase):
         caught = sum(x is not None for x in self.r["quarter_head"])
         self.assertLess(caught, 50)
 
+    def test_with_a_gauge_on_the_line_a_quarter_head_shows(self):
+        """The gauge takes the supply's swing out; at 6% every clogged quarter-circle head is
+        then seen, by its second run, and a healthy zone almost never alarms."""
+        r = Z.drill(100, gauge_sd=0.01, tolerance=Z.GAUGED_TOLERANCE)
+        caught = [x for x in r["quarter_head"] if x is not None]
+        self.assertEqual(len(caught), 100)
+        self.assertLessEqual(statistics.median(caught), 1)
+        self.assertLessEqual(r["false_alert_runs"], 1)
+
     def test_drip_silting_is_seen_in_weeks(self):
         caught = [x for x in self.r["drip_drift"] if x is not None]
         self.assertEqual(len(caught), 100)
@@ -178,6 +188,42 @@ class TestDecisions(unittest.TestCase):
         again = Z.Monitor(log)
         self.assertEqual(again.check(self.state, [self.zone], self.run_at(11.05)), [])
         self.assertEqual(len(again.standing()), 1)
+
+    def test_a_gauge_takes_each_run_to_one_pressure(self):
+        """The supply swings: at 37.5 psi the zone gives √(37.5/30), 12% more, which without
+        the line's gauge reads as a broken head. With it, that is not a fault, and a clogged
+        quarter-circle head, 7% less, is seen at the 6% a gauge allows. The message says the
+        meter's own number, and the usual flow at that run's pressure."""
+        gauge = FX.raw_datastream(unit="[psi]", observed_property=V.WATER_PRESSURE)
+        self.state.add(gauge)
+        zone = Z.Zone(self.zone.feature, self.flow.id, heads=Z.LAWN, pressure_psi=30.0,
+                      pressure=gauge.id)
+        bare = Z.Zone(self.zone.feature, self.flow.id, heads=Z.LAWN, pressure_psi=30.0)
+        self.assertEqual((zone.tolerance, bare.tolerance), (0.06, 0.10))
+        quarter = Z.head_gpm("rainbird-mpr-15Q", 30.0)
+
+        def run(psi, clogged=0.0):
+            when = T0 + self.n * DAY
+            self.state.add(FX.observation(gauge, result=psi, measured_at=when - _dt.timedelta(minutes=5),
+                                          seq=500 + self.n))
+            flow = (Z.expected_gpm(zone) - clogged) * math.sqrt(psi / 30.0)
+            self.state.add(FX.observation(self.flow, result=round(flow, 3), measured_at=when, seq=self.n))
+            self.n += 1
+            return when + _dt.timedelta(minutes=5)
+        for psi in (30.0, 31.0, 29.0, 30.0):
+            run(psi)
+        at = run(37.5)
+        at = run(37.5)
+        self.assertEqual(Z.alerts(Z.zone_context(self.state, bare, at)[0], bare), {"high"})
+        self.assertEqual(Z.alerts(Z.zone_context(self.state, zone, at)[0], zone), set())
+        run(28.0, clogged=quarter)
+        at = run(28.0, clogged=quarter)
+        ctx, inputs = Z.zone_context(self.state, zone, at)
+        self.assertEqual(Z.alerts(ctx, zone), {"low"})
+        measured = (Z.expected_gpm(zone) - quarter) * math.sqrt(28.0 / 30.0)
+        self.assertAlmostEqual(ctx["flow_gpm"], measured, delta=0.01)
+        self.assertAlmostEqual(ctx["usual_gpm"], Z.expected_gpm(zone) * math.sqrt(28.0 / 30.0), delta=0.15)
+        self.assertEqual(inputs["runs_with_pressure"], 8)
 
     def test_a_change_to_the_zone_is_learned_afresh_from_since(self):
         for flow in (12.9, 13.0, 12.85, 12.95):

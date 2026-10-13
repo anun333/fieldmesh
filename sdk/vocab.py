@@ -125,6 +125,11 @@ SOIL_WATER_POTENTIAL = ODM2 + "waterPotential/"
 #: sensor's raw response, in the soil it is buried in.
 BULK_EC = ODM2 + "bulkElectricalConductivity/"
 
+#: The water's pressure in a line, as a gauge reads it: above the air's. An irrigation
+#: zone's flow goes as its square root, so with it each run's flow is taken to one
+#: pressure (modules/zoneflow). ODM2's `pressureGauge`.
+WATER_PRESSURE = ODM2 + "pressureGauge/"
+
 
 # ------------------------------------------------------------------ local terms
 
@@ -176,6 +181,7 @@ TERMS: dict[str, tuple[str, str]] = {
     FLOW_RATE: ("[gal_us]/min", "ODM2"),
     SOIL_WATER_POTENTIAL: ("kPa", "ODM2"),
     BULK_EC: ("dS/m", "ODM2"),
+    WATER_PRESSURE: ("[psi]", "ODM2"),
     VESSEL_FILL_FRACTION: ("1", "local"),
     VALVE_OPEN: (None, "local"),
 }
@@ -202,6 +208,7 @@ ACCEPTED_UNITS: dict[str, frozenset] = {
     FLOW_RATE: frozenset({"[gal_us]/min", "L/min", "m3/h", "m3/s"}),
     SOIL_WATER_POTENTIAL: frozenset({"kPa", "cbar", "hPa", "MPa"}),
     BULK_EC: frozenset({"dS/m", "mS/cm", "uS/cm", "S/m"}),
+    WATER_PRESSURE: frozenset({"[psi]", "kPa", "bar"}),
     VESSEL_FILL_FRACTION: frozenset({"1", "%"}),
 }
 

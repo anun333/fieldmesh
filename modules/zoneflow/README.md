@@ -75,9 +75,27 @@ So, on flow alone:
   flow has gone.
 
 One run out is a pressure dip as often as a fault: confirming on one run raised a false
-alert in 54 of 300 healthy seasons, so the default waits for two. A pressure
-series on the line, dividing each run by √(P/P₀), would remove most of the pressure
-term; that is not built.
+alert in 54 of 300 healthy seasons, so the default waits for two.
+
+## A gauge on the line
+
+With a pressure gauge on the line (`Zone.pressure`, ODM2's `pressureGauge`), each run's
+flow is taken to one pressure, by √P, before it is judged: the zone's `pressure_psi`, or
+its runs' median. The gauge is read over the ten minutes before the run's flow reading,
+which OpenSprinkler sends as the zone closes. The latest run is then said at its own
+pressure, and the usual flow at that pressure too, so the message's number is the
+meter's. The same drill, the gauge reading within 1%:
+
+| | false alerts | quarter head clogged | drip silting, runs to see it |
+| --- | --- | --- | --- |
+| no gauge, 10% (the default without one) | 0 in 12,000 runs | 60/300 | median 14 |
+| gauge, 10% | 0 | 5/300 | median 14 |
+| **gauge, 6% (the default with one)** | **1 in 12,000** | **300/300**, by the second run | **median 10** |
+| gauge, 5% | 14, in 13 seasons | 300/300 | median 8 |
+
+A gauge alone does not help: at 10% the supply's swing was what carried a quarter head's
+7% across the line now and then. It lets the tolerance come in, and at 6% a clogged
+quarter-circle head is seen every time.
 
 ## Using it
 
@@ -105,6 +123,6 @@ scales it ran at.
 
 No meter, controller or zone has been on the air ([UNTESTED](../../docs/UNTESTED.md)):
 
-* the drill is simulated, with even pressure noise and no pressure sensor;
+* the drill is simulated, with even pressure noise, and a gauge reading within 1%;
 * the head flows are the makers' charts, not measured heads;
 * OpenSprinkler's station flow is read from its firmware source, not from a controller.

@@ -5,7 +5,8 @@
  "description": "Irrigation zone flow: each run against the zone's usual flow and its heads; low (sized in heads), high, slow drift.",
  "reads": {
   "observed_properties": [
-   "http://vocabulary.odm2.org/variablename/discharge/"
+   "http://vocabulary.odm2.org/variablename/discharge/",
+   "http://vocabulary.odm2.org/variablename/pressureGauge/"
   ]
  },
  "writes": [
