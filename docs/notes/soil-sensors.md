@@ -89,6 +89,10 @@ the bridge already reads.
 
 ## What fieldmesh would build next for probes
 
+*Temperature, tension, salinity and drainage, the other things worth putting in the soil, are in
+[soil sensors beyond moisture](soil-sensors-beyond-moisture.md); soil temperature is built, as
+the [sowing advisory](../../modules/sowing/README.md).*
+
 1. **An SDI-12 node**: an ESP32 with Arduino-SDI-12, publishing through ESPHome. It
    reaches the HydraProbe, the TEROS and most research probes.
 2. **A HydraProbe Modbus map** in the Modbus collector, from Stevens' register

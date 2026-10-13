@@ -50,6 +50,10 @@ class Rule:
     #: The message parameter the decision's subject fills, by its label in the
     #: reader's language ("trough", "bed"), resolved when the message is rendered.
     subject_param: str = ""
+    #: Message parameters whose value is a language-pack key, such as a crop's name
+    #: (`"sowing.crop.bean"`), said in the reader's language when the message is rendered:
+    #: "beans", "frijoles".
+    key_params: tuple = ()
 
 
 def frost_watch(warn_at_c: float = 0.0, *, window_h: tuple = (2.0, 16.0)) -> Rule:
@@ -112,6 +116,8 @@ def judge(rule: Rule, context: dict, inputs: dict, at: _dt.datetime) -> dict:
                                           for name, source in rule.message_params.items()}}
         if rule.subject_param:
             message["subject_param"] = rule.subject_param
+        if rule.key_params:
+            message["key_params"] = list(rule.key_params)
     return {"rule": rule.id, "version": rule.version, "condition": rule.condition,
             "params": dict(rule.params), "trust": rule.trust,
             "evaluated_at": at.isoformat(), "inputs": inputs,
@@ -141,6 +147,10 @@ def render(decision: dict, language: str = "en", state=None) -> str | None:
     if not m:
         return None
     params = dict(m["params"])
+    translator = i18n.Translator(language)
+    for name in m.get("key_params", ()):
+        if isinstance(params.get(name), str):
+            params[name] = str(translator.text(params[name]))
     slot = m.get("subject_param")
     if slot:
         name = None
@@ -149,7 +159,7 @@ def render(decision: dict, language: str = "en", state=None) -> str | None:
             label = state.label_for(UUID(decision["subject"]), language)
             name = label.name if label is not None else None
         params[slot] = name or decision.get("subject", "?")
-    return str(i18n.Translator(language).text(m["key"], **params))
+    return str(translator.text(m["key"], **params))
 
 
 def standing(decisions, at: _dt.datetime) -> dict:

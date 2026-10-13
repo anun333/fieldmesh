@@ -57,6 +57,9 @@ notifier or a page can carry any module's alerts without importing any module:
   drinking" has no hours left to give) — and `message.params` fill it.
 * **What it is about.** `subject` names an entity and `message.subject_param` the slot
   its label fills, in the reader's language (`rules.render(decision, language, state)`).
+* **The things it names.** A parameter listed in `message.key_params` holds a
+  language-pack key, not a word, and is said in the reader's language when rendered: the
+  sowing advisory's crop is `sowing.crop.bean`, said "beans" or "frijoles".
 * **Which question it answers.** `topic` defaults to the rule and its subject: "is the
   north trough empty?" The soil advisory answers "what does bed 3 need today?" whichever
   rule held, so it names its own. The latest decision on a topic is the standing answer

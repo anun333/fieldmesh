@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# The sowing advisory's data: every file, where it came from, its licence, when it was taken,
+# and its SHA-256. test_sowing.py checks it; regenerate a line when its file changes.
+file,source,licence,retrieved,sha256
+germination-harrington.csv,"J. F. Harrington, University of California at Davis, Agricultural Extension Leaflet, 1954: soil temperatures for germination (OSU Extension Catalog, 2013, reviewed 2024; cabbage's optimum 45-95 F as Pierce Conservation District reproduces it, where OSU prints 45-5) and days to emergence at nine temperatures (UC ANR handout, to a tenth of a day). Facts, with credit; this file CC BY 4.0",CC-BY-4.0,2026-10-12,25f6a884e3382f16a1f6eebc249bd74e406bf9ca1b15a33850b031c922086fdb

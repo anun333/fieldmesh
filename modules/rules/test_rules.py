@@ -84,3 +84,21 @@ class FrostWatchTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(R is None, "needs cel-python (modules/rules/requirements.txt)")
+class KeyParamsTest(unittest.TestCase):
+    """A message can name something in the reader's language: the decision records which of
+    its parameters are language-pack keys, and rendering says them (`Rule.key_params`; the
+    sowing advisory's tests render crop names in English and Spanish)."""
+
+    def test_the_decision_says_which_parameters_are_names(self):
+        rule = R.Rule("named", "1", "warm", {}, alert_key="rules.frost.alert",
+                      message_params={"crop": "crop_key", "low": "low", "warn": "low"},
+                      key_params=("crop",))
+        d = R.judge(rule, {"warm": True, "crop_key": "sowing.crop.bean", "low": 1.0}, {}, DUSK)
+        self.assertEqual(d["message"]["key_params"], ["crop"])
+        self.assertEqual(d["message"]["params"]["crop"], "sowing.crop.bean")
+        plain = R.judge(R.Rule("plain", "1", "warm", {}, alert_key="rules.frost.alert"),
+                        {"warm": True}, {}, DUSK)
+        self.assertNotIn("key_params", plain["message"])

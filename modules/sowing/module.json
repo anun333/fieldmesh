@@ -1,0 +1,15 @@
+{
+ "name": "sowing",
+ "version": "1",
+ "layer": 2,
+ "description": "Sowing advisory: per bed and crop, each morning, whether the soil at seed depth is warm enough for the seed to germinate, and about how many days to emergence.",
+ "reads": {
+  "observed_properties": [
+   "http://vocab.nerc.ac.uk/standard_name/soil_temperature/"
+  ]
+ },
+ "writes": [
+  "decision"
+ ],
+ "commands": []
+}
