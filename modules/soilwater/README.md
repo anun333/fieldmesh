@@ -323,6 +323,76 @@ the curve is worth when the curve is right, not how right FAO-56's curve is for 
 field: a real crop's stages run early or late with the season, which is what its probes
 are for.
 
+### Roots that stop
+
+The crop's curve is for a soil that lets roots go. Something can stop them sooner:
+
+* a hardpan or plough pan;
+* the compacted fill under a new garden;
+* rock;
+* the floor of a raised bed.
+
+Advice that follows the curve then counts water the roots cannot reach. It waits too
+long, and refills less than the roots used. How deep roots run through a season, and what
+shows it, is in [the root-depth note](../../docs/notes/root-depth.md). There are two
+ways to give the advice the right depth:
+
+* **`Bed.rooting_limit_mm`**, set by hand once the farmer has dug and found the pan. The
+  crop's curve stops at it. A probe at that depth or below it sits in the pan, reading soil
+  the roots do not enter, so it is not counted.
+* **Root signs from the probes** (`root_signs`, `rooted`), over the last two weeks. A
+  probe's dry days are those that started no wetter than its field capacity, with nothing
+  wetting it. The probe's field capacity is the lower of the bed's and its own.
+  * A probe whose soil fell less than 0.002 a day over three or more dry days is **level**:
+    nothing draws on it.
+  * One whose soil fell faster and went 0.02 under field capacity **has roots**. Just past
+    field capacity a soil still drains about that fast, but only roots, or the sun near the
+    surface, take it well below.
+
+  Take a level probe that the crop's curve says the roots passed at least 10 cm ago, under
+  one that has roots. The roots likely stop between the two, so the advice counts them
+  only to halfway, and a note says so:
+
+  > Tunnel bed 3's crop should have roots to about 70 cm by now, but its probe at 30 cm
+  > has stayed level through its dry days while the one at 10 cm has dried: something may
+  > be stopping the roots, a hardpan or compacted soil. The advice now counts its roots to
+  > 20 cm. If you know how deep the soil lets roots go, set the bed's rooting limit.
+
+  **The probes only ever make the root zone shallower than the curve**, so the advice
+  waters sooner, never later. Roots seen deeper than the curve are not counted, because
+  soil can dry by other routes.
+
+**Backtested** on the thirty summers, tomatoes sown on 1 May with probes at 10, 30 and 60
+cm. The virtual roots stop at 30 cm, whatever the curve says:
+
+| | water, mean a season | drained | summers short | hours short, in all | worst season |
+| --- | --- | --- | --- | --- | --- |
+| the crop's curve alone | 85 mm | 167 mm | 30 | 23,017 | 1,768 h |
+| **the curve and root signs** | **215 mm** | 196 mm | **11** | **277** | **46 h** |
+| **the rooting limit set at 30 cm** | **313 mm** | 238 mm | **2** | **20** | **12 h** |
+| *no pan:* the curve alone | 319 mm | 165 mm | 0 | 0 | 0 |
+| *no pan:* the curve and root signs | 318 mm | 164 mm | 0 | 0 | 0 |
+
+* **The curve alone starves a crop on a pan.** It counts 70 cm of roots, and the probes at
+  30 and 60 cm, which no root reaches, hold the bed's average up. It was short every
+  summer, for a month on average.
+* **Root signs find the pan unaided.** They can say so once the curve is 10 cm past the
+  probe at 30 cm, seven weeks after sowing, and did on 81 of a season's 145 mornings. That
+  cut the hours short by 99%. They count the roots to
+  20 cm, short of their true 30, so the advice refills a little less than they use. It is
+  still short in some summers, for two days at most.
+* **The limit set by hand is better still**, as the note asks. A first version still
+  counted the probe at 30 cm, set into the pan: short in 23 summers for 1,528 hours.
+  Leaving that probe out fixed it.
+* **Without a pan, the signs cost nothing.** About three mornings a season saw a stop that
+  was not there, and the water and the hours short were unchanged. The earlier table's
+  runs, with probes at 10 and 30 cm, came out the same summer by summer.
+
+The simulator's soil has no capillary rise. Soil under the roots there stays exactly at
+field capacity; a real soil's dries a little as water rises into the root zone above it.
+On a real pan, a level probe may read as falling slowly
+([UNTESTED](../../docs/UNTESTED.md)).
+
 ## By the weather, with no probe
 
 A bed with no probe used to get "no probe" and nothing else. Given the farm's own station
@@ -545,4 +615,8 @@ drying; this records why.
 * each bed's drying rate and the share of rain that reaches it, learned, to set beside
   its recorded surface and planting;
 * a crop's stages run early or late with the season's warmth: growing degree-days rather
-  than FAO-56's fixed days.
+  than FAO-56's fixed days (the [root-depth note](../../docs/notes/root-depth.md): on
+  McAllister's summers tomatoes' roots would reach full depth 56 to 69 days after
+  planting, not FAO-56's fixed 70);
+* the stair-step itself as the root sign, a fall by day greater than the fall by night, so
+  a level probe can be told from one draining. The station's timezone says when day is.

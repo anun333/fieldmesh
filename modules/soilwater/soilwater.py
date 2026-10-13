@@ -133,6 +133,10 @@ class Bed:
     #: A correction to the balance's ET, from a probe's rate (`_corrected`): it scales the
     #: day's crop coefficient, whatever the crop's curve makes it.
     et_scale: float = 1.0
+    #: How deep the soil lets roots go, mm: a hardpan, compacted subsoil, rock, the bottom
+    #: of a raised bed. Roots stop there whatever the crop (`grown`), and a probe at that
+    #: depth or below it reads soil they do not enter, so it is not counted.
+    rooting_limit_mm: float | None = None
     #: For a bed advised by the weather, the land of a bed nearby whose probes correct its
     #: balance (`reference_factor`): how fast that bed's root zone dries on dry days, against
     #: what the balance says for the same days. A bed of the same crop, on the same station.
@@ -159,6 +163,8 @@ class Bed:
                 raise ValueError(f"unknown crop {self.crop!r}; known: {', '.join(sorted(CROPS))}")
             if self.planted is None and CROPS[self.crop]["season_days"] > 0:
                 raise ValueError("a sown crop grows from the day it was sown: give planted")
+        if self.rooting_limit_mm is not None and self.rooting_limit_mm <= 0:
+            raise ValueError("a rooting limit is a depth, mm")
         if self.reference is not None and self.reference == self.feature:
             raise ValueError("a bed cannot be its own reference")
         bottoms = [layer[0] for layer in self.layers]
@@ -245,12 +251,99 @@ def crop_day(crop: str, days: float) -> tuple[float, float]:
 
 def grown(bed: Bed, day: _dt.date) -> Bed:
     """The bed as its crop is on `day`: its root depth and crop coefficient from the crop's
-    curve. A bed with no crop named is as configured."""
-    if bed.crop is None:
+    curve, the roots no deeper than the soil lets them go (`rooting_limit_mm`). A bed with no
+    crop named keeps its own root depth, to the same limit."""
+    root_mm, kc = bed.root_depth_mm, bed.crop_coefficient
+    if bed.crop is not None:
+        days = (day - bed.planted).days if bed.planted is not None else 0
+        kc, root_mm = crop_day(bed.crop, days)
+    if bed.rooting_limit_mm is not None:
+        root_mm = min(root_mm, bed.rooting_limit_mm)
+    if (root_mm, kc) == (bed.root_depth_mm, bed.crop_coefficient):
         return bed
-    days = (day - bed.planted).days if bed.planted is not None else 0
-    kc, root_mm = crop_day(bed.crop, days)
     return replace(bed, root_depth_mm=root_mm, crop_coefficient=kc)
+
+
+#: Roots seen by their probes, over the last `ROOT_SIGN_DAYS`. A probe's field capacity here
+#: is the lower of the bed's and its own (learned or measured): one under steady drainage
+#: from above learns it a little high. Its dry days are those that started no wetter than
+#: that and were not wetted. Over `ROOT_SIGN_MIN_DAYS` of them or more, a probe whose soil
+#: fell less than `ROOT_SIGN_RATE` a day is level: nothing draws on it. One that fell faster
+#: and went `ROOT_SIGN_BELOW` under its field capacity has roots at it: a soil just past
+#: field capacity still drains about that fast, but nothing but roots (and, near the
+#: surface, the sun) takes it well below. Growers read the same thing off a probe as the
+#: stair-step, falling by day and level at night, moving deeper as a crop grows
+#: (docs/notes/root-depth.md).
+ROOT_SIGN_DAYS = 14
+ROOT_SIGN_MIN_DAYS = 3
+ROOT_SIGN_RATE = 0.002
+ROOT_SIGN_BELOW = 0.02
+#: How far past a probe the crop's curve must say the roots are, mm, before a level probe
+#: counts against it: the curve is a typical crop's, and a week's growth is in this.
+ROOT_SIGN_PAST_MM = 100.0
+
+
+def root_signs(state, bed: Bed, at: _dt.datetime) -> list:
+    """`[(depth_m, falling per day, roots there: True, False, or None when its dry days
+    are too few or it is falling but not yet below field capacity)]` for each of the bed's
+    probes, shallowest first."""
+    out = []
+    for ds, depth in probes_of(state, bed, at):
+        inst = state.installation_of(ds.sensor, at)
+        since = at - _dt.timedelta(days=ROOT_SIGN_DAYS + 1)
+        every = sorted((o for o in state.live_observations_of(ds.id)
+                        if o.received_at <= at and inst.installed_at <= o.measured_at <= at
+                        and isinstance(o.result, (int, float))
+                        and not isinstance(o.result, bool)), key=lambda o: o.measured_at)
+        rows = [(o.measured_at, float(o.result)) for o in every if o.measured_at >= since
+                and state.quality_as_of(o.id, at)[0] is Usable.GOOD]
+        under, wilting = bed.limits_at(depth)
+        own = _capacity(state, bed, ds, depth, wilting, every, at)
+        if own is not None:
+            under = min(under, own["field_capacity"])
+
+        def near(t):
+            values = [v for u, v in rows if abs((u - t) / HOUR) <= 2.0]
+            return sum(values) / len(values) if len(values) >= 2 else None
+        falls, low = [], under
+        for back in range(ROOT_SIGN_DAYS):
+            end = at - back * 24 * HOUR
+            begin = end - 24 * HOUR
+            a, b = near(begin), near(end)
+            if a is None or b is None or a > under + 0.01:
+                continue
+            day = [v for u, v in rows if begin < u <= end]
+            means = [sum(w) / 3.0 for w in zip(day, day[1:], day[2:])]
+            if any(m > a + 0.02 for m in means):
+                continue
+            falls.append(a - b)
+            low = min(low, b)
+        if len(falls) < ROOT_SIGN_MIN_DAYS:
+            out.append((depth, 0.0, None))
+            continue
+        rate = sum(falls) / len(falls)
+        if rate < ROOT_SIGN_RATE:
+            there = False
+        else:
+            there = True if low <= under - ROOT_SIGN_BELOW else None
+        out.append((depth, round(rate, 4), there))
+    return out
+
+
+def rooted(curve_mm: float, signs: list) -> tuple[float, float, float | None]:
+    """The root depth the advice uses, mm, from the crop's curve and what its probes show
+    (`root_signs`): `(depth, deepest probe roots are seen at, probe they seem not to reach
+    or None)`. A probe the curve says the roots passed `ROOT_SIGN_PAST_MM` ago that stays
+    level, under a shallower one that has roots, is a sign they stop between the two: the
+    advice then counts them to half way. The probes only ever make the root zone shallower
+    than the curve, so the advice waters sooner, never later: roots seen deeper than the
+    curve may be the soil drying by other ways, and are not counted."""
+    seen = max((d for d, _, there in signs if there), default=0.0)
+    for d, _, there in signs:
+        if there is False and seen > 0.0 and d > seen \
+                and d * 1000.0 + ROOT_SIGN_PAST_MM <= curve_mm:
+            return min(curve_mm, round(500.0 * (seen + d), 1)), seen, d
+    return curve_mm, seen, None
 
 
 #: The advice, most urgent first; the first that holds is the morning's decision.
@@ -916,6 +1009,13 @@ def _anchored(state, bed: Bed, station, at, forecast, base: dict, inputs: dict,
     inputs["anchored_at"] = when.isoformat()
 
 
+def _to_curve(base: dict, curve_mm: float) -> None:
+    """Advice from the weather: its balance takes the root depth from the crop's curve day
+    by day (`grown`), so the thresholds do too, and the probes' signs change nothing."""
+    base.update({"root_depth_mm": round(curve_mm, 1), "root_depth_cm": round(curve_mm / 10.0),
+                 "roots_blocked": False, "roots_blocked_cm": 0})
+
+
 def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = None,
                 station=None, assumed: dict | None = None, reference: Bed | None = None):
     """What the advisory knew about a bed at `at`: `(context, inputs)`. A bed with no
@@ -923,11 +1023,24 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
     there is one (`weather_balance`), corrected by its `reference` bed's probes when they
     have seen enough dry days (`reference_factor`)."""
     bed = grown(bed, at.date())
+    curve_mm, seen_m, blocked_m = bed.root_depth_mm, 0.0, None
+    if bed.crop is not None:
+        signs = root_signs(state, bed, at)
+        depth_mm, seen_m, blocked_m = rooted(bed.root_depth_mm, signs)
+        bed = replace(bed, root_depth_mm=depth_mm)
     root_m = bed.root_depth_mm / 1000.0
     probes = probes_of(state, bed, at)
     ws = weights([d for _, d in probes], root_m)
+    if bed.rooting_limit_mm is not None:
+        # A probe at the rooting limit, set into the hardpan, reads soil the roots do not enter.
+        ws = [0.0 if d * 1000.0 >= bed.rooting_limit_mm else w for (_, d), w in zip(probes, ws)]
     in_zone = [(ds, d, w) for (ds, d), w in zip(probes, ws) if w > 0]
-    base = {"has_probe": bool(in_zone), "root_depth_cm": round(bed.root_depth_mm / 10.0),
+    base = {"root_depth_mm": round(bed.root_depth_mm, 1),
+            "roots_expected_cm": round(curve_mm / 10.0), "roots_seen_cm": round(seen_m * 100.0),
+            "roots_blocked": blocked_m is not None,
+            "roots_blocked_cm": round((blocked_m or 0.0) * 100.0),
+            "rooting_limit_set": bed.rooting_limit_mm is not None,
+            "has_probe": bool(in_zone), "root_depth_cm": round(bed.root_depth_mm / 10.0),
             "has_reading": False, "usable": False, "flags": "",
             "hours_since_reading": NO_ESTIMATE, "theta": 0.0,
             "wetter_than_capacity": False, "depletion_mm": 0.0, "refill_mm": 0.0,
@@ -941,6 +1054,7 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
     inputs = {"bed": str(bed.feature), "observations": [], "forecast": None}
     inputs.update({k: getattr(bed, k) for k in ("surface", "planting") if getattr(bed, k)})
     if not in_zone:
+        _to_curve(base, curve_mm)
         if station is not None:
             bed = _corrected(state, bed, station, at, base, inputs, reference)
             _by_weather(state, bed, station, at, forecast, base, inputs,
@@ -982,6 +1096,7 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
         # weather from their last good readings, for up to FALLBACK_DAYS.
         if (station is not None and len(fallback) == len(in_zone)
                 and all(fb[4] is not None for fb in fallback)):
+            _to_curve(base, curve_mm)
             _anchored(state, bed, station, at, forecast, base, inputs, fallback, assumed,
                       reference)
         return base, inputs
@@ -1055,7 +1170,8 @@ class Advisor:
         assumed = self._assumed(bed, station) if station is not None else None
         context, inputs = bed_context(state, bed, at, forecast=forecast, station=station,
                                       assumed=assumed, reference=reference)
-        for rule in rules_for(replace(bed, field_capacity=context["field_capacity"],
+        for rule in rules_for(replace(bed, root_depth_mm=context["root_depth_mm"],
+                                      field_capacity=context["field_capacity"],
                                       wilting_point=context["wilting_point"])):
             d = R.judge(rule, context, inputs, at)
             if d["alert"]:
@@ -1083,16 +1199,32 @@ class Advisor:
     def advise(self, state, beds, at: _dt.datetime, *, forecast: UUID | None = None,
                station=None) -> list:
         """The morning's decision for each bed, and for a bed its probes show is
-        layered, a note saying so (`layering`). A bed's reference is found among `beds`."""
+        layered, a note saying so (`layering`); for one whose roots seem stopped short of
+        its crop's curve, another (`roots_note`). A bed's reference is found among `beds`."""
         out, by_land = [], {b.feature: b for b in beds}
         for bed in beds:
             decision = self.judge(state, bed, at, forecast=forecast, station=station,
                                   reference=by_land.get(bed.reference))
             out.append(self.log.append(R.DECISION, decision))
-            note = self.layering(decision, bed, at)
-            if note is not None:
-                out.append(self.log.append(R.DECISION, note))
+            for note in (self.layering(decision, bed, at), self.roots_note(decision, bed, at)):
+                if note is not None:
+                    out.append(self.log.append(R.DECISION, note))
         return out
+
+    @staticmethod
+    def roots_note(decision: dict, bed: Bed, at: _dt.datetime) -> dict | None:
+        """When the crop's roots should have passed a probe that stays level, under a
+        shallower one that has roots (`rooted`), and no rooting limit is set: a note that
+        something may be stopping them. None otherwise."""
+        context = decision["context"]
+        if not context.get("roots_blocked") or context.get("rooting_limit_set"):
+            return None
+        names = ("roots_blocked", "rooting_limit_set", "roots_expected_cm", "roots_blocked_cm",
+                 "roots_seen_cm", "root_depth_cm")
+        d = R.judge(roots_rule(), {k: context[k] for k in names}, decision["inputs"], at)
+        d.update({"subject": str(bed.feature), "topic": f"roots/{bed.feature}",
+                  "valid_until": (at + _dt.timedelta(days=1)).isoformat()})
+        return d
 
     @staticmethod
     def layering(decision: dict, bed: Bed, at: _dt.datetime) -> dict | None:
@@ -1109,6 +1241,14 @@ class Advisor:
         d.update({"subject": str(bed.feature), "topic": f"layers/{bed.feature}",
                   "valid_until": (at + _dt.timedelta(days=1)).isoformat()})
         return d
+
+
+def roots_rule() -> R.Rule:
+    return R.Rule("soil-roots-blocked", "1", "roots_blocked && !rooting_limit_set", {},
+                  alert_key="soilwater.roots_blocked",
+                  message_params={"expected": "roots_expected_cm", "blocked": "roots_blocked_cm",
+                                  "seen": "roots_seen_cm", "used": "root_depth_cm"},
+                  subject_param="bed")
 
 
 def layering_rule() -> R.Rule:
@@ -1251,11 +1391,12 @@ def growing_bed():
     return ph.LayeredBed(name="field", depth_mm=ROOT_AT_SOWING_MM, horizons=(soil,))
 
 
-def grow(soil, crop: str, days: float) -> None:
-    """The virtual crop `days` after sowing: its crop coefficient, and its roots' depth."""
+def grow(soil, crop: str, days: float, hardpan_mm: float | None = None) -> None:
+    """The virtual crop `days` after sowing: its crop coefficient, and its roots' depth,
+    stopped at `hardpan_mm` when the soil has one."""
     kc, root_mm = crop_day(crop, days)
     soil.crop_coefficient = kc
-    soil.set_roots(root_mm)
+    soil.set_roots(root_mm if hardpan_mm is None else min(root_mm, hardpan_mm))
 
 
 def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
@@ -1263,7 +1404,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              forgotten=frozenset(), valve: bool = False, soil=None, depths=(0.20,),
              configured=None, learn: bool = True, layers=(), probe_bias: float = 0.0,
              crop: str | None = None, planted: _dt.date | None = None,
-             knows_crop: bool = True) -> dict:
+             knows_crop: bool = True, hardpan_mm: float | None = None,
+             knows_hardpan: bool = False) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
@@ -1293,7 +1435,11 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     curve has it (`crop_day`): each day its crop coefficient and its roots' depth. The
     virtual bed is then the silt loam in layers (`growing_bed`). With `knows_crop`, the
     advice is told the crop and the day; without, it is set up as a bed with no crop
-    named: 30 cm of roots and a coefficient of 1."""
+    named: 30 cm of roots and a coefficient of 1. With `hardpan_mm`, the virtual crop's
+    roots stop there whatever its curve says; with `knows_hardpan`, the bed is set up with
+    it as its rooting limit (`Bed.rooting_limit_mm`). The result's `roots` is each
+    morning's `(day, curve's depth cm, depth the advice used cm, deepest probe roots
+    were seen at cm, probe they seemed not to reach cm or None)`."""
     import statistics
     import random
 
@@ -1340,8 +1486,10 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     bed = Bed(land, capacity, wilting, root_depth_mm=300.0 if crop else b.depth_mm,
               skip_rain_mm=D.SKIP_MM, valve=valve_ds.id if valve_ds else None, learn=learn,
               layers=tuple(layers), crop=crop if knows_crop else None,
-              planted=planted if crop and knows_crop else None)
+              planted=planted if crop and knows_crop else None,
+              rooting_limit_mm=hardpan_mm if knows_hardpan else None)
     advisor, noise = Advisor(Log()), random.Random(seed)
+    roots = []
     applied, dose_now, stressed_h, stress, advice, last, last_at = 0.0, 0.0, 0.0, [], {}, None, None
     runner = None
     if check is not None:
@@ -1353,7 +1501,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     for n in range(int(days * 24 * 12)):
         when = world.when
         if crop and when.hour == 0 and when.minute == 0:
-            grow(b, crop, (when.date() - planted).days)
+            grow(b, crop, (when.date() - planted).days, hardpan_mm)
         if when.minute == 0:
             for probe, depth in probes:
                 truth = b.theta_at(depth) if hasattr(b, "theta_at") else b.theta
@@ -1365,6 +1513,9 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             d = advisor.judge(state, bed, when, forecast=fc.id)
             advice[d["rule"]] = advice.get(d["rule"], 0) + 1
             last, last_at = d, when
+            c = d["context"]
+            roots.append(((when - start).days, c["roots_expected_cm"], c["root_depth_cm"],
+                          c["roots_seen_cm"], c["roots_blocked_cm"] if c["roots_blocked"] else None))
             want = d["context"]["refill_mm"] if d["rule"] == "soil-water-now" else 0.0
             dose_now = want / 12.0
             if runner is not None:
@@ -1399,7 +1550,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                         for x in last["inputs"].get("learned", [])],
             "layered": Advisor.layering(last, bed, last_at) is not None,
             "mean_stress": statistics.mean(stress), "stressed_h": stressed_h,
-            "advice": advice, "checks": checks if runner is not None else None}
+            "advice": advice, "checks": checks if runner is not None else None, "roots": roots}
 
 
 def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,

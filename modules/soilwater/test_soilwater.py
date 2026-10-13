@@ -629,6 +629,143 @@ class TestAdviceForAGrowingCrop(unittest.TestCase):
         self.assertGreater(young, 0.5 * plain)
 
 
+class TestTheSoilsRootingLimit(unittest.TestCase):
+    """`Bed.rooting_limit_mm`: how deep the soil lets roots go, whatever the crop."""
+
+    def test_it_stops_the_crops_curve_and_a_beds_own_depth(self):
+        planted = _dt.date(2026, 5, 1)
+        tomato = S.Bed(uuid7(), 0.30, 0.12, crop="tomato", planted=planted,
+                       rooting_limit_mm=400.0)
+        self.assertEqual(S.grown(tomato, planted + _dt.timedelta(days=10)).root_depth_mm, 150.0)
+        self.assertEqual(S.grown(tomato, planted + _dt.timedelta(days=80)).root_depth_mm, 400.0)
+        plain = S.Bed(uuid7(), 0.30, 0.12, root_depth_mm=500.0, rooting_limit_mm=300.0)
+        self.assertEqual(S.grown(plain, planted).root_depth_mm, 300.0)
+        with self.assertRaises(ValueError):
+            S.Bed(uuid7(), 0.30, 0.12, rooting_limit_mm=0.0)
+
+    def test_a_probe_set_into_the_hardpan_is_not_counted(self):
+        """A pan at 30 cm and probes at 10 and 30: the one at 30 reads the wet soil under the
+        roots, and would make the bed look half as dry as it is."""
+        g = Garden()
+        g.probe(lambda h: 0.21, depth=0.10)
+        g.probe(lambda h: 0.30, depth=0.30)
+        g.bed = S.replace(g.bed, root_depth_mm=600.0, rooting_limit_mm=300.0)
+        c = S.bed_context(g.state, g.bed, MORNING)[0]
+        self.assertEqual((c["root_depth_cm"], c["probes"]), (30, 1))
+        self.assertAlmostEqual(c["depletion_mm"], 27.0)
+
+
+DAY_H = 24
+#: Sixteen days of hourly readings, to midnight: two weeks of days to judge.
+SIGNS_AT = T0 + 16 * DAY_H * HOUR
+
+
+class TestRootsSeenByTheirProbes(unittest.TestCase):
+    """`root_signs`: over two weeks, a probe whose soil keeps falling on its dry days, well
+    below field capacity, has roots at it; one that stays level has none."""
+
+    def signs(self, *thetas):
+        g = Garden()
+        for depth, theta in thetas:
+            g.probe(theta, depth=depth, hours=16 * DAY_H)
+        return S.root_signs(g.state, g.bed, SIGNS_AT)
+
+    def test_falling_below_field_capacity_is_roots_and_level_is_none(self):
+        signs = self.signs((0.10, lambda h: 0.29 - 0.006 * h / DAY_H),
+                           (0.30, lambda h: 0.30))
+        (d1, rate1, there1), (d2, rate2, there2) = signs
+        self.assertEqual((d1, there1), (0.10, True))
+        self.assertAlmostEqual(rate1, 0.006, places=4)
+        self.assertEqual((d2, rate2, there2), (0.30, 0.0, False))
+
+    def test_draining_just_past_field_capacity_is_not_yet_roots(self):
+        """From 0.33 down 0.003 a day: as fast as roots would take it, but never 0.02 below
+        field capacity, so it may be the soil draining."""
+        (_, rate, there), = self.signs((0.60, lambda h: 0.33 - 0.003 * h / DAY_H))
+        self.assertGreater(rate, S.ROOT_SIGN_RATE)
+        self.assertIsNone(there)
+
+    def test_a_day_the_soil_was_wetted_does_not_count(self):
+        """Watered back to field capacity every morning at 06:00, falling 0.04 by the next:
+        no whole day is dry, so there is nothing to say."""
+        (_, rate, there), = self.signs((0.10, lambda h: 0.30 - 0.04 * ((h - 6) % DAY_H) / DAY_H))
+        self.assertEqual((rate, there), (0.0, None))
+
+
+class TestTheRootsTheAdviceCounts(unittest.TestCase):
+    """`rooted`: the probes only ever make the root zone shallower than the crop's curve."""
+
+    def test_a_level_probe_the_roots_should_have_passed_stops_them_half_way(self):
+        signs = [(0.10, 0.006, True), (0.30, 0.0, False), (0.60, 0.0, False)]
+        self.assertEqual(S.rooted(700.0, signs), (200.0, 0.10, 0.30))
+
+    def test_not_while_the_curve_has_only_just_passed_it(self):
+        signs = [(0.10, 0.006, True), (0.30, 0.0, False)]
+        self.assertEqual(S.rooted(350.0, signs), (350.0, 0.10, None))
+        self.assertEqual(S.rooted(400.0, signs), (200.0, 0.10, 0.30))
+
+    def test_roots_deeper_than_the_curve_are_not_counted(self):
+        signs = [(0.10, 0.006, True), (0.60, 0.004, True)]
+        self.assertEqual(S.rooted(400.0, signs), (400.0, 0.60, None))
+
+    def test_with_no_roots_seen_a_level_probe_says_nothing(self):
+        signs = [(0.10, 0.003, None), (0.30, 0.0, False)]
+        self.assertEqual(S.rooted(700.0, signs), (700.0, 0.0, None))
+
+    def test_the_deepest_roots_seen_are_the_ones_counted_from(self):
+        signs = [(0.10, 0.0, False), (0.30, 0.005, True), (0.60, 0.0, False)]
+        self.assertEqual(S.rooted(800.0, signs), (450.0, 0.30, 0.60))
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestRootsThatStop(unittest.TestCase):
+    """Tomatoes 80 days from sowing should have roots to 70 cm. The probe at 10 cm dries well
+    below field capacity, the one at 30 cm stays level: something stops the roots between
+    them, and the advice counts them to 20 cm and says so."""
+
+    def garden(self, **bed):
+        g = Garden()
+        g.probe(lambda h: 0.29 - 0.006 * h / DAY_H, depth=0.10, hours=16 * DAY_H)
+        g.probe(lambda h: 0.30, depth=0.30, hours=16 * DAY_H)
+        g.bed = S.replace(g.bed, crop="tomato",
+                          planted=SIGNS_AT.date() - _dt.timedelta(days=80), **bed)
+        return g
+
+    def test_the_advice_counts_the_roots_to_half_way_and_a_note_says_why(self):
+        g = self.garden()
+        log = Log()
+        out = S.Advisor(log).advise(g.state, [g.bed], SIGNS_AT)
+        advice, note = (e.payload for e in out)
+        c = advice["context"]
+        self.assertEqual((c["roots_expected_cm"], c["root_depth_cm"], c["roots_seen_cm"],
+                          c["roots_blocked_cm"]), (70, 20, 10, 30))
+        self.assertEqual(note["rule"], "soil-roots-blocked")
+        text = S.render(note, "en")
+        self.assertIn("about 70 cm", text)
+        self.assertIn("at 30 cm has stayed level", text)
+        self.assertIn("to 20 cm", text)
+        self.assertIn("rooting limit", text)
+        self.assertIn("30 cm", S.render(note, "es"))
+
+    def test_with_its_rooting_limit_set_the_advice_takes_it_and_says_nothing(self):
+        """Set at 25 cm, as the note asks: the roots are counted to it, and the probe at
+        30 cm is no longer one they should have passed."""
+        g = self.garden(rooting_limit_mm=250.0)
+        out = S.Advisor(Log()).advise(g.state, [g.bed], SIGNS_AT)
+        self.assertEqual(len(out), 1)
+        c = out[0].payload["context"]
+        self.assertEqual((c["roots_expected_cm"], c["root_depth_cm"], c["roots_blocked"]),
+                         (25, 25, False))
+
+    def test_a_bed_with_no_crop_named_reads_no_signs(self):
+        g = Garden()
+        g.probe(lambda h: 0.29 - 0.006 * h / DAY_H, depth=0.10, hours=16 * DAY_H)
+        g.probe(lambda h: 0.30, depth=0.30, hours=16 * DAY_H)
+        g.bed = S.replace(g.bed, root_depth_mm=500.0)
+        c = S.Advisor(Log()).judge(g.state, g.bed, SIGNS_AT)["context"]
+        self.assertEqual((c["root_depth_cm"], c["roots_blocked"]), (50, False))
+
+
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestByTheWeather(unittest.TestCase):
     """A bed with no probe, advised from the farm's own station (`weather_balance`)."""
