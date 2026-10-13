@@ -247,7 +247,9 @@ def _opensprinkler(root: str, t: list, p) -> dict | None:
       `{"state":1,"wl":%,"wa":w,"sa":s,"ta":t}` when it runs, with the watering percentage
       and the weather, sensor and total scales it ran at; `{"state":"skipped","wtrestr":r}`
       when it does not, `r` above 0 for a weather restriction. Points `program.<n>.ran`,
-      `.water_level`, `.sensor_scale`, `.total_scale`, `.weather_restricted`.
+      `.water_level`, `.weather_scale`, `.sensor_scale`, `.total_scale`,
+      `.weather_restricted`. Checked against the firmware's own demo build, 2.2.1(6), run
+      on Linux (tools/fixtures/opensprinkler-demo-mqtt.log).
 
     The device is the root topic, which names the controller. A valve's state is a truth,
     never 1 and 0. Its messages carry no time, so they are stamped on arrival."""
@@ -276,7 +278,8 @@ def _opensprinkler(root: str, t: list, p) -> dict | None:
                 out["points"][f"program.{n}.weather_restricted"] = p["wtrestr"] > 0
         else:
             out["points"][f"program.{n}.ran"] = bool(p["state"])
-            for key, point in (("wl", "water_level"), ("sa", "sensor_scale"), ("ta", "total_scale")):
+            for key, point in (("wl", "water_level"), ("wa", "weather_scale"),
+                               ("sa", "sensor_scale"), ("ta", "total_scale")):
                 if isinstance(p.get(key), (int, float)) and not isinstance(p[key], bool):
                     out["points"][f"program.{n}.{point}"] = p[key]
     elif rest == ["sensor", "flow"]:

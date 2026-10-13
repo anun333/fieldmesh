@@ -44,7 +44,7 @@ thresholds are untested.
 | **LoRaWAN probes: Dragino LSE01 / SE01-LB, Milesight EM500-SMTC** | A probe on a battery radio node, years on a battery | water, temperature, conductivity | LoRaWAN | **Today**, through ChirpStack and the bridge's ChirpStack profile, with the maker's payload decoder in ChirpStack | Milesight quotes ±2% from 0 to 50% | the radio is LoRaWAN, not Meshtastic (Q6); the decoder is the maker's |
 | **Capacitive v1.2** (DFRobot SEN0193 and its many clones) | A capacitance board with an analog output | water only | analog | **Today**, through an ESPHome node's ADC | 12 tested in a silt loam: 4.5–4.9% RMSE even with that soil's own calibration, and 10–16% variation between units when wet (Abdelmoneim et al. 2025) | a trend, not a measurement, until each is calibrated; no temperature |
 | **An open SDI-12 probe** | A 555-timer capacitance design with an AVR, published openly | water | SDI-12, or 0–5 V analog | Through an SDI-12 node | ±5–6% after calibration in three soils (González-Teruel et al. 2019) | a design to build, not a product |
-| **Irrometer Watermark** | A granular-matrix sensor | soil water **tension** in kPa (centibars), not water content | resistance, read with AC | Not yet: fieldmesh has no term for soil water potential | — | measures what the plant feels; set by kPa thresholds from extension guides |
+| **Irrometer Watermark** | A granular-matrix sensor | soil water **tension** in kPa (centibars), not water content | resistance, read with AC | Its term and calibration are built (`sdk/tension.py`, Shock et al. 1998), and beside a moisture probe it gives that probe a measured field capacity; the node that reads its resistance is not | Shock et al.'s calibration holds from 10 to 75 kPa | measures what the plant feels; set by kPa thresholds from extension guides |
 
 **The way to SDI-12 probes is a node.** Most research probes speak SDI-12, and fieldmesh
 has no SDI-12 driver. EnviroDIY's Arduino-SDI-12 library (LGPL-2.1) talks to them from
@@ -113,6 +113,12 @@ the [sowing advisory](../../modules/sowing/README.md).*
    * The sprinkler doing it on its own is a command, and waits for §6.
 
    It would also catch a probe reading high, which learning cannot.
+
+## Testing without a probe
+
+openSenseMap's public stations include soil probes, TRUEBNER SMT50s and Dragino LSE01s
+among them, readable without a key: `tools/opensensemap_collect.py` brings one station's
+soil series into a log through the checks ([test data sources](test-data-sources.md)).
 
 ## Sources
 

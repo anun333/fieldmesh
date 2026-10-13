@@ -1,0 +1,15 @@
+# OpenSprinkler firmware 2.2.1(6) (OpenSprinkler/OpenSprinkler-Firmware 40894d1), its DEMO build run on
+# Linux in Docker, 2026-10-13: MQTT and every notification on, then a station run for 5 s, a rain
+# delay set and cleared, a program made and started, and its own scheduled start a minute later.
+# Captured with mosquitto_sub -v -F '%I %t %p'. The firmware is GPL-3.0; these are its messages.
+2026-10-13T21:13:15+0000 opensprinkler/availability online
+2026-10-13T21:13:22+0000 opensprinkler/station/0 {"state":1,"duration":5}
+2026-10-13T21:13:27+0000 opensprinkler/station/0 {"state":0,"duration":5}
+2026-10-13T21:13:31+0000 opensprinkler/raindelay {"state":1}
+2026-10-13T21:13:34+0000 opensprinkler/raindelay {"state":0}
+2026-10-13T21:13:37+0000 opensprinkler/program/0 {"state":1,"wl":100,"wa":1,"sa":1,"ta":1}
+2026-10-13T21:13:38+0000 opensprinkler/station/0 {"state":1,"duration":5}
+2026-10-13T21:13:42+0000 opensprinkler/station/0 {"state":0,"duration":5}
+2026-10-13T21:14:00+0000 opensprinkler/program/0 {"state":1,"wl":100,"wa":1,"sa":1,"ta":1}
+2026-10-13T21:14:01+0000 opensprinkler/station/0 {"state":1,"duration":5}
+2026-10-13T21:14:06+0000 opensprinkler/station/0 {"state":0,"duration":5}

@@ -91,6 +91,29 @@ class TestChirpStack(unittest.TestCase):
         self.assertGreater(self.bridge.report.already_present, 0)
 
 
+class TestOpenSprinklersOwnFirmware(unittest.TestCase):
+    """What the firmware itself published, its 2.2.1(6) demo build run on Linux
+    (tools/fixtures/opensprinkler-demo-mqtt.log): every message parses to the points the
+    profile says."""
+
+    def test_each_message_it_sent(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "tools",
+                            "fixtures", "opensprinkler-demo-mqtt.log")
+        with open(path, encoding="utf-8") as h:
+            lines = [line.rstrip("\n").split(" ", 2) for line in h if not line.startswith("#")]
+        parsed = [B.parse("opensprinkler", topic, payload) for _, topic, payload in lines]
+        self.assertTrue(all(p is not None and p["device"] == "opensprinkler" for p in parsed))
+        points = [p["points"] for p in parsed]
+        self.assertEqual(points[0], {}, "availability: online, a plain word")
+        self.assertEqual(points[1], {"station.0.open": True, "station.0.scheduled_s": 5})
+        self.assertEqual(points[2], {"station.0.open": False, "station.0.ran_s": 5})
+        self.assertEqual(points[3:5], [{"raindelay": True}, {"raindelay": False}])
+        self.assertEqual(points[5], {"program.0.ran": True, "program.0.water_level": 100,
+                                     "program.0.weather_scale": 1, "program.0.sensor_scale": 1,
+                                     "program.0.total_scale": 1})
+
+
 class TestOpenSprinkler(unittest.TestCase):
     """An irrigation controller's valves into the log (docs/notes/irrigation-projects.md),
     from the messages its firmware formats in services/notifier.cpp."""
@@ -152,6 +175,7 @@ class TestOpenSprinkler(unittest.TestCase):
         self.assertEqual(parse("opensprinkler/program/2",
                                '{"state":1,"wl":84,"wa":0.84,"sa":0.5,"ta":0.42}')["points"],
                          {"program.2.ran": True, "program.2.water_level": 84,
+                          "program.2.weather_scale": 0.84,
                           "program.2.sensor_scale": 0.5, "program.2.total_scale": 0.42})
         self.assertEqual(parse("opensprinkler/program/0", '{"state":"skipped","wtrestr":1}')["points"],
                          {"program.0.ran": False, "program.0.weather_restricted": True})
