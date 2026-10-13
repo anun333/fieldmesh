@@ -1,0 +1,2 @@
+# The salinity monitor judges its rules through modules/rules, which needs cel-python.
+-r ../rules/requirements.txt

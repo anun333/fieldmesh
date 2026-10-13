@@ -100,13 +100,15 @@ the [sowing advisory](../../modules/sowing/README.md).*
 3. **A "wet too long" note**: a probe that reads wetter than field capacity for days with
    no rain and no watering is reading high, or the bed is waterlogged. Either needs a
    person.
-4. **A term for soil water potential**, for the Watermark and tensiometers.
+4. **A term for soil water potential**, for the Watermark and tensiometers. *Built 2026-10-12*
+   ([beyond moisture](soil-sensors-beyond-moisture.md#soil-water-tension)).
 5. **A calibration by known water.** A measured amount poured over a measured square
    around the probe, say 10 litres on one square metre, is 10 mm. The probe's rise
    against the rise those 10 mm should make measures its gain, and its drain-down
    afterwards measures the level it settles at.
-   * The watering check already computes the expected rise. A regimen can lead a person
-     through it now: "pour this here", wait, check.
+   * *Built 2026-10-12* as the soak test, a regimen that leads a person through it: pour
+     this much here, wait, check the rise, and two days later read the level it drained
+     back to ([soil-moisture advisory](../../modules/soilwater/README.md#a-soak-test-field-capacity-on-the-day)).
    * The sprinkler doing it on its own is a command, and waits for §6.
 
    It would also catch a probe reading high, which learning cannot.

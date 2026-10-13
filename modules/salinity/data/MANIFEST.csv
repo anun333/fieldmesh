@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# The salinity monitor's data: every file, where it came from, its licence, when it was taken,
+# and its SHA-256. test_salinity.py checks it; regenerate a line when its file changes.
+file,source,licence,retrieved,sha256
+salt-tolerance-maas-grattan.csv,"E. V. Maas and S. R. Grattan (1999), crop salt tolerance, as FAO Irrigation and Drainage Paper 61 (K. K. Tanji and N. C. Kielen, Rome, 2002), Annex 1, Table A1.1 prints them, www.fao.org/3/Y4263E/y4263e0e.htm: the vegetables with a threshold and slope. Measurements, with credit; FAO's text is its own. This file CC BY 4.0",CC-BY-4.0,2026-10-12,27fe055f0e58db4e875a404fd64c097b37d564ed86c2b2375ce1ee09188ff305

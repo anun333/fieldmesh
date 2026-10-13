@@ -1,0 +1,37 @@
+{
+ "_meta": {
+  "language": "es",
+  "module": "salinity",
+  "license": "AGPL-3.0-or-later",
+  "note": "Borrador: sin revisar por un agrónomo hispanohablante. `salinity.crop.*` son nombres de cultivos, dichos en la lengua del lector dentro de un mensaje."
+ },
+ "strings": {
+  "salinity.over": "La sal en {bed} ha llegado a unos {ece:.1f} dS/m, como lo leería el extracto de una pasta saturada, por encima de los {threshold:.1f} a partir de los cuales baja el rendimiento de {crop}: a este nivel se pierde cerca del {loss:.0f} %. Riegue a fondo para lavarla por debajo de las raíces, o destape el bancal a las lluvias del invierno, y mande analizar el suelo.",
+  "salinity.rising": "La sal en {bed} va en aumento: unos {ece:.1f} dS/m, como lo leería el extracto de una pasta saturada, el {share:.0f} % de los {threshold:.1f} a partir de los cuales baja el rendimiento de {crop}.",
+  "salinity.crop.asparagus": "espárragos",
+  "salinity.crop.bean": "frijoles",
+  "salinity.crop.beet": "betabel",
+  "salinity.crop.broccoli": "brócoli",
+  "salinity.crop.cabbage": "repollo",
+  "salinity.crop.carrot": "zanahorias",
+  "salinity.crop.celery": "apio",
+  "salinity.crop.corn": "maíz dulce",
+  "salinity.crop.cucumber": "pepinos",
+  "salinity.crop.eggplant": "berenjena",
+  "salinity.crop.garlic": "ajo",
+  "salinity.crop.lettuce": "lechuga",
+  "salinity.crop.muskmelon": "melones",
+  "salinity.crop.onion": "cebollas",
+  "salinity.crop.pea": "chícharos",
+  "salinity.crop.pepper": "chiles",
+  "salinity.crop.potato": "papas",
+  "salinity.crop.radish": "rábanos",
+  "salinity.crop.spinach": "espinaca",
+  "salinity.crop.squash_scallop": "calabaza de pastelito",
+  "salinity.crop.squash_zucchini": "calabacitas",
+  "salinity.crop.strawberry": "fresas",
+  "salinity.crop.sweet_potato": "camotes",
+  "salinity.crop.tomato": "tomates",
+  "salinity.crop.turnip": "nabos"
+ }
+}

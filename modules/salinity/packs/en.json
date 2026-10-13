@@ -1,0 +1,37 @@
+{
+ "_meta": {
+  "language": "en",
+  "module": "salinity",
+  "license": "AGPL-3.0-or-later",
+  "note": "The salinity monitor's strings, merged over layer zero's pack at load. Every key starts with `salinity.`; `salinity.crop.*` are crop names, said in the reader's language inside a message."
+ },
+ "strings": {
+  "salinity.over": "Salt in {bed} has reached about {ece:.1f} dS/m, as a saturated paste's extract would read, past the {threshold:.1f} at which the yield of {crop} starts to fall: about {loss:.0f}% of it is lost at this level. Water deeply to wash it below the roots, or uncover the bed to the winter's rain, and have the soil tested.",
+  "salinity.rising": "Salt in {bed} is climbing: about {ece:.1f} dS/m, as a saturated paste's extract would read, {share:.0f}% of the {threshold:.1f} at which the yield of {crop} starts to fall.",
+  "salinity.crop.asparagus": "asparagus",
+  "salinity.crop.bean": "beans",
+  "salinity.crop.beet": "beets",
+  "salinity.crop.broccoli": "broccoli",
+  "salinity.crop.cabbage": "cabbage",
+  "salinity.crop.carrot": "carrots",
+  "salinity.crop.celery": "celery",
+  "salinity.crop.corn": "sweet corn",
+  "salinity.crop.cucumber": "cucumbers",
+  "salinity.crop.eggplant": "eggplant",
+  "salinity.crop.garlic": "garlic",
+  "salinity.crop.lettuce": "lettuce",
+  "salinity.crop.muskmelon": "muskmelons",
+  "salinity.crop.onion": "onions",
+  "salinity.crop.pea": "peas",
+  "salinity.crop.pepper": "peppers",
+  "salinity.crop.potato": "potatoes",
+  "salinity.crop.radish": "radishes",
+  "salinity.crop.spinach": "spinach",
+  "salinity.crop.squash_scallop": "scallop squash",
+  "salinity.crop.squash_zucchini": "zucchini",
+  "salinity.crop.strawberry": "strawberries",
+  "salinity.crop.sweet_potato": "sweet potatoes",
+  "salinity.crop.tomato": "tomatoes",
+  "salinity.crop.turnip": "turnips"
+ }
+}

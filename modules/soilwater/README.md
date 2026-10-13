@@ -49,7 +49,7 @@ advisory followed to the letter, beside the drip timer most farms run
 | --- | --- | --- | --- | --- |
 | drip timer, every second morning | 552 mm | 600 mm | 0 | 0.05 |
 | timer, skipping when rain is forecast | 444 mm | 493 mm | 0 | 0.06 |
-| **the advisory** | **155 mm** | **241 mm** | **0** | **0.13** |
+| **the advisory** | **156 mm** | **241 mm** | **0** | **0.13** |
 
 72% less water and 60% less drained, with no hour of real stress. The cost is a drier
 root zone on average — mean stress 0.13 against 0.05 — which is the trade a refill point
@@ -143,14 +143,14 @@ water gone:
 
 | probes | set up with | 2013 | 2012, a drought |
 | --- | --- | --- | --- |
-| one, 5 cm | the survey | 680 mm, 693 drained, 0 h | 810 mm, 662, 0 h |
-| | the survey, **learning** | **178 mm, 232, 0 h** | **272 mm, 196, 16 h** |
-| | the topsoil's values | 94 mm, 196, 140 h | 110 mm, 131, 421 h |
-| | the topsoil's values, **learning** | **181 mm, 232, 0 h** | **236 mm, 161, 76 h** |
-| 5 and 12 cm | the survey | 136 mm, 209, 4 h | 196 mm, 141, 45 h |
-| | the survey, learning | 131 mm, 202, 8 h, and the note | 213 mm, 163, 116 h, and the note |
-| | each layer's values | 119 mm, 203, 0 h | 183 mm, 145, 68 h |
-| | each layer's values, **learning** | **145 mm, 205, 0 h** | **213 mm, 143, 14 h** |
+| one, 5 cm | the survey | 687 mm, 700 drained, 0 h | 810 mm, 662, 0 h |
+| | the survey, **learning** | **166 mm, 226, 0 h** | **265 mm, 195, 53 h** |
+| | the topsoil's values | 96 mm, 194, 108 h | 134 mm, 143, 406 h |
+| | the topsoil's values, **learning** | **163 mm, 220, 0 h** | **237 mm, 166, 26 h** |
+| 5 and 12 cm | the survey | 157 mm, 218, 0 h | 205 mm, 147, 45 h |
+| | the survey, learning | 141 mm, 207, 0 h, and the note | 202 mm, 147, 31 h, and the note |
+| | each layer's values | 122 mm, 198, 3 h | 188 mm, 146, 28 h |
+| | each layer's values, **learning** | **163 mm, 218, 0 h** | **217 mm, 150, 16 h** |
 
 **What the table shows:**
 
@@ -163,25 +163,60 @@ water gone:
   spells. Learning closes most of that.
 * **Learning field capacity does not fix a layered bed on its own.** With a probe in
   each layer, the survey's 0.30 happens to sit near the two layers' depth-weighted mix,
-  and learning changes little. In the 2012 drought it did worse, 116 stressed hours
-  against 45. The trouble is the wilting point: one value for two soils counts water the
-  clay holds that the roots cannot take, so the advice waits too long. The note is what
-  helps here. Given each layer's values, as the note asks, and with learning on, the yard
-  was short for 14 hours in 2012 and none in 2013.
+  and learning changes little: 31 stressed hours against 45 in the 2012 drought. The
+  trouble is the wilting point: one value for two soils counts water the clay holds that
+  the roots cannot take, so the advice waits too long. The note is what helps here. Given
+  each layer's values, as the note asks, and with learning on, the yard was short for 16
+  hours in 2012 and none in 2013.
 * **Learning leaves a correctly set-up bed alone.** On the advisory's own backtest bed it
-  changed the 2013 summer by less than a millimetre (155.7 mm against 155.4) and 2012
+  changed the 2013 summer by about a millimetre (156 mm against 155) and 2012
   not at all.
 
 A uniform sandy fill, 60 cm of the same sandy loam with a probe at 5 cm, behaves like
-the single-probe yard: 725 mm on the survey's values against 176 learning in 2013. On
-its nominal values it had 107 stressed hours, and none learning.
+the single-probe yard: 730 mm on the survey's values against 175 learning in 2013. On
+its nominal values it had 87 stressed hours, and none learning.
 
-**What is still not right.** The 14 to 76 hours left in 2012 come from the morning
+**What is still not right.** The 16 to 53 hours left in 2012 come from the morning
 cadence on a shallow, sandy root zone. It holds about 17 mm its roots can use, and in
 2012 a hot day took up to 7.7 mm. With water at a third gone, one morning's "water soon" can be past
 half by the next morning. Over McAllister Farm's thirty summers, 1991 to 2020, the yard
 set up with each layer's values was short in 18, by up to 57 hours. Two summers do not
-show that; thirty do. For such a bed, `p` should be lower.
+show that; thirty do.
+
+**Looking ahead to tomorrow.** So the advice also waters a bed that, drying as it has
+been since it was last at field capacity, would pass `Bed.short_fraction` of its water
+(half, FAO-56's depletion fraction for most field crops) before the next morning:
+
+> Water bed 3 today: 26% of the water its plants can use is gone, and drying at 8.1 mm a
+> day it would be short of water before tomorrow morning. About 7 mm brings it back to
+> field capacity.
+
+(A test's bed: 15 cm of roots, 7 mm gone, drying 8 mm a day.) A deep bed rarely dries
+that fast, so it changes little; a shallow one is watered a day early. Over the thirty
+summers:
+
+| | water, mean a summer | summers short | hours short, in all | worst summer |
+| --- | --- | --- | --- | --- |
+| the yard, each layer's values, before | 192 mm | 18 | 407 | 57 h |
+| **the yard, now** | **202 mm** | **8** | **141** | **35 h** |
+| the backtest bed, before | 188 mm | 3 | 72 | 40 h |
+| the backtest bed, now | 189 mm | 3 | 72 | 40 h |
+
+The deep bed never dried fast enough to be watered early, which is the point. On single
+summers the change is mixed: the table above is with it, and the one-probe yard on the
+survey's values went from 16 stressed hours to 53 in 2012, while the two-probe yard on
+the survey's values went from 116 to 31.
+
+Looking ahead to the refill point itself (`short_fraction` set to the depletion fraction)
+did more, and cost more: in a first run the yard was short in 2 summers, never more than
+12 hours, and the backtest bed never, but the backtest bed took 241 mm a summer, 28% more,
+as much as the weather alone gives a bed with no probe. The drying rate is timed from the
+**The drying rate is a whole day's loss**, each end the mean of the readings within two
+hours of it. A crop draws by day and hardly at night, so any part of a day misstates it:
+a fit over the night since the soil left field capacity read a heat wave's 8 mm a day as
+1.3, and the advice did not look ahead to it. A day with a wetting in it is skipped for the
+day before, and a day that began above field capacity begins there, so drainage is not
+counted as the crop's.
 
 **A learned value that sank, and why it no longer does.** A bed watered by its probe is
 watered back to the field capacity it learned, so after most waterings nothing drains.
@@ -208,13 +243,26 @@ quarter-hour runs an hour apart sheds less than two hours in one go (`sim/test_p
 which is cycle-and-soak.
 
 **A probe that reads off.** Learning forgives a probe that reads low: one 0.05 low called
-for 748 mm unlearned and 256 learned, against a true probe's 155, on 2013. It cannot
+for 748 mm unlearned and 268 learned, against a true probe's 156, on 2013. It cannot
 forgive one that reads high. That probe says the bed is full, so the bed is not watered,
 and the probe sees too few soakings to learn from: 242 hours of stress. A second probe in
 the bed is what catches it ([soil sensors](../../docs/notes/soil-sensors.md)).
 
 These results come from the simulator. A real yard's probes are what would check them
 ([UNTESTED](../../docs/UNTESTED.md)).
+
+**A tension sensor beside a probe** measures field capacity instead of learning it. Each
+hour the two at one depth give a point on the soil's own retention curve: this much
+water, held this hard. Over the tensions a Watermark is calibrated for, 10 to 75 kPa
+(`sdk/tension.py`), water falls close to linearly with the logarithm of tension, so the
+points are fitted and field capacity read at `Bed.capacity_kpa`, 33 kPa by default
+(`retention.py`). It needs 24 hours of points spanning a factor of two in tension and
+reaching to within half again of 33, and no soaking. On a silt loam's curve (Carsel and
+Parrish's mean, through van Genuchten's equation) it reads the 0.239 at 33 kPa to within
+0.005, and within 0.01 with a probe's noise. A measured value stands before a learned one
+for that probe's slice; the decision says which (`"how": "measured"`). A tension sensor
+pairs with a probe installed within 2 cm of its depth; its raw series reports tension and
+is calibrated with `a = -1`, as fieldmesh records water potential, never above zero.
 
 ## By the weather, with no probe
 
@@ -250,7 +298,7 @@ Backtested with no probe on the same bed and summers, with an hourly station:
 
 | summer | by the weather | the probe-led advice | stressed hours |
 | --- | --- | --- | --- |
-| 2013 | 157 mm | 155 mm | 0 |
+| 2013 | 157 mm | 156 mm | 0 |
 | 2012, a drought | 314 mm | 208 mm | 0 |
 
 **When a bed's probes go silent or untrusted**, the advisory used to say "unseen" or
@@ -344,6 +392,29 @@ formula. So it runs on a model of the bed that is not the bed, as it would on a 
 In the dry summer it watered half again as much as the probe did, and still a fraction
 of the 552 mm a drip timer uses. A probe reads the bed itself; this reads only the sky.
 
+## A soak test: field capacity on the day
+
+Learning a probe's field capacity takes three soakings it drains from; the soak test makes
+one on purpose, and checks the probes on the way ([regimens/soak_test.star](regimens/soak_test.star)).
+A person starts it for a bed:
+
+1. It asks for enough water to wet the root zone 0.05 past its field capacity, over a
+   square metre centred on the probes, where a millimetre is a litre:
+
+   > Soak test for bed 3: pour 39 litres of water over a square metre centred on its
+   > probes, a can at a time, letting each soak in before the next. The probes are
+   > checked in 3 hours, and the result comes two days later.
+
+2. Three hours on, the probes must have risen by half what that water should add, and read
+   no more water than a mineral soil can hold (0.55). Either failing is said: a probe out
+   of contact, water run off, or a probe reading high.
+3. Two days on, the level the root zone drained back to, fitted as any drain-down is, is
+   reported: the bed's field capacity, measured. Its drain-down also counts toward the
+   probes' learning.
+
+(The test's bed at 0.22, field capacity 0.30, 30 cm of roots: 39 litres; drained back to
+28%.) Read-only like everything here: it asks a person, and checks what the probes saw.
+
 ## Did the water arrive?
 
 The first **regimen** (Q10; [modules/rules](../rules/README.md#regimens)):
@@ -406,7 +477,9 @@ drying; this records why.
 * the dose as a duration for a given drip line;
 * the crop's `p` and root depth from the farm's planting records;
 * a wilting point learned from the probes: that needs the crop's lower limit, the
-  driest its roots take a probe to, which a well-watered bed never shows;
+  driest its roots take a probe to, which a well-watered bed never shows. A tension
+  sensor beside the probe could read it off the retention curve at 1500 kPa, beyond a
+  Watermark's calibration;
 * a safe run length learned from the bed: comparing short runs with long ones,
   cycle-and-soak worked out from the bed itself;
 * each bed's drying rate and the share of rain that reaches it, learned, to set beside

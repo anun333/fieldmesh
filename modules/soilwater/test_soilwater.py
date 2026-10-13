@@ -129,9 +129,12 @@ class TestAdvice(unittest.TestCase):
         drying.probe(lambda h: 0.30 - 0.01 * max(0, h - 40) / 12 if h > 40 else 0.30 - 0.0)
         self.assertEqual(drying.advice()[0], "soil-enough")
         g = Garden()
-        g.probe(lambda h: 0.28 - 0.02 * h / 12)       # 0.04 a day, from 0.28
-        rule, d = g.advice(at=T0 + 20 * HOUR)
+        g.probe(lambda h: 0.30 - 0.02 * h / 24)       # 6 mm a day: 13 gone, due in under a day
+        rule, d = g.advice()
         self.assertEqual(rule, "soil-water-soon", d["context"])
+        fast = Garden()
+        fast.probe(lambda h: 0.33 - 0.04 * h / 24)    # 12 mm a day: 17 gone, 29 by tomorrow
+        self.assertEqual(fast.advice()[0], "soil-water-now")
         wet = Garden()
         wet.probe(lambda h: 0.34)
         self.assertEqual(wet.advice()[0], "soil-too-wet")
@@ -385,6 +388,159 @@ class WeatherGarden(Garden):
         return E.Station(lat=35.06, elevation_m=243.0, timezone="America/Chicago",
                          air_temperature=ds["air"].id, relative_humidity=ds["rh"].id,
                          solar_radiation=ds["sun"].id, precipitation=ds["rain"].id)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestLookingAheadToTomorrow(unittest.TestCase):
+    """A bed with 15 cm of roots holds 27 mm its plants can use: a third gone is 9 mm, half
+    gone 13.5. The advice comes once a morning, so it also waters a bed that, drying as it
+    has been, would be past half gone before the next."""
+
+    @staticmethod
+    def soaked(mm_per_day, full_at=20, root_mm=150.0):
+        """Soaked to 0.40 at midnight, drained back to 0.30 by hour `full_at`, drying at
+        `mm_per_day` since."""
+        per_h = mm_per_day / root_mm / 24.0
+        return lambda h: (0.30 + 0.10 * (full_at - h) / full_at if h <= full_at
+                          else 0.30 - per_h * (h - full_at))
+
+    def shallow(self, mm_per_day):
+        g = Garden()
+        g.bed = S.replace(g.bed, root_depth_mm=150.0)
+        g.probe(self.soaked(mm_per_day), depth=0.10)
+        return g
+
+    def test_drying_fast_it_is_watered_a_day_early_and_says_why(self):
+        """6 mm a day since hour 20: 8 mm gone by the morning, short of the 9 at a third,
+        but 14 by tomorrow, past the 13.5 at half."""
+        g = self.shallow(6.0)
+        rule, d = g.advice()
+        self.assertEqual(rule, "soil-water-now")
+        self.assertLess(d["context"]["depletion_mm"], g.bed.raw_mm)
+        self.assertAlmostEqual(d["context"]["drying_mm_per_day"], 6.0, delta=0.3)
+        self.assertEqual(d["message"]["key"], "soilwater.water_now_ahead")
+        self.assertIn("it would be short of water before tomorrow morning", S.render(d, "en"))
+
+    def test_drying_slowly_it_waits(self):
+        rule, _ = self.shallow(3.0).advice()
+        self.assertNotEqual(rule, "soil-water-now")
+
+    def test_a_day_that_began_above_field_capacity_begins_there(self):
+        """Still draining when the day measured began (hour 28; at field capacity only at
+        31): the drainage is not the crop's drying. From 0.30 the day lost about 7 mm; from
+        its first readings, over 8."""
+        f = self.soaked(8.0, full_at=31)
+        rows = [(T0 + h * HOUR, f(h)) for h in range(53)]
+        with_cap = S._drying_mm_per_day(rows, MORNING, 150.0, 0.30)
+        self.assertAlmostEqual(with_cap, 7.0, delta=0.4)
+        self.assertGreater(S._drying_mm_per_day(rows, MORNING, 150.0), with_cap + 1.0)
+
+    def test_part_of_a_day_is_no_rate(self):
+        """A crop draws by day: under a whole day of readings, no rate is guessed."""
+        rows = [(T0 + h * HOUR, 0.30 - 0.001 * h) for h in range(20)]
+        self.assertEqual(S._drying_mm_per_day(rows, T0 + 19 * HOUR, 150.0), 0.0)
+
+    def test_short_is_at_or_past_the_refill_point(self):
+        with self.assertRaises(ValueError):
+            S.Bed(uuid7(), 0.30, 0.12, depletion_fraction=0.4, short_fraction=0.3)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestTheSoakTest(unittest.TestCase):
+    """A person pours a measured amount of water on a square metre around a bed's probes
+    (`regimens/soak_test.star`): the probes must rise, not past what soil can hold, and the
+    level they drain back to is the bed's field capacity, measured on the day."""
+
+    START = T0 + 20 * HOUR
+
+    def run_soak(self, after, label=True):
+        """The bed at 0.22 until the soak at hour 20; `after(hours since)` from then."""
+        import regimen as G
+        g = Garden()
+        if label:
+            g.state.add(Label(uuid7(), g.land, "bed 3", T0, language="en"))
+        g.probe(lambda h: 0.22 if h <= 20 else after(h - 20), hours=20 + 54)
+        runner = G.Runner(Log())
+        start = runner.start(S.soak_test(), S.soak_start_context(g.state, g.bed, self.START),
+                             self.START, subject=g.bed.feature)
+        written = []
+        for h in range(1, 54):
+            when = self.START + h * HOUR
+            written += runner.tick(when, lambda subject, run, w=when:
+                                   S.soak_context(g.state, g.bed, run.started_at, w))
+        return g, start, written
+
+    @staticmethod
+    def drains(peak=0.40, to=0.28):
+        """Up to `peak` over two hours, then draining to `to` with τ four hours."""
+        return lambda t: (0.22 + (peak - 0.22) * t / 2.0 if t <= 2
+                          else to + (peak - to) * math.exp(-(t - 2) / 4.0) - 0.0002 * (t - 2))
+
+    def test_it_asks_for_enough_water_to_wet_past_field_capacity(self):
+        """0.30 − 0.22 + 0.05, over the 300 mm root zone: 39 litres on a square metre."""
+        g, start, written = self.run_soak(self.drains())
+        pour = written[0].payload
+        self.assertEqual(pour["message"]["key"], "soilwater.soak.pour")
+        self.assertAlmostEqual(pour["message"]["params"]["litres"], 39.0, delta=0.1)
+        self.assertIn("pour 39 litres of water over a square metre", S.render(pour, "en", g.state))
+
+    def test_a_good_soak_reports_the_level_it_drained_back_to(self):
+        g, _, written = self.run_soak(self.drains())
+        alerts = [e.payload for e in written if e.payload["alert"]]
+        self.assertEqual([a["message"]["key"] for a in alerts],
+                         ["soilwater.soak.pour", "soilwater.soak.drained"])
+        report = alerts[-1]
+        self.assertAlmostEqual(report["context"]["capacity_percent"], 28.0, delta=0.5)
+        self.assertIn("drained back to 28", S.render(report, "en", g.state))
+
+    def test_no_rise_is_said(self):
+        g, _, written = self.run_soak(lambda t: 0.22)
+        keys = [e.payload["message"]["key"] for e in written if e.payload["alert"]]
+        self.assertIn("soilwater.soak.no_rise", keys)
+        self.assertIn("soilwater.soak.not_drained", keys)
+
+    def test_more_water_than_soil_can_hold_is_a_probe_reading_high(self):
+        g, _, written = self.run_soak(self.drains(peak=0.62, to=0.45))
+        keys = [e.payload["message"]["key"] for e in written if e.payload["alert"]]
+        self.assertIn("soilwater.soak.too_high", keys)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestATensionSensorBesideTheProbe(unittest.TestCase):
+    """A tension sensor at a probe's depth: each hour a point on the soil's retention curve,
+    and the probe's field capacity is read off it at 33 kPa (`retention.py`), with no
+    drain-down needed."""
+
+    HOURS = 240
+
+    def garden(self, tension_depth=0.20):
+        from test_retention import silt_loam
+        g = Garden()
+        kpa = lambda h: 10.0 * 6.0 ** ((h % 96) / 95.0)        # drying from 10 to 60 kPa, four days
+        g.probe(lambda h: silt_loam(kpa(h)), hours=self.HOURS)
+        raw = FX.raw_datastream(unit="kPa", observed_property=V.SOIL_WATER_POTENTIAL,
+                                expected_interval=3600.0, max_latency=3600.0)
+        ds = FX.derived_datastream(raw, unit="kPa")
+        cal = FX.calibration(raw.sensor, a=-1.0)
+        for rec in (raw, ds, cal, Installation(uuid7(), raw.sensor, g.land, T0 - 24 * HOUR,
+                                               depth_m=tension_depth)):
+            g.state.add(rec)
+        for h in range(self.HOURS + 1):
+            g.state.add(FX.observation(ds, result=round(-kpa(h), 2), measured_at=T0 + h * HOUR,
+                                       calibration=cal.id, seq=h))
+        return g, silt_loam(33.0)
+
+    def test_field_capacity_is_read_off_the_soils_own_curve(self):
+        g, truth = self.garden()
+        _, d = g.advice(T0 + (self.HOURS + 1) * HOUR)
+        self.assertEqual(d["context"]["measured_probes"], 1)
+        self.assertAlmostEqual(d["context"]["field_capacity"], truth, delta=0.01)
+        self.assertEqual(d["inputs"]["learned"][0]["how"], "measured")
+
+    def test_a_tension_sensor_at_another_depth_is_not_paired(self):
+        g, _ = self.garden(tension_depth=0.40)
+        _, d = g.advice(T0 + (self.HOURS + 1) * HOUR)
+        self.assertEqual(d["context"]["measured_probes"], 0)
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
@@ -727,16 +883,16 @@ class TestLearningOnTheVirtualFarm(unittest.TestCase):
         self.assertAlmostEqual(learned[0.12]["field_capacity"], 0.40, delta=0.02)
         self.assertTrue(self.survey_2012["layered"])
 
-    def test_given_each_layers_values_as_the_note_asks_it_waits_far_less(self):
+    def test_given_each_layers_values_as_the_note_asks_it_waits_less(self):
         """One wilting point for two soils counts water the clay holds and the roots
-        cannot take, so through the dry summer of 2012 the advice waited too long: 116
+        cannot take, so through the dry summer of 2012 the advice waited too long: 31
         hours of stress. With each layer's own values, and the capacities still learned,
-        14, and no note. Not none: the roots hold about 17 mm they can use, and a hot day
-        can take that past half between two mornings. Over thirty summers this yard was
-        short in 18, with learning as it is and as it was before drain-downs too slow to
-        tell from the crop's drying stopped counting."""
-        self.assertGreater(self.survey_2012["stressed_h"], 80)
-        self.assertLess(self.tested_2012["stressed_h"], 0.25 * self.survey_2012["stressed_h"])
+        16, and no note. Not none: the roots hold about 17 mm they can use, and a hot day
+        can take that past half between two mornings. Looking ahead a day (`short_fraction`)
+        took the survey's 116 hours to 31; over thirty summers it took this yard from short
+        in 18 to short in 8."""
+        self.assertGreater(self.survey_2012["stressed_h"], 20)
+        self.assertLess(self.tested_2012["stressed_h"], 0.6 * self.survey_2012["stressed_h"])
         self.assertFalse(self.tested_2012["layered"])
 
 

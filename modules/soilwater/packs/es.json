@@ -13,6 +13,7 @@
   "soilwater.too_wet": "{bed} está más húmeda que su capacidad de campo, así que el agua se está perdiendo por debajo de las raíces. No la riegue hoy.",
   "soilwater.rain_coming": "{bed} necesita agua, con el {used:.0f} % del agua que sus plantas pueden usar ya gastado, pero se pronostican {rain:.0f} mm de lluvia en las próximas 24 horas. Espere y vuelva a revisar mañana.",
   "soilwater.water_now": "Riegue {bed} hoy: ya se gastó el {used:.0f} % del agua que sus plantas pueden usar. Unos {mm:.0f} mm la devuelven a su capacidad de campo.",
+  "soilwater.water_now_ahead": "Riegue {bed} hoy: ya se gastó el {used:.0f} % del agua que sus plantas pueden usar y, secándose a {drying:.1f} mm al día, le faltaría agua antes de mañana por la mañana. Unos {mm:.0f} mm la devuelven a su capacidad de campo.",
   "soilwater.water_soon": "{bed} tiene agua suficiente hoy. Al ritmo que se está secando, necesitará riego en unos {days:.1f} días.",
   "soilwater.enough": "{bed} tiene agua suficiente: aún le queda el {left:.0f} % del agua que sus plantas pueden usar.",
   "soilwater.regimen.no_response": "Las sondas de {bed} casi no muestran agua nueva desde esta mañana: la zona de raíces subió {rise_percent:.1f} puntos, cuando {mm:.0f} mm de riego deberían sumar unos {expected_percent:.1f}. Si se regó, revise la línea de goteo y sus goteros; si no, todavía necesita agua.",
@@ -31,6 +32,11 @@
   "soilwater.weather_water_now_anchored": "Las sondas de {bed} llevan {hours:.0f} horas sin una lectura fiable. Según el clima de la finca desde la última buena, se ha gastado cerca del {used:.0f} % del agua que sus plantas pueden usar: riéguela hoy, unos {mm:.0f} mm. Y revise las sondas.",
   "soilwater.weather_rain_coming_anchored": "Las sondas de {bed} llevan {hours:.0f} horas sin una lectura fiable. Según el clima de la finca desde la última buena necesita riego, pero se pronostican {rain:.0f} mm de lluvia en las próximas 24 horas: espere. Y revise las sondas.",
   "soilwater.weather_enough_anchored": "Las sondas de {bed} llevan {hours:.0f} horas sin una lectura fiable. Según el clima de la finca desde la última buena, tiene agua suficiente: queda cerca del {left:.0f} % de lo que sus plantas pueden usar. Revise las sondas.",
-  "soilwater.weather_unseen_anchored": "Las sondas de {bed} llevan {hours:.0f} horas sin una lectura fiable, y a la estación de la finca le faltó un día completo en {days} de los últimos tres, así que no hay consejo para {bed}. Revise las sondas y la estación."
+  "soilwater.weather_unseen_anchored": "Las sondas de {bed} llevan {hours:.0f} horas sin una lectura fiable, y a la estación de la finca le faltó un día completo en {days} de los últimos tres, así que no hay consejo para {bed}. Revise las sondas y la estación.",
+  "soilwater.soak.pour": "Prueba de remojo de {bed}: vierta {litres:.0f} litros de agua sobre un metro cuadrado centrado en sus sondas, una regadera a la vez, dejando que cada una se infiltre antes de la siguiente. Las sondas se revisan en {hours:.0f} horas y el resultado llega dos días después.",
+  "soilwater.soak.no_rise": "Tras el remojo, las sondas de {bed} subieron solo {rise_percent:.1f} puntos donde se esperaban unos {expected_percent:.0f}: puede que una sonda haya perdido contacto con el suelo, o que el agua escurriera fuera del cuadro.",
+  "soilwater.soak.too_high": "Tras el remojo, las sondas de {bed} marcan {peak_percent:.0f} % de agua, más de lo que puede retener un suelo mineral (unos {saturation_percent:.0f} %): leen alto y hay que calibrarlas en este suelo.",
+  "soilwater.soak.drained": "Prueba de remojo de {bed}: su zona de raíces drenó hasta {capacity_percent:.1f} % de agua. Esa es su capacidad de campo, medida.",
+  "soilwater.soak.not_drained": "Prueba de remojo de {bed}: dos días después, sus sondas no muestran un drenaje del que leer la capacidad de campo. Puede que el remojo no mojara el suelo por encima de su capacidad de campo, o que las sondas no lo estén leyendo."
  }
 }

@@ -11,8 +11,8 @@ has been throwing the readings away.
 | sensor | what it adds | hardware | in fieldmesh |
 | --- | --- | --- | --- |
 | **soil temperature** | when a seed will germinate; the soil's heat under a tunnel; degree-days | in most moisture probes already; a bare probe is cheap | **built**: the [sowing advisory](../../modules/sowing/README.md); the frozen-soil check |
-| **soil water tension** | how hard roots must pull, the same in any soil; with a moisture probe beside it, the bed's own field capacity and stress point | tensiometer, Irrometer Watermark, METER TEROS 21 | not yet: a term and a reader |
-| **electrical conductivity** | salt, which builds up where no rain washes it out | in the TEROS 12, the HydraProbe and the LoRaWAN probes already | not yet: a term, and pore-water EC from the bulk reading |
+| **soil water tension** | how hard roots must pull, the same in any soil; with a moisture probe beside it, the bed's own field capacity and stress point | tensiometer, Irrometer Watermark, METER TEROS 21 | **built**: the term, the Watermark's calibration (`sdk/tension.py`), and field capacity read off the curve beside a probe ([soil-moisture advisory](../../modules/soilwater/README.md#the-beds-own-soil)) |
+| **electrical conductivity** | salt, which builds up where no rain washes it out | in the TEROS 12, the HydraProbe and the LoRaWAN probes already | **built**: the [salinity monitor](../../modules/salinity/README.md) |
 | **a drainage gauge** | the water that escapes below the roots | a pan or drain gauge under the root zone | a pilot's reference, not a farm's sensor |
 
 ## Soil temperature
@@ -54,8 +54,14 @@ each layer's values for ([soil-moisture advisory](../../modules/soilwater/README
   ([Oregon State University](https://agsci.oregonstate.edu/mes/irrigation/granular-matrix-sensors)).
 * **METER's TEROS 21** reads it digitally over SDI-12, and much drier.
 
-What fieldmesh needs: a term for soil water potential (already the fourth item in
-[soil sensors](soil-sensors.md)), a reader for one of these, and then the pairing.
+**Built 2026-10-12.** The term is ODM2's water potential (`vocab.SOIL_WATER_POTENTIAL`); a
+Watermark's resistance and the soil's temperature become tension by Shock et al.'s (1998)
+calibration, inside the 10 to 75 kPa it holds for (`sdk/tension.py`, the reference a node's
+firmware is checked against); and a tension sensor within 2 cm of a moisture probe's depth
+gives that probe a measured field capacity, read off the fitted curve at 33 kPa
+([soil-moisture advisory](../../modules/soilwater/README.md#the-beds-own-soil)). Not built:
+the node that reads a Watermark, and the stress point at 1500 kPa, past a Watermark's
+calibration.
 
 ## Electrical conductivity: salt
 
@@ -68,8 +74,12 @@ A soil test sees it a few times a year; a probe sees it climb between them.
 The probes that report it give the **bulk** soil's conductivity, which rises with the
 water in the soil and its temperature as well as with salt. Crop limits are in the
 conductivity of the soil's water, so the reading has to be converted first, from the
-moisture and temperature the same probe reports. What fieldmesh needs: a term, that
-conversion, and a check for a tunnel bed whose salt is climbing.
+moisture and temperature the same probe reports. **Built 2026-10-12**, as the [salinity monitor](../../modules/salinity/README.md): the term
+is ODM2's bulk electrical conductivity (`vocab.BULK_EC`); the pore water's conductivity is
+Hilhorst's from the probe's water and temperature, then diluted to a saturated paste's
+extract, the scale crop tolerances are in; a bed's crop is set against Maas and Grattan's
+tolerances, and the monitor says when its salt climbs toward its threshold and when it
+passes it, with the share of the yield lost.
 
 ## A drainage gauge
 

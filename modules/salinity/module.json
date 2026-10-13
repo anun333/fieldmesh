@@ -1,0 +1,17 @@
+{
+ "name": "salinity",
+ "version": "1",
+ "layer": 2,
+ "description": "Soil salinity monitor: per bed, the soil's salt from one probe's water, conductivity and temperature, against its crop's tolerance; climbing, and past it with the yield lost.",
+ "reads": {
+  "observed_properties": [
+   "http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil/",
+   "http://vocabulary.odm2.org/variablename/bulkElectricalConductivity/",
+   "http://vocab.nerc.ac.uk/standard_name/soil_temperature/"
+  ]
+ },
+ "writes": [
+  "decision"
+ ],
+ "commands": []
+}

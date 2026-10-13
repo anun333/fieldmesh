@@ -112,6 +112,19 @@ RSSI = ODM2 + "receivedSignalStrenghtIndication/"
 #: controller reports gallons or litres a minute.
 FLOW_RATE = ODM2 + "discharge/"
 
+#: How hard the soil holds its water: its water potential, in kPa and never above zero. A
+#: tension sensor (a tensiometer, an Irrometer Watermark, a TEROS 21) reports the same number
+#: with its sign turned, so its raw series is calibrated with `a = -1` (sdk/tension.py).
+#: Beside a moisture probe at the same depth it gives the soil's own retention curve
+#: (modules/soilwater/retention.py). ODM2's `waterPotential`: CF has no term for it.
+SOIL_WATER_POTENTIAL = ODM2 + "waterPotential/"
+
+#: The bulk soil's electrical conductivity, as a probe measures it: it rises with the water
+#: in the soil and its temperature as well as with salt, and is turned into the soil water's
+#: (modules/salinity). ODM2's `bulkElectricalConductivity`, defined as exactly that: a
+#: sensor's raw response, in the soil it is buried in.
+BULK_EC = ODM2 + "bulkElectricalConductivity/"
+
 
 # ------------------------------------------------------------------ local terms
 
@@ -161,6 +174,8 @@ TERMS: dict[str, tuple[str, str]] = {
     BATTERY_VOLTAGE: ("V", "ODM2"),
     RSSI: ("dB[mW]", "ODM2"),
     FLOW_RATE: ("[gal_us]/min", "ODM2"),
+    SOIL_WATER_POTENTIAL: ("kPa", "ODM2"),
+    BULK_EC: ("dS/m", "ODM2"),
     VESSEL_FILL_FRACTION: ("1", "local"),
     VALVE_OPEN: (None, "local"),
 }
@@ -185,6 +200,8 @@ ACCEPTED_UNITS: dict[str, frozenset] = {
     BATTERY_VOLTAGE: frozenset({"V", "mV"}),
     RSSI: frozenset({"dB[mW]"}),
     FLOW_RATE: frozenset({"[gal_us]/min", "L/min", "m3/h", "m3/s"}),
+    SOIL_WATER_POTENTIAL: frozenset({"kPa", "cbar", "hPa", "MPa"}),
+    BULK_EC: frozenset({"dS/m", "mS/cm", "uS/cm", "S/m"}),
     VESSEL_FILL_FRACTION: frozenset({"1", "%"}),
 }
 

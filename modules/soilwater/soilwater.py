@@ -57,10 +57,9 @@ from model import SURFACES, DatastreamKind, Usable  # noqa: E402
 i18n.register(os.path.join(HERE, "packs"), "soilwater")
 
 HOUR = _dt.timedelta(hours=1)
-#: How far back the drying rate looks for the last wetting.
-DRYING_WINDOW_H = 36.0
-#: The shortest stretch a drying rate is measured over.
-DRYING_MIN_H = 6.0
+#: How far back the readings the drying rate is measured from reach: two whole days, and
+#: the two hours either side of each day's ends (`_drying_mm_per_day`).
+DRYING_WINDOW_H = 52.0
 NO_ESTIMATE = 1e6
 #: What grows in a bed, in a word.
 PLANTINGS = ("vegetables", "flowers", "shrubs", "turf", "trees", "mixed")
@@ -87,6 +86,20 @@ class Bed:
     wilting_point: float
     root_depth_mm: float = 300.0
     depletion_fraction: float = 1 / 3
+    #: The share of the available water whose loss leaves the crop short. The advice waters
+    #: at `depletion_fraction`, and also when, drying as it has been, the bed would pass this
+    #: before the next morning's look: a bed with little water to spare can go from short of
+    #: its refill point to past half its water in one hot day. Half is FAO-56's depletion
+    #: fraction for most field crops. Over thirty summers (README) it cut the shallow yard's
+    #: short summers from 18 to 8, and its hours short from 407 to 141, for 5% more water,
+    #: and left the deeper backtest bed as it was.
+    #: Set to `depletion_fraction`, the advice looks ahead to the refill point itself: in a
+    #: first run the shallow yard was short in 2 summers of 30, never more than 12 hours,
+    #: and the deeper bed never, but the deeper one took 28% more water.
+    short_fraction: float = 0.5
+    #: With a tension sensor beside a probe, the tension field capacity is read at, kPa:
+    #: a third of a bar, 33, for most soils; nearer 10 in a sand (`retention.py`).
+    capacity_kpa: float = 33.0
     skip_rain_mm: float = 10.0
     wet_margin: float = 0.02
     soon_days: float = 2.0
@@ -123,6 +136,8 @@ class Bed:
             raise ValueError("a root zone has a depth")
         if not 0 < self.depletion_fraction < 1:
             raise ValueError("the depletion fraction is between 0 and 1 (FAO-56's p)")
+        if not self.depletion_fraction <= self.short_fraction < 1:
+            raise ValueError("a crop is short at or past its refill point, before all its water is gone")
         if self.surface is not None and self.surface not in SURFACES:
             raise ValueError(f"a bed's surface is one of {SURFACES}")
         if self.planting is not None and self.planting not in PLANTINGS:
@@ -156,9 +171,15 @@ class Bed:
 
 #: The advice, most urgent first; the first that holds is the morning's decision.
 def rules_for(bed: Bed) -> list:
-    p = {"raw_mm": round(bed.raw_mm, 2), "skip_rain_mm": bed.skip_rain_mm,
+    p = {"raw_mm": round(bed.raw_mm, 2), "short_mm": round(bed.short_fraction * bed.taw_mm, 2),
+         "skip_rain_mm": bed.skip_rain_mm,
          "stale_after_h": bed.stale_after_h, "soon_days": bed.soon_days}
     usable = "has_probe && has_reading && usable && hours_since_reading <= stale_after_h"
+    # Due today: past the refill point, or, drying as it is, short (`Bed.short_fraction` of
+    # its water gone) before tomorrow's look. The advice comes once a morning, so a bed with
+    # little water to spare that is short of its refill point today can be past half its
+    # water by the next morning.
+    due = "(depletion_mm >= raw_mm || depletion_mm + drying_mm_per_day >= short_mm)"
     weather = "by_weather"
     rules = [
         R.Rule("soil-weather-unseen", "1", f"{weather} && weather_missing_days >= 2", p,
@@ -198,12 +219,14 @@ def rules_for(bed: Bed) -> list:
         R.Rule("soil-too-wet", "1", f"{usable} && wetter_than_capacity", p,
                alert_key="soilwater.too_wet", message_params={}),
         R.Rule("soil-rain-coming", "1",
-               f"{usable} && depletion_mm >= raw_mm && rain_mm >= skip_rain_mm", p,
+               f"{usable} && {due} && rain_mm >= skip_rain_mm", p,
                alert_key="soilwater.rain_coming",
                message_params={"used": "used_percent", "rain": "rain_mm"}),
-        R.Rule("soil-water-now", "1", f"{usable} && depletion_mm >= raw_mm", p,
+        R.Rule("soil-water-now", "1", f"{usable} && {due}", p,
                alert_key="soilwater.water_now",
-               message_params={"used": "used_percent", "mm": "refill_mm"}),
+               message_params={"used": "used_percent", "mm": "refill_mm",
+                               "drying": "drying_mm_per_day"},
+               message_variants=(("depletion_mm < raw_mm", "soilwater.water_now_ahead"),)),
         R.Rule("soil-water-soon", "1", f"{usable} && days_to_water <= soon_days", p,
                alert_key="soilwater.water_soon", message_params={"days": "days_to_water"}),
         R.Rule("soil-enough", "1", usable, p, alert_key="soilwater.enough",
@@ -242,18 +265,32 @@ def weights(depths_m: list, root_depth_m: float) -> list:
     return out
 
 
-def _drying_mm_per_day(rows, at, root_depth_mm) -> float:
-    """How fast the root zone is drying, from its last wetting to now."""
-    since = at - DRYING_WINDOW_H * HOUR
-    window = [(t, v) for t, v in rows if t >= since]
-    if len(window) < 2:
-        return 0.0
-    peak_t, peak_v = max(window, key=lambda tv: (tv[1], tv[0]))
-    last_t, last_v = window[-1]
-    span_h = (last_t - peak_t) / HOUR
-    if span_h < DRYING_MIN_H:
-        return 0.0
-    return max(0.0, (peak_v - last_v) * root_depth_mm / (span_h / 24.0))
+def _drying_mm_per_day(rows, at, root_depth_mm, capacity: float | None = None) -> float:
+    """How fast the root zone is drying: its loss over the last whole day, each end the
+    mean of the readings within two hours of it. A crop draws by day and hardly at night, so
+    any part of a day misstates the rate: a fit over the night since the soil left field
+    capacity read a heat wave's 8 mm a day as 1.3, and the advice did not look ahead to it.
+    A day with a wetting in it (a three-hour mean 0.02 over the day's start) says nothing,
+    and the day before is used. With `capacity`, a day that started above field capacity
+    starts there, so drainage does not count as the crop's."""
+    def near(t):
+        values = [v for u, v in rows if abs((u - t) / HOUR) <= 2.0]
+        return sum(values) / len(values) if len(values) >= 2 else None
+
+    for back in (0, 1):
+        end = at - back * 24 * HOUR
+        begin = end - 24 * HOUR
+        a, b = near(begin), near(end)
+        if a is None or b is None:
+            continue
+        day = [v for u, v in rows if begin < u <= end]
+        means = [sum(w) / 3.0 for w in zip(day, day[1:], day[2:])]
+        if any(m > a + 0.02 for m in means):
+            continue
+        if capacity is not None:
+            a = min(a, capacity)
+        return max(0.0, (a - b) * root_depth_mm)
+    return 0.0
 
 
 # ------------------------------------------------------------ learned soil
@@ -649,13 +686,62 @@ def _corrected(state, bed: Bed, station, at, base: dict, inputs: dict, source: B
     return replace(bed, crop_coefficient=bed.crop_coefficient * applied)
 
 
+#: A tension sensor pairs with a moisture probe whose installation is this close in depth.
+PAIR_DEPTH_M = 0.02
+#: A tension series' units, to kPa.
+TO_KPA = {"kPa": 1.0, "cbar": 1.0, "hPa": 0.1, "MPa": 1000.0}
+
+
+def _measured_capacity(state, bed: Bed, ds, depth_m: float, rows: list, at: _dt.datetime):
+    """A probe's field capacity read off its soil's retention curve (`retention.py`), when a
+    tension sensor is installed in the bed at its depth: the last `LEARN_DAYS` of hours
+    both read, each passed by the checks. None without one, or without enough of a curve."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import retention as RT
+    since = at - _dt.timedelta(days=LEARN_DAYS)
+    tension = None
+    for other in state.datastreams.values():
+        if other.kind is not DatastreamKind.DERIVED or other.observed_property != V.SOIL_WATER_POTENTIAL:
+            continue
+        inst = state.installation_of(other.sensor, at)
+        if (inst is not None and inst.feature == bed.feature and inst.depth_m is not None
+                and abs(inst.depth_m - depth_m) <= PAIR_DEPTH_M and other.unit in TO_KPA):
+            tension = other
+            break
+    if tension is None:
+        return None
+
+    def hourly(series, unit_scale):
+        out = {}
+        for o in series:
+            if (o.measured_at >= since and o.received_at <= at and o.measured_at <= at
+                    and isinstance(o.result, (int, float)) and not isinstance(o.result, bool)
+                    and state.quality_as_of(o.id, at)[0] is Usable.GOOD):
+                out[o.measured_at.replace(minute=0, second=0, microsecond=0)] = float(o.result) * unit_scale
+        return out
+    water = hourly(rows, 1.0)
+    pull = hourly(state.live_observations_of(tension.id), TO_KPA[tension.unit])
+    pairs = [(-pull[t], water[t]) for t in water if t in pull]
+    found = RT.capacity_from_tension(pairs, bed.capacity_kpa)
+    if found is None:
+        return None
+    return {"field_capacity": round(found["field_capacity"], 3), "drains": 0, "half_drain_h": None,
+            "measured": True, "pairs": found["pairs"], "tension": tension.id}
+
+
 def _capacity(state, bed: Bed, ds, depth_m: float, wilting: float, rows: list,
               at: _dt.datetime):
-    """A probe's learned field capacity at `at`, from its readings of the last
-    `LEARN_DAYS` that the health checks had passed by then, or None: not learning, not
-    enough drain-downs yet, or a value its soil's wilting point says cannot be right."""
+    """A probe's field capacity at `at`: measured off its soil's retention curve when a
+    tension sensor is installed beside it (`_measured_capacity`), else learned from its
+    readings of the last `LEARN_DAYS` that the health checks had passed by then; or None:
+    not learning, not enough drain-downs yet, or a value its soil's wilting point says
+    cannot be right."""
     if not bed.learn:
         return None
+    measured = _measured_capacity(state, bed, ds, depth_m, rows, at)
+    if measured is not None and measured["field_capacity"] > wilting + 0.03:
+        return {**measured, "datastream": ds.id, "depth_m": depth_m}
     since = at - _dt.timedelta(days=LEARN_DAYS)
     readings = []
     for o in rows:
@@ -754,9 +840,9 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
             "used_percent": 0.0, "left_percent": 0.0, "rain_mm": 0.0,
             "days_to_water": NO_ESTIMATE, "probes": len(in_zone),
             "field_capacity": bed.field_capacity, "wilting_point": bed.wilting_point,
-            "learned_probes": 0, "layered": False, "layers_configured": bool(bed.layers),
+            "learned_probes": 0, "measured_probes": 0, "layered": False, "layers_configured": bool(bed.layers),
             "by_weather": False, "weather_missing_days": 0, "watering_recorded": False,
-            "anchored": False, "probe_silent_hours": 0.0,
+            "anchored": False, "probe_silent_hours": 0.0, "drying_mm_per_day": 0.0,
             "corrected": False, "et_percent": 100.0, "reference_days": 0}
     inputs = {"bed": str(bed.feature), "observations": [], "forecast": None}
     inputs.update({k: getattr(bed, k) for k in ("surface", "planting") if getattr(bed, k)})
@@ -813,8 +899,9 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
     capacity = sum(w * (c["field_capacity"] if c else fc)
                    for (w, _), c, (fc, _) in zip(series, capacities, limits)) / total
     wilting = sum(w * wp for (w, _), (_, wp) in zip(series, limits)) / total
-    learned = [{"datastream": str(c["datastream"]), **{k: c[k] for k in
-                ("depth_m", "field_capacity", "drains", "half_drain_h")}}
+    learned = [{"datastream": str(c["datastream"]),
+                "how": "measured" if c.get("measured") else "learned",
+                **{k: c[k] for k in ("depth_m", "field_capacity", "drains", "half_drain_h")}}
                for c in capacities if c]
     bed = replace(bed, field_capacity=capacity, wilting_point=wilting)
     if len(learned) >= 2:
@@ -833,7 +920,7 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
     history = sorted((t, sum(w * v for w, v in vals.values()) / sum(w for w, _ in vals.values()))
                      for t, vals in by_time.items() if len(vals) == len(series))
     depletion = max(0.0, (bed.field_capacity - theta) * bed.root_depth_mm)
-    drying = _drying_mm_per_day(history, at, bed.root_depth_mm)
+    drying = _drying_mm_per_day(history, at, bed.root_depth_mm, bed.field_capacity)
     to_go = bed.raw_mm - depletion
     days = to_go / drying if drying > 0.1 and to_go > 0 else (0.0 if to_go <= 0 else NO_ESTIMATE)
     rain = 0.0
@@ -848,6 +935,7 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
         "usable": True, "theta": round(theta, 3), "field_capacity": round(capacity, 3),
         "wilting_point": round(wilting, 3),
         "learned_probes": len(learned),
+        "measured_probes": sum(1 for x in learned if x["how"] == "measured"),
         "wetter_than_capacity": theta > bed.field_capacity + bed.wet_margin,
         "depletion_mm": round(depletion, 1), "refill_mm": round(depletion, 1),
         "used_percent": round(100.0 * min(1.0, depletion / bed.taw_mm), 0),
@@ -952,6 +1040,54 @@ def watering_check(params=None):
     import regimen as G
     return G.load(os.path.join(HERE, "regimens", "watering_check.star"),
                   params={**WATERING_CHECK, **(params or {})})
+
+
+#: The soak test's settings (`regimens/soak_test.star`): how far past field capacity to wet
+#: the root zone; how long to let it soak in; the share of the expected rise the probes must
+#: show; the most water a mineral soil can hold; how long to watch it drain.
+SOAK_TEST = {"excess": 0.05, "soak_min": 180.0, "share": 0.5, "saturation": 0.55,
+             "drain_min": 2880.0}
+
+
+def soak_test(params=None):
+    """The regimen that soaks a bed to measure its field capacity on the day:
+    `regimens/soak_test.star`."""
+    import regimen as G
+    return G.load(os.path.join(HERE, "regimens", "soak_test.star"),
+                  params={**SOAK_TEST, **(params or {})})
+
+
+def soak_start_context(state, bed: Bed, at: _dt.datetime) -> dict:
+    """What the soak test plans from: the bed's root zone when it starts."""
+    ctx, _ = bed_context(state, bed, at)
+    return {"bed": str(bed.feature), "has_reading": bool(ctx["usable"]), "theta": ctx["theta"],
+            "capacity": ctx["field_capacity"], "root_depth_mm": bed.root_depth_mm}
+
+
+def soak_context(state, bed: Bed, since: _dt.datetime, at: _dt.datetime) -> dict:
+    """How the bed's root zone answered a soak begun at `since`: its rise to the peak, the
+    peak, and the level it drained back to (`drain_fit`), from the depth-weighted readings
+    the checks passed."""
+    out = {"has_reading": False, "rise": 0.0, "rise_percent": 0.0, "peak": 0.0,
+           "peak_percent": 0.0, "drained": False, "capacity_percent": 0.0}
+    zone = _root_zone_hours(state, bed, at, since - 3 * HOUR)
+    if zone is None:
+        return out
+    hours = sorted(zone[0].items())
+    before = [v for t, v in hours if t <= since]
+    after = [(t, v) for t, v in hours if t > since]
+    if not before or not after:
+        return out
+    peak_t, peak = max(after, key=lambda tv: (tv[1], -tv[0].timestamp()))
+    rise = peak - before[-1]
+    out.update({"has_reading": True, "rise": round(rise, 4), "rise_percent": round(rise * 100.0, 1),
+                "peak": round(peak, 4), "peak_percent": round(peak * 100.0, 1)})
+    points = [((t - peak_t) / HOUR, v) for t, v in after if t >= peak_t]
+    if points and points[-1][0] >= DRAIN_MIN_H:
+        fit = drain_fit(points)
+        if fit is not None and fit["excess"] >= DRAIN_MIN_EXCESS:
+            out.update({"drained": True, "capacity_percent": round(fit["field_capacity"] * 100.0, 1)})
+    return out
 
 
 def watering_check_context(decision: dict, bed: Bed) -> dict:

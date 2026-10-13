@@ -13,6 +13,7 @@
   "soilwater.too_wet": "{bed} is wetter than field capacity, so water is draining past the roots. Don't water it today.",
   "soilwater.rain_coming": "{bed} is due for water, with {used:.0f}% of the water its plants can use gone, but {rain:.0f} mm of rain is forecast in the next 24 hours. Wait, and check again tomorrow.",
   "soilwater.water_now": "Water {bed} today: {used:.0f}% of the water its plants can use is gone. About {mm:.0f} mm brings it back to field capacity.",
+  "soilwater.water_now_ahead": "Water {bed} today: {used:.0f}% of the water its plants can use is gone, and drying at {drying:.1f} mm a day it would be short of water before tomorrow morning. About {mm:.0f} mm brings it back to field capacity.",
   "soilwater.water_soon": "{bed} has enough water today. At the rate it is drying it will need water in about {days:.1f} days.",
   "soilwater.enough": "{bed} has enough water: {left:.0f}% of what its plants can use is still there.",
   "soilwater.regimen.no_response": "{bed}'s probes show almost no new water since this morning: the root zone rose {rise_percent:.1f} points, where {mm:.0f} mm of watering should add about {expected_percent:.1f}. If it was watered, check the drip line and its emitters; if it was not, it still needs water.",
@@ -31,6 +32,11 @@
   "soilwater.weather_water_now_anchored": "{bed}'s probes have given no reading to trust for {hours:.0f} hours. By the farm's weather since their last good one, about {used:.0f}% of the water its plants can use is gone: water it today, about {mm:.0f} mm. And check the probes.",
   "soilwater.weather_rain_coming_anchored": "{bed}'s probes have given no reading to trust for {hours:.0f} hours. By the farm's weather since their last good one it is due water, but {rain:.0f} mm of rain is forecast in the next 24 hours: wait. And check the probes.",
   "soilwater.weather_enough_anchored": "{bed}'s probes have given no reading to trust for {hours:.0f} hours. By the farm's weather since their last good one, it has enough: about {left:.0f}% of what its plants can use is left. Check the probes.",
-  "soilwater.weather_unseen_anchored": "{bed}'s probes have given no reading to trust for {hours:.0f} hours, and the farm's station missed a full day on {days} of the last three, so there is no advice for {bed}. Check the probes and the station."
+  "soilwater.weather_unseen_anchored": "{bed}'s probes have given no reading to trust for {hours:.0f} hours, and the farm's station missed a full day on {days} of the last three, so there is no advice for {bed}. Check the probes and the station.",
+  "soilwater.soak.pour": "Soak test for {bed}: pour {litres:.0f} litres of water over a square metre centred on its probes, a can at a time, letting each soak in before the next. The probes are checked in {hours:.0f} hours, and the result comes two days later.",
+  "soilwater.soak.no_rise": "After the soak, {bed}'s probes rose only {rise_percent:.1f} points where about {expected_percent:.0f} were expected: a probe may have lost contact with the soil, or the water ran off the square.",
+  "soilwater.soak.too_high": "After the soak, {bed}'s probes read {peak_percent:.0f}% water, more than a mineral soil can hold (about {saturation_percent:.0f}%): they read high, and need calibrating in this soil.",
+  "soilwater.soak.drained": "Soak test for {bed}: its root zone drained back to {capacity_percent:.1f}% water. That is its field capacity, measured.",
+  "soilwater.soak.not_drained": "Soak test for {bed}: two days on, its probes show no drain-down to read field capacity from. The soak may not have wetted the soil past field capacity, or the probes are not reading it."
  }
 }
