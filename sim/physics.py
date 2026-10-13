@@ -522,6 +522,12 @@ class LayeredBed(SoilBed):
       Up to `surface_storage_mm` waits on the surface for the next tick, as in a lawn's
       hollows; the rest runs off.
 
+    * **water creeps between layers below field capacity**, with `unsaturated_mm_per_h`:
+      from the wetter of two neighbours to the drier, `k · (s_lower − s_upper)` a tick
+      upward, `s` each layer's share of its available water, at most 1 (a layer past field
+      capacity drains, and counts as full). Roots drying the soil above a layer draw its
+      water up slowly, by day and night alike. Off by default.
+
     So a watering on topsoil over compacted clay fills the topsoil, stalls at the clay and
     perches there, and a long run puts more on than the bed can take. A probe reads its
     layer (`theta_at`); `theta` is the root zone's mean, which is what the crop and the
@@ -531,6 +537,7 @@ class LayeredBed(SoilBed):
     horizons: tuple = ()
     layer_mm: float = 25.0
     surface_storage_mm: float = 2.5
+    unsaturated_mm_per_h: float = 0.0
     ponded_mm: float = field(default=0.0, repr=False)
     #: What has soaked in since water began to arrive, and how dry the top was then.
     soaked_mm: float = field(default=0.0, repr=False)
@@ -626,6 +633,23 @@ class LayeredBed(SoilBed):
             theta[i] -= flux / dz
             if i == self._roots - 1:
                 self.drained_mm += flux
+
+        if self.unsaturated_mm_per_h > 0:
+            for i in range(n - 1):
+                a, b = props[i], props[i + 1]
+                # Above field capacity a layer drains; as far as creeping goes it is full.
+                s_up = min(1.0, (theta[i] - a.wilting_point) / (a.field_capacity - a.wilting_point))
+                s_low = min(1.0, (theta[i + 1] - b.wilting_point)
+                            / (b.field_capacity - b.wilting_point))
+                if s_up >= 1.0 and s_low >= 1.0:
+                    continue
+                flux = self.unsaturated_mm_per_h * dt * (s_low - s_up)
+                # No further than evens: half the gap, in millimetres of the drier layer.
+                most = abs(s_low - s_up) / 2.0 * min(a.field_capacity - a.wilting_point,
+                                                     b.field_capacity - b.wilting_point) * dz
+                flux = max(-most, min(most, flux))
+                theta[i] += flux / dz
+                theta[i + 1] -= flux / dz
 
         water = self.ponded_mm + weather.rain_mm + irrigation_mm
         top = props[0]

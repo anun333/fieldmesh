@@ -84,34 +84,40 @@ a dry year that soil can be too dry for roots to enter, which no curve on its ow
 
 * **`Bed.rooting_limit_mm`:** how deep the soil lets roots go. The crop's curve stops there,
   and a probe set into the pan is not counted.
-* **Root signs from the probes** (`root_signs`), over the last two weeks. On the days a
-  probe's soil started at or below field capacity and nothing wetted it:
-  * a probe whose soil stayed level has no roots;
-  * one whose soil fell and went 0.02 below field capacity has roots.
+* **Root signs from the probes** (`root_signs`), over the last two weeks of dry days. A
+  probe whose soil stays level has no roots. One that falls has roots if it falls by day
+  (the stair-step, where the farm's timezone is known), or, without the clock, if it goes
+  0.02 under field capacity; one that falls as fast by night is draining, not drunk.
+  Where a probe the curve passed at least 15 cm ago has no roots, under one that has,
+  the roots likely stop between the two, and a note asks for the rooting limit.
+* **A range of roots, not one depth.** When to water is timed by the shallow end, how much
+  by the deep end: each probe's own deficit down to the deepest roots. A stop the probes
+  find moves only the shallow end. So does a young planting beside an older one
+  (`Bed.plantings`), which is the same problem: plants at different stages side by side.
+* **Degree-days as the crop's clock** (`thermal.py`). FAO-56's days are taken as right
+  for the farm's normal year, from its past years' weather, and a warm season runs the
+  crop ahead of them, a cool one behind, by Paredes et al.'s (2025a) degree-days and their
+  review's base and upper temperatures for each crop.
 
-  Where a probe the curve says the roots passed at least 10 cm ago stays level, under one
-  that has roots, the advice counts the roots only to halfway between the two. It also
-  writes a note asking for the bed's rooting limit.
-* **The probes only make the advice water sooner.** Roots seen deeper than the curve are
-  not counted, because soil can also dry by other routes.
-
-On thirty simulated summers of tomatoes over a pan at 30 cm, the curve alone left the
-crop short every summer, for a month on average. The root signs cut that by 99%, and the
-limit set by hand cut it further, to 20 hours in thirty summers. With no pan, the signs
-changed nothing. The full table is in the [advisory's
-README](../../modules/soilwater/README.md#roots-that-stop).
+The backtests are in the [advisory's README](../../modules/soilwater/README.md#by-the-seasons-warmth):
+the clock, plantings at different stages, and roots that stop. In brief, on thirty
+simulated summers: over a pan at 30 cm the curve alone left tomatoes short every summer
+for a month, and the root signs cut that by 98% or more, the stair-step alone still
+finding the pan where water creeps up beneath it; a young planting of lettuce among
+tomatoes, short in 16 summers on the weather's advice for the tomatoes, was never short
+once the advice knew both. Timing the curve by degree-days moved a season's water by
+−16% to +24% with the season's warmth, and on this farm's margins left no crop short
+either way.
 
 ## Next
 
-* **Degree-days as the crop's clock**, in place of FAO-56's fixed days. AquaCrop-OSPy's
-  crop parameters are under Apache 2.0, so they can be used with attribution. The
-  air-temperature series that weather stations already report is enough for them.
-* **The stair-step itself as the sign**, a fall by day greater than the fall by night. It
-  is a stronger test than the fall below field capacity, because drainage runs day and
-  night. It needs to know when the farm's day is: the station's settings carry its
-  timezone, so a farm with a station has it.
-* Deciding the curve's shape, straight or the *n*th root, with real probes at several
-  depths through a season.
+* **Each crop's degree-days for each stage** as the FAO-56 revision gives them (Paredes et
+  al., 2025b), in place of FAO-56's days taken at the farm's normal year. That paper is
+  open access but its repository would not serve it to a script.
+* **Probes for each planting**: a probe that says which planting it is among, so a young
+  planting's shallow probe times the watering for it alone.
+* **Real beds:** the curve's shape, straight or the *n*th root, the stair-step's
+  thresholds against a real probe's noise, and a pan found by its probes and then dug.
 
 ## Sources
 
@@ -125,4 +131,12 @@ README](../../modules/soilwater/README.md#roots-that-stop).
   Danish Institute of Agricultural Sciences, archived at Organic Eprints.
 * C. Barrett, [Soil moisture sensors improve irrigation](https://specialtycropgrower.com/soil-moisture-sensors-improve-irrigation/),
   *Specialty Crop Grower*, 2018-07-31.
+* P. Paredes et al., [Base and upper temperature thresholds to support the calculation of
+  growing degree days aiming at their use with the FAO56rev crop coefficients curve: a
+  review](https://doi.org/10.1016/j.agwat.2025.109755), *Agricultural Water Management*
+  319 (2025) 109755, open access, CC BY 4.0 (2025a).
+* P. Paredes et al., [Estimating the lengths of crop growth stages to define the crop
+  coefficient curves using growing degree days (GDD): application of the revised FAO56
+  guidelines](https://doi.org/10.1016/j.agwat.2025.109758), *Agricultural Water
+  Management* 319 (2025) 109758 (2025b); its abstract only, here.
 * McAllister Farm's weather: NASA POWER daily, 1991 to 2020, CC BY 4.0.

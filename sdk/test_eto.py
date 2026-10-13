@@ -113,6 +113,15 @@ class TestADayFromTheLog(unittest.TestCase):
         self.assertIsNone(E.eto_for_day(P.state_from_log(self.log), self.station,
                                         _dt.date(2026, 7, 9), self.at))
 
+    def test_the_daily_temperatures_alone_match_the_days_summary(self):
+        state = P.state_from_log(self.log)
+        got = E.daily_temperatures(state, self.station, self.day - _dt.timedelta(days=1),
+                                   self.day + _dt.timedelta(days=1), self.at)
+        s = E.day_summary(state, self.station, self.day, self.at)
+        self.assertEqual(got[self.day], (s["tmin"], s["tmax"]))
+        self.assertIsNone(got[self.day - _dt.timedelta(days=1)])
+        self.assertIsNone(got[self.day + _dt.timedelta(days=1)])
+
     def test_the_days_reference_et(self):
         eto, rain, estimated = E.eto_for_day(P.state_from_log(self.log), self.station,
                                              self.day, self.at)

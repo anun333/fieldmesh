@@ -192,6 +192,28 @@ def summaries(state, station: Station, first: _dt.date, last: _dt.date,
     return out
 
 
+def daily_temperatures(state, station: Station, first: _dt.date, last: _dt.date,
+                       at: _dt.datetime) -> dict:
+    """`{local day: (tmin, tmax) or None}` from `first` to `last`: the air temperature
+    alone, read once, for a crop's degree-days; None for a day the readings do not span."""
+    start, _ = _bounds(station, first)
+    _, end = _bounds(station, last)
+    rows = _readings(state, station.air_temperature, start, end, at)
+    out, i, day = {}, 0, first
+    while day <= last:
+        lo, hi = _bounds(station, day)
+        while i < len(rows) and rows[i][0] < lo:
+            i += 1
+        j = i
+        while j < len(rows) and rows[j][0] < hi:
+            j += 1
+        part = rows[i:j]
+        out[day] = ((min(v for _, v in part), max(v for _, v in part))
+                    if _spans_day(part) else None)
+        i, day = j, day + _dt.timedelta(days=1)
+    return out
+
+
 def day_summary(state, station: Station, day: _dt.date, at: _dt.datetime) -> dict | None:
     """A local day's weather from the station as it stood at `at`: `tmin`, `tmax`,
     `rh_mean`, `rs` (MJ m-2), `u2` (m/s), `rain` (mm), each None when its series did not

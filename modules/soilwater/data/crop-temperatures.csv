@@ -1,0 +1,21 @@
+crop,tbase_c,tupper_c,review_table,review_crop,tbase_reported,tupper_reported
+bean,10,32.5,5,"Bean (Phaseolus vulgaris)",9 10 10,30 35
+beet,4.44,29.5,1,"Table beets (Beta vulgaris)",4 4.44 4.44,35 24
+broccoli,4.7,27,2,"Broccoli (B. oleracea var. italica)",4.4 5,24 30
+cabbage,4.2,27,2,"Cabbage (B. oleracea)",4 4.4,30 24
+carrot,4.44,29,1,"Carrots (Daucus carota)",4 4.44 6,28 30
+cauliflower,4.22,30,2,"Cauliflower (B. oleracea var. botrytis)",4 4.44,30
+corn,9.5,30,8,"Maize (Zea mays)",8 8 8 9.5 10 10 10,30 33 41 29.5 30
+cucumber,10,35,3,"Cucumber (Cucumis sativus)",10 10,35
+lettuce,4,28,2,"Lettuce (Lactuca sativa)",3.5 4 4 4.5,28 28
+muskmelon,10,38,3,"Melon (Cucumis melo); 45 left out, which the review calls likely too high",10 10,38
+onion,2,35,1,"Onions (Allium cepa)",1.76 2 5,29.5 35 45
+pea,4.75,27,5,"Pea (Pisum sativum)",4.5 4.5 5 5,27 27
+pepper,10,34.5,3,"Bell & Chili pepper (Capsicum annuum)",10 10,34 35
+potato,2,34,1,"Potato (Solanum tuberosum)",2 2 2 4.4 5,34 26 35 30 35
+pumpkin,8.6,35,3,"Pumpkin (Cucurbita pepo)",7.2 10,32 38
+radish,4,32.5,1,"Radish (Raphanus sativus)",4 4 4.44,30 35
+spinach,4.2,24.5,2,"Spinach (Spinacia oleracea)",4 4.4,25 24
+squash,9,35,3,"Squash, Zucchini (Cucurbita pepo)",8 10,32 38
+tomato,8,30,3,"Tomato (Solanum lycopersicum)",7 8 10,28 33 30
+watermelon,11.35,37,3,"Watermelon (Citrullus lanatus)",10 12.7,37

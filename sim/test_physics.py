@@ -201,6 +201,30 @@ class TestLayeredBed(unittest.TestCase):
         bed.set_roots(10.0)
         self.assertEqual(bed.depth_mm, 25.0, "at least one layer")
 
+    def test_below_field_capacity_water_creeps_up_to_drier_soil_only_when_asked(self):
+        """Roots that stop at 30 cm dry the soil above; below, water creeps up into it, by
+        night as by day, and none is lost or made. Off, the soil below stays as it was."""
+        def run(k):
+            bed = ph.LayeredBed(name="row", depth_mm=300.0, unsaturated_mm_per_h=k,
+                                horizons=(ph.Horizon(600.0, **ph.SANDY_LOAM),))
+            for i in range(12):
+                bed.layers[i] = 0.12
+            bed._mean()
+            before = bed.stored_mm
+            world = ph.World(start=JUNE, climate=_dry_climate(), beds=[bed])
+            night = []
+            for n, _ in enumerate(world.run(days=2)):
+                if n in (22 * 12, 30 * 12):                 # 22:00 to 06:00
+                    night.append(bed.theta_at(0.31))
+            return bed, before, night
+        still, _, _ = run(0.0)
+        self.assertEqual(still.theta_at(0.31), ph.SANDY_LOAM["field_capacity"])
+        creeping, before, night = run(0.01)
+        self.assertLess(creeping.theta_at(0.31), ph.SANDY_LOAM["field_capacity"] - 0.002)
+        self.assertLess(night[1], night[0], "it creeps at night too")
+        self.assertAlmostEqual(creeping.stored_mm + creeping.et_mm + creeping.deep_mm, before,
+                               places=6)
+
     def test_it_starts_soaked_and_drained_layer_by_layer(self):
         bed = _layered()
         self.assertEqual(bed.theta_at(0.05), ph.SANDY_LOAM["field_capacity"])

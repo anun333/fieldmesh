@@ -390,6 +390,138 @@ class WeatherGarden(Garden):
                          solar_radiation=ds["sun"].id, precipitation=ds["rain"].id)
 
 
+TOMATOES_AND_LETTUCE = (("tomato", _dt.date(2026, 5, 1)), ("lettuce", _dt.date(2026, 6, 15)))
+
+
+class TestPlantingsAtDifferentStages(unittest.TestCase):
+    """Tomatoes sown on 1 May with lettuce sown among them on 15 June: on 1 July the
+    tomatoes are 61 days on, roots to 58 cm, the lettuce 16, roots to 15."""
+
+    def test_the_roots_span_a_range_and_the_coefficient_is_the_mean(self):
+        bed = S.Bed(uuid7(), 0.30, 0.12, plantings=TOMATOES_AND_LETTUCE)
+        g = S.grown(bed, _dt.date(2026, 7, 1))
+        tomato_kc, tomato_root = S.crop_day("tomato", 61)
+        lettuce_kc, lettuce_root = S.crop_day("lettuce", 16)
+        self.assertEqual((g.root_depth_mm, g.timing_depth_mm), (tomato_root, lettuce_root))
+        self.assertAlmostEqual(g.crop_coefficient, (tomato_kc + lettuce_kc) / 2)
+        self.assertAlmostEqual(g.timing_raw_mm, 0.18 / 3 * lettuce_root)
+        self.assertAlmostEqual(g.raw_mm, 0.18 / 3 * tomato_root)
+        before = S.grown(bed, _dt.date(2026, 6, 1))
+        self.assertEqual((before.root_depth_mm, before.timing_depth_mm),
+                         (S.crop_day("tomato", 31)[1], None), "the lettuce not yet sown")
+
+    def test_one_crop_or_plantings_and_each_known(self):
+        with self.assertRaises(ValueError):
+            S.Bed(uuid7(), 0.30, 0.12, crop="tomato", planted=_dt.date(2026, 5, 1),
+                  plantings=TOMATOES_AND_LETTUCE)
+        with self.assertRaises(ValueError):
+            S.Bed(uuid7(), 0.30, 0.12, plantings=(("kohlrabi", _dt.date(2026, 5, 1)),))
+        with self.assertRaises(ValueError):
+            S.Bed(uuid7(), 0.30, 0.12, plantings=(("lettuce", None),))
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestAdviceForPlantingsAtDifferentStages(unittest.TestCase):
+
+    def test_by_probes_the_young_roots_time_it_and_the_old_set_the_refill(self):
+        """The probe at 10 cm, among the lettuce's roots, is 0.07 under field capacity; the
+        one at 40 cm, 0.01. The tomatoes alone have water to spare; the lettuce is due."""
+        at = _dt.datetime(2026, 7, 1, 9, tzinfo=_dt.timezone.utc)
+        g = Garden()
+        g.probe(lambda h: 0.23, depth=0.10, start=at - 52 * HOUR)
+        g.probe(lambda h: 0.29, depth=0.40, start=at - 52 * HOUR)
+        g.bed = S.replace(g.bed, crop="tomato", planted=_dt.date(2026, 5, 1))
+        alone, d = g.advice(at)
+        self.assertIn(alone, ("soil-water-soon", "soil-enough"))
+        refill = d["context"]["refill_mm"]
+        g.bed = S.Bed(g.land, 0.30, 0.12, plantings=TOMATOES_AND_LETTUCE)
+        rule, d = g.advice(at)
+        c = d["context"]
+        self.assertEqual(rule, "soil-water-now")
+        self.assertEqual((c["timing_depth_cm"], c["root_depth_cm"], c["plantings"]), (15, 58, 2))
+        self.assertAlmostEqual(c["timing_depletion_mm"], 0.07 * 150.0, places=1)
+        self.assertAlmostEqual(c["refill_mm"], refill, places=1)
+        text = S.render(d, "en")
+        self.assertIn("its shallowest roots, in the top 15 cm, have used 39%", text)
+        self.assertIn("down to its deepest roots at 58 cm", text)
+        self.assertEqual([p["crop"] for p in d["inputs"]["plantings"]], ["tomato", "lettuce"])
+
+    def test_young_roots_drying_fast_are_watered_a_day_early(self):
+        """The probe at 10 cm has fallen 0.05 since yesterday: the lettuce's 15 cm has used
+        7.5 mm, short of its 9, but at about 7 mm a day it would be past half its 27 by
+        tomorrow."""
+        at = _dt.datetime(2026, 7, 1, 9, tzinfo=_dt.timezone.utc)
+        g = Garden()
+        g.probe(lambda h: min(0.30, 0.25 + 0.05 * (52 - h) / 24.0), depth=0.10,
+                start=at - 52 * HOUR)
+        g.probe(lambda h: 0.29, depth=0.40, start=at - 52 * HOUR)
+        g.bed = S.Bed(g.land, 0.30, 0.12, plantings=TOMATOES_AND_LETTUCE)
+        rule, d = g.advice(at)
+        c = d["context"]
+        self.assertEqual(rule, "soil-water-now")
+        self.assertLess(c["timing_depletion_mm"], 9.0)
+        self.assertGreaterEqual(c["timing_depletion_mm"] + c["timing_drying_mm_per_day"], 13.5)
+
+    def test_soil_past_field_capacity_below_does_not_fill_the_dry_top(self):
+        """The probe at 40 cm reads 0.33, draining: averaged with the dry top it would say
+        the bed has lost nothing. Each probe's own deficit counts, none its surplus."""
+        at = _dt.datetime(2026, 7, 1, 9, tzinfo=_dt.timezone.utc)
+        g = Garden()
+        g.probe(lambda h: 0.23, depth=0.10, start=at - 52 * HOUR)
+        g.probe(lambda h: 0.33, depth=0.40, start=at - 52 * HOUR)
+        g.bed = S.Bed(g.land, 0.30, 0.12, plantings=TOMATOES_AND_LETTUCE)
+        rule, d = g.advice(at)
+        c = d["context"]
+        self.assertEqual(rule, "soil-water-now")
+        self.assertFalse(c["wetter_than_capacity"])
+        weights = S.weights([0.10, 0.40], c["root_depth_mm"] / 1000.0)
+        self.assertAlmostEqual(c["refill_mm"], weights[0] / sum(weights) * 0.07
+                               * c["root_depth_mm"], places=0)
+
+    def test_by_the_weather_the_young_roots_time_it_too(self):
+        g = WeatherGarden()
+        station = g.station(8, rain={0: 80.0})
+        at = TestByTheWeather.MORNING(4)
+        g.bed = S.replace(g.bed, crop="tomato", planted=_dt.date(2026, 5, 1))
+        self.assertEqual(g.advice(at, station=station)[0], "soil-weather-enough")
+        g.bed = S.Bed(g.land, 0.30, 0.12, plantings=TOMATOES_AND_LETTUCE)
+        rule, d = g.advice(at, station=station)
+        self.assertEqual(rule, "soil-weather-water-now")
+        self.assertIn("its shallowest roots, in the top 15 cm", S.render(d, "en"))
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestTheCropsClockByTheSeasonsWarmth(unittest.TestCase):
+    """Tomatoes sown on 1 July, the station's days 20 to 32 °C: 18 degree-days a day over
+    their base of 8, where the farm's normal year gives 11 (`thermal`)."""
+
+    def setUp(self):
+        import thermal as T
+        self.g = WeatherGarden()
+        self.station = self.g.station(12)
+        self.g.bed = S.replace(self.g.bed, crop="tomato", planted=_dt.date(2026, 7, 1))
+        past = {}
+        for y in range(2010, 2020):
+            d = _dt.date(y, 1, 1)
+            while d.year == y:
+                past[d] = (14.0, 24.0)
+                d += _dt.timedelta(days=1)
+        self.normal = T.Normal(past)
+
+    def context(self, advisor):
+        return advisor.judge(self.g.state, self.g.bed, TestByTheWeather.MORNING(10),
+                             station=self.station)["context"]
+
+    def test_a_warm_summer_runs_the_crop_ahead_of_the_calendar(self):
+        c = self.context(S.Advisor(Log(), normal=self.normal))
+        self.assertEqual((c["calendar_days"], c["by_warmth"]), (10, True))
+        self.assertAlmostEqual(c["crop_days"], 10 * 18 / 11, places=1)
+
+    def test_without_the_farms_normal_year_it_keeps_the_calendar(self):
+        c = self.context(S.Advisor(Log()))
+        self.assertEqual((c["calendar_days"], c["crop_days"], c["by_warmth"]), (10, 10, False))
+
+
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestLookingAheadToTomorrow(unittest.TestCase):
     """A bed with 15 cm of roots holds 27 mm its plants can use: a third gone is 9 mm, half
@@ -591,7 +723,7 @@ class TestTheCropThroughItsSeason(unittest.TestCase):
         import hashlib
         with open(os.path.join(HERE, "data", "MANIFEST.csv"), encoding="utf-8") as h:
             rows = list(csv.DictReader(line for line in h if not line.startswith("#")))
-        self.assertEqual({r["file"] for r in rows}, {"fao56-crops.csv"})
+        self.assertEqual({r["file"] for r in rows}, {"fao56-crops.csv", "crop-temperatures.csv"})
         for r in rows:
             with open(os.path.join(HERE, "data", r["file"]), "rb") as h:
                 self.assertEqual(hashlib.sha256(h.read()).hexdigest(), r["sha256"])
@@ -692,6 +824,46 @@ class TestRootsSeenByTheirProbes(unittest.TestCase):
         self.assertEqual((rate, there), (0.0, None))
 
 
+def by_day(start, per_day):
+    """Readings that fall `per_day` a day, all of it from 06:00 to 18:00: the stair-step."""
+    def theta(h):
+        days, hour = divmod(h, DAY_H)
+        return start - per_day * (days + min(1.0, max(0.0, (hour - 6) / 12.0)))
+    return theta
+
+
+class TestTheStairStep(unittest.TestCase):
+    """With the farm's timezone, `root_signs` reads the stair-step: roots draw by day. The
+    test's farm keeps UTC."""
+
+    def signs(self, theta, *, days=16, timezone="UTC"):
+        g = Garden()
+        g.probe(theta, depth=0.30, hours=days * DAY_H)
+        return S.root_signs(g.state, g.bed, T0 + days * DAY_H * HOUR, timezone)
+
+    def test_falling_by_day_is_roots_before_the_soil_is_far_under_field_capacity(self):
+        """0.003 a day for five days: 0.015 down, not yet 0.02 under field capacity."""
+        theta = by_day(0.30, 0.003)
+        (_, _, there), = self.signs(theta, days=5)
+        self.assertIs(there, True)
+        (_, _, there), = self.signs(theta, days=5, timezone=None)
+        self.assertIsNone(there)
+
+    def test_falling_by_night_as_by_day_is_no_roots(self):
+        """0.004 a day around the clock, as water draining or creeping up to roots above:
+        well under field capacity in a fortnight, which without the clock looks like roots."""
+        theta = lambda h: 0.30 - 0.004 * h / DAY_H
+        (_, _, there), = self.signs(theta)
+        self.assertIs(there, False)
+        (_, _, there), = self.signs(theta, timezone=None)
+        self.assertIs(there, True)
+
+    def test_its_days_run_04_00_to_04_00_on_the_farms_clock(self):
+        at = _dt.datetime(2026, 7, 10, 9, tzinfo=_dt.timezone.utc)      # 04:00 in Chicago
+        begin, end, day = S._sign_days(at, "America/Chicago")[0]
+        self.assertEqual((begin.hour, end, day), (9, at, _dt.date(2026, 7, 9)))
+
+
 class TestTheRootsTheAdviceCounts(unittest.TestCase):
     """`rooted`: the probes only ever make the root zone shallower than the crop's curve."""
 
@@ -699,10 +871,18 @@ class TestTheRootsTheAdviceCounts(unittest.TestCase):
         signs = [(0.10, 0.006, True), (0.30, 0.0, False), (0.60, 0.0, False)]
         self.assertEqual(S.rooted(700.0, signs), (200.0, 0.10, 0.30))
 
-    def test_not_while_the_curve_has_only_just_passed_it(self):
+    def test_not_until_the_curve_is_15_cm_past_it(self):
         signs = [(0.10, 0.006, True), (0.30, 0.0, False)]
-        self.assertEqual(S.rooted(350.0, signs), (350.0, 0.10, None))
-        self.assertEqual(S.rooted(400.0, signs), (200.0, 0.10, 0.30))
+        self.assertEqual(S.rooted(400.0, signs), (400.0, 0.10, None))
+        self.assertEqual(S.rooted(450.0, signs), (200.0, 0.10, 0.30))
+
+    def test_a_stop_that_stands_holds_on_a_morning_that_cannot_see_it(self):
+        """Waterings left the probe at 10 cm too few dry days to judge by this morning."""
+        signs = [(0.10, 0.0, None), (0.30, 0.0, False)]
+        self.assertEqual(S.rooted(700.0, signs), (700.0, 0.0, None))
+        self.assertEqual(S.rooted(700.0, signs, held=(0.10, 0.30)), (200.0, 0.10, 0.30))
+        self.assertEqual(S.rooted(400.0, signs, held=(0.10, 0.30)), (400.0, 0.0, None),
+                         "and only where the curve is 15 cm past the probe")
 
     def test_roots_deeper_than_the_curve_are_not_counted(self):
         signs = [(0.10, 0.006, True), (0.60, 0.004, True)]
@@ -721,7 +901,8 @@ class TestTheRootsTheAdviceCounts(unittest.TestCase):
 class TestRootsThatStop(unittest.TestCase):
     """Tomatoes 80 days from sowing should have roots to 70 cm. The probe at 10 cm dries well
     below field capacity, the one at 30 cm stays level: something stops the roots between
-    them, and the advice counts them to 20 cm and says so."""
+    them. The advice times its watering by the top 20 cm, still refills to 70, and says
+    so."""
 
     def garden(self, **bed):
         g = Garden()
@@ -731,19 +912,19 @@ class TestRootsThatStop(unittest.TestCase):
                           planted=SIGNS_AT.date() - _dt.timedelta(days=80), **bed)
         return g
 
-    def test_the_advice_counts_the_roots_to_half_way_and_a_note_says_why(self):
+    def test_the_advice_is_timed_by_the_top_and_a_note_says_why(self):
         g = self.garden()
         log = Log()
         out = S.Advisor(log).advise(g.state, [g.bed], SIGNS_AT)
         advice, note = (e.payload for e in out)
         c = advice["context"]
-        self.assertEqual((c["roots_expected_cm"], c["root_depth_cm"], c["roots_seen_cm"],
-                          c["roots_blocked_cm"]), (70, 20, 10, 30))
+        self.assertEqual((c["roots_expected_cm"], c["root_depth_cm"], c["timing_depth_cm"],
+                          c["roots_seen_cm"], c["roots_blocked_cm"]), (70, 70, 20, 10, 30))
         self.assertEqual(note["rule"], "soil-roots-blocked")
         text = S.render(note, "en")
         self.assertIn("about 70 cm", text)
         self.assertIn("at 30 cm has stayed level", text)
-        self.assertIn("to 20 cm", text)
+        self.assertIn("when the top 20 cm has used its share, and still refills to 70 cm", text)
         self.assertIn("rooting limit", text)
         self.assertIn("30 cm", S.render(note, "es"))
         us = S.render(note, "en", units="us")
@@ -760,6 +941,23 @@ class TestRootsThatStop(unittest.TestCase):
         c = out[0].payload["context"]
         self.assertEqual((c["roots_expected_cm"], c["root_depth_cm"], c["roots_blocked"]),
                          (25, 25, False))
+
+    def test_a_stop_stands_once_seen_on_three_of_the_last_seven_mornings(self):
+        g = self.garden()
+        log = Log()
+        advisor = S.Advisor(log)
+
+        def morning(days_ago, blocked):
+            when = SIGNS_AT - _dt.timedelta(days=days_ago)
+            log.append(S.R.DECISION, {
+                "subject": str(g.bed.feature), "topic": f"advice/{g.bed.feature}",
+                "evaluated_at": when.isoformat(), "rule": "soil-soon",
+                "context": {"roots_blocked": blocked, "roots_seen_cm": 10, "roots_blocked_cm": 30}})
+        for days_ago, blocked in ((9, True), (8, True), (6, True), (5, False), (3, True)):
+            morning(days_ago, blocked)
+        self.assertIsNone(advisor._held(g.bed, SIGNS_AT), "two in the last week")
+        morning(1, True)
+        self.assertEqual(advisor._held(g.bed, SIGNS_AT), (0.10, 0.30))
 
     def test_a_bed_with_no_crop_named_reads_no_signs(self):
         g = Garden()
@@ -1266,6 +1464,14 @@ class TestAsItsOwnProcess(unittest.TestCase):
                                                   forecast=forecast)
                 self.assertEqual((remote["rule"], remote["context"]),
                                  (local["rule"], local["context"]))
+
+    def test_its_manifest_declares_the_stations_series_and_the_valves(self):
+        """The balance reads a station's weather and a bed's valve; a sown crop's clock, its
+        air temperature. A grant can give no more than the manifest declares."""
+        manifest = self.M.Manifest.load(os.path.join(HERE, "module.json"))
+        self.M.grant(Log(), manifest, properties=[
+            V.AIR_TEMPERATURE, V.RELATIVE_HUMIDITY, V.SOLAR_RADIATION, V.WIND_SPEED,
+            V.PRECIPITATION_DEPTH, V.VALVE_OPEN, V.SOIL_WATER, V.SOIL_WATER_POTENTIAL])
 
     def test_as_a_process_it_writes_one_decision_per_bed(self):
         config = os.path.join(self.dir, "beds.json")

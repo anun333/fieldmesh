@@ -7,7 +7,12 @@
   "observed_properties": [
    "http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil/",
    "http://vocab.nerc.ac.uk/standard_name/lwe_thickness_of_precipitation_amount/",
-   "http://vocabulary.odm2.org/variablename/waterPotential/"
+   "http://vocabulary.odm2.org/variablename/waterPotential/",
+   "http://vocab.nerc.ac.uk/standard_name/air_temperature/",
+   "http://vocab.nerc.ac.uk/standard_name/relative_humidity/",
+   "http://vocab.nerc.ac.uk/standard_name/surface_downwelling_shortwave_flux_in_air/",
+   "http://vocab.nerc.ac.uk/standard_name/wind_speed/",
+   "https://anun333.github.io/fieldmesh/vocab/valve_open/"
   ]
  },
  "writes": [
