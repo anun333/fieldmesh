@@ -552,6 +552,83 @@ class TestATensionSensorBesideTheProbe(unittest.TestCase):
         self.assertEqual(d["context"]["measured_probes"], 0)
 
 
+class TestTheCropThroughItsSeason(unittest.TestCase):
+    """FAO-56's curve for a sown crop (`crop_day`): its crop coefficient by stage (Table 12),
+    and its roots from 15 cm at sowing (Annex 8) to the shallow end of Table 22's maximum as
+    mid-season begins."""
+
+    def test_tomatoes_from_sowing_to_the_end(self):
+        """30, 40, 45 and 30 days; 0.6, 1.15 and 0.80; roots to 0.7 m."""
+        self.assertEqual(S.crop_day("tomato", 0), (0.6, 150.0))
+        kc, root = S.crop_day("tomato", 50)                     # half way through development
+        self.assertAlmostEqual(kc, 0.6 + 0.5 * (1.15 - 0.6))
+        self.assertAlmostEqual(root, 150.0 + 0.5 * (700.0 - 150.0))
+        self.assertEqual(S.crop_day("tomato", 80), (1.15, 700.0))
+        self.assertAlmostEqual(S.crop_day("tomato", 145)[0], 0.80)
+        self.assertAlmostEqual(S.crop_day("tomato", 400)[0], 0.80)
+
+    def test_an_established_lawn_is_the_same_all_year(self):
+        self.assertEqual(S.crop_day("turf_cool", 0), S.crop_day("turf_cool", 200))
+        S.Bed(uuid7(), 0.30, 0.12, crop="turf_cool")             # no sowing date needed
+
+    def test_a_sown_crop_needs_its_date_and_a_known_name(self):
+        with self.assertRaises(ValueError):
+            S.Bed(uuid7(), 0.30, 0.12, crop="tomato")
+        with self.assertRaises(ValueError):
+            S.Bed(uuid7(), 0.30, 0.12, crop="kohlrabi", planted=_dt.date(2026, 5, 1))
+
+    def test_the_bed_is_as_its_crop_is_that_day(self):
+        bed = S.Bed(uuid7(), 0.30, 0.12, crop="bean", planted=_dt.date(2026, 5, 1))
+        young, grown = S.grown(bed, _dt.date(2026, 5, 10)), S.grown(bed, _dt.date(2026, 7, 1))
+        self.assertEqual((young.root_depth_mm, young.crop_coefficient), (150.0, 0.5))
+        self.assertEqual((grown.root_depth_mm, grown.crop_coefficient), (500.0, 1.05))
+        self.assertLess(young.raw_mm, grown.raw_mm)
+        plain = S.Bed(uuid7(), 0.30, 0.12)
+        self.assertIs(S.grown(plain, _dt.date(2026, 7, 1)), plain)
+
+    def test_the_crop_table_is_what_the_manifest_says(self):
+        import csv
+        import hashlib
+        with open(os.path.join(HERE, "data", "MANIFEST.csv"), encoding="utf-8") as h:
+            rows = list(csv.DictReader(line for line in h if not line.startswith("#")))
+        self.assertEqual({r["file"] for r in rows}, {"fao56-crops.csv"})
+        for r in rows:
+            with open(os.path.join(HERE, "data", r["file"]), "rb") as h:
+                self.assertEqual(hashlib.sha256(h.read()).hexdigest(), r["sha256"])
+        self.assertEqual(len(S.CROPS), 22)
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestAdviceForAGrowingCrop(unittest.TestCase):
+
+    def test_a_seedlings_roots_do_not_reach_a_probe_a_grown_crops_do(self):
+        """Ten days after sowing tomatoes have 15 cm of roots: a probe at 20 cm is below
+        them, and the bed has no probe in its root zone. Eighty days on, it reads for 70 cm."""
+        g = Garden()
+        g.probe(lambda h: 0.25)
+        g.bed = S.replace(g.bed, crop="tomato", planted=MORNING.date() - _dt.timedelta(days=10))
+        rule, d = g.advice()
+        self.assertEqual(rule, "soil-no-probe")
+        self.assertEqual(d["context"]["root_depth_cm"], 15)
+        g.bed = S.replace(g.bed, planted=MORNING.date() - _dt.timedelta(days=80))
+        rule, d = g.advice()
+        self.assertNotEqual(rule, "soil-no-probe")
+        self.assertEqual(d["context"]["root_depth_cm"], 70)
+
+    def test_the_balance_charges_a_young_crop_less(self):
+        """Lettuce sown the day of the soaking: 0.7 of the reference ET through its first
+        twenty days, where a bed with no crop named takes 1, and its 15 cm of roots pass the
+        point where the crop slows sooner than 30 cm would: about 0.6 of the depletion."""
+        g = WeatherGarden()
+        station = g.station(12, rain={0: 80.0})
+        at = TestByTheWeather.MORNING(8)
+        plain = S.bed_context(g.state, g.bed, at, station=station)[0]["depletion_mm"]
+        lettuce = S.replace(g.bed, crop="lettuce", planted=_dt.date(2026, 7, 1))
+        young = S.bed_context(g.state, lettuce, at, station=station)[0]["depletion_mm"]
+        self.assertLess(young, 0.7 * plain)
+        self.assertGreater(young, 0.5 * plain)
+
+
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestByTheWeather(unittest.TestCase):
     """A bed with no probe, advised from the farm's own station (`weather_balance`)."""

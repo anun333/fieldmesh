@@ -264,6 +264,65 @@ for that probe's slice; the decision says which (`"how": "measured"`). A tension
 pairs with a probe installed within 2 cm of its depth; its raw series reports tension and
 is calibrated with `a = -1`, as fieldmesh records water potential, never above zero.
 
+## A crop that grows
+
+A seedling draws little water from a few centimetres of soil; a full canopy draws more
+than the reference grass, from deep. A bed told its crop and the day it was sown
+(`Bed.crop`, `Bed.planted`) follows FAO-56's curve for that crop through its season
+(`crop_day`, [data/fao56-crops.csv](data/fao56-crops.csv)):
+
+* **its crop coefficient** by stage (Table 12): the initial value through the initial
+  stage, rising in a line to the mid-season value over the development stage, holding,
+  and falling to the end value over the late season, the stages' days from Table 11;
+* **its roots** from 15 cm at sowing (Annex 8: "0.15 to 0.20 m" for many annual crops) to
+  the shallow end of Table 22's maximum depth as mid-season begins, growing with the
+  crop's development (Annex 8, Eq. 8-1, taken by time, so a crop whose coefficient does
+  not rise still roots).
+
+The day's root depth sets the root zone the probes are weighed over and the water it
+holds, and the day's coefficient drives the weather balance; an established lawn
+(`turf_cool`, `turf_warm`) holds its mid-season values all year. A probe below a
+seedling's roots counts for nothing until the roots reach it: ten days after sowing,
+tomatoes' 15 cm of roots do not reach a probe at 20 cm.
+
+For each of 22 crops, Table 11's row is the sowing nearest a temperate spring or summer,
+named in the file; broccoli, cabbage and cauliflower have only a September sowing there.
+A range is taken at its middle. Table 22's depletion fractions are in the file but not
+used: the advice keeps a third.
+
+**Backtested** on McAllister Farm's thirty summers, sown on 1 May, the virtual crop
+growing by the same curve in a silt loam 1.5 m deep, probes at 10 and 30 cm. "Not known"
+is the bed as it was before: 30 cm of roots and a coefficient of 1 all season.
+
+| | water, mean a season | summers short | hours short, in all | worst season |
+| --- | --- | --- | --- | --- |
+| tomatoes by the weather, crop not known | 360 mm | 0 | 0 | 0 |
+| **tomatoes by the weather, crop known** | **293 mm** | **0** | **0** | **0** |
+| tomatoes by probes, crop not known | 120 mm | 18 | 2,174 | 623 h |
+| **tomatoes by probes, crop known** | **246 mm** | **5** | **391** | **239 h** |
+| lettuce by the weather, crop not known | 159 mm | 0 | 0 | 0 |
+| **lettuce by the weather, crop known** | **137 mm** | **0** | **0** | **0** |
+| lettuce by probes, crop not known | 98 mm | 15 | 566 | 94 h |
+| **lettuce by probes, crop known** | **119 mm** | **2** | **30** | **16 h** |
+
+* **By the weather**, a crop not known is charged a full canopy's water from sowing: it
+  was given a fifth more than it needed (360 mm against 293 for tomatoes), drained below
+  the roots.
+* **By probes**, a crop not known is starved. The advice refills the 30 cm it was told
+  of, while tomatoes' roots draw on 70 cm and run the deep soil down through the summer;
+  lettuce seedlings, with 15 cm, wait too long while the advice counts 30. Knowing the
+  crop, it waters more and is short far less.
+* **Probes for a deep root zone.** Tomatoes known were still short in 5 summers: probes at
+  10 and 30 cm do not see the soil from 30 to 70 cm the roots draw on. With a third at
+  60 cm they were never short in thirty summers, given 319 mm a season against 246; only
+  11 mm more drained, so the rest went to a crop no longer held back. For a deep-rooted
+  crop, a probe in the deeper half of its roots.
+
+The virtual crop grows by the very curve the advice is told, so this shows what knowing
+the curve is worth when the curve is right, not how right FAO-56's curve is for a given
+field: a real crop's stages run early or late with the season, which is what its probes
+are for.
+
 ## By the weather, with no probe
 
 A bed with no probe used to get "no probe" and nothing else. Given the farm's own station
@@ -475,7 +534,8 @@ drying; this records why.
 * the watering check as part of the module's own process, rather than the backtest and
   the library;
 * the dose as a duration for a given drip line;
-* the crop's `p` and root depth from the farm's planting records;
+* the crop and its sowing date from the farm's planting records, rather than set by hand
+  (`Bed.crop`, `Bed.planted`); and the crop's own depletion fraction, which the file holds;
 * a wilting point learned from the probes: that needs the crop's lower limit, the
   driest its roots take a probe to, which a well-watered bed never shows. A tension
   sensor beside the probe could read it off the retention curve at 1500 kPa, beyond a
@@ -484,5 +544,5 @@ drying; this records why.
   cycle-and-soak worked out from the bed itself;
 * each bed's drying rate and the share of rain that reaches it, learned, to set beside
   its recorded surface and planting;
-* for a bed advised by the weather, the crop's coefficient through the season, rather
-  than one number.
+* a crop's stages run early or late with the season's warmth: growing degree-days rather
+  than FAO-56's fixed days.

@@ -184,6 +184,23 @@ class TestLayeredBed(unittest.TestCase):
     """A bed of horizons, for the soil the survey does not describe: brought-in
     topsoil, sod's soil, a compacted subsoil (`physics.LayeredBed`)."""
 
+
+    def test_roots_that_deepen_reach_the_water_below(self):
+        """A seedling's 15 cm of roots in a dry top, over soil still at field capacity: as
+        the roots deepen, the root zone's water rises and its stress falls."""
+        bed = ph.LayeredBed(name="row", depth_mm=150.0,
+                            horizons=(ph.Horizon(600.0, **ph.SANDY_LOAM),))
+        for i in range(6):
+            bed.layers[i] = 0.12
+        bed._mean()
+        shallow = (bed.theta, bed.stress)
+        bed.set_roots(400.0)
+        self.assertEqual(bed.depth_mm, 400.0)
+        self.assertGreater(bed.theta, shallow[0])
+        self.assertLess(bed.stress, shallow[1])
+        bed.set_roots(10.0)
+        self.assertEqual(bed.depth_mm, 25.0, "at least one layer")
+
     def test_it_starts_soaked_and_drained_layer_by_layer(self):
         bed = _layered()
         self.assertEqual(bed.theta_at(0.05), ph.SANDY_LOAM["field_capacity"])

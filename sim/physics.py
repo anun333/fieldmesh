@@ -564,6 +564,21 @@ class LayeredBed(SoilBed):
     def _mean(self) -> None:
         self.theta = sum(self.layers[:self._roots]) / self._roots
 
+    def set_roots(self, depth_mm: float) -> None:
+        """The roots reach `depth_mm` now, to the nearest whole layer (at least one, at most
+        the soil): a crop growing through its season. The soil they reach holds whatever
+        water it held; the limits of the root zone are its new layers'."""
+        roots = max(1, min(len(self._props), int(round(depth_mm / self.layer_mm))))
+        if roots == self._roots:
+            return
+        self._roots = roots
+        self.depth_mm = roots * self.layer_mm
+        top = self._props[:roots]
+        self.saturation = sum(h.saturation for h in top) / len(top)
+        self.field_capacity = sum(h.field_capacity for h in top) / len(top)
+        self.wilting_point = sum(h.wilting_point for h in top) / len(top)
+        self._mean()
+
     def theta_at(self, depth_m: float) -> float:
         """What a probe at `depth_m` reads: the water of the layer it sits in."""
         i = min(len(self.layers) - 1, max(0, int(depth_m * 1000.0 / self.layer_mm)))

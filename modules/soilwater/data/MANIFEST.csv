@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# The soil-moisture advisory's data: every file, where it came from, its licence, when it was
+# taken, and its SHA-256. test_soilwater.py checks it; regenerate a line when its file changes.
+file,source,licence,retrieved,sha256
+fao56-crops.csv,"R. G. Allen, L. S. Pereira, D. Raes and M. Smith, FAO Irrigation and Drainage Paper 56 (1998): Table 11 (stage lengths; one row a crop, the sowing nearest a temperate spring or summer, named in the last column), Table 12 (single crop coefficients; a crop group's initial value where a crop leaves it blank; a range's middle), Table 22 (maximum root depth range, depletion fraction). www.fao.org/4/x0490e. Measurements, with credit; FAO's text is its own. This file CC BY 4.0",CC-BY-4.0,2026-10-12,70371f84fd44beab6cce92d90756097f10d3bd52b3df91976d2ad41b8aaed704

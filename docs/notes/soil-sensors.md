@@ -56,6 +56,7 @@ the bridge already reads.
 | for | probe | why |
 | --- | --- | --- |
 | a pilot's reference bed | two Stevens HydraProbes (Modbus) or TEROS 12s, at the root zone's middle and below it | the checks were proven on HydraProbes, and two probes catch each other's drift |
+| a deep-rooted crop (tomatoes, squash, corn) | a third probe in the deeper half of its roots, at about 60 cm | with probes at 10 and 30 cm, tomatoes were short in 5 summers of 30; with one at 60 cm too, never ([soil advisory](../../modules/soilwater/README.md#a-crop-that-grows)) |
 | a farm on LoRaWAN | a Dragino or Milesight probe, two per bed | it works with fieldmesh today |
 | a farm that builds | capacitive v1.2 on ESPHome, only in pairs, each calibrated in that soil | it is cheap, but a trend until calibrated |
 
