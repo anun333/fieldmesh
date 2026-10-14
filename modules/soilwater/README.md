@@ -290,10 +290,33 @@ processing crop; `lettuce`, `potato`, `broccoli`, `corn` (sweet corn) and `muskm
 the short season and `…:long` the long; `pea` is fresh peas for market and
 `pea:industry` the processing crop. Against the 1998 edition, tomatoes' roots now reach
 0.6 m, not 0.7, and their end-of-season coefficient is 1.00 for the fresh market, not
-0.80; lettuce's mid and end values are 1.05, not 1.00 and 0.95. **Lawns keep the 1998
-values**: the revision lowers a mown lawn's coefficient to 0.50–0.70 (0.55–0.65 on
-average) against 1998's 0.85 and 0.95, which would change every lawn result in
-fieldmesh; that waits on a decision.
+0.80; lettuce's mid and end values are 1.05, not 1.00 and 0.95.
+
+**Lawns: the 1998 values, and the revision's as `turf_lawn`.** The 2025 revision gives a
+mown lawn (cut under 10 cm) 0.50, 0.70 and 0.50 through its season (Table 6.4), against
+the 1998 edition's 0.95 for cool-season turf and 0.85 for warm; `turf_lawn` holds its
+0.70 all year, as the 1998 lawns hold theirs. Which is right for a given lawn matters
+only where no probe measures it: by the weather, a lawn told 0.70 is given about a third
+less water, and if it truly uses 0.95 it goes short. On the thirty summers, the lawn
+drill's tall fescue with 15 cm of roots, the advice by the weather and the virtual lawn
+using one value or the other:
+
+| the lawn truly uses | the advice is told | silt loam: water, summers short, hours | the builder's yard: water, summers short, hours |
+| --- | --- | --- | --- |
+| 1998's 0.95 | 0.95 (`turf_cool`) | 262 mm, 0, 0 | 288 mm, 1, 12 |
+| 1998's 0.95 | 0.70 (`turf_lawn`) | 164 mm, **10, 165** | 185 mm, **7, 87** |
+| the revision's 0.70 | 0.95 | 262 mm, 0, 0 (93 mm more drained) | 288 mm, 0, 0 (95 mm more drained) |
+| the revision's 0.70 | 0.70 | 164 mm, 0, 0 | 185 mm, 0, 0 |
+
+So `turf_cool` stays the default: told 0.95, a lawn is never short whichever is true, at
+the cost of drained water if the revision is right; told 0.70, it saves a third if the
+revision is right and is short in a third of summers if it is not. By a probe the value
+makes no difference at all, to the millimetre: the probe measures what the lawn used. A
+lawn with a probed bed nearby as its reference learns its own rate (`Bed.reference`,
+[below](#a-probe-nearby-corrects-the-balance)), which is how to find out, lawn by lawn.
+A lawn led by one probe at 7 cm was itself short in 13 summers of 30 (255 hours) where
+the same lawn by the weather never was: a shallow root zone's trouble, not the
+coefficient's ([UNTESTED](../../docs/UNTESTED.md)).
 
 The day's root depth sets the root zone the probes are weighed over and the water it
 holds, and the day's coefficient drives the weather balance; an established lawn
@@ -562,8 +585,29 @@ On the thirty summers:
 On the backtest bed it halved the hours short for 3% more water; on the shallow yard it
 changed nothing, the look-ahead ([above](#the-beds-own-soil)) already watering it a day
 early on those days. Raising p on mild days too, as FAO-56 does, saved water on the
-backtest bed and left it short in more summers. `adjust_p` is off by default: on, it
-would change every result here before it has met a real bed.
+backtest bed and left it short in more summers.
+
+**Whether to make it the default** was tried across the backtests above, each run again
+with it on (thirty summers each; water, summers short, hours short):
+
+| | off | `adjust_p` |
+| --- | --- | --- |
+| tomatoes by probes at 10 and 30 cm | 262 mm, 3, 178 | 354 mm, 0, 0 |
+| tomatoes by probes at 10, 30 and 60 cm | 257 mm, 3, 91 | 329 mm, 1, 13 |
+| lettuce among tomatoes, probes among the tomatoes: the lettuce | 255 mm, 29, 1,771 | 330 mm, 8, 311 |
+| lettuce among tomatoes, a probe named for each | 347 mm, 2, 17 | 375 mm, 2, 17 |
+| tomatoes over a pan at 30 cm, root signs | 309 mm, 2, 50 | 383 mm, 2, 50 |
+| the same, water creeping up below the pan | 340 mm, 0, 0 | 422 mm, 0, 0 |
+| the backtest bed under a tunnel, told | 376 mm, 3, 45 | 381 mm, 0, 0 |
+| lettuce by probes at 10 and 30 cm | 144 mm, 0, 0 | 154 mm, 0, 0 |
+| tomatoes or lettuce by the weather | 302 and 149 mm, 0, 0 | 303 and 150 mm, 0, 0 |
+| a lawn, by its probe or by the weather | the same | the same |
+
+It only acts where the crop draws well over 5 mm a day, which on this farm is tomatoes at
+mid-season; a lawn seldom does. There it ends most shortages, but at a quarter to a third
+more water, most of it drained, and costs that even where nothing was short: over a pan,
+a quarter more water for the same hours. **So it stays off by default**: a bed whose
+probes show it running short in hot spells can be given it.
 
 **A bed under cover.** Rain forecast for the farm does not reach a bed under a tunnel or
 a roof, and "rain is coming: wait" is the wrong advice for it. `Bed.rain_share` says how
@@ -813,7 +857,9 @@ drying; this records why.
 * a share of the rain between none and all, learned (a covered bed is: above);
 * the degree-days of the ten crops the 2025 revision gives only approximate ranges for
   (its Table 6.12), in place of the 1998 days taken at the farm's normal year;
-* lawns on the 2025 revision's coefficients, which are lower than 1998's and would change
-  every lawn result;
+* which lawn coefficient is right for a real lawn, 1998's or the revision's
+  (`turf_lawn`): a lawn's own rate, learned from a probed bed nearby, would say;
+* why a lawn led by one probe at 7 cm was short in 13 summers of 30 where the weather's
+  advice for it never was;
 * a check for a probe out of the ground: openSenseMap's LSE01 reading 2% soil water passes
   every check there is ([test data sources](../../docs/notes/test-data-sources.md)).

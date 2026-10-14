@@ -144,6 +144,14 @@ Runoff was small throughout: at most 9 mm a summer on average. It is covered bel
   and it scales by yesterday's weather, as OpenSprinkler's ETo method does
   ([irrigation projects](irrigation-projects.md#their-methods-on-thirty-summers)).
 
+* **How much water a lawn really uses.** The virtual lawn uses FAO-56's 1998 0.95. The
+  2025 revision gives a mown lawn 0.50 to 0.70 through its season (its Table 6.4), a
+  third less. Every policy here would water as it does, but the lawn would need less,
+  and the timer's waste would be larger still. fieldmesh's soil advisory keeps the 1998
+  value by default and offers the revision's as `turf_lawn`: told 0.70, by the weather,
+  it saved a third of the water when that is the lawn's true rate, and left it short in
+  a third of summers when it is not ([soil advisory](../../modules/soilwater/README.md#a-crop-that-grows)).
+
 The soils are assumed, and the "dry" and "soggy" lines are this note's, not agronomy's.
 Every number here is the simulator's ([UNTESTED](../UNTESTED.md)).
 

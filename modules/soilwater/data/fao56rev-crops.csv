@@ -26,3 +26,4 @@ squash,,1,0.50,1.00,0.70,0.60,1.10,0.45,10,32,,,,,"Table 6.1 Zucchini, Squash; 8
 tomato,market,1,0.60,1.10,1.00,0.60,1.20,0.40,7,28,325,660,880,200,"Table 6.1 Tomato, fresh market; 8.1 Tomato; 6.10 Tomato; 6.11 Tomato, market"
 tomato,processing,0,0.60,1.10,0.85,0.60,1.20,0.40,7,28,280,520,880,220,"Table 6.1 Tomato, for processing; 8.1 Tomato; 6.10 Tomato; 6.11 Tomato, industry"
 watermelon,,1,0.40,1.05,0.70,0.80,1.50,0.45,10,35,,,,,"Table 6.1 Watermelon; 8.1 Watermelon; 6.10 Watermelon"
+turf_lawn,,1,0.50,0.70,0.50,0.50,1.00,0.40,4,30,,,,,"Table 6.4 Turf grasses, lawns (cut h<0.10 m); 8.4 Landscape grasses, golf courses and lawns (cut h<0.10 m); 6.10 Grass pastures; roots: the 1998 edition's turf (Table 22), as Table 6.4 gives none"

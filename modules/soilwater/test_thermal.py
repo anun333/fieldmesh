@@ -36,7 +36,7 @@ class TestADaysDegreeDays(unittest.TestCase):
         self.assertEqual(T.THRESHOLDS["tomato:processing"], (7.0, 28.0))
         self.assertEqual(T.THRESHOLDS["lettuce"], (4.0, 28.0))
         self.assertEqual(T.THRESHOLDS["potato"], (2.0, 30.0))
-        self.assertEqual(len([k for k in T.THRESHOLDS if ":" not in k]), 20)
+        self.assertEqual(len([k for k in T.THRESHOLDS if ":" not in k]), 21, "20 sown, the lawn")
 
 
 class TestTheNormalYear(unittest.TestCase):

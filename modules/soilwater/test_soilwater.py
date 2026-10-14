@@ -833,6 +833,14 @@ class TestTheCropThroughItsSeason(unittest.TestCase):
         self.assertEqual(S.crop_day("turf_cool", 0), S.crop_day("turf_cool", 200))
         S.Bed(uuid7(), 0.30, 0.12, crop="turf_cool")             # no sowing date needed
 
+    def test_the_revisions_mown_lawn_uses_less_than_1998s(self):
+        """Table 6.4's lawn cut under 10 cm: 0.70 at its peak, held all year as the 1998
+        lawns hold theirs, against 1998's 0.95 for cool-season turf."""
+        self.assertEqual(S.crop_day("turf_lawn", 0), (0.70, 500.0))
+        self.assertEqual(S.crop_day("turf_lawn", 300), S.crop_day("turf_lawn", 0))
+        self.assertEqual(S.crop_day("turf_cool", 0)[0], 0.95)
+        S.Bed(uuid7(), 0.30, 0.12, crop="turf_lawn")
+
     def test_a_sown_crop_needs_its_date_and_a_known_name(self):
         with self.assertRaises(ValueError):
             S.Bed(uuid7(), 0.30, 0.12, crop="tomato")
@@ -857,7 +865,7 @@ class TestTheCropThroughItsSeason(unittest.TestCase):
         for r in rows:
             with open(os.path.join(HERE, "data", r["file"]), "rb") as h:
                 self.assertEqual(hashlib.sha256(h.read()).hexdigest(), r["sha256"])
-        self.assertEqual(len([c for c in S.CROPS if ":" not in c]), 22)
+        self.assertEqual(len([c for c in S.CROPS if ":" not in c]), 23, "20 sown, 3 lawns")
         self.assertEqual(S.CROPS["tomato"]["edition"], 2025)
         self.assertEqual(S.CROPS["turf_cool"]["edition"], 1998)
 

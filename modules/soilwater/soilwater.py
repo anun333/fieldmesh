@@ -274,7 +274,9 @@ def _load_crops(path: str = CROP_DATA, revised: str = CROP_DATA_REV) -> dict:
                               "thresholds": None, "edition": 1998}
     with open(revised, encoding="utf-8") as h:
         for r in csv.DictReader(h):
-            base = out[r["crop"]]
+            # A crop the 1998 edition has no row for (the revision's mown lawn) is established:
+            # no stages, its mid-season value all year, as the 1998 lawns are.
+            base = out.get(r["crop"]) or {"stages": [0.0] * 4, "season_days": 0.0}
             gdd = ([float(r[k]) for k in ("gdd_ini", "gdd_dev", "gdd_mid", "gdd_late")]
                    if r["gdd_ini"] else None)
             entry = {**base,
@@ -1948,7 +1950,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              unsaturated_mm_per_h: float = 0.0, second: tuple | None = None,
              knows_second: bool = True, in_second: tuple = (), second_depths: tuple = (),
              name_probes: bool = False, adjust_p: bool = False, rain_share: float = 1.0,
-             rain_gauge: bool = False, knows_cover: bool = False) -> dict:
+             rain_gauge: bool = False, knows_cover: bool = False,
+             virtual_crop: str | None = None) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
@@ -1994,7 +1997,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     `second_depths` adds probes there. With `name_probes` each planting names the probes in
     its patch (`Bed.plantings`). `rain_share` is the share of the rain that reaches the
     virtual bed (0 under a tunnel), while the forecasts are the open sky's; `rain_gauge`
-    gives the farm a gauge in the open, and `knows_cover` sets the bed's `rain_share`. The
+    gives the farm a gauge in the open, and `knows_cover` sets the bed's `rain_share`.
+    `virtual_crop` is what the virtual bed truly grows, where it differs from `crop`. The
     result's `second_stressed_h` is the second planting's hours short."""
     import statistics
     import random
@@ -2082,7 +2086,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     for n in range(int(days * 24 * 12)):
         when = world.when
         if crop and when.hour == 0 and when.minute == 0:
-            grow(b, crop, (when.date() - planted).days, hardpan_mm)
+            grow(b, virtual_crop or crop,
+                 (when.date() - planted).days if planted is not None else 0, hardpan_mm)
             if b2 is not None:
                 grow(b2, second[0], max(0, (when.date() - second[1]).days), hardpan_mm)
         if when.minute == 0:
@@ -2160,7 +2165,9 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                      crop: str | None = None, planted: _dt.date | None = None,
                      knows_crop: bool = True, warmth: bool = False,
                      clock: bool = False, second: tuple | None = None,
-                     knows_second: bool = True) -> dict:
+                     knows_second: bool = True, soil=None, virtual_crop: str | None = None,
+                     hardpan_mm: float | None = None, knows_hardpan: bool = False,
+                     adjust_p: bool = False) -> dict:
     """The advisory for the backtest bed with **no probe**, from a station on the farm:
     hourly air temperature, humidity, sunshine and rain, as the virtual farm's recorded
     weather gives them (`backtest` for the rest). Sunshine is each recorded day's total
@@ -2192,7 +2199,13 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     advice is given that normal year, and times the curve the same way from the station's
     temperatures (`Advisor.clocked`). The result's `crop_days` is the last morning's
     `((growing days, degree-days) the advice used, the virtual crop's)`. `second` and `knows_second` are
-    a second planting in the bed, as in `backtest`."""
+    a second planting in the bed, as in `backtest`.
+
+    `soil` is the virtual bed in place of the growing bed (a lawn's, say), `virtual_crop`
+    what it truly grows when that differs from `crop`, the crop the advice is told (a lawn
+    using the 1998 edition's water while the advice believes the revision's).
+    `hardpan_mm` stops the virtual roots, and with `knows_hardpan` the bed's rooting limit
+    is set to it. `adjust_p` sets `Bed.adjust_p`."""
     import random
     import statistics
 
@@ -2207,9 +2220,10 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     from model import ClockQuality, Datastream, Installation, Observation
 
     state, fc, truth = D.forecasts(climate, start, days, FCS.Skill(), seed)
-    b = growing_bed() if crop else D.bed()
+    b = soil if soil is not None else (growing_bed() if crop else D.bed())
     rb = growing_bed() if crop else D.bed()
     rb.name = "reference"
+    grows = virtual_crop or crop
     b2 = None
     if second is not None:
         b2 = growing_bed()
@@ -2254,7 +2268,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     bed = Bed(land, b.field_capacity, b.wilting_point, root_depth_mm=300.0 if crop else b.depth_mm,
               skip_rain_mm=D.SKIP_MM, valve=valve.id if record_valve else None,
               application_mm_per_h=rate_mm_per_h if record_valve else None,
-              reference=ref_land if reference else None, **told)
+              reference=ref_land if reference else None,
+              rooting_limit_mm=hardpan_mm if knows_hardpan else None, adjust_p=adjust_p, **told)
     ref_bed = Bed(ref_land, rb.field_capacity, rb.wilting_point,
                   root_depth_mm=300.0 if crop else rb.depth_mm, skip_rain_mm=D.SKIP_MM,
                   valve=ref_valve.id, application_mm_per_h=rate_mm_per_h, **told)
@@ -2304,11 +2319,11 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         when = world.when
         if crop and when.hour == 0 and when.minute == 0:
             today = when.date()
-            calendar = (today - planted).days
+            calendar = (today - planted).days if planted is not None else 0
             grown_days, grown_gdd = truth[today] if truth is not None else (calendar, None)
             for sb in (b, rb):
-                grow(sb, crop, grown_days if grown_days is not None else calendar,
-                     gdd=grown_gdd)
+                grow(sb, grows, grown_days if grown_days is not None else calendar,
+                     hardpan_mm=hardpan_mm, gdd=grown_gdd)
             if b2 is not None:
                 d2, g2 = (truth2.get(today, (0.0, 0.0)) if truth2 is not None
                           else (max(0, (today - second[1]).days), None))
@@ -2341,7 +2356,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                     advice[d["rule"]] = advice.get(d["rule"], 0) + 1
                     used_days = ((d["context"].get("crop_days"), d["context"].get("crop_gdd")),
                                  truth[when.date()] if truth is not None
-                                 else (when.date() - planted).days if crop else None)
+                                 else (when.date() - planted).days if crop and planted else None)
                 if d["rule"] in ("soil-weather-water-now", "soil-water-now"):
                     begin = when + HOUR
                     until = begin + _dt.timedelta(hours=d["context"]["refill_mm"] / rate_mm_per_h)
