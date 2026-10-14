@@ -25,8 +25,11 @@ against the makers' published examples.
 * **openSenseMap's LSE01 station labels its conductivity in ohms**, which a conductivity
   is not. The reader leaves it out and says why, rather than guess a unit.
 * **That LSE01 reads 2.1 to 2.4% soil water**: very dry sand, or a probe out of the soil.
-  It passes the checks, being in range and moving. A probe out of the ground is a check
-  fieldmesh does not have yet.
+  It passes the health checks, being in range and moving. The soil advisory now tells a
+  probe out of the soil by a reading drier than the bed's soil can be (built 2026-10-14,
+  [modules/soilwater](../../modules/soilwater/README.md#a-probe-out-of-the-soil)): in a
+  loam this one would be out of the soil, and in sand it cannot say. Its keeper has not
+  said which soil it is in.
 * **The SMT50's 34 readings** in six hours, thinned to one each ten minutes, all passed.
 * **OpenSprinkler's firmware published** a station opening and closing with its duration,
   a rain delay set and cleared, and a program starting with its water level and its

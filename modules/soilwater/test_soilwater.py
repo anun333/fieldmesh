@@ -99,6 +99,11 @@ class TestArithmetic(unittest.TestCase):
         self.assertEqual(S.weights([0.40], 0.30), [0.0], "below the roots counts for nothing")
         self.assertEqual([round(w, 3) for w in S.weights([0.10, 0.25], 0.30)], [0.175, 0.125])
 
+    def test_the_driest_a_probe_in_the_soil_reads(self):
+        self.assertAlmostEqual(S.soil_floor(0.10, 0.12), 0.03, msg="the evaporation layer")
+        self.assertAlmostEqual(S.soil_floor(0.15, 0.12), 0.03)
+        self.assertAlmostEqual(S.soil_floor(0.20, 0.12), 0.09, msg="below: the wilting point")
+
     def test_taw_and_the_refill_point_are_fao_56s(self):
         b = S.Bed(uuid7(), field_capacity=0.30, wilting_point=0.12)
         self.assertAlmostEqual(b.taw_mm, 54.0)
@@ -153,6 +158,53 @@ class TestAdvice(unittest.TestCase):
         rule, d = g.advice()
         self.assertEqual(rule, "soil-enough", "advice from the probe that passed")
         self.assertEqual(len(d["inputs"]["observations"]), 1)
+
+    def test_a_probe_drier_than_its_soil_can_be_is_out_of_it(self):
+        """Below the top 15 cm nothing dries soil past its wilting point, 0.12 here: a probe
+        at 20 cm reading 0.02 reads the air, and the advice says so rather than water."""
+        g = Garden()
+        g.probe(lambda h: 0.02)
+        rule, d = g.advice()
+        self.assertEqual(rule, "soil-untrusted")
+        self.assertEqual(d["context"]["flags"], "out_of_soil")
+        self.assertEqual(d["message"]["key"], "soilwater.untrusted_out_of_soil")
+        self.assertEqual((d["context"]["out_of_soil_cm"], d["context"]["soil_floor_percent"]),
+                         (20, 9.0))
+        self.assertIn("reads 2.0% water, drier than its soil can be (9.0% at least): it may "
+                      "be out of the soil", S.render(d, "en"))
+        self.assertIn("puede estar fuera del suelo", S.render(d, "es"))
+        [only] = S.Advisor(Log()).advise(g.state, [g.bed], MORNING)
+        self.assertEqual(only.payload["rule"], "soil-untrusted", "its own words, no note")
+
+    def test_near_the_surface_the_sun_dries_soil_to_half_its_wilting_point(self):
+        g = Garden()
+        g.probe(lambda h: 0.04, depth=0.10)
+        rule, d = g.advice()
+        self.assertEqual(rule, "soil-water-now", "0.04 is dry topsoil, not air")
+        self.assertFalse(d["context"]["out_of_soil"])
+        air = Garden()
+        air.probe(lambda h: 0.02, depth=0.10)
+        self.assertEqual(air.advice()[0], "soil-untrusted")
+
+    def test_with_another_probe_the_advice_goes_on_and_a_note_says_why(self):
+        g = Garden()
+        g.probe(lambda h: 0.02)
+        g.probe(lambda h: 0.29, depth=0.10)
+        decision, note = (e.payload for e in S.Advisor(Log()).advise(g.state, [g.bed], MORNING))
+        self.assertEqual(decision["rule"], "soil-enough")
+        self.assertEqual(len(decision["inputs"]["observations"]), 1)
+        self.assertEqual((note["rule"], note["topic"]), ("soil-probe-out-of-soil",
+                                                         f"probes/{g.land}"))
+        self.assertIn("probe at 20 cm reads 2.0% water", S.render(note, "en"))
+        self.assertIn("probe at 8 inches", S.render(note, "en", units="us"))
+
+    def test_in_sand_a_probe_in_the_air_cannot_be_told_from_dry_sand(self):
+        g = Garden()
+        g.bed = S.Bed(g.land, field_capacity=0.15, wilting_point=0.05)
+        g.probe(lambda h: 0.02, depth=0.10)
+        rule, d = g.advice()
+        self.assertNotEqual(rule, "soil-untrusted")
+        self.assertFalse(d["context"]["out_of_soil"])
 
     def test_a_silent_probe_gives_no_advice(self):
         g = Garden()
@@ -1195,6 +1247,16 @@ class TestByTheWeather(unittest.TestCase):
                         "anchored on 0.25, not the flagged 0.05")
 
 
+    def test_a_reading_out_of_the_soil_is_not_the_anchor(self):
+        g = WeatherGarden()
+        station = g.station(15, rain={0: 80.0})
+        g.probe(lambda h: 0.25 if h < 40 else 0.01, hours=48)
+        rule, d = g.advice(T0 + 48 * HOUR + 5 * HOUR, station=station)
+        self.assertTrue(d["context"]["anchored"])
+        self.assertTrue(d["context"]["out_of_soil"])
+        self.assertLess(d["context"]["depletion_mm"], 0.10 * 300.0,
+                        "anchored on 0.25, not the air's 0.01")
+
 class ReferenceGarden(WeatherGarden):
     """The weather garden's station, rain of 30 mm on days 0, 5, 10 and 15, and a second bed
     nearby whose probe dries at `share` of the balance's `Kc · ETo`: each rain lifts it to
@@ -1364,6 +1426,31 @@ class TestAProbeNearbyOnTheDrought(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestEachProbesNoise(unittest.TestCase):
+    """A backtest's probes draw their noise from a stream each, so runs with a probe more
+    or less are set side by side on the same noise for the probes they share."""
+
+    @staticmethod
+    def draws(streams):
+        return [[r.gauss(0.0, 1.0) for _ in range(50)] for r in streams]
+
+    def test_a_probe_added_leaves_the_others_draws_as_they_were(self):
+        two = self.draws(S.noise_streams(1, ["0.1 False", "0.3 False"]))
+        three = self.draws(S.noise_streams(1, ["0.1 False", "0.3 False", "0.6 False"]))
+        self.assertEqual(two, three[:2])
+
+    def test_one_probe_draws_the_seeds_own_stream_as_before(self):
+        import random
+        (one,) = self.draws(S.noise_streams(7, ["0.2 False"]))
+        before = random.Random(7)
+        self.assertEqual(one, [before.gauss(0.0, 1.0) for _ in range(50)])
+
+    def test_each_probe_draws_its_own(self):
+        a, b, c = self.draws(S.noise_streams(1, ["0.1 False", "0.3 False", "0.1 True"]))
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(b, c)
+
+
 class TestBacktestOnARecordedSummer(unittest.TestCase):
     """§11: backtested on a past season before it goes live. McAllister Farm's summer of
     2013, June to August, the drill's forecasts in the log; the advisory waters when it

@@ -538,6 +538,26 @@ def rooted(curve_mm: float, signs: list,
     return found
 
 
+#: A probe out of the soil reads the air, drier than any soil it could be in. Below the
+#: surface only roots dry soil, and they stop at its wilting point; the sun dries its
+#: evaporation layer further, and FAO-56 takes that layer, the top 0.10 to 0.15 m, to dry
+#: to "halfway between oven dry (no water left) and wilting point" (Rev.1 Eq. 7.5, 1998's
+#: Eq. 73). A reading more than `OUT_OF_SOIL_MARGIN` below that, a factory calibration's
+#: usual error, is a probe out of the soil or in an air gap (`soil_floor`), and is not
+#: read. In sand, whose wilting point is near the margin, a probe in the air cannot be
+#: told this way from one in dry sand.
+EVAPORATION_LAYER_M = 0.15
+OUT_OF_SOIL_MARGIN = 0.03
+
+
+def soil_floor(depth_m: float, wilting_point: float) -> float:
+    """The driest a probe at `depth_m` can read in soil with this wilting point and be in
+    it: half the wilting point within FAO-56's evaporation layer, the wilting point below,
+    less `OUT_OF_SOIL_MARGIN`."""
+    dried = 0.5 if depth_m <= EVAPORATION_LAYER_M + 1e-9 else 1.0
+    return wilting_point * dried - OUT_OF_SOIL_MARGIN
+
+
 #: A bed under cover, seen by its probes: through the last `COVER_STORMS` storms of
 #: `COVER_STORM_MM` or more in the farm's rain gauge, while its valve stayed shut, no probe
 #: in its root zone rose `COVER_RISE` (a mean of three readings, against the three hours
@@ -646,7 +666,9 @@ def rules_for(bed: Bed) -> list:
                message_variants=((f"hours_since_reading >= {NO_ESTIMATE!r}",
                                   "soilwater.never_seen"),)),
         R.Rule("soil-untrusted", "1", "!usable", p, alert_key="soilwater.untrusted",
-               message_params={"flags": "flags"}),
+               message_params={"flags": "flags", "depth": "out_of_soil_cm",
+                               "reading": "out_of_soil_percent", "floor": "soil_floor_percent"},
+               message_variants=(("out_of_soil", "soilwater.untrusted_out_of_soil"),)),
         R.Rule("soil-too-wet", "1", f"{usable} && wetter_than_capacity", p,
                alert_key="soilwater.too_wet", message_params={}),
         R.Rule("soil-rain-coming", "1",
@@ -1227,13 +1249,15 @@ def _by_weather(state, bed: Bed, station, at, forecast, base: dict, inputs: dict
     inputs["estimated"] = sorted(balance["estimated"])
 
 
-def _last_good(state, rows: list, at: _dt.datetime):
-    """A probe's newest reading the checks had passed by `at`, within `FALLBACK_DAYS`:
-    `(measured_at, value)`, or None."""
+def _last_good(state, rows: list, at: _dt.datetime, floor: float | None = None):
+    """A probe's newest reading the checks had passed by `at`, within `FALLBACK_DAYS`, and
+    not below `floor` (`soil_floor`): `(measured_at, value)`, or None."""
     since = at - _dt.timedelta(days=FALLBACK_DAYS)
     for o in reversed(rows):
         if o.measured_at < since:
             return None
+        if floor is not None and o.result < floor:
+            continue
         if state.quality_as_of(o.id, at)[0] is Usable.GOOD:
             return o.measured_at, float(o.result)
     return None
@@ -1371,6 +1395,8 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
             "rooting_limit_set": bed.rooting_limit_mm is not None,
             "has_probe": bool(in_zone), "root_depth_cm": round(bed.root_depth_mm / 10.0),
             "has_reading": False, "usable": False, "flags": "",
+            "out_of_soil": False, "out_of_soil_cm": 0, "out_of_soil_percent": 0.0,
+            "soil_floor_percent": 0.0,
             "hours_since_reading": NO_ESTIMATE, "theta": 0.0,
             "wetter_than_capacity": False, "depletion_mm": 0.0, "refill_mm": 0.0,
             "used_percent": 0.0, "left_percent": 0.0, "rain_mm": 0.0,
@@ -1402,6 +1428,7 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
         return base, inputs
 
     latest, flagged, series, capacities, limits, fallback = [], set(), [], [], [], []
+    out_of_soil = []
     series_depths, series_sensors = [], []
     for ds, depth, w in in_zone:
         inst = state.installation_of(ds.sensor, at)
@@ -1412,16 +1439,20 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
                       key=lambda o: o.measured_at)
         if not rows:
             continue
+        floor = soil_floor(depth, bed.limits_at(depth)[1])
         good = []
         for o in rows[-int(DRYING_WINDOW_H * 4) - 8:]:
             usable, flags = state.quality_as_of(o.id, at)
-            if usable is Usable.GOOD:
+            if usable is Usable.GOOD and o.result >= floor:
                 good.append(o)
+            elif o is rows[-1] and usable is Usable.GOOD:
+                flagged.add("out_of_soil")
+                out_of_soil.append((depth, o.result, floor))
             elif o is rows[-1]:
                 flagged |= {f.value for f in flags} or {"questionable"}
         newest = rows[-1]
         latest.append(newest.measured_at)
-        fallback.append((w, depth, ds, rows, _last_good(state, rows, at)))
+        fallback.append((w, depth, ds, rows, _last_good(state, rows, at, floor)))
         fresh = (at - newest.measured_at) / HOUR <= bed.stale_after_h
         if fresh and good and good[-1] is newest:
             series.append((w, good))
@@ -1434,6 +1465,11 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
     base["has_reading"] = True
     base["hours_since_reading"] = round((at - max(latest)) / HOUR, 2)
     base["flags"] = ",".join(sorted(flagged))
+    if out_of_soil:
+        depth, reading, floor = out_of_soil[0]
+        base.update({"out_of_soil": True, "out_of_soil_cm": round(depth * 100.0),
+                     "out_of_soil_percent": round(reading * 100.0, 1),
+                     "soil_floor_percent": round(floor * 100.0, 1)})
     if not series:
         # The probes are silent or untrusted. With the farm's station, carry the bed on the
         # weather from their last good readings, for up to FALLBACK_DAYS.
@@ -1718,13 +1754,16 @@ class Advisor:
                station=None) -> list:
         """The morning's decision for each bed, and for a bed its probes show is
         layered, a note saying so (`layering`); for one whose roots seem stopped short of
-        its crop's curve, another (`roots_note`). A bed's reference is found among `beds`."""
+        its crop's curve, another (`roots_note`); for one advised without a probe that reads
+        drier than its soil can be, a third (`out_of_soil_note`). A bed's reference is found
+        among `beds`."""
         out, by_land = [], {b.feature: b for b in beds}
         for bed in beds:
             decision = self.judge(state, bed, at, forecast=forecast, station=station,
                                   reference=by_land.get(bed.reference))
             out.append(self.log.append(R.DECISION, decision))
-            for note in (self.layering(decision, bed, at), self.roots_note(decision, bed, at)):
+            for note in (self.layering(decision, bed, at), self.roots_note(decision, bed, at),
+                         self.out_of_soil_note(decision, bed, at)):
                 if note is not None:
                     out.append(self.log.append(R.DECISION, note))
         return out
@@ -1741,6 +1780,21 @@ class Advisor:
                  "roots_seen_cm", "timing_depth_cm")
         d = R.judge(roots_rule(), {k: context[k] for k in names}, decision["inputs"], at)
         d.update({"subject": str(bed.feature), "topic": f"roots/{bed.feature}",
+                  "valid_until": (at + _dt.timedelta(days=1)).isoformat()})
+        return d
+
+    @staticmethod
+    def out_of_soil_note(decision: dict, bed: Bed, at: _dt.datetime) -> dict | None:
+        """When a probe reads drier than its soil can be (`soil_floor`) and the morning's
+        advice came without it, from the bed's other probes or the weather: a note that it
+        may be out of the soil. None otherwise, and when there was no advice at all, whose
+        own words say so."""
+        context = decision["context"]
+        if not context.get("out_of_soil") or decision["rule"] == "soil-untrusted":
+            return None
+        names = ("out_of_soil", "out_of_soil_cm", "out_of_soil_percent", "soil_floor_percent")
+        d = R.judge(out_of_soil_rule(), {k: context[k] for k in names}, decision["inputs"], at)
+        d.update({"subject": str(bed.feature), "topic": f"probes/{bed.feature}",
                   "valid_until": (at + _dt.timedelta(days=1)).isoformat()})
         return d
 
@@ -1768,6 +1822,14 @@ def roots_rule() -> R.Rule:
                                   "seen": "roots_seen_cm", "used": "timing_depth_cm"},
                   unit_params={k: "cm" for k in ("expected", "blocked", "seen", "used")},
                   subject_param="bed")
+
+
+def out_of_soil_rule() -> R.Rule:
+    return R.Rule("soil-probe-out-of-soil", "1", "out_of_soil", {},
+                  alert_key="soilwater.out_of_soil", subject_param="bed",
+                  message_params={"depth": "out_of_soil_cm", "reading": "out_of_soil_percent",
+                                  "floor": "soil_floor_percent"},
+                  unit_params={"depth": "cm"})
 
 
 def layering_rule() -> R.Rule:
@@ -1940,6 +2002,17 @@ def grow(soil, crop: str, days: float, hardpan_mm: float | None = None,
     soil.set_roots(root_mm if hardpan_mm is None else min(root_mm, hardpan_mm))
 
 
+def noise_streams(seed: int, names: list) -> list:
+    """A random stream for each of a backtest's probes, by its name: each draws its noise
+    from its own, so a probe added or taken away leaves the others' readings as they were,
+    and two runs set side by side differ by that probe alone, not by noise that moved. The
+    first keeps the seed's own stream, so a run with one probe is what it was when all of a
+    run's probes drew from that one (before 2026-10-14)."""
+    import random
+
+    return [random.Random(seed if i == 0 else f"{seed} {name}") for i, name in enumerate(names)]
+
+
 def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              probe_noise: float = 0.01, check=None, blocked=frozenset(),
              forgotten=frozenset(), valve: bool = False, soil=None, depths=(0.20,),
@@ -2001,7 +2074,6 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     `virtual_crop` is what the virtual bed truly grows, where it differs from `crop`. The
     result's `second_stressed_h` is the second planting's hours short."""
     import statistics
-    import random
 
     sys.path.insert(0, os.path.join(HERE, os.pardir, os.pardir, "sim"))
     import forecaster as FCS
@@ -2072,7 +2144,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         state.add(gauge)
     advisor = Advisor(Log(), timezone=timezone, rain_gauge=gauge.id if gauge else None,
                       stair_step=timezone is not None)
-    noise = random.Random(seed)
+    noise = dict(zip((p.id for p, _, _ in probes),
+                     noise_streams(seed, [f"{d} {patch}" for _, d, patch in probes])))
     rain_hour = 0.0
     roots, second_h = [], 0.0
     applied, dose_now, stressed_h, stress, advice, last, last_at = 0.0, 0.0, 0.0, [], {}, None, None
@@ -2094,8 +2167,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             for probe, depth, in_patch in probes:
                 patch = b2 if b2 is not None and in_patch else b
                 truth = patch.theta_at(depth) if hasattr(patch, "theta_at") else patch.theta
-                state.add(Observation(uuid7(), probe.id, when, 60.0, when,
-                                      round(truth + probe_bias + noise.gauss(0.0, probe_noise), 3),
+                read = truth + probe_bias + noise[probe.id].gauss(0.0, probe_noise)
+                state.add(Observation(uuid7(), probe.id, when, 60.0, when, round(read, 3),
                                       ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
                                       calibration=cal))
         if when.hour == D.DECIDE_HOUR and when.minute == 0:
@@ -2206,7 +2279,6 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     using the 1998 edition's water while the advice believes the revision's).
     `hardpan_mm` stops the virtual roots, and with `knows_hardpan` the bed's rooting limit
     is set to it. `adjust_p` sets `Bed.adjust_p`."""
-    import random
     import statistics
 
     sys.path.insert(0, os.path.join(HERE, os.pardir, os.pardir, "sim"))
@@ -2241,7 +2313,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     air, rh = series(V.AIR_TEMPERATURE, "Cel"), series(V.RELATIVE_HUMIDITY, "%")
     sunshine, rain = series(V.SOLAR_RADIATION, "W/m2"), series(V.PRECIPITATION_DEPTH, "mm")
     valve, ref_valve = series(V.VALVE_OPEN, None), series(V.VALVE_OPEN, None)
-    cal, noise = uuid7(), random.Random(seed)
+    cal = uuid7()
 
     def add_probe(where):
         sensor = uuid7()
@@ -2258,6 +2330,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         return ds
     probe_ds = add_probe(land) if probe else None
     ref_ds = add_probe(ref_land) if reference else None
+    named = [(ds, name) for ds, name in ((probe_ds, "bed"), (ref_ds, "reference")) if ds]
+    noise = dict(zip((ds.id for ds, _ in named), noise_streams(seed, [n for _, n in named])))
     # The virtual farm's hours are local solar time, so its station's day is UTC's.
     station = E.Station(lat=D.LAT, elevation_m=D.ELEVATION_M, timezone="UTC",
                         air_temperature=air.id, relative_humidity=rh.id,
@@ -2341,8 +2415,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         for ds, sb, silent, bias in ((probe_ds, b, outage and outage[0] <= day_n <= outage[1], 0.0),
                                      (ref_ds, rb, False, reference_bias)):
             if ds is not None and when.minute == 0 and not silent:
-                state.add(Observation(uuid7(), ds.id, when, 60.0, when,
-                                      round(sb.theta + bias + noise.gauss(0.0, probe_noise), 3),
+                read = sb.theta + bias + noise[ds.id].gauss(0.0, probe_noise)
+                state.add(Observation(uuid7(), ds.id, when, 60.0, when, round(read, 3),
                                       ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
                                       calibration=cal))
         if when.hour == D.DECIDE_HOUR and when.minute == 0:

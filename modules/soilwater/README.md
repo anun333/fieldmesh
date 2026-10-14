@@ -15,8 +15,9 @@ module's evidence base before that module exists.
 | **enough** | and how much of the available water is left |
 | **no probe** | nothing is installed within the root zone |
 | **unseen** | no reading for six hours |
-| **untrusted** | the newest readings failed the health checks |
+| **untrusted** | the newest readings failed the health checks, or read drier than the bed's soil can be ([below](#a-probe-out-of-the-soil)) |
 | **by the weather**: water now, rain coming, enough, or the station unseen | the bed has no probe, or its probes have gone silent or untrusted, and the farm's station is given ([below](#by-the-weather-with-no-probe)) |
+| **out of the soil**, beside the morning's advice | a probe reads drier than its soil can be, and the advice came from the bed's other probes or the weather ([below](#a-probe-out-of-the-soil)) |
 | **layered**, beside the morning's advice | two of its probes learned field capacities far apart, and the bed was given one soil's values ([below](#the-beds-own-soil)) |
 
 The arithmetic is FAO-56's root-zone balance read from the probes rather than modelled:
@@ -54,6 +55,14 @@ advisory followed to the letter, beside the drip timer most farms run
 72% less water and 60% less drained, with no hour of real stress. The cost is a drier
 root zone on average — mean stress 0.13 against 0.05 — which is the trade a refill point
 makes, and the reason `p` is the crop's to set.
+
+**Each simulated probe draws its own noise** (`noise_streams`, since 2026-10-14). Before,
+all of a backtest's probes drew from one stream, so a run with a probe more or less, or with
+one probe silent for a while, read different noise on the probes it shared with another, and
+two runs set side by side differed by more than the probe. Now each draws from its own; the
+first keeps the seed's, so a run with one probe reads exactly as before, to the last bit. The
+tables here with more than one probe were made with the shared stream; those re-measured on
+the new streams say so.
 
 On Harrow Bend, eight days, six beds: the beds are told apart on the first morning; the far
 bed node's radio outage turns its beds' advice into "unseen" and no one else's; and a probe
@@ -826,6 +835,41 @@ guessing.
 The 2012 margin is the honest caveat. A bed that soaks its water up slowly, or a probe set
 deep, could fall below half on a day the water did arrive. The share is a parameter, and a
 season of a real bed's waterings is what would set it.
+
+## A probe out of the soil
+
+A probe lifted by a mower or a frost, or pushed in beside an air gap, reads the air: almost
+no water. Every health check passes it, since the reading is in range and still moves, and
+the advice would read the driest bed on the farm and ask for a full refill every morning.
+
+Nothing in soil reads that dry. Below the surface only roots dry the soil, and they stop
+at its wilting point. The sun dries the top further, and FAO-56 takes that layer, the top
+0.10 to 0.15 m, to dry "halfway between oven dry (no water left) and wilting point"
+(Rev.1 Eq. 7.5, the 1998 edition's Eq. 73). So a reading more than 0.03 below half the
+wilting point within the top 15 cm, or below the wilting point under them (`soil_floor`),
+0.03 being a factory calibration's usual error, is not read. With no other probe the
+advice says why, and with the farm's station the bed is carried on the weather from the
+last reading that was in the soil:
+
+> bed 3's probe at 20 cm reads 2.0% water, drier than its soil can be (9.0% at least): it
+> may be out of the soil, or in an air gap beside it. There is no advice for bed 3 today.
+> Push the probe back in and firm the soil around it.
+
+With another probe still in the soil, the advice comes from that one, and a note beside it
+says the same about the first.
+
+| the bed's soil (wilting point) | the floor, top 15 cm | the floor, below |
+| --- | --- | --- |
+| silt loam (0.12) | 3% | 9% |
+| clay (0.25) | 9.5% | 22% |
+| sand (0.05) | none: below zero | 2% |
+
+So it can tell a probe in the air from dry soil only where the soil holds some water at its
+wilting point. In sand it cannot, and says nothing. That is the case of the openSenseMap
+LSE01 reading 2.1 to 2.4% ([notes/test-data-sources](../../docs/notes/test-data-sources.md)):
+out of the soil in a loam, possible in a dry sand, and its keeper has not said which.
+Not built: the other sign, a probe that rises after neither the rain the gauge recorded nor
+the watering the valve did, which would catch it in sand too.
 
 As its own process (§8.3, Q11), holding only the grant its [module.json](module.json)
 allows: `python3 -I soilwater.py --socket /run/fieldmesh/modules.sock --config beds.json`, the
