@@ -32,7 +32,11 @@ them. Their crops' rates are not legible in the archived copy, so none are quote
 
 ### Tomatoes, side by side
 
-* **FAO-56 in fieldmesh:** 15 cm at sowing to 70 cm on day 70, of a 145-day season.
+* **FAO-56's 1998 edition:** 15 cm at sowing to 70 cm on day 70, of a 145-day season.
+* **FAO-56's 2025 revision**, which fieldmesh now uses: fresh-market tomatoes' roots to
+  the shallow end of 0.6–1.2 m by 985 degree-days (Table 6.11's 325 and 660, base 7 °C,
+  upper 28 °C), of 2,065 to the season's end. On McAllister's summers that is 59 to 74
+  days (median 66), and the season 113 to 132 days (median 122), not 145.
 * **AquaCrop's parameters, as AquaCrop-OSPy ships them** (`TomatoGDD`, transplanted):
   0.3 m to 1.0 m by 891 degree-days, of 1933 to maturity. The base is 7 °C and the upper
   limit 28 °C.
@@ -85,37 +89,38 @@ a dry year that soil can be too dry for roots to enter, which no curve on its ow
 * **`Bed.rooting_limit_mm`:** how deep the soil lets roots go. The crop's curve stops there,
   and a probe set into the pan is not counted.
 * **Root signs from the probes** (`root_signs`), over the last two weeks of dry days. A
-  probe whose soil stays level has no roots. One that falls has roots if it falls by day
-  (the stair-step, where the farm's timezone is known), or, without the clock, if it goes
-  0.02 under field capacity; one that falls as fast by night is draining, not drunk.
-  Where a probe the curve passed at least 15 cm ago has no roots, under one that has,
-  the roots likely stop between the two, and a note asks for the rooting limit.
+  probe whose soil stays level has no roots; one that falls and goes 0.02 under field
+  capacity has roots. Optionally, where the farm's day is known, the stair-step decides
+  instead: a fall by day has roots, one as fast by night is draining. On the simulated
+  summers the two found a pan as well as each other, and the stair-step saw false stops
+  on more mornings, so it is not the default. Where a probe the curve passed at least
+  15 cm ago has no roots, under one that has, the roots likely stop between the two, and
+  a note asks for the rooting limit.
 * **A range of roots, not one depth.** When to water is timed by the shallow end, how much
   by the deep end: each probe's own deficit down to the deepest roots. A stop the probes
   find moves only the shallow end. So does a young planting beside an older one
-  (`Bed.plantings`), which is the same problem: plants at different stages side by side.
-* **Degree-days as the crop's clock** (`thermal.py`). FAO-56's days are taken as right
-  for the farm's normal year, from its past years' weather, and a warm season runs the
-  crop ahead of them, a cool one behind, by Paredes et al.'s (2025a) degree-days and their
-  review's base and upper temperatures for each crop.
+  (`Bed.plantings`), which is the same problem: plants at different stages side by side;
+  a probe named for its planting reads that planting's soil.
+* **Degree-days as the crop's clock** (`thermal.py`), as the 2025 revision of FAO-56
+  gives them: its base and upper temperatures for each crop (Table 6.10), and for the 10
+  of fieldmesh's 20 sown crops it has field-observed values for, each stage's
+  degree-days (Table 6.11). The other ten keep the 1998 days, taken as right for the
+  farm's normal year from its past years' weather, so a warm season runs them ahead and
+  a cool one behind, as the revision's own Table 6.12 turns those days into degree-days.
 
 The backtests are in the [advisory's README](../../modules/soilwater/README.md#by-the-seasons-warmth):
 the clock, plantings at different stages, and roots that stop. In brief, on thirty
-simulated summers: over a pan at 30 cm the curve alone left tomatoes short every summer
-for a month, and the root signs cut that by 98% or more, the stair-step alone still
-finding the pan where water creeps up beneath it; a young planting of lettuce among
-tomatoes, short in 16 summers on the weather's advice for the tomatoes, was never short
-once the advice knew both. Timing the curve by degree-days moved a season's water by
-−16% to +24% with the season's warmth, and on this farm's margins left no crop short
-either way.
+simulated summers, on the 2025 revision's curve: over a pan at 30 cm the curve alone left
+tomatoes short every summer for eleven days, and the root signs cut that by more than 99%; a young planting of
+lettuce among tomatoes, short in 9 summers on the weather's advice for the tomatoes, was
+never short once the advice knew both. Timing the curve by degree-days moved a season's
+water by up to a sixth either way with the season's warmth, and on this farm's margins
+left no crop short either way.
 
 ## Next
 
-* **Each crop's degree-days for each stage** as the FAO-56 revision gives them (Paredes et
-  al., 2025b), in place of FAO-56's days taken at the farm's normal year. That paper is
-  open access but its repository would not serve it to a script.
-* **Probes for each planting**: a probe that says which planting it is among, so a young
-  planting's shallow probe times the watering for it alone.
+* **The other crops' degree-days**, for the ten the revision gives only approximate
+  ranges for (its Table 6.12).
 * **Real beds:** the curve's shape, straight or the *n*th root, the stair-step's
   thresholds against a real probe's noise, and a pan found by its probes and then dug.
 
@@ -135,8 +140,13 @@ either way.
   growing degree days aiming at their use with the FAO56rev crop coefficients curve: a
   review](https://doi.org/10.1016/j.agwat.2025.109755), *Agricultural Water Management*
   319 (2025) 109755, open access, CC BY 4.0 (2025a).
+* L. S. Pereira, R. G. Allen, P. Paredes, R. López-Urrea, D. Raes, M. Smith, A. Kilic and
+  M. Salman, [*Crop evapotranspiration*, second edition, revised
+  2025](https://openknowledge.fao.org/handle/20.500.14283/CD6621EN), FAO Irrigation and
+  Drainage Paper No. 56 Rev.1, CC BY 4.0: section 6.8.1, Tables 6.1, 6.2, 6.10, 6.11,
+  6.12 and 8.1–8.2, Eq. 8.5.
 * P. Paredes et al., [Estimating the lengths of crop growth stages to define the crop
   coefficient curves using growing degree days (GDD): application of the revised FAO56
   guidelines](https://doi.org/10.1016/j.agwat.2025.109758), *Agricultural Water
-  Management* 319 (2025) 109758 (2025b); its abstract only, here.
+  Management* 319 (2025) 109758 (2025b); the revision's Table 6.11 is its work.
 * McAllister Farm's weather: NASA POWER daily, 1991 to 2020, CC BY 4.0.

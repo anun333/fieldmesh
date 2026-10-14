@@ -1,23 +1,24 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """A crop's clock in degree-days.
 
-FAO-56 gives a crop's stages in days (Table 11), for a typical season where it was
-measured, and says the time to emergence and full cover "can be predicted using
-cumulative degree-based regression equations", checked locally. A warm year runs a crop
-through its stages sooner and a cool one later; the revision of FAO-56 times the stages by
-growing degree-days (Paredes et al., 2025b).
+FAO-56's 1998 edition gave a crop's stages in days (Table 11), for a typical season where
+it was measured. A warm year runs a crop through its stages sooner and a cool one later,
+and the 2025 revision (FAO-56 Rev.1, section 6.8.1) gives them in growing degree-days
+instead: for the crops with field-observed values, each stage's (its Table 6.11). Such a
+crop's clock is the degree-days it has gathered since sowing (`cumulative_gdd`).
 
-Here FAO-56's days are taken as right for this farm's normal year, and a season runs ahead
-of them or behind as it is warmer or cooler than normal: on any day the crop is as far
-through its curve as a normal year would have taken it to gather the degree-days this year
-has given it since sowing (`growing_days`). In a normal year that is the calendar.
+For a crop the revision has no observed values for, the 1998 days are taken as right for
+this farm's normal year, and a season runs ahead of them or behind as it is warmer or
+cooler than normal: on any day the crop is as far through its curve as a normal year
+would have taken it to gather the degree-days this year has given it (`growing_days`).
+That is how the revision's own Table 6.12 turns the 1998 days into degree-days, at a
+representative place rather than this farm. In a normal year it is the calendar.
 
-A day's degree-days are Paredes et al.'s (2025a) Eq. 2, the form AquaCrop and the FAO-56
-revision use: the day's mean temperature less the crop's base, nothing below the base, and
-no more than the upper threshold less the base. The thresholds are from the same review
-(`data/crop-temperatures.csv`). The normal is the mean of each day of the year over a
-record of past years, such as NASA POWER's that `tools/weather_csv.py` writes, smoothed
-over `SMOOTH_DAYS` either side.
+A day's degree-days are the revision's Eq. 6.23: the day's mean temperature less the
+crop's base, nothing below the base, and no more than the upper threshold less the base,
+with each crop's thresholds from its Table 6.10 (`data/fao56rev-crops.csv`). The normal
+is the mean of each day of the year over a record of past years, such as NASA POWER's
+that `tools/weather_csv.py` writes, smoothed over `SMOOTH_DAYS` either side.
 """
 from __future__ import annotations
 
@@ -35,17 +36,23 @@ FLOOR_GDD = 0.05
 
 
 def _load_thresholds() -> dict:
-    with open(os.path.join(HERE, "data", "crop-temperatures.csv"), encoding="utf-8") as h:
-        return {r["crop"]: (float(r["tbase_c"]), float(r["tupper_c"]))
-                for r in csv.DictReader(h)}
+    out = {}
+    with open(os.path.join(HERE, "data", "fao56rev-crops.csv"), encoding="utf-8") as h:
+        for r in csv.DictReader(h):
+            pair = (float(r["tbase_c"]), float(r["tupper_c"]))
+            if r["variant"]:
+                out[f'{r["crop"]}:{r["variant"]}'] = pair
+            if r["default"] == "1":
+                out[r["crop"]] = pair
+    return out
 
 
-#: `{crop: (base, upper)}`, °C.
+#: `{crop: (base, upper)}`, °C: the revision's Table 6.10, for each crop and `crop:variant`.
 THRESHOLDS = _load_thresholds()
 
 
 def gdd(tmin: float, tmax: float, base: float, upper: float) -> float:
-    """A day's growing degree-days (Paredes et al., 2025a, Eq. 2)."""
+    """A day's growing degree-days (FAO-56 Rev.1, Eq. 6.23)."""
     mean = (tmin + tmax) / 2.0
     if mean <= base:
         return 0.0
@@ -131,6 +138,28 @@ def growing_days(crop: str, planted: _dt.date, last: _dt.date, actual: dict,
         g = (gdd(today[0], today[1], base, upper) if today is not None
              else normal.gdd(day, base, upper))
         have += max(FLOOR_GDD, g)
+    return out
+
+
+def cumulative_gdd(crop: str, planted: _dt.date, last: _dt.date, actual: dict,
+                   normal: Normal | None = None) -> dict:
+    """`{day: degree-days}` from `planted` to `last`: what the crop had gathered by the start
+    of each day. `actual` is `{date: (tmin, tmax) or None}`; a day it lacks counts as the
+    normal year's, or, without one, as the mean of the days it has had."""
+    base, upper = THRESHOLDS[crop]
+    out, have, seen = {}, 0.0, []
+    for n in range((last - planted).days + 1):
+        day = planted + _dt.timedelta(days=n)
+        out[day] = round(have, 1)
+        today = actual.get(day)
+        if today is not None:
+            g = gdd(today[0], today[1], base, upper)
+            seen.append(g)
+        elif normal is not None:
+            g = normal.gdd(day, base, upper)
+        else:
+            g = sum(seen[-7:]) / len(seen[-7:]) if seen else 0.0
+        have += g
     return out
 
 

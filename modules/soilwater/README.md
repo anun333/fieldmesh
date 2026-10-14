@@ -269,103 +269,126 @@ is calibrated with `a = -1`, as fieldmesh records water potential, never above z
 A seedling draws little water from a few centimetres of soil; a full canopy draws more
 than the reference grass, from deep. A bed told its crop and the day it was sown
 (`Bed.crop`, `Bed.planted`) follows FAO-56's curve for that crop through its season
-(`crop_day`, [data/fao56-crops.csv](data/fao56-crops.csv)):
+(`crop_day`), with the 2025 revision's values (FAO-56 Rev.1,
+[data/fao56rev-crops.csv](data/fao56rev-crops.csv)) and the 1998 edition's stage days
+([data/fao56-crops.csv](data/fao56-crops.csv)):
 
-* **its crop coefficient** by stage (Table 12): the initial value through the initial
-  stage, rising in a line to the mid-season value over the development stage, holding,
-  and falling to the end value over the late season, the stages' days from Table 11;
-* **its roots** from 15 cm at sowing (Annex 8: "0.15 to 0.20 m" for many annual crops) to
-  the shallow end of Table 22's maximum depth as mid-season begins, growing with the
-  crop's development (Annex 8, Eq. 8-1, taken by time, so a crop whose coefficient does
-  not rise still roots).
+* **its crop coefficient** by stage (the revision's Tables 6.1 and 6.2): the initial value
+  through the initial stage, rising in a line to the mid-season value over the
+  development stage, holding, and falling to the end value over the late season;
+* **its roots** from 15 cm at sowing (the 1998 Annex 8: "0.15 to 0.20 m" for many annual
+  crops) to the shallow end of the revision's range of maximum depth as mid-season
+  begins, growing with the crop's development in a line, as the revision's Example 8.3
+  still grows them;
+* **its stages** in the revision's degree-days (Table 6.11), for the 10 of these crops it
+  has field-observed values for, where the farm's station gives the temperatures
+  ([below](#by-the-seasons-warmth)); otherwise the 1998 edition's days (its Table 11).
+
+Where the revision gives a crop two seasons, the plain name is the first and the other is
+named after a colon: `tomato` is fresh-market tomatoes and `tomato:processing` the
+processing crop; `lettuce`, `potato`, `broccoli`, `corn` (sweet corn) and `muskmelon` are
+the short season and `…:long` the long; `pea` is fresh peas for market and
+`pea:industry` the processing crop. Against the 1998 edition, tomatoes' roots now reach
+0.6 m, not 0.7, and their end-of-season coefficient is 1.00 for the fresh market, not
+0.80; lettuce's mid and end values are 1.05, not 1.00 and 0.95. **Lawns keep the 1998
+values**: the revision lowers a mown lawn's coefficient to 0.50–0.70 (0.55–0.65 on
+average) against 1998's 0.85 and 0.95, which would change every lawn result in
+fieldmesh; that waits on a decision.
 
 The day's root depth sets the root zone the probes are weighed over and the water it
 holds, and the day's coefficient drives the weather balance; an established lawn
 (`turf_cool`, `turf_warm`) holds its mid-season values all year. A probe below a
 seedling's roots counts for nothing until the roots reach it: ten days after sowing,
-tomatoes' 15 cm of roots do not reach a probe at 20 cm.
+tomatoes' 15 cm of roots do not reach a probe at 20 cm. **Nor does a probe at the root
+zone's very bottom** count (`weights`): it reads the soil the roots are only reaching,
+half of it below them. With tomatoes' roots at their deepest, 60 cm, a probe at 60 cm
+counted as a quarter of the root zone left them short in 13 summers of 30 for 1,303
+hours; left out until the roots are past it, in 3 for 91.
 
-For each of 22 crops, Table 11's row is the sowing nearest a temperate spring or summer,
-named in the file; broccoli, cabbage and cauliflower have only a September sowing there.
-A range is taken at its middle. Table 22's depletion fractions are in the file but not
-used: the advice keeps a third.
+The revision's depletion fractions are in the file; the advice keeps a third, lower than
+its tables as it says suits frequent watering, and with `Bed.adjust_p` lowers it on a
+hot day as the revision's Eq. 8.5 does ([below](#hot-days-and-beds-under-cover)).
 
 **Backtested** on McAllister Farm's thirty summers, sown on 1 May, the virtual crop
-growing by the same curve in a silt loam 1.5 m deep, probes at 10 and 30 cm. "Not known"
-is the bed as it was before: 30 cm of roots and a coefficient of 1 all season.
+growing by the same curve in the 1998 days, in a silt loam 1.5 m deep, probes at 10 and
+30 cm. "Not known" is the bed as it was before: 30 cm of roots and a coefficient of 1 all
+season.
 
 | | water, mean a season | summers short | hours short, in all | worst season |
 | --- | --- | --- | --- | --- |
 | tomatoes by the weather, crop not known | 360 mm | 0 | 0 | 0 |
-| **tomatoes by the weather, crop known** | **293 mm** | **0** | **0** | **0** |
-| tomatoes by probes, crop not known | 120 mm | 18 | 2,174 | 623 h |
-| **tomatoes by probes, crop known** | **246 mm** | **5** | **391** | **239 h** |
+| **tomatoes by the weather, crop known** | **302 mm** | **0** | **0** | **0** |
+| tomatoes by probes, crop not known | 205 mm | 5 | 382 | 150 h |
+| **tomatoes by probes, crop known** | **262 mm** | **3** | **178** | **143 h** |
+| **the same, with a third probe at 60 cm** | **257 mm** | **3** | **91** | **44 h** |
 | lettuce by the weather, crop not known | 159 mm | 0 | 0 | 0 |
-| **lettuce by the weather, crop known** | **137 mm** | **0** | **0** | **0** |
-| lettuce by probes, crop not known | 98 mm | 15 | 566 | 94 h |
-| **lettuce by probes, crop known** | **119 mm** | **2** | **30** | **16 h** |
+| **lettuce by the weather, crop known** | **149 mm** | **0** | **0** | **0** |
+| lettuce by probes, crop not known | 191 mm | 0 | 0 | 0 |
+| **lettuce by probes, crop known** | **144 mm** | **0** | **0** | **0** |
 
 * **By the weather**, a crop not known is charged a full canopy's water from sowing: it
-  was given a fifth more than it needed (360 mm against 293 for tomatoes), drained below
+  was given a fifth more than it needed (360 mm against 302 for tomatoes), drained below
   the roots.
-* **By probes**, a crop not known is starved. The advice refills the 30 cm it was told
-  of, while tomatoes' roots draw on 70 cm and run the deep soil down through the summer;
-  lettuce seedlings, with 15 cm, wait too long while the advice counts 30. Knowing the
-  crop, it waters more and is short far less.
-* **Probes for a deep root zone.** Tomatoes known were still short in 5 summers: probes at
-  10 and 30 cm do not see the soil from 30 to 70 cm the roots draw on. With a third at
-  60 cm they were never short in thirty summers, given 319 mm a season against 246; only
-  11 mm more drained, so the rest went to a crop no longer held back. For a deep-rooted
-  crop, a probe in the deeper half of its roots.
+* **By probes, a crop not known** is advised for 30 cm of roots, and its probe at 30 cm,
+  at that root zone's bottom, does not count: only the one at 10 cm does. For lettuce,
+  whose roots never pass 30 cm, that is close to right, though it waters a third more
+  than knowing the crop; for tomatoes, whose roots draw down to 60 cm, it waits too long
+  and refills too little.
+* **Knowing the crop**, tomatoes were short in 3 summers; a third probe at 60 cm, in the
+  deeper half of their roots, halved the hours and cut the worst season from 143 to 44.
 
 The virtual crop grows by the very curve the advice is told, so this shows what knowing
 the curve is worth when the curve is right, not how right FAO-56's curve is for a given
-field: a real crop's stages run early or late with the season, which is what its probes
-are for.
+field: a real crop's stages run early or late with the season, which is what its clock
+([below](#by-the-seasons-warmth)) and its probes are for.
 
 ### By the season's warmth
 
-FAO-56's stages are days, for a typical season. A warm year runs a crop through them
-sooner and a cool one later, and the revision of FAO-56 times them by growing degree-days
-instead (Paredes et al., 2025b). Given the farm's station and a record of its past years'
-weather (`climate` in the config: a daily file as `tools/weather_csv.py` writes from NASA
-POWER), the advisory does the same (`thermal.py`, `Advisor.clocked`):
+The 1998 edition's stages are days, for a typical season; a warm year runs a crop through
+them sooner and a cool one later. The 2025 revision gives them in growing degree-days
+instead (its section 6.8.1). Given the farm's station, the advisory does the same
+(`thermal.py`, `Advisor.clocked`):
 
 * **A day's degree-days** are its mean temperature less the crop's base, nothing below the
-  base, and no more than its upper threshold less the base: Paredes et al.'s (2025a) Eq. 2,
-  the form AquaCrop and the FAO-56 revision use.
-* **Each crop's base and upper temperatures** are the median of the studies that review
-  tabulates for it ([data/crop-temperatures.csv](data/crop-temperatures.csv), CC BY 4.0):
-  tomatoes 8 and 30 °C, lettuce 4 and 28, potatoes 2 and 34, sweet corn 9.5 and 30.
-* **FAO-56's days are taken as right for the farm's normal year**, the mean of each day of
-  the year over its past years. On any day the crop is as far through its curve as a
-  normal year would have taken it to gather the degree-days this one has given it since
-  sowing. In a normal year that is the calendar; a day the station missed counts as a
-  normal one.
+  base, and no more than its upper threshold less the base (the revision's Eq. 6.23),
+  each crop's thresholds from its Table 6.10: tomatoes 7 and 28 °C, lettuce 4 and 28,
+  potatoes 2 and 30, sweet corn 10 and 32.
+* **For the 10 of these crops the revision has field-observed degree-days for** (its
+  Table 6.11: tomatoes, lettuce, carrots, onions, potatoes, broccoli, peppers, melons,
+  peas and sweet corn; its beans are dry beans, not green), each stage ends when the crop
+  has gathered its degree-days since sowing. Fresh-market tomatoes reach full cover and full
+  rooting at 985 and end at 2,065: on McAllister's summers, sown 1 May, that is 59 to 74
+  days (median 66) and 113 to 132 (median 122), against the 1998 edition's 70 and 145.
+* **For the other ten**, the 1998 days are taken as right for the farm's normal year:
+  the mean of each day of the year over a record of past years (`climate` in the config:
+  a daily file as `tools/weather_csv.py` writes from NASA POWER). On any day the crop is
+  as far through its curve as a normal year would have taken it to gather the
+  degree-days this one has given it since sowing, which is how the revision's own Table
+  6.12 turns those days into degree-days, at a representative place rather than this
+  farm.
 
-Each morning's decision says how far through its curve the crop is (`crop_days`) beside
-the calendar (`calendar_days`), and whether by warmth (`by_warmth`). Without a station or
-the farm's record it is the calendar, as before.
+A day the station missed counts as a normal one; without the farm's record, the mean of
+the last week's, and a crop is clocked only when the station read nine in ten of its days
+since sowing. Each morning's decision says how far through its curve the crop is
+(`crop_gdd`, or `crop_days`) beside the calendar (`calendar_days`), and whether by warmth
+(`by_warmth`). Without a station it is the calendar.
 
 **Backtested** on the thirty summers, sown on 1 May, by the weather with no probe. The
-virtual crop goes through its curve by the season's warmth against the other 29 years'
-normal; the advice either keeps the calendar or keeps the same clock:
+virtual crop goes through its curve by the season's warmth; the advice either keeps the
+calendar or keeps the same clock:
 
-| | water, mean a season | summers short | the crop's day at the season's end (calendar 144 or 74) |
+| | water, mean a season | summers short | a single summer's water against the calendar's |
 | --- | --- | --- | --- |
-| tomatoes, the advice on the calendar | 293 mm | 0 | 129 to 165 |
-| **tomatoes, the advice by warmth** | **289 mm** | **0** | the same |
-| lettuce, the advice on the calendar | 137 mm | 0 | 67 to 80 |
-| **lettuce, the advice by warmth** | **137 mm** | **0** | the same |
+| tomatoes, the advice on the calendar | 302 mm | 0 | |
+| **tomatoes, the advice by warmth** | **301 mm** | **0** | −18% (2009) to +13% (2014) |
+| lettuce, the advice on the calendar | 149 mm | 0 | |
+| **lettuce, the advice by warmth** | **149 mm** | **0** | −17% (1995) to +11% (1991) |
 
-On average it changes little. A season's crop ran up to three weeks ahead of the calendar
-or two behind, and in a single year the advice by warmth gave from 16% less water (2019,
-tomatoes 12 days ahead and into their late season early) to 24% more (1992, a cool year,
-15 days behind and still drawing hard when the calendar had them ending). That is the water following
-the crop. The calendar's advice was never short either: the balance waters to field
-capacity with margin, so a crop running early or late on this farm costs drained water
-rather than stress. Where it would matter more is a crop whose stages are near their
-water's limit, and a farm far from its normal year.
+On average it changes nothing; in a single year it moves the water by up to a sixth
+either way, toward what the virtual crop used. The calendar's advice was never short
+either: the balance waters to field capacity with margin, so a crop running early or late
+on this farm costs drained water rather than stress. Where it would matter more is a crop
+whose stages are near their water's limit, and a farm far from its normal year.
 
 ### Plantings at different stages
 
@@ -390,35 +413,42 @@ plantings' stages (`inputs.plantings`). When it is the youngest roots that make 
 due, it says so:
 
 > Water tunnel bed 3 today: its shallowest roots, in the top 15 cm, have used 39% of the
-> water they can reach. About 21 mm brings the bed back to field capacity, down to its
-> deepest roots at 58 cm.
+> water they can reach. About 20 mm brings the bed back to field capacity, down to its
+> deepest roots at 50 cm.
 
 By probes, the young roots' soil is read by the probes in it, or, where none is that
-shallow, by the shallowest. A probe set among the young plants, as shallow as their
-roots, is what reads them truly; one in the old planting's patch can only stand in.
+shallow, by the shallowest. A probe among the young plants, as shallow as their roots, is
+what reads them truly. **A planting can name the probes set among it**
+(`(crop, planted, (sensor id, …))`; in the config, `"probes": [...]`): the youngest
+planting's own probes then time the watering, the oldest's, with any no planting names,
+measure the refill, and the refill is at least what the young planting's soil has lost.
 
 **Backtested** on the thirty summers: tomatoes sown on 1 May, lettuce sown among them on
-15 June, each in its own patch of the same silt loam, watered whenever the bed is. Probes
-at 10, 30 and 60 cm are in the tomatoes' patch, or the one at 10 cm among the lettuce:
+15 June, each in its own patch of the same silt loam, watered whenever the bed is:
 
 | | water, mean a season | tomatoes' summers short | the lettuce's summers short | the lettuce's hours short |
 | --- | --- | --- | --- | --- |
-| by the weather, told the tomatoes alone | 293 mm | 0 | 16 | 341 |
-| **by the weather, told both** | **325 mm** | **0** | **0** | **0** |
-| by probes among the tomatoes, told the tomatoes alone | 322 mm | 0 | 28 | 2,155 |
-| by probes among the tomatoes, told both | 324 mm | 0 | 23 | 1,286 |
-| **by probes, the shallow one among the lettuce, told both** | **430 mm** | **0** | **1** | **14** |
+| by the weather, told the tomatoes alone | 302 mm | 0 | 9 | 204 |
+| **by the weather, told both** | **333 mm** | **0** | **0** | **0** |
+| probes at 10, 30 and 60 cm among the tomatoes, told the tomatoes alone | 257 mm | 3 | 30 | 2,960 |
+| the same, told both | 255 mm | 0 | 29 | 1,771 |
+| the one at 10 cm moved among the lettuce, told both | 478 mm | 0 | 1 | 14 |
+| a fourth at 10 cm among the lettuce, told both | 340 mm | 0 | 5 | 70 |
+| **the same, each probe named for its planting** | **347 mm** | **0** | **2** | **17** |
 
 * **By the weather**, the advice for the tomatoes alone waited for their 60 cm of roots and
-  left the lettuce's 15 short in half the summers. Told both, it waters on the lettuce's
-  account and is never short, for a tenth more water.
-* **By probes**, the probes must see the young roots' soil. Among the tomatoes they read
-  soil the tomatoes are drying, slower than the lettuce's, and the lettuce stays short
-  most summers either way. With the shallow probe among the lettuce it is short once in
-  thirty. The price is the water: one valve for both, every watering for the lettuce also
-  brings the tomatoes' 60 cm back to field capacity, and more of it drains. Two plantings
-  this far apart in age are better on two valves.
-
+  left the lettuce's 15 short in nearly a third of the summers. Told both, it waters on
+  the lettuce's account and is never short, for a tenth more water.
+* **By probes, they must see the young roots' soil.** Among the tomatoes they read soil
+  the tomatoes are drying, slower than the lettuce's, and the lettuce is short most
+  summers whatever the advice is told. Moved among the lettuce, the shallow probe keeps it
+  watered, but the tomatoes' top 20 cm is then read by the lettuce's probe: every
+  watering for the lettuce brings the tomatoes' root zone back to field capacity, for
+  nearly twice the water, much of it drained.
+* **A probe for each, named for its planting, does both**: the lettuce short twice in
+  thirty summers for 17 hours, the tomatoes never, for 2% more water than the same four
+  probes unnamed, whose two at 10 cm are averaged and hide the lettuce's dry soil. Two
+  plantings this far apart in age are still better on two valves.
 
 ### Roots that stop
 
@@ -442,24 +472,25 @@ ways to give the advice the right depth:
   wetting it; its field capacity is the lower of the bed's and its own. A probe whose soil
   fell less than 0.002 a day over three or more of them is **level**: nothing draws on it.
   One that fell faster has roots, or is draining, and two tests tell which:
-  * **with the farm's timezone** (its station's, or `Advisor(timezone=…)`), **the
-    stair-step**: roots draw by day, so a probe that does 70% or more of its falling per
-    hour between 08:00 and 18:00, rather than between 20:00 and 04:00, **has roots**, and
-    one that falls at least as fast by night **has none**; drainage, and water creeping
-    up to roots above, run day and night alike. Between the two it says nothing;
-  * **without it**, a probe that went 0.02 under field capacity **has roots**: just past
-    field capacity a soil still drains about that fast, but only roots, or the sun near
-    the surface, take it well below.
+  * **by field capacity**, the default: a probe that went 0.02 under field capacity **has
+    roots**. Just past field capacity a soil still drains about that fast, but only
+    roots, or the sun near the surface, take it well below;
+  * **by the stair-step**, with `Advisor(stair_step=True)` and the farm's timezone (its
+    station's, or `Advisor(timezone=…)`): roots draw by day, so a probe that does 70% or
+    more of its falling per hour between 08:00 and 18:00, rather than between 20:00 and
+    04:00, **has roots**, and one that falls at least as fast by night **has none**;
+    drainage, and water creeping up to roots above, run day and night alike. Between the
+    two it says nothing.
 
   Take a probe without roots that the crop's curve says the roots passed at least 15 cm
   ago, under one that has them. The roots likely stop between the two, and a note says
   so. A stop seen on three of the last seven mornings stands on mornings that cannot see
   it, when waterings leave too few dry days to judge by.
 
-  > Tunnel bed 3's crop should have roots to about 70 cm by now, but its probe at 30 cm
+  > Tunnel bed 3's crop should have roots to about 60 cm by now, but its probe at 30 cm
   > has stayed level through its dry days while the one at 10 cm has dried: something may
   > be stopping the roots, a hardpan or compacted soil. The advice now waters when the top
-  > 20 cm has used its share, and still refills to 70 cm. If you know how deep the soil
+  > 20 cm has used its share, and still refills to 60 cm. If you know how deep the soil
   > lets roots go, set the bed's rooting limit.
 
   **A stop only changes when to water, never how much.** The watering is timed by the
@@ -468,56 +499,97 @@ ways to give the advice the right depth:
   read wet and add nothing to it; if the roots are there after all, they still get their
   water. Counting the roots only to half way, as a first version did, also cut each
   refill to the top 20 cm: on the thirty summers with no pan at all, the stops it saw
-  wrongly then left the crop short in 3 summers, for 714 hours.
+  wrongly then left the crop short in 3 summers, for 714 hours (with the 1998 curve).
 
 **Backtested** on the thirty summers, tomatoes sown on 1 May with probes at 10, 30 and 60
-cm, the virtual roots stopped at 30 cm whatever the curve says. A real soil's water also
-creeps up to drier soil above it, which the simulator's does not unless asked
-(`unsaturated_mm_per_h`, here 0.01 mm an hour): then the probe under the pan dries a
-little too, as a real one would.
+cm, the virtual roots stopped at 30 cm whatever the curve says, the 2025 revision's curve
+taking them to 60 cm. A real soil's water also creeps up to drier soil above it, which the
+simulator's does not unless asked (`unsaturated_mm_per_h`, here 0.01 mm an hour): then
+the probe under the pan dries a little too, as a real one would.
 
 | | water, mean a season | summers short | hours short, in all | worst season |
 | --- | --- | --- | --- | --- |
-| *the pan:* the crop's curve alone | 85 mm | 30 | 23,017 | 1,768 h |
-| the curve and root signs, by field capacity | 264 mm | 4 | 42 | 16 h |
-| the curve and root signs, by the stair-step | 263 mm | 4 | 90 | 64 h |
-| **the rooting limit set at 30 cm** | **313 mm** | **2** | **20** | **12 h** |
-| *the pan, water creeping up:* the crop's curve alone | 206 mm | 30 | 8,514 | 573 h |
-| the curve and root signs, by field capacity | 296 mm | 5 | 507 | 283 h |
-| **the curve and root signs, by the stair-step** | **300 mm** | **3** | **130** | **87 h** |
-| **the rooting limit set at 30 cm** | **318 mm** | **2** | **15** | **9 h** |
-| *no pan:* the curve and root signs, by field capacity | 322 mm | 0 | 0 | 0 |
-| the curve and root signs, by the stair-step | 321 mm | 0 | 0 | 0 |
-| *no pan, water creeping up:* by field capacity | 327 mm | 0 | 0 | 0 |
-| by the stair-step | 325 mm | 0 | 0 | 0 |
+| *the pan:* the crop's curve alone | 197 mm | 30 | 8,116 | 677 h |
+| **the curve and root signs, by field capacity** | **309 mm** | **2** | **50** | **38 h** |
+| the curve and root signs, by the stair-step | 308 mm | 2 | 50 | 38 h |
+| **the rooting limit set at 30 cm** | **311 mm** | **0** | **0** | **0** |
+| *the pan, water creeping up:* the crop's curve alone | 306 mm | 21 | 705 | 85 h |
+| **the curve and root signs, by field capacity** | **340 mm** | **0** | **0** | **0** |
+| the curve and root signs, by the stair-step | 338 mm | 0 | 0 | 0 |
+| **the rooting limit set at 30 cm** | **313 mm** | **0** | **0** | **0** |
+| *no pan:* the curve and root signs, by field capacity | 257 mm | 3 | 91 | 44 h |
+| the curve and root signs, by the stair-step | 255 mm | 2 | 77 | 44 h |
+| *no pan, water creeping up:* by field capacity | 253 mm | 2 | 54 | 38 h |
+| by the stair-step | 257 mm | 1 | 38 | 38 h |
 
-* **The curve alone starves a crop on a pan.** It counts 70 cm of roots, and the probes at
-  30 and 60 cm, which no root reaches, hold the bed's average up. It was short every
-  summer, for a month on average.
-* **Root signs find the pan unaided**, once the curve is 15 cm past the probe at 30 cm,
-  seven weeks after sowing; they did on about 90 of a season's 145 mornings, and where
-  nothing creeps up they cut the hours short by more than 99%.
-* **Where water creeps up from below the pan, only the stair-step still finds it.** The
-  probe under the pan then dries below field capacity without a root in it, and the test
-  by field capacity takes it for roots: 507 hours short. It dries day and night alike,
-  and the stair-step is not fooled: 130. Holding a stop through mornings that cannot see
-  it matters here: without it, 209 (measured before the stair-step's middle ground, below).
+* **The curve alone starves a crop on a pan.** It counts 60 cm of roots, and the probe at
+  30 cm, which no root reaches, holds the bed's average up. It was short every summer,
+  for eleven days on average.
+* **Root signs find the pan unaided**, once the curve is 15 cm past the probe at 30 cm;
+  they did on about 85 of a season's 145 mornings, and cut the hours short by more than
+  99%. The water they give is the rooting limit's.
+* **The two tests did as well as each other.** With the 1998 curve, roots to 70 cm, water
+  creeping up from below the pan fooled the test by field capacity, 507 hours short
+  against the stair-step's 130. With the revision's 60 cm both found the pan.
+* **Without a pan the signs cost the crop nothing**: the hours short are the crop's own,
+  as with no signs at all, and the water the same. But the stair-step saw a stop that
+  was not there on about 15 mornings a season, the test by field capacity on 3 or 4,
+  through the simulator's noisy probes (0.01 a reading), where a slow drinker's steps are
+  hard to see. A stop seen wrongly only times the watering, but its note asks the farmer
+  to set a rooting limit, which would cut the deep roots' refills. **So the test by field
+  capacity is the default**, and the stair-step an option.
 * **The limit set by hand is best.** A first version still counted the probe at 30 cm, set
-  into the pan: short in 23 summers for 1,528 hours. Leaving that probe out fixed it.
-* **Without a pan, the signs cost nothing**: never short, the water unchanged. The test
-  by field capacity saw a stop that was not there on one morning in ten seasons; the
-  stair-step on about 7 mornings a season, through the simulator's noisy probes (0.01 a
-  reading), where a slow drinker's steps are hard to see. It says nothing when a probe's
-  day and night are close (between 50% and 70% of the fall by day); calling those
-  "no roots", as a first version did, made it 19. The note asks the farmer to dig before
-  setting a limit, and the advice only waters a little sooner meanwhile.
-* **The stair-step needs to know when the farm's day is**: its station's timezone, or
-  `Advisor(timezone=…)` for a farm without one. Without either, the advice uses the test
-  by field capacity.
+  into the pan; leaving it out, and now any probe at the roots' front, fixed it.
 
-The earlier table's runs, with probes at 10 and 30 cm and no pan, came out the same summer
-by summer.
+## Hot days, and beds under cover
 
+**On a hot day.** FAO-56 adjusts the depletion fraction for how fast a crop is drying
+(the 2025 revision's Eq. 8.5): `p + 0.04 (5 − ETc)`, ETc in mm a day. With
+`Bed.adjust_p`, the advice lowers its third that way on a day drying faster than 5 mm,
+from the probes' drying rate or, by the weather, the day's Kc · ETo, so the crop is
+watered with more water left. FAO-56 also raises p on a mild day; that is not done here.
+On the thirty summers:
+
+| | water, mean a summer | summers short | hours short, in all | worst summer |
+| --- | --- | --- | --- | --- |
+| the backtest bed | 189 mm | 3 | 72 | 40 h |
+| **the backtest bed, `adjust_p`** | **195 mm** | **2** | **33** | **20 h** |
+| the backtest bed, Eq. 8.5 both ways | 179 mm | 7 | 102 | 29 h |
+| the shallow yard, each layer's values | 202 mm | 8 | 141 | 35 h |
+| the shallow yard, `adjust_p` | 202 mm | 8 | 141 | 35 h |
+| the shallow yard, Eq. 8.5 both ways | 201 mm | 7 | 111 | 35 h |
+
+On the backtest bed it halved the hours short for 3% more water; on the shallow yard it
+changed nothing, the look-ahead ([above](#the-beds-own-soil)) already watering it a day
+early on those days. Raising p on mild days too, as FAO-56 does, saved water on the
+backtest bed and left it short in more summers. `adjust_p` is off by default: on, it
+would change every result here before it has met a real bed.
+
+**A bed under cover.** Rain forecast for the farm does not reach a bed under a tunnel or
+a roof, and "rain is coming: wait" is the wrong advice for it. `Bed.rain_share` says how
+much of the rain reaches the bed, 0 under cover; the forecast that holds a watering, and
+the weather balance's rain, are scaled by it (`rain_reaching_mm`). Left unset, it is all
+of the rain, unless the bed's probes show it covered: through the last three storms of
+15 mm or more in the farm's rain gauge (`Advisor(rain_gauge=…)`, or the station's) that
+fell while its valve stayed shut, none moved a probe in its root zone by 0.03, as a mean
+of three readings, within 12 hours of the rain's end (`covered_by_its_probes`). Only a
+bed whose valve reports its waterings is judged: without it a watering could not be told
+from the rain. A share between none and all is not learned.
+
+On the thirty summers, the backtest bed under a tunnel, its forecasts the open sky's,
+watered by a valve that reports:
+
+| | water, mean a summer | summers short | hours short, in all | mornings told rain was coming |
+| --- | --- | --- | --- | --- |
+| not told it is covered | 375 mm | 6 | 91 | 98 |
+| covered, learned from the probes | 376 mm | 5 | 65 | 68 |
+| **told it is covered** | **376 mm** | **3** | **45** | **0** |
+| *in the open*, the gauge and the learning on | 189 mm | 3 | 72 | 29 |
+
+Told, it was never held for rain that could not reach it. Learning took the first part
+of each summer to see three storms, and held it on a third fewer mornings. In the open
+the learning never took the bed for covered: the water and the hours short are the
+open bed's without it.
 
 ## By the weather, with no probe
 
@@ -734,14 +806,14 @@ drying; this records why.
   (`Bed.crop`, `Bed.planted`); and the crop's own depletion fraction, which the file holds;
 * a wilting point learned from the probes: that needs the crop's lower limit, the
   driest its roots take a probe to, which a well-watered bed never shows. A tension
-  sensor beside the probe could read it off the retention curve at 1500 kPa, beyond a
-  Watermark's calibration;
-* a safe run length learned from the bed: comparing short runs with long ones,
-  cycle-and-soak worked out from the bed itself;
-* each bed's drying rate and the share of rain that reaches it, learned, to set beside
-  its recorded surface and planting;
-* each crop's degree-days for each stage, as Paredes et al. (2025b) tabulate them, in place
-  of FAO-56's days taken at the farm's normal year; their paper could not be fetched here;
-* a crop sown outside the review's 20 (turf has no stages);
-* a probe that says which planting it is among, so a young planting's shallow probe times
-  the watering for it alone.
+  sensor beside the probe could read it off the retention curve at 1500 kPa, which needs
+  one that reads past 1000 kPa (a TEROS 21, not a Watermark) and a bed let dry that far;
+* a safe run length learned from the bed: comparing short runs with long ones, as a valve
+  reports them, cycle-and-soak worked out from the bed itself;
+* a share of the rain between none and all, learned (a covered bed is: above);
+* the degree-days of the ten crops the 2025 revision gives only approximate ranges for
+  (its Table 6.12), in place of the 1998 days taken at the farm's normal year;
+* lawns on the 2025 revision's coefficients, which are lower than 1998's and would change
+  every lawn result;
+* a check for a probe out of the ground: openSenseMap's LSE01 reading 2% soil water passes
+  every check there is ([test data sources](../../docs/notes/test-data-sources.md)).

@@ -360,6 +360,9 @@ class SoilBed:
     #: soil's surface, as a probe's are.
     mulch_m: float = 0.0
     mulch_diffusivity: float = 2.0e-7         # dry wood chips: about 0.1 W m-1 K-1 over 0.5 MJ m-3 K-1
+    #: The share of the rain that reaches the soil: 0 under a tunnel or a roof, less than 1
+    #: under a canopy or plastic mulch that sheds it.
+    rain_share: float = 1.0
     #: Season totals, for anything that has to account for water: what drained below
     #: the root zone, what ran off a saturated bed, what the crop transpired.
     drained_mm: float = field(default=0.0, repr=False)
@@ -928,7 +931,9 @@ class World:
             if mm:
                 self._pending_mm[rule.bed] = self._pending_mm.get(rule.bed, 0.0) + mm
         for name, bed in self.beds.items():
-            bed.step(weather, irrigation_mm=self._pending_mm.pop(name, 0.0))
+            reaching = (weather if bed.rain_share == 1.0
+                        else replace(weather, rain_mm=weather.rain_mm * bed.rain_share))
+            bed.step(reaching, irrigation_mm=self._pending_mm.pop(name, 0.0))
             bed.step_heat(surface_c, deep_c)
         for trough in self.troughs.values():
             trough.step(self.when, weather)

@@ -225,6 +225,17 @@ class TestLayeredBed(unittest.TestCase):
         self.assertAlmostEqual(creeping.stored_mm + creeping.et_mm + creeping.deep_mm, before,
                                places=6)
 
+    def test_rain_does_not_reach_a_bed_under_cover(self):
+        open_bed = ph.LayeredBed(name="open", depth_mm=150.0,
+                                 horizons=(ph.Horizon(300.0, **ph.SANDY_LOAM),))
+        covered = ph.LayeredBed(name="tunnel", depth_mm=150.0, rain_share=0.0,
+                                horizons=(ph.Horizon(300.0, **ph.SANDY_LOAM),))
+        world = ph.World(start=JUNE, climate=ph.Climate(seed=3), beds=[open_bed, covered])
+        rain = sum(t.weather.rain_mm for t in world.run(days=10))
+        self.assertGreater(rain, 5.0, "the seeded weather rains in ten days")
+        self.assertGreater(open_bed.stored_mm + open_bed.et_mm + open_bed.deep_mm + open_bed.runoff_mm,
+                           covered.stored_mm + covered.et_mm + covered.deep_mm + rain * 0.5)
+
     def test_it_starts_soaked_and_drained_layer_by_layer(self):
         bed = _layered()
         self.assertEqual(bed.theta_at(0.05), ph.SANDY_LOAM["field_capacity"])
