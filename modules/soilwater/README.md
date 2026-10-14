@@ -64,6 +64,16 @@ first keeps the seed's, so a run with one probe reads exactly as before, to the 
 tables here with more than one probe were made with the shared stream; those re-measured on
 the new streams say so.
 
+**What that showed: hours short are noisy.** The water a bed was given moved by a few per
+cent at most; the hours short moved by several times in some rows, from nothing but which
+draws of noise each probe read (the code before the change gave the old numbers again,
+exactly, for the two rows tried). Over five draws of it, tomatoes led by probes at 10 and 30 cm were short in 1 or 2
+summers of thirty, for 16 to 45 hours; on the one draw the tables were first made with, 3 for
+178. So a difference of a few summers or a few dozen hours between two rows can be the
+noise's, and the comparisons below that rested on one have been said again. The large ones
+stand: the pan found by the root signs, the crop known against not, a probe among the young
+plants.
+
 On Harrow Bend, eight days, six beds: the beds are told apart on the first morning; the far
 bed node's radio outage turns its beds' advice into "unseen" and no one else's; and a probe
 lifted out of bed 6 into bed 2 leaves bed 6 with "no probe" and keeps bed 2 advised through
@@ -161,6 +171,9 @@ water gone:
 | | each layer's values | 122 mm, 198, 3 h | 188 mm, 146, 28 h |
 | | each layer's values, **learning** | **163 mm, 218, 0 h** | **217 mm, 150, 16 h** |
 
+The rows with two probes were made with both drawing their noise from one stream
+([above](#backtested)) and have not been measured again.
+
 **What the table shows:**
 
 * **On the survey's values, a probe in the topsoil drowns the yard.** The topsoil holds
@@ -207,9 +220,13 @@ summers:
 | | water, mean a summer | summers short | hours short, in all | worst summer |
 | --- | --- | --- | --- | --- |
 | the yard, each layer's values, before | 192 mm | 18 | 407 | 57 h |
-| **the yard, now** | **202 mm** | **8** | **141** | **35 h** |
+| **the yard, now** | **199 mm** | **10** | **178** | **45 h** |
 | the backtest bed, before | 188 mm | 3 | 72 | 40 h |
 | the backtest bed, now | 189 mm | 3 | 72 | 40 h |
+
+The yard now, with its two probes, measured again on 2026-10-14, each probe drawing its
+own noise ([above](#backtested)); when first made, on the shared stream, it was 202 mm, 8
+summers, 141 hours.
 
 The deep bed never dried fast enough to be watered early, which is the point. On single
 summers the change is mixed: the table above is with it, and the one-probe yard on the
@@ -324,8 +341,8 @@ makes no difference at all, to the millimetre: the probe measures what the lawn 
 lawn with a probed bed nearby as its reference learns its own rate (`Bed.reference`,
 [below](#a-probe-nearby-corrects-the-balance)), which is how to find out, lawn by lawn.
 A lawn led by one probe at 7 cm was itself short in 13 summers of 30 (255 hours) where
-the same lawn by the weather never was: a shallow root zone's trouble, not the
-coefficient's ([UNTESTED](../../docs/UNTESTED.md)).
+the same lawn by the weather never was. That is mostly the simulator's doing, not the
+probe's ([below](#water-below-field-capacity)).
 
 The day's root depth sets the root zone the probes are weighed over and the water it
 holds, and the day's coefficient drives the weather balance; an established lawn
@@ -335,7 +352,8 @@ tomatoes' 15 cm of roots do not reach a probe at 20 cm. **Nor does a probe at th
 zone's very bottom** count (`weights`): it reads the soil the roots are only reaching,
 half of it below them. With tomatoes' roots at their deepest, 60 cm, a probe at 60 cm
 counted as a quarter of the root zone left them short in 13 summers of 30 for 1,303
-hours; left out until the roots are past it, in 3 for 91.
+hours; left out until the roots are past it, in 0 or 1 over five draws of the probes'
+noise.
 
 The revision's depletion fractions are in the file; the advice keeps a third, lower than
 its tables as it says suits frequent watering, and with `Bed.adjust_p` lowers it on a
@@ -350,13 +368,16 @@ season.
 | --- | --- | --- | --- | --- |
 | tomatoes by the weather, crop not known | 360 mm | 0 | 0 | 0 |
 | **tomatoes by the weather, crop known** | **302 mm** | **0** | **0** | **0** |
-| tomatoes by probes, crop not known | 205 mm | 5 | 382 | 150 h |
-| **tomatoes by probes, crop known** | **262 mm** | **3** | **178** | **143 h** |
-| **the same, with a third probe at 60 cm** | **257 mm** | **3** | **91** | **44 h** |
+| tomatoes by probes, crop not known | 192 mm | 8 | 636 | 330 h |
+| **tomatoes by probes, crop known** | **255 mm** | **2** | **35** | **20 h** |
+| the same, with a third probe at 60 cm | 260 mm | 0 | 0 | 0 |
 | lettuce by the weather, crop not known | 159 mm | 0 | 0 | 0 |
 | **lettuce by the weather, crop known** | **149 mm** | **0** | **0** | **0** |
-| lettuce by probes, crop not known | 191 mm | 0 | 0 | 0 |
-| **lettuce by probes, crop known** | **144 mm** | **0** | **0** | **0** |
+| lettuce by probes, crop not known | 179 mm | 0 | 0 | 0 |
+| **lettuce by probes, crop known** | **138 mm** | **0** | **0** | **0** |
+
+The rows by probes were measured again on 2026-10-14, each probe drawing its own noise
+([above](#backtested)).
 
 * **By the weather**, a crop not known is charged a full canopy's water from sowing: it
   was given a fifth more than it needed (360 mm against 302 for tomatoes), drained below
@@ -366,8 +387,12 @@ season.
   whose roots never pass 30 cm, that is close to right, though it waters a third more
   than knowing the crop; for tomatoes, whose roots draw down to 60 cm, it waits too long
   and refills too little.
-* **Knowing the crop**, tomatoes were short in 3 summers; a third probe at 60 cm, in the
-  deeper half of their roots, halved the hours and cut the worst season from 143 to 44.
+* **Knowing the crop**, tomatoes were short in 2 summers for 35 hours, against 8 for 636
+  not knowing it. A third probe at 60 cm, in the deeper half of their roots, left them
+  short in none here, but that is within the probes' noise: over five draws of it, the two
+  probes left them short in 1 or 2 summers (16 to 45 hours), the three in 0 or 1 (0 to 38).
+  On the one draw these tables were first made with, the three had seemed to halve the
+  hours (178 to 91).
 
 The virtual crop grows by the very curve the advice is told, so this shows what knowing
 the curve is worth when the curve is right, not how right FAO-56's curve is for a given
@@ -462,11 +487,14 @@ measure the refill, and the refill is at least what the young planting's soil ha
 | --- | --- | --- | --- | --- |
 | by the weather, told the tomatoes alone | 302 mm | 0 | 9 | 204 |
 | **by the weather, told both** | **333 mm** | **0** | **0** | **0** |
-| probes at 10, 30 and 60 cm among the tomatoes, told the tomatoes alone | 257 mm | 3 | 30 | 2,960 |
-| the same, told both | 255 mm | 0 | 29 | 1,771 |
-| the one at 10 cm moved among the lettuce, told both | 478 mm | 0 | 1 | 14 |
-| a fourth at 10 cm among the lettuce, told both | 340 mm | 0 | 5 | 70 |
-| **the same, each probe named for its planting** | **347 mm** | **0** | **2** | **17** |
+| probes at 10, 30 and 60 cm among the tomatoes, told the tomatoes alone | 260 mm | 0 | 29 | 2,576 |
+| the same, told both | 258 mm | 0 | 26 | 1,149 |
+| the one at 10 cm moved among the lettuce, told both | 474 mm | 0 | 0 | 0 |
+| **a fourth at 10 cm among the lettuce, told both** | **342 mm** | **0** | **3** | **44** |
+| the same, each probe named for its planting | 344 mm | 0 | 6 | 150 |
+
+The rows by probes were measured again on 2026-10-14, each probe drawing its own noise
+([above](#backtested)).
 
 * **By the weather**, the advice for the tomatoes alone waited for their 60 cm of roots and
   left the lettuce's 15 short in nearly a third of the summers. Told both, it waters on
@@ -477,10 +505,13 @@ measure the refill, and the refill is at least what the young planting's soil ha
   watered, but the tomatoes' top 20 cm is then read by the lettuce's probe: every
   watering for the lettuce brings the tomatoes' root zone back to field capacity, for
   nearly twice the water, much of it drained.
-* **A probe for each, named for its planting, does both**: the lettuce short twice in
-  thirty summers for 17 hours, the tomatoes never, for 2% more water than the same four
-  probes unnamed, whose two at 10 cm are averaged and hide the lettuce's dry soil. Two
-  plantings this far apart in age are still better on two valves.
+* **A fourth probe among the lettuce does both**: the lettuce short in 3 summers of
+  thirty for 44 hours, the tomatoes never, for about the water of the weather's advice.
+  Naming each probe for its planting, so the lettuce's own times the watering, did no
+  better: 6 summers, 150 hours. On the draw of the probes' noise these tables were first
+  made with it had done better, 2 summers and 17 hours against 5 and 70; the difference
+  between the two is within the noise. Two plantings this far apart in age are still
+  better on two valves.
 
 ### Roots that stop
 
@@ -541,37 +572,41 @@ the probe under the pan dries a little too, as a real one would.
 
 | | water, mean a season | summers short | hours short, in all | worst season |
 | --- | --- | --- | --- | --- |
-| *the pan:* the crop's curve alone | 197 mm | 30 | 8,116 | 677 h |
-| **the curve and root signs, by field capacity** | **309 mm** | **2** | **50** | **38 h** |
-| the curve and root signs, by the stair-step | 308 mm | 2 | 50 | 38 h |
-| **the rooting limit set at 30 cm** | **311 mm** | **0** | **0** | **0** |
-| *the pan, water creeping up:* the crop's curve alone | 306 mm | 21 | 705 | 85 h |
-| **the curve and root signs, by field capacity** | **340 mm** | **0** | **0** | **0** |
-| the curve and root signs, by the stair-step | 338 mm | 0 | 0 | 0 |
-| **the rooting limit set at 30 cm** | **313 mm** | **0** | **0** | **0** |
-| *no pan:* the curve and root signs, by field capacity | 257 mm | 3 | 91 | 44 h |
-| the curve and root signs, by the stair-step | 255 mm | 2 | 77 | 44 h |
-| *no pan, water creeping up:* by field capacity | 253 mm | 2 | 54 | 38 h |
-| by the stair-step | 257 mm | 1 | 38 | 38 h |
+| *the pan:* the crop's curve alone | 198 mm | 29 | 7,563 | 822 h |
+| **the curve and root signs, by field capacity** | **322 mm** | **2** | **60** | **38 h** |
+| the curve and root signs, by the stair-step | 323 mm | 2 | 60 | 38 h |
+| **the rooting limit set at 30 cm** | **314 mm** | **1** | **7** | **7 h** |
+| *the pan, water creeping up:* the crop's curve alone | 316 mm | 20 | 531 | 65 h |
+| **the curve and root signs, by field capacity** | **345 mm** | **1** | **16** | **16 h** |
+| the curve and root signs, by the stair-step | 350 mm | 0 | 0 | 0 |
+| **the rooting limit set at 30 cm** | **315 mm** | **1** | **4** | **4 h** |
+| *no pan:* the curve and root signs, by field capacity | 260 mm | 0 | 0 | 0 |
+| the curve and root signs, by the stair-step | 257 mm | 0 | 0 | 0 |
+| *no pan, water creeping up:* by field capacity | 256 mm | 1 | 10 | 10 h |
+| by the stair-step | 260 mm | 1 | 10 | 10 h |
+
+Measured again on 2026-10-14, each probe drawing its own noise ([above](#backtested)). The
+crop's water is, as it was; hours short by a few dozen either way are within that noise.
 
 * **The curve alone starves a crop on a pan.** It counts 60 cm of roots, and the probe at
-  30 cm, which no root reaches, holds the bed's average up. It was short every summer,
-  for eleven days on average.
+  30 cm, which no root reaches, holds the bed's average up. It was short in 29 summers of
+  30, for eleven days on average.
 * **Root signs find the pan unaided**, once the curve is 15 cm past the probe at 30 cm;
-  they did on about 85 of a season's 145 mornings, and cut the hours short by more than
-  99%. The water they give is the rooting limit's.
+  they did on 63 to 86 of a season's 145 mornings, and cut the hours short by more than
+  99%. The water they give is close to the rooting limit's.
 * **The two tests did as well as each other.** With the 1998 curve, roots to 70 cm, water
   creeping up from below the pan fooled the test by field capacity, 507 hours short
   against the stair-step's 130. With the revision's 60 cm both found the pan.
 * **Without a pan the signs cost the crop nothing**: the hours short are the crop's own,
   as with no signs at all, and the water the same. But the stair-step saw a stop that
-  was not there on about 15 mornings a season, the test by field capacity on 3 or 4,
+  was not there on 17 to 25 mornings a season, the test by field capacity on about 2,
   through the simulator's noisy probes (0.01 a reading), where a slow drinker's steps are
   hard to see. A stop seen wrongly only times the watering, but its note asks the farmer
   to set a rooting limit, which would cut the deep roots' refills. **So the test by field
   capacity is the default**, and the stair-step an option.
-* **The limit set by hand is best.** A first version still counted the probe at 30 cm, set
-  into the pan; leaving it out, and now any probe at the roots' front, fixed it.
+* **The limit set by hand is best**, short once in thirty summers for a few hours, on the
+  least water. A first version still counted the probe at 30 cm, set into the pan;
+  leaving it out, and now any probe at the roots' front, fixed it.
 
 ## Hot days, and beds under cover
 
@@ -587,9 +622,13 @@ On the thirty summers:
 | the backtest bed | 189 mm | 3 | 72 | 40 h |
 | **the backtest bed, `adjust_p`** | **195 mm** | **2** | **33** | **20 h** |
 | the backtest bed, Eq. 8.5 both ways | 179 mm | 7 | 102 | 29 h |
-| the shallow yard, each layer's values | 202 mm | 8 | 141 | 35 h |
-| the shallow yard, `adjust_p` | 202 mm | 8 | 141 | 35 h |
+| the shallow yard, each layer's values | 199 mm | 10 | 178 | 45 h |
+| the shallow yard, `adjust_p` | 199 mm | 10 | 178 | 45 h |
 | the shallow yard, Eq. 8.5 both ways | 201 mm | 7 | 111 | 35 h |
+
+The shallow yard's first two rows, with two probes, were measured again on 2026-10-14,
+each probe drawing its own noise ([above](#backtested)); "both ways" was measured once,
+on the shared stream, before that option was taken out.
 
 On the backtest bed it halved the hours short for 3% more water; on the shallow yard it
 changed nothing, the look-ahead ([above](#the-beds-own-soil)) already watering it a day
@@ -601,22 +640,24 @@ with it on (thirty summers each; water, summers short, hours short):
 
 | | off | `adjust_p` |
 | --- | --- | --- |
-| tomatoes by probes at 10 and 30 cm | 262 mm, 3, 178 | 354 mm, 0, 0 |
-| tomatoes by probes at 10, 30 and 60 cm | 257 mm, 3, 91 | 329 mm, 1, 13 |
-| lettuce among tomatoes, probes among the tomatoes: the lettuce | 255 mm, 29, 1,771 | 330 mm, 8, 311 |
-| lettuce among tomatoes, a probe named for each | 347 mm, 2, 17 | 375 mm, 2, 17 |
-| tomatoes over a pan at 30 cm, root signs | 309 mm, 2, 50 | 383 mm, 2, 50 |
-| the same, water creeping up below the pan | 340 mm, 0, 0 | 422 mm, 0, 0 |
+| tomatoes by probes at 10 and 30 cm | 255 mm, 2, 35 | 323 mm, 0, 0 |
+| tomatoes by probes at 10, 30 and 60 cm | 260 mm, 0, 0 | 324 mm, 0, 0 |
+| lettuce among tomatoes, probes among the tomatoes: the lettuce | 258 mm, 26, 1,149 | 338 mm, 9, 216 |
+| lettuce among tomatoes, a probe named for each | 344 mm, 6, 150 | 391 mm, 7, 154 |
+| tomatoes over a pan at 30 cm, root signs | 322 mm, 2, 60 | 394 mm, 1, 22 |
+| the same, water creeping up below the pan | 345 mm, 1, 16 | 423 mm, 1, 16 |
 | the backtest bed under a tunnel, told | 376 mm, 3, 45 | 381 mm, 0, 0 |
-| lettuce by probes at 10 and 30 cm | 144 mm, 0, 0 | 154 mm, 0, 0 |
+| lettuce by probes at 10 and 30 cm | 138 mm, 0, 0 | 143 mm, 0, 0 |
 | tomatoes or lettuce by the weather | 302 and 149 mm, 0, 0 | 303 and 150 mm, 0, 0 |
 | a lawn, by its probe or by the weather | the same | the same |
 
 It only acts where the crop draws well over 5 mm a day, which on this farm is tomatoes at
-mid-season; a lawn seldom does. There it ends most shortages, but at a quarter to a third
-more water, most of it drained, and costs that even where nothing was short: over a pan,
-a quarter more water for the same hours. **So it stays off by default**: a bed whose
-probes show it running short in hot spells can be given it.
+mid-season; a lawn seldom does. There it ends most shortages, but at a fifth to a third
+more water, most of it drained, and costs that even where nothing was short: with water
+creeping up under a pan, a fifth more for the same hours, and for the lettuce among
+tomatoes with a probe each, a seventh more for none fewer. **So it stays off by default**:
+a bed whose probes show it running short in hot spells can be given it. (The rows with
+several probes were measured again on 2026-10-14, each probe drawing its own noise.)
 
 **A bed under cover.** Rain forecast for the farm does not reach a bed under a tunnel or
 a roof, and "rain is coming: wait" is the wrong advice for it. `Bed.rain_share` says how
@@ -643,6 +684,64 @@ Told, it was never held for rain that could not reach it. Learning took the firs
 of each summer to see three storms, and held it on a third fewer mornings. In the open
 the learning never took the bed for covered: the water and the hours short are the
 open bed's without it.
+
+## Water below field capacity
+
+The simulator's layered soil (`physics.LayeredBed`) drains a layer wetter than its field
+capacity into the one below, and moves no water at all between layers drier than that,
+unless it is given a rate (`unsaturated_mm_per_h`, none by default). A real soil does move
+it: slowly, but not slowly beside a lawn's days. That one omission explains a finding that
+looked like the probe's.
+
+**A lawn led by one probe at 7 cm** (the lawn drill's tall fescue, 15 cm of roots, in silt
+loam) was short in 13 summers of 30, 255 hours, where the same lawn by the weather never
+was. Morning by morning in 2008, its worst summer (45 hours), each watering, sized to what
+the probe read, wet the top 10 cm a little past field capacity, and the grass used that
+before it drained. The bottom 5 cm of the roots stayed near 0.19 while the probe read 0.28.
+The probe never saw them, and the advice took the bed as watered.
+
+| one lawn, silt loam, no water moving below field capacity | water, mean a summer | summers short | hours short, in all |
+| --- | --- | --- | --- |
+| one probe at 7 cm | 178 mm | 13 | 255 |
+| one probe at 10 cm | 214 mm | 7 | 115 |
+| two, at 7 and 12 cm | 182 mm | 4 | 60 |
+
+A real silt loam does not leave water held near field capacity over a dry layer where it
+is. Van Genuchten's curve and Mualem's conductivity, with Carsel and Parrish's (1988) mean
+silt loam (the soil `test_retention.py` already uses), pass about 5 mm a day from a layer
+at 0.29 to one at 0.19 2.5 cm below it, and 2.5 to 6 mm a day across the pairs of layers
+that summer shows, taking the two layers' conductivities' geometric mean. In the
+simulator's terms that is 0.27 to 0.9 mm an hour; the harmonic mean, the lowest of the
+usual choices, gives 0.08 to 0.6, and the arithmetic mean, the highest, 0.75 to 1.8. The
+13 short summers again, water moving at a range of rates:
+
+| water moving below field capacity, mm an hour | one probe at 7 cm: summers short of 13, hours | two probes, at 7 and 12 cm |
+| --- | --- | --- |
+| none, as above | 13, 255 | 3, 43 |
+| 0.03 | 2, 24 | 2, 16 |
+| 0.1 | 0, 0 | 0, 0 |
+| 0.3 | 1, 4 | 0, 0 |
+| 1.0 | 4, 61, on 132 mm a summer against 186 | 1, 44 |
+
+So most of the shortfall is the simulator's. From 0.1 to 0.3 an hour, the middle of those
+estimates, one probe at 7 cm keeps the lawn about as well as two. At 1.0, at the top of
+them, shortages come back on far less water, which wants looking into before the simulator
+takes a rate. Carsel and Parrish's figures are a class mean, and a real lawn's own soil is
+the test.
+
+**What it means for the tables here.** Every backtest with a crop or a lawn runs on this
+layered soil with no water moving below field capacity, except the rows that say water
+creeps, at 0.01 mm an hour, a tenth or less of the estimate above. That is the crop that
+grows, the roots that stop, the plantings, the yard and the lawns. Rows set beside each
+other compare on the same soil. Where a result turns on a dry layer staying dry under a wet
+one (the root signs' level probe, a refill that never reaches the bottom), its size is the
+simulator's until the soil moves water as a real one does.
+
+**A probe in another soil needs that soil's values.** In the builder's yard, sandy loam
+over compacted clay at 10 cm, a second probe at 12 cm sits in the clay. With the bed given
+one soil's values it read wet all summer, and the lawn went short in 27 summers of 30 (2,388
+hours), against 11 (220) with the one probe at 7 cm. Given each layer's values
+(`Bed.layers`, [above](#the-beds-own-soil)), it went short in 8 (123 hours) on 187 mm.
 
 ## By the weather, with no probe
 
@@ -903,7 +1002,9 @@ drying; this records why.
   (its Table 6.12), in place of the 1998 days taken at the farm's normal year;
 * which lawn coefficient is right for a real lawn, 1998's or the revision's
   (`turf_lawn`): a lawn's own rate, learned from a probed bed nearby, would say;
-* why a lawn led by one probe at 7 cm was short in 13 summers of 30 where the weather's
-  advice for it never was;
-* a check for a probe out of the ground: openSenseMap's LSE01 reading 2% soil water passes
-  every check there is ([test data sources](../../docs/notes/test-data-sources.md)).
+* water moving between the simulator's layers below field capacity, each horizon at its
+  own rate from its retention curve and conductivity, and the tables run again on it
+  ([above](#water-below-field-capacity));
+* the other sign of a probe out of the soil: no rise after the rain the gauge recorded or
+  the watering the valve did, which would catch it in sand too
+  ([above](#a-probe-out-of-the-soil)).
