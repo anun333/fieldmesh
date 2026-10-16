@@ -2064,7 +2064,10 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     lets water creep up through the soil below field capacity (`growing_bed`).
 
     `second`, `(crop, planted)`, is a second planting in the same bed, its own patch of
-    the same soil, watered whenever the bed is; the probes are in the first's. With
+    the same soil, watered whenever the bed is; the probes are in the first's. Until it is
+    sown the patch is bare, drawing nothing, and its hours short count from that day (before
+    2026-10-15 the patch grew as a seedling from the start, and its hours counted from then:
+    lettuce sown on 15 June was "short" in May). With
     `knows_second` the bed is set up with both (`Bed.plantings`), without it with the
     first alone; the probes at the depths in `in_second` are in the second's patch, and
     `second_depths` adds probes there. With `name_probes` each planting names the probes in
@@ -2162,7 +2165,10 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             grow(b, virtual_crop or crop,
                  (when.date() - planted).days if planted is not None else 0, hardpan_mm)
             if b2 is not None:
-                grow(b2, second[0], max(0, (when.date() - second[1]).days), hardpan_mm)
+                if when.date() < second[1]:
+                    b2.crop_coefficient = 0.0          # bare, waiting to be sown
+                else:
+                    grow(b2, second[0], (when.date() - second[1]).days, hardpan_mm)
         if when.minute == 0:
             for probe, depth, in_patch in probes:
                 patch = b2 if b2 is not None and in_patch else b
@@ -2218,7 +2224,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         stress.append(s)
         if s >= 0.5:
             stressed_h += 1.0 / 12.0
-        if b2 is not None and tick.soil_stress[b2.name] >= 0.5:
+        if b2 is not None and when.date() >= second[1] and tick.soil_stress[b2.name] >= 0.5:
             second_h += 1.0 / 12.0
     return {"policy": "advisory", "applied_mm": applied, "drained_mm": b.drained_mm,
             "second_stressed_h": second_h if b2 is not None else None,
@@ -2398,11 +2404,12 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
             for sb in (b, rb):
                 grow(sb, grows, grown_days if grown_days is not None else calendar,
                      hardpan_mm=hardpan_mm, gdd=grown_gdd)
-            if b2 is not None:
+            if b2 is not None and today < second[1]:
+                b2.crop_coefficient = 0.0              # bare, waiting to be sown
+            elif b2 is not None:
                 d2, g2 = (truth2.get(today, (0.0, 0.0)) if truth2 is not None
-                          else (max(0, (today - second[1]).days), None))
-                grow(b2, second[0], d2 if d2 is not None else max(0, (today - second[1]).days),
-                     gdd=g2)
+                          else ((today - second[1]).days, None))
+                grow(b2, second[0], d2 if d2 is not None else (today - second[1]).days, gdd=g2)
         if when.minute == 0:
             if when.hour == 0 or not sun_today:
                 sun_today = hourly_sun(when.date())
@@ -2460,7 +2467,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         stress.append(s)
         if s >= 0.5:
             stressed_h += 1.0 / 12.0
-        if b2 is not None and tick.soil_stress[b2.name] >= 0.5:
+        if b2 is not None and when.date() >= second[1] and tick.soil_stress[b2.name] >= 0.5:
             second_h += 1.0 / 12.0
     return {"policy": "weather", "applied_mm": applied[b.name], "drained_mm": b.drained_mm,
             "second_stressed_h": second_h if b2 is not None else None,

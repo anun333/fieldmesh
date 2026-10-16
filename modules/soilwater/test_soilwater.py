@@ -1451,6 +1451,29 @@ class TestEachProbesNoise(unittest.TestCase):
         self.assertNotEqual(b, c)
 
 
+class TestASecondPlantingNotYetSown(unittest.TestCase):
+    """A planting sown after the backtest starts: its patch is bare until then, and its
+    hours short are counted from its sowing day, not from the start."""
+
+    def test_its_hours_short_count_from_the_day_it_is_sown(self):
+        """The 2012 drought from 20 June, tomatoes sown 50 days before, the advice told only
+        of them: lettuce sown on the first day goes short; sown after the run, it is not
+        counted at all, and the bed is watered alike."""
+        import physics as ph
+        climate = ph.RecordedClimate.from_csv(
+            os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv"),
+            seed=1)
+        start = _dt.datetime(2012, 6, 20, tzinfo=_dt.timezone.utc)
+        kw = dict(seed=1, depths=(0.10, 0.30), crop="tomato", knows_crop=True,
+                  planted=start.date() - _dt.timedelta(days=50), knows_second=False)
+        sown = S.backtest(climate, start, 20, second=("lettuce", start.date()), **kw)
+        later = S.backtest(climate, start, 20,
+                           second=("lettuce", start.date() + _dt.timedelta(days=30)), **kw)
+        self.assertGreater(sown["second_stressed_h"], 0.0)
+        self.assertEqual(later["second_stressed_h"], 0.0, "not sown within the run")
+        self.assertEqual(later["applied_mm"], sown["applied_mm"], "the probes are the tomatoes'")
+
+
 class TestBacktestOnARecordedSummer(unittest.TestCase):
     """§11: backtested on a past season before it goes live. McAllister Farm's summer of
     2013, June to August, the drill's forecasts in the log; the advisory waters when it
