@@ -54,7 +54,7 @@ class TestTheAddOns(unittest.TestCase):
         last water at 0.12, the middle of that range waits for the lawn to be dry."""
         low = summer(2012, "soil_sensor", "native", 0.625)
         high = summer(2012, "soil_sensor", "native", 0.85)
-        self.assertGreater(low["stressed_h"], 300)
+        self.assertGreater(low["stressed_h"], 200, "over a week of the summer")
         self.assertLess(high["stressed_h"], 0.5 * low["stressed_h"])
 
     def test_one_soak_calibrates_a_perched_yard_too_wet_and_it_floods(self):

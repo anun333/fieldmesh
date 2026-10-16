@@ -149,6 +149,11 @@ class TestSoilBed(unittest.TestCase):
         self.assertGreater(bed.theta, 0.20)
 
 
+#: The lawn drill's silt loam (`sim/lawn_drill.py`).
+SILT_LOAM = {"saturation": 0.42, "field_capacity": 0.30, "wilting_point": 0.12,
+             "ks_mm_per_h": 8.0, "suction_mm": 170.0}
+
+
 def _uniform(**kw):
     return ph.LayeredBed(name="uniform", depth_mm=150,
                          horizons=(ph.Horizon(600, **ph.SANDY_LOAM),), **kw)
@@ -224,6 +229,83 @@ class TestLayeredBed(unittest.TestCase):
         self.assertLess(night[1], night[0], "it creeps at night too")
         self.assertAlmostEqual(creeping.stored_mm + creeping.et_mm + creeping.deep_mm, before,
                                places=6)
+
+    def test_each_horizons_curve_passes_through_its_own_limits(self):
+        for soil in (ph.SANDY_LOAM, ph.COMPACTED_CLAY, SILT_LOAM):
+            h = ph.Horizon(100.0, **soil)
+            self.assertAlmostEqual(h.suction_at(h.field_capacity),
+                                   ph.FIELD_CAPACITY_SUCTION_MM, delta=1.0, msg="33 kPa")
+            self.assertAlmostEqual(h.suction_at(h.wilting_point),
+                                   ph.WILTING_POINT_SUCTION_MM, delta=50.0, msg="1500 kPa")
+            self.assertLess(h.conductivity_at(h.wilting_point), h.conductivity_at(h.field_capacity))
+            self.assertAlmostEqual(h.conductivity_at(h.saturation), h.ks_mm_per_h)
+            wet, dry = 0.5 * (h.field_capacity + h.wilting_point), h.wilting_point + 0.01
+            eps = 1e-6
+            numeric = (h.suction_at(wet - eps) - h.suction_at(wet + eps)) / (2 * eps)
+            self.assertAlmostEqual(h.suction_slope(wet) / numeric, 1.0, places=4)
+            self.assertGreater(h.suction_slope(dry), h.suction_slope(wet))
+
+    def test_below_field_capacity_water_moves_by_darcys_law(self):
+        """Silt loam at 0.29 over silt loam at 0.19, 2.5 cm apart: one tick moves what the
+        conductivities' geometric mean and the suction between them say, downward."""
+        bed = ph.LayeredBed(name="two", depth_mm=25.0, horizons=(ph.Horizon(50.0, **SILT_LOAM),))
+        bed.layers[:] = [0.29, 0.19]
+        h = bed._props[0]
+        k = (h.conductivity_at(0.29) * h.conductivity_at(0.19)) ** 0.5
+        expected = k * ((h.suction_at(0.19) - h.suction_at(0.29)) / 25.0 + 1.0) / 12.0
+        bed._below_capacity(bed.layers, bed._props, 25.0, 1.0 / 12.0)
+        self.assertAlmostEqual((0.29 - bed.layers[0]) * 25.0, expected, places=9)
+        self.assertGreater(expected * 288, 5.0, "several millimetres a day")
+        self.assertAlmostEqual(bed.drained_mm, expected, places=9, msg="it left the roots")
+
+    def test_water_moves_by_suction_not_by_how_wet_a_soil_looks(self):
+        """Sandy loam over clay, each at the same suction: the clay holds far more water,
+        yet nothing moves up into the sand but against gravity."""
+        bed = ph.LayeredBed(name="two", depth_mm=25.0,
+                            horizons=(ph.Horizon(25.0, **ph.SANDY_LOAM),
+                                      ph.Horizon(25.0, **ph.COMPACTED_CLAY)))
+        sand, clay = bed._props
+        target = 30000.0                                     # mm of suction, about 300 kPa
+        def at(h):
+            lo, hi = h.wilting_point / 2, h.field_capacity
+            for _ in range(60):
+                mid = (lo + hi) / 2
+                lo, hi = (mid, hi) if h.suction_at(mid) > target else (lo, mid)
+            return (lo + hi) / 2
+        bed.layers[:] = [at(sand), at(clay)]
+        self.assertGreater(bed.layers[1], bed.layers[0] + 0.1)
+        before = list(bed.layers)
+        bed._below_capacity(bed.layers, bed._props, 25.0, 1.0 / 12.0)
+        moved = (before[0] - bed.layers[0]) * 25.0
+        self.assertGreaterEqual(moved, 0.0, "down, by gravity, if at all")
+        self.assertLess(moved, 1e-6)
+
+    def test_a_steep_gradient_never_overshoots(self):
+        bed = ph.LayeredBed(name="two", depth_mm=25.0, horizons=(ph.Horizon(50.0, **SILT_LOAM),))
+        h = bed._props[0]
+        bed.layers[:] = [0.30, 0.13]
+        for _ in range(2000):
+            bed._below_capacity(bed.layers, bed._props, 25.0, 1.0 / 12.0)
+            up = h.suction_at(bed.layers[0])
+            self.assertLessEqual(up, h.suction_at(bed.layers[1]) + 25.0 + 1e-6)
+        self.assertAlmostEqual(sum(bed.layers), 0.43, places=12)
+
+    def test_by_default_a_dry_root_zone_draws_water_up_from_below(self):
+        """Roots that stop at 30 cm dry the soil above; below, water comes up into it, by
+        night as by day, and none is lost or made."""
+        bed = ph.LayeredBed(name="row", depth_mm=300.0, horizons=(ph.Horizon(600.0, **SILT_LOAM),))
+        for i in range(12):
+            bed.layers[i] = 0.16
+        bed._mean()
+        before = bed.stored_mm
+        world = ph.World(start=JUNE, climate=_dry_climate(), beds=[bed])
+        night = []
+        for n, _ in enumerate(world.run(days=2)):
+            if n in (22 * 12, 30 * 12):
+                night.append(bed.theta_at(0.31))
+        self.assertLess(bed.theta_at(0.31), SILT_LOAM["field_capacity"] - 0.002)
+        self.assertLess(night[1], night[0], "at night too")
+        self.assertAlmostEqual(bed.stored_mm + bed.et_mm + bed.deep_mm, before, places=6)
 
     def test_rain_does_not_reach_a_bed_under_cover(self):
         open_bed = ph.LayeredBed(name="open", depth_mm=150.0,

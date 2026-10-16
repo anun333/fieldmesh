@@ -111,11 +111,16 @@ a dry year that soil can be too dry for roots to enter, which no curve on its ow
 The backtests are in the [advisory's README](../../modules/soilwater/README.md#by-the-seasons-warmth):
 the clock, plantings at different stages, and roots that stop. In brief, on thirty
 simulated summers, on the 2025 revision's curve: over a pan at 30 cm the curve alone left
-tomatoes short every summer for eleven days, and the root signs cut that by more than 99%; a young planting of
-lettuce among tomatoes, short in 9 summers on the weather's advice for the tomatoes, was
-never short once the advice knew both. Timing the curve by degree-days moved a season's
-water by up to a sixth either way with the season's warmth, and on this farm's margins
-left no crop short either way.
+tomatoes short every summer for eleven days, and the root signs cut that by more than 99%,
+on a simulated soil that moved no water below field capacity. On a soil that moves it as a
+real one does (since 2026-10-15), water rising out of the soil under the pan kept the crop
+watered on the curve alone, and the signs, though they found the pan, only added water.
+A young planting of lettuce among tomatoes, on the weather's advice for the tomatoes
+alone, was short in 8 summers on the earlier soil and in none on this one; a probe in
+its patch must be named for it, or before it is sown the bare patch's probe holds the
+tomatoes' watering back. Timing the curve by degree-days
+moved a season's water by up to a sixth less or a fifth more with the season's warmth, and
+on this farm's margins left no crop short either way.
 
 ## Next
 

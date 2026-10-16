@@ -469,13 +469,53 @@ class SoilBed:
         return self.temps[lower] * (1 - frac) + self.temps[lower + 1] * frac
 
 
+#: The suctions that define field capacity and the wilting point, as millimetres of water:
+#: 33 kPa and 1500 kPa.
+FIELD_CAPACITY_SUCTION_MM = 33.0 / 9.80665 * 1000.0
+WILTING_POINT_SUCTION_MM = 1500.0 / 9.80665 * 1000.0
+
+
+def van_genuchten(saturation: float, field_capacity: float, wilting_point: float,
+                  residual: float = 0.0) -> tuple[float, float]:
+    """`(alpha, n)`, alpha per mm, of van Genuchten's curve through a soil's own limits:
+    `saturation` at no suction, `field_capacity` at 33 kPa, `wilting_point` at 1500 kPa, with
+    `m = 1 - 1/n` and the `residual` water content given (none by default)."""
+    se_fc = (field_capacity - residual) / (saturation - residual)
+    se_wp = (wilting_point - residual) / (saturation - residual)
+    ratio = math.log(WILTING_POINT_SUCTION_MM / FIELD_CAPACITY_SUCTION_MM)
+
+    def log_x(se: float, m: float) -> float:        # log(se^(-1/m) - 1), without overflow
+        return -math.log(se) / m + math.log1p(-se ** (1.0 / m))
+
+    def gap(n: float) -> float:
+        m = 1.0 - 1.0 / n
+        return n * ratio - (log_x(se_wp, m) - log_x(se_fc, m))
+
+    lo, hi = 1.0001, 20.0
+    if gap(lo) * gap(hi) > 0:
+        raise ValueError("no van Genuchten curve passes through these limits")
+    for _ in range(80):
+        mid = (lo + hi) / 2.0
+        if gap(lo) * gap(mid) <= 0:
+            hi = mid
+        else:
+            lo = mid
+    n = (lo + hi) / 2.0
+    m = 1.0 - 1.0 / n
+    return math.exp(log_x(se_fc, m) / n) / FIELD_CAPACITY_SUCTION_MM, n
+
+
 @dataclass(frozen=True)
 class Horizon:
     """One layer of soil in a `LayeredBed`, top down: how thick it is, its water limits
     as volume fractions, how fast it passes water when saturated, mm an hour, and the
     suction at a wetting front, mm, which draws water into a dry soil faster than that
     (Green and Ampt). With no suction, water soaks in only as fast as saturated soil
-    passes it."""
+    passes it.
+
+    Below field capacity its water is held by suction, along van Genuchten's curve through
+    its own limits (`van_genuchten`, `residual` the water no suction takes), and moves as
+    Mualem's conductivity from `ks_mm_per_h` lets it (`suction_at`, `conductivity_at`)."""
 
     thickness_mm: float
     saturation: float
@@ -483,12 +523,42 @@ class Horizon:
     wilting_point: float
     ks_mm_per_h: float
     suction_mm: float = 0.0
+    residual: float = 0.0
 
     def __post_init__(self) -> None:
         if not 0 < self.wilting_point < self.field_capacity < self.saturation < 1:
             raise ValueError("0 < wilting point < field capacity < saturation < 1")
         if self.thickness_mm <= 0 or self.ks_mm_per_h <= 0 or self.suction_mm < 0:
             raise ValueError("a horizon has a thickness and passes some water")
+        if not 0 <= self.residual < self.wilting_point:
+            raise ValueError("0 <= residual water < wilting point")
+        alpha, n = van_genuchten(self.saturation, self.field_capacity, self.wilting_point,
+                                 self.residual)
+        object.__setattr__(self, "_vg", (alpha, n, 1.0 - 1.0 / n))
+
+    def _se(self, theta: float) -> float:
+        se = (theta - self.residual) / (self.saturation - self.residual)
+        return min(1.0, max(1e-6, se))
+
+    def suction_at(self, theta: float) -> float:
+        """The suction holding water at `theta`, mm of water."""
+        alpha, n, m = self._vg
+        se = self._se(theta)
+        return 0.0 if se >= 1.0 else (se ** (-1.0 / m) - 1.0) ** (1.0 / n) / alpha
+
+    def suction_slope(self, theta: float) -> float:
+        """How fast the suction falls as `theta` rises, mm of water per unit of `theta`."""
+        alpha, n, m = self._vg
+        se = min(self._se(theta), 1.0 - 1e-9)
+        x = se ** (-1.0 / m) - 1.0
+        return (x ** (1.0 / n - 1.0) * se ** (-1.0 / m - 1.0)
+                / (alpha * n * m * (self.saturation - self.residual)))
+
+    def conductivity_at(self, theta: float) -> float:
+        """Mualem's conductivity at `theta`, mm an hour."""
+        _, _, m = self._vg
+        se = self._se(theta)
+        return self.ks_mm_per_h * se ** 0.5 * (1.0 - (1.0 - se ** (1.0 / m)) ** m) ** 2
 
 
 #: A light topsoil and a compacted clay subsoil, the two a landscaped bed is often made
@@ -525,11 +595,19 @@ class LayeredBed(SoilBed):
       Up to `surface_storage_mm` waits on the surface for the next tick, as in a lawn's
       hollows; the rest runs off.
 
-    * **water creeps between layers below field capacity**, with `unsaturated_mm_per_h`:
-      from the wetter of two neighbours to the drier, `k · (s_lower − s_upper)` a tick
-      upward, `s` each layer's share of its available water, at most 1 (a layer past field
-      capacity drains, and counts as full). Roots drying the soil above a layer draw its
-      water up slowly, by day and night alike. Off by default.
+    * **water moves between layers below field capacity** by Darcy's law: from the higher
+      potential to the lower, each layer's suction from its horizon's curve and gravity
+      across the `layer_mm` between them, at the geometric mean of the two layers'
+      conductivities (`Horizon`). A layer past field capacity drains, and counts as at
+      field capacity here. Roots drying the soil above a layer draw its water up, by day
+      and night alike, and a watering that stops above the bottom of the roots reaches it
+      in time. A tick moves no more than half of what would bring the two to one
+      potential, so a step cannot overshoot. What crosses the bottom of the roots counts
+      in `drained_mm`, net of what comes back up.
+
+      **Given `unsaturated_mm_per_h`, the simulator before 2026-10-15 instead**: a number,
+      `k · (s_lower − s_upper)` a tick, `s` each layer's share of its available water, at
+      most 1; 0 moves nothing below field capacity, as it did by default.
 
     So a watering on topsoil over compacted clay fills the topsoil, stalls at the clay and
     perches there, and a long run puts more on than the bed can take. A probe reads its
@@ -540,7 +618,7 @@ class LayeredBed(SoilBed):
     horizons: tuple = ()
     layer_mm: float = 25.0
     surface_storage_mm: float = 2.5
-    unsaturated_mm_per_h: float = 0.0
+    unsaturated_mm_per_h: float | None = None
     ponded_mm: float = field(default=0.0, repr=False)
     #: What has soaked in since water began to arrive, and how dry the top was then.
     soaked_mm: float = field(default=0.0, repr=False)
@@ -637,7 +715,9 @@ class LayeredBed(SoilBed):
             if i == self._roots - 1:
                 self.drained_mm += flux
 
-        if self.unsaturated_mm_per_h > 0:
+        if self.unsaturated_mm_per_h is None:
+            self._below_capacity(theta, props, dz, dt)
+        elif self.unsaturated_mm_per_h > 0:
             for i in range(n - 1):
                 a, b = props[i], props[i + 1]
                 # Above field capacity a layer drains; as far as creeping goes it is full.
@@ -679,6 +759,25 @@ class LayeredBed(SoilBed):
             theta[i] = max(0.01, theta[i])
         self._mean()
         return self.theta
+
+    def _below_capacity(self, theta: list, props: list, dz: float, dt: float) -> None:
+        """One tick of Darcy's law between each pair of layers, top down, either of them
+        below field capacity: the flux down is `K · (Δsuction + dz) / dz`."""
+        for i in range(len(theta) - 1):
+            a, b = props[i], props[i + 1]
+            if theta[i] >= a.field_capacity and theta[i + 1] >= b.field_capacity:
+                continue
+            ta, tb = min(theta[i], a.field_capacity), min(theta[i + 1], b.field_capacity)
+            head = b.suction_at(tb) - a.suction_at(ta) + dz      # mm of water, + is down
+            k = math.sqrt(a.conductivity_at(ta) * b.conductivity_at(tb))
+            flux = k * head / dz * dt
+            # Half of what, moved, would bring the two to one potential (linearly).
+            half = head * dz / (a.suction_slope(ta) + b.suction_slope(tb)) / 2.0
+            flux = min(flux, half) if flux > 0 else max(flux, half)
+            theta[i] -= flux / dz
+            theta[i + 1] += flux / dz
+            if i == self._roots - 1:
+                self.drained_mm += flux
 
 
 # --------------------------------------------------------------------- troughs

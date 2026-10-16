@@ -65,49 +65,56 @@ The soils' values, intake rates and wetting-front suctions are typical ones, ass
 
 | native silt loam | applied | drained | dry h (worst summer) | soggy h |
 | --- | --- | --- | --- | --- |
-| timer | 513 mm | 418 mm | 0 | 22 |
-| twice a week instead | 342 | 279 | 15 (87) | 13 |
-| + rain sensor | 416 | 330 | 0 | 17 |
-| + cycle and soak | 513 | 422 | 0 | 26 |
-| + rotary nozzles | 513 | 420 | 0 | 27 |
-| **+ weather-based adjustment** | **342** | **258** | **0** | **12** |
-| + soil sensor, set at 62.5% | 75 | 104 | 407 (659) | 1 |
-| + soil sensor, set at 75% | 127 | 119 | 149 (311) | 2 |
-| **+ soil sensor, set at 85%** | **211** | **160** | **19 (145)** | **7** |
-| on-demand sensor, set at 85% | 173 | 135 | 13 (73) | 2 |
-| all four hardware add-ons, 85% | 197 | 152 | 29 (170) | 5 |
+| timer | 513 mm | 411 mm | 0 | 23 |
+| twice a week instead | 342 | 259 | 0.5 (14) | 14 |
+| + rain sensor | 416 | 322 | 0 | 18 |
+| + cycle and soak | 513 | 416 | 0 | 27 |
+| + rotary nozzles | 513 | 413 | 0 | 28 |
+| **+ weather-based adjustment** | **342** | **249** | **0** | **13** |
+| + soil sensor, set at 62.5% | 32 | 42 | 205 (570) | 0 |
+| + soil sensor, set at 75% | 95 | 65 | 12 (77) | 1 |
+| **+ soil sensor, set at 85%** | **171** | **106** | **0** | **6** |
+| on-demand sensor, set at 85% | 175 | 104 | 0 | 3 |
+| all four hardware add-ons, 85% | 166 | 102 | 0 | 3 |
 
 | yard: sandy topsoil over clay | applied | drained | dry h (worst summer) | soggy h |
 | --- | --- | --- | --- | --- |
-| timer | 513 mm | 407 mm | 1 (14) | 71 |
-| twice a week instead | 342 | 271 | 56 (153) | 49 |
-| **+ rain sensor** | **416** | **319** | **2 (20)** | **33** |
-| + cycle and soak | 513 | 406 | 1 (13) | 64 |
-| + rotary nozzles | 513 | 406 | 1 (14) | 68 |
-| **+ weather-based adjustment** | **342** | **248** | **3 (36)** | **29** |
-| + soil sensor, set at 62.5% | 130 | 124 | 304 (564) | 22 |
-| + soil sensor, set at 75% | 208 | 159 | 99 (226) | 26 |
-| + soil sensor, set at 85% | 306 | 222 | 10 (74) | 29 |
-| **on-demand sensor, set at 85%** | **322** | **233** | **0** | **38** |
-| all four hardware add-ons, 85% | 294 | 213 | 10 (74) | 28 |
+| timer | 513 mm | 405 mm | 0.4 (13) | 71 |
+| twice a week instead | 342 | 266 | 37 (124) | 49 |
+| **+ rain sensor** | **416** | **317** | **0.4 (13)** | **33** |
+| + cycle and soak | 513 | 404 | 0 | 64 |
+| + rotary nozzles | 513 | 405 | 0.2 (5) | 68 |
+| **+ weather-based adjustment** | **342** | **246** | **0.9 (14)** | **29** |
+| + soil sensor, set at 62.5% | 130 | 114 | 246 (450) | 22 |
+| + soil sensor, set at 75% | 209 | 152 | 73 (195) | 26 |
+| + soil sensor, set at 85% | 306 | 219 | 6 (57) | 29 |
+| **on-demand sensor, set at 85%** | **322** | **228** | **0** | **38** |
+| all four hardware add-ons, 85% | 294 | 208 | 6 (57) | 28 |
 
 Runoff was small throughout: at most 9 mm a summer on average. It is covered below.
 
+These were run again on 2026-10-15, when the simulator's soil began to move water below
+field capacity as a real soil does ([soil advisory](../../modules/soilwater/README.md#water-below-field-capacity)).
+Watering by timer or weather barely changed; the soil sensors and twice-weekly watering
+left the native lawn dry for far fewer hours, the water held near capacity at the top now
+reaching the bottom of the roots. The yard, whose sandy topsoil passes almost nothing below
+its field capacity, moved little.
+
 ## What it shows
 
-1. **The plain timer wastes most of its water.** On the native soil, 418 of its 513 mm
+1. **The plain timer wastes most of its water.** On the native soil, 411 of its 513 mm
    drained below the roots. Most of the saving on offer is simply not watering after
    rain or through cool spells.
 2. **Weather-based adjustment is the best single add-on here.** It used a third less
-   water, with no dry hours on the native soil and three on the yard. The soggy hours
+   water, with no dry hours on the native soil and under one a summer on the yard. The soggy hours
    fell by almost half on the native soil and by more on the yard. It needs no probe and no wiring into the soil. The add-on kind
    leaves the existing controller in place.
 3. **The rain sensor is the cheapest, and costs the lawn nothing.** It used a fifth less
    water, and on the yard it halved the soggy hours (71 to 33).
 4. **A soil sensor can save the most, or starve the lawn: the set point decides.**
-   * At 85% of its calibrated reading, a bypass sensor used 59% less water on the native
-     soil than the timer, with 19 dry hours a summer.
-   * At the middle of AE437's range, 62.5%, the same lawn was dry for 407 hours a summer.
+   * At 85% of its calibrated reading, a bypass sensor used two thirds less water on the
+     native soil than the timer, with no dry hours.
+   * At the middle of AE437's range, 62.5%, the same lawn was dry for 205 hours a summer.
      In a silt loam that holds 0.30 and gives up its last water at 0.12, that set point
      waits until the lawn is nearly dry.
    * Florida's plot studies, which found no harm, were on bermudagrass in Florida's
@@ -122,15 +129,16 @@ Runoff was small throughout: at most 9 mm a summer on average. It is covered bel
    or the rain sensor did.
 6. **Nozzles and cycle-and-soak stop spray-head runoff, but do not save water on their
    own here.** At 40 mm an hour, spray heads outran the silt loam once its surface was
-   wet: 6 mm a summer on average, 15 mm in 2013. Both brought that to nothing. But the
+   wet: 5 mm a summer on average, 15 mm in 2013. Both brought that to nothing. But the
    timer still put the same water down, so what did not run off drained instead.
    * On the yard, the runoff was rain on topsoil already holding water over the clay, and
      neither helped.
    * Even coverage is what they are mostly bought for, and the simulator cannot score
      it. On slopes, and when paired with an add-on that waters less, they matter more
      than here.
-7. **"Twice a week" is free and saves a third, but leaves the lawn dry in droughts** on
-   these 15 cm roots: 87 hours in the worst summer on the native soil, 153 on the yard.
+7. **"Twice a week" is free and saves a third.** On the native soil it left the lawn dry
+   for 14 hours in the worst summer, but on the yard's shallow topsoil for 124: on these
+   15 cm roots a drought outlasts the gap between waterings there.
    Deep, infrequent watering is meant to grow deeper roots that ride out such spells.
    The simulator does not grow roots, so this is its least favourable case.
 
@@ -149,8 +157,9 @@ Runoff was small throughout: at most 9 mm a summer on average. It is covered bel
   third less. Every policy here would water as it does, but the lawn would need less,
   and the timer's waste would be larger still. fieldmesh's soil advisory keeps the 1998
   value by default and offers the revision's as `turf_lawn`: told 0.70, by the weather,
-  it saved a third of the water when that is the lawn's true rate, and left it short in
-  a third of summers when it is not ([soil advisory](../../modules/soilwater/README.md#a-crop-that-grows)).
+  it saved a third of the water when that is the lawn's true rate, and when it is not,
+  left it short only on the yard, in 3 summers of 30
+  ([soil advisory](../../modules/soilwater/README.md#a-crop-that-grows)).
 
 The soils are assumed, and the "dry" and "soggy" lines are this note's, not agronomy's.
 Every number here is the simulator's ([UNTESTED](../UNTESTED.md)).

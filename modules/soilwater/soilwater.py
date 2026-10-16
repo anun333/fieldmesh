@@ -1980,10 +1980,11 @@ def render(decision: dict, language: str = "en", state=None, units: str | None =
 
 # ---------------------------------------------------------------- backtest
 
-def growing_bed(unsaturated_mm_per_h: float = 0.0):
+def growing_bed(unsaturated_mm_per_h: float | None = None):
     """The virtual bed for a crop that grows: the backtest bed's silt loam (field capacity
-    0.30, wilting point 0.12) 1.5 m deep in layers, so roots can reach down through it;
-    with `unsaturated_mm_per_h`, water creeping between its layers below field capacity
+    0.30, wilting point 0.12) 1.5 m deep in layers, so roots can reach down through it,
+    its water moving between layers below field capacity by Darcy's law; a number for
+    `unsaturated_mm_per_h` is the simulator before 2026-10-15, 0 moving none
     (`physics.LayeredBed`)."""
     import physics as ph
     soil = ph.Horizon(1500.0, saturation=0.45, field_capacity=0.30, wilting_point=0.12,
@@ -2020,7 +2021,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              crop: str | None = None, planted: _dt.date | None = None,
              knows_crop: bool = True, hardpan_mm: float | None = None,
              knows_hardpan: bool = False, timezone: str | None = None,
-             unsaturated_mm_per_h: float = 0.0, second: tuple | None = None,
+             unsaturated_mm_per_h: float | None = None, second: tuple | None = None,
              knows_second: bool = True, in_second: tuple = (), second_depths: tuple = (),
              name_probes: bool = False, adjust_p: bool = False, rain_share: float = 1.0,
              rain_gauge: bool = False, knows_cover: bool = False,
@@ -2061,7 +2062,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     were seen at cm, probe they seemed not to reach cm or None)`. With `timezone` the
     advisor knows the farm's day and reads the stair-step (`root_signs`); the virtual
     farm's hours are its local solar time, so "UTC" is its clock. `unsaturated_mm_per_h`
-    lets water creep up through the soil below field capacity (`growing_bed`).
+    is how water moves below field capacity (`growing_bed`): by Darcy's law unless given.
 
     `second`, `(crop, planted)`, is a second planting in the same bed, its own patch of
     the same soil, watered whenever the bed is; the probes are in the first's. Until it is
@@ -2246,7 +2247,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                      clock: bool = False, second: tuple | None = None,
                      knows_second: bool = True, soil=None, virtual_crop: str | None = None,
                      hardpan_mm: float | None = None, knows_hardpan: bool = False,
-                     adjust_p: bool = False) -> dict:
+                     adjust_p: bool = False,
+                     unsaturated_mm_per_h: float | None = None) -> dict:
     """The advisory for the backtest bed with **no probe**, from a station on the farm:
     hourly air temperature, humidity, sunshine and rain, as the virtual farm's recorded
     weather gives them (`backtest` for the rest). Sunshine is each recorded day's total
@@ -2284,7 +2286,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     what it truly grows when that differs from `crop`, the crop the advice is told (a lawn
     using the 1998 edition's water while the advice believes the revision's).
     `hardpan_mm` stops the virtual roots, and with `knows_hardpan` the bed's rooting limit
-    is set to it. `adjust_p` sets `Bed.adjust_p`."""
+    is set to it. `adjust_p` sets `Bed.adjust_p`. `unsaturated_mm_per_h` is how water
+    moves below field capacity in a crop's bed (`growing_bed`)."""
     import statistics
 
     sys.path.insert(0, os.path.join(HERE, os.pardir, os.pardir, "sim"))
@@ -2298,13 +2301,13 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     from model import ClockQuality, Datastream, Installation, Observation
 
     state, fc, truth = D.forecasts(climate, start, days, FCS.Skill(), seed)
-    b = soil if soil is not None else (growing_bed() if crop else D.bed())
-    rb = growing_bed() if crop else D.bed()
+    b = soil if soil is not None else (growing_bed(unsaturated_mm_per_h) if crop else D.bed())
+    rb = growing_bed(unsaturated_mm_per_h) if crop else D.bed()
     rb.name = "reference"
     grows = virtual_crop or crop
     b2 = None
     if second is not None:
-        b2 = growing_bed()
+        b2 = growing_bed(unsaturated_mm_per_h)
         b2.name = "second"
     world = ph.World(start=start, climate=climate,
                      beds=[b] + ([rb] if reference else []) + ([b2] if b2 is not None else []))
