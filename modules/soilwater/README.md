@@ -52,7 +52,9 @@ log (Q26), so the forecast an advice rested on sits beside it.
 §11 asks for it before anything goes live. On McAllister Farm's recorded summer of 2013
 (June to August), a 30 cm root zone in a silt loam, the drill's forecasts in the log, the
 advisory followed to the letter, beside the drip timer most farms run
-([sim/irrigation_drill.py](../../sim/irrigation_drill.py)):
+([sim/irrigation_drill.py](../../sim/irrigation_drill.py)). The backtests are
+[backtest.py](backtest.py), `backtest` with probes and `weather_backtest` by the weather,
+kept apart from the advisory, which never imports the simulator:
 
 | | water applied | drained past the roots | hours stressed ≥ 0.5 | mean stress |
 | --- | --- | --- | --- | --- |

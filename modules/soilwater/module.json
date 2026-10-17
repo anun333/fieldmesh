@@ -2,7 +2,7 @@
  "name": "soilwater",
  "version": "1",
  "layer": 2,
- "description": "Soil-moisture advisory: per bed, each morning, water now and how much, or why not.",
+ "description": "Soil-moisture advisory: per bed, each morning and early afternoon, water now and how much, or why not.",
  "reads": {
   "observed_properties": [
    "http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil/",

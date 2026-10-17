@@ -1,0 +1,186 @@
+{
+ "drill 2013": {
+  "soil_skip": {
+   "applied_mm": 210.5,
+   "drained_mm": 238.7,
+   "stressed_h": 0.0
+  },
+  "timer": {
+   "applied_mm": 552.0,
+   "drained_mm": 579.5,
+   "stressed_h": 0.0
+  }
+ },
+ "outage 2012": {
+  "advice": {
+   "soil-enough": 91,
+   "soil-rain-coming": 1,
+   "soil-too-wet": 1,
+   "soil-water-now": 12,
+   "soil-water-soon": 52,
+   "soil-weather-enough": 24,
+   "soil-weather-water-now": 3
+  },
+  "applied_mm": 445.6,
+  "drained_mm": 289.0,
+  "stressed_h": 0.0
+ },
+ "outage 2012, no fallback": {
+  "advice": {
+   "soil-enough": 91,
+   "soil-rain-coming": 1,
+   "soil-too-wet": 1,
+   "soil-unseen": 27,
+   "soil-water-now": 12,
+   "soil-water-soon": 52
+  },
+  "applied_mm": 379.8,
+  "drained_mm": 238.1,
+  "stressed_h": 191.3
+ },
+ "probe 2013": {
+  "advice": {
+   "soil-enough": 116,
+   "soil-rain-coming": 1,
+   "soil-too-wet": 5,
+   "soil-water-now": 10,
+   "soil-water-soon": 52
+  },
+  "applied_mm": 207.6,
+  "drained_mm": 235.3,
+  "field_capacity": 0.3,
+  "stressed_h": 0.0
+ },
+ "probe 2013, 0.05 high": {
+  "advice": {
+   "soil-enough": 83,
+   "soil-too-wet": 63,
+   "soil-water-now": 6,
+   "soil-water-soon": 32
+  },
+  "applied_mm": 126.9,
+  "drained_mm": 176.0,
+  "field_capacity": 0.3,
+  "stressed_h": 293.4
+ },
+ "probe 2013, 0.05 low": {
+  "advice": {
+   "soil-enough": 102,
+   "soil-rain-coming": 4,
+   "soil-too-wet": 2,
+   "soil-water-now": 24,
+   "soil-water-soon": 52
+  },
+  "applied_mm": 422.1,
+  "drained_mm": 449.8,
+  "field_capacity": 0.25,
+  "stressed_h": 0.0
+ },
+ "probe 2013, 0.05 low, unlearned": {
+  "advice": {
+   "soil-enough": 87,
+   "soil-rain-coming": 12,
+   "soil-water-now": 51,
+   "soil-water-soon": 34
+  },
+  "applied_mm": 1044.9,
+  "drained_mm": 1068.6,
+  "field_capacity": 0.3,
+  "stressed_h": 0.0
+ },
+ "weather 2012": {
+  "advice": {
+   "soil-weather-enough": 164,
+   "soil-weather-unseen": 4,
+   "soil-weather-water-now": 16
+  },
+  "applied_mm": 346.6,
+  "drained_mm": 192.7,
+  "stressed_h": 0.0
+ },
+ "weather 2012, reference": {
+  "advice": {
+   "soil-weather-enough": 164,
+   "soil-weather-unseen": 4,
+   "soil-weather-water-now": 16
+  },
+  "applied_mm": 346.6,
+  "drained_mm": 192.7,
+  "reference_mm": 482.4,
+  "stressed_h": 0.0
+ },
+ "weather 2012, reference 0.05 high": {
+  "advice": {
+   "soil-weather-enough": 164,
+   "soil-weather-unseen": 4,
+   "soil-weather-water-now": 16
+  },
+  "applied_mm": 346.6,
+  "drained_mm": 192.7,
+  "reference_mm": 238.8,
+  "stressed_h": 0.0
+ },
+ "weather 2013": {
+  "advice": {
+   "soil-weather-enough": 167,
+   "soil-weather-rain-coming": 2,
+   "soil-weather-unseen": 4,
+   "soil-weather-water-now": 11
+  },
+  "applied_mm": 225.1,
+  "drained_mm": 252.5,
+  "stressed_h": 0.0
+ },
+ "yard 2012, two probes, each layer's values, learning": {
+  "advice": {
+   "soil-enough": 71,
+   "soil-rain-coming": 7,
+   "soil-too-wet": 15,
+   "soil-water-now": 41,
+   "soil-water-soon": 50
+  },
+  "applied_mm": 342.6,
+  "drained_mm": 197.4,
+  "field_capacity": 0.316,
+  "stressed_h": 0.5
+ },
+ "yard 2012, two probes, the survey, learning": {
+  "advice": {
+   "soil-enough": 47,
+   "soil-rain-coming": 3,
+   "soil-too-wet": 23,
+   "soil-water-now": 29,
+   "soil-water-soon": 82
+  },
+  "applied_mm": 265.1,
+  "drained_mm": 137.3,
+  "field_capacity": 0.318,
+  "stressed_h": 244.2
+ },
+ "yard 2013, one probe, the survey": {
+  "advice": {
+   "soil-enough": 50,
+   "soil-rain-coming": 20,
+   "soil-too-wet": 11,
+   "soil-water-now": 98,
+   "soil-water-soon": 5
+  },
+  "applied_mm": 1121.8,
+  "drained_mm": 1131.1,
+  "field_capacity": 0.3,
+  "stressed_h": 0.0
+ },
+ "yard 2013, one probe, the survey, learning": {
+  "advice": {
+   "soil-enough": 91,
+   "soil-rain-coming": 11,
+   "soil-too-wet": 16,
+   "soil-water-now": 57,
+   "soil-water-soon": 9
+  },
+  "applied_mm": 497.5,
+  "drained_mm": 511.5,
+  "field_capacity": 0.248,
+  "stressed_h": 0.0
+ }
+}

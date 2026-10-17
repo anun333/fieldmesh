@@ -38,6 +38,7 @@ from model import Datastream, DatastreamKind, Installation, Label, QualityFlag  
 from project import State  # noqa: E402
 
 import soilwater as S  # noqa: E402
+import backtest as B  # noqa: E402
 
 HOUR = _dt.timedelta(hours=1)
 T0 = _dt.datetime(2026, 7, 10, tzinfo=_dt.timezone.utc)
@@ -1427,6 +1428,117 @@ class TestAdviceCorrectedByAProbeNearby(unittest.TestCase):
         self.assertEqual(d["context"]["margin_percent"], round(100.0 * S.WEATHER_MARGIN))
 
 
+# ------------------------------------------------------- backtests the tests share
+
+def _summer(year: int):
+    import physics as ph
+    return ph.RecordedClimate.from_csv(os.path.join(
+        HERE, os.pardir, os.pardir, "sim", "data", f"mcallister-{year}-summer.csv"), seed=1)
+
+
+def _june(year: int) -> _dt.datetime:
+    return _dt.datetime(year, 6, 1, tzinfo=_dt.timezone.utc)
+
+
+def _yard(year, depths, learn, configured=(0.30, 0.12), layers=()):
+    """The builder's yard: 10 cm of sandy loam over compacted clay, 15 cm of roots."""
+    import physics as ph
+    yard = ph.LayeredBed(name="yard", depth_mm=150,
+                         horizons=(ph.Horizon(100, **ph.SANDY_LOAM),
+                                   ph.Horizon(500, **ph.COMPACTED_CLAY)))
+    return B.backtest(_summer(year), _june(year), 92, seed=1, soil=yard, depths=depths,
+                      configured=configured, learn=learn, layers=layers)
+
+
+def _drill(year):
+    import irrigation_drill as D
+    return D.season(D.SUMMER if year == 2013 else None, _june(year), 92, seed=1,
+                    climate=_summer(year), policies=("timer", "soil_skip"))
+
+
+#: The backtests the tests below read, each by name and how it runs: McAllister Farm's
+#: recorded summers of 2013 and 2012, June to August, through the virtual farm. Each runs
+#: once a session (`backtested`); their figures are held in golden.json
+#: (`TestTheGoldenNumbers`), so a change to the simulator or the advice that moves any of
+#: them shows there, and the tests above it say only what must stay true.
+BACKTESTS = {
+    "drill 2013": lambda: _drill(2013),
+    "probe 2013": lambda: B.backtest(_summer(2013), _june(2013), 92, seed=1,
+                                     check=S.watering_check()),
+    "probe 2013, 0.05 low": lambda: B.backtest(_summer(2013), _june(2013), 92, seed=1,
+                                               probe_bias=-0.05),
+    "probe 2013, 0.05 low, unlearned": lambda: B.backtest(_summer(2013), _june(2013), 92,
+                                                          seed=1, probe_bias=-0.05, learn=False),
+    "probe 2013, 0.05 high": lambda: B.backtest(_summer(2013), _june(2013), 92, seed=1,
+                                                probe_bias=0.05),
+    "weather 2013": lambda: B.weather_backtest(_summer(2013), _june(2013), 92, seed=1,
+                                               record_valve=False),
+    "weather 2012": lambda: B.weather_backtest(_summer(2012), _june(2012), 92, seed=1,
+                                               record_valve=False),
+    "weather 2012, reference": lambda: B.weather_backtest(
+        _summer(2012), _june(2012), 92, seed=1, record_valve=False, reference=True),
+    "weather 2012, reference 0.05 high": lambda: B.weather_backtest(
+        _summer(2012), _june(2012), 92, seed=1, record_valve=False, reference=True,
+        reference_bias=0.05),
+    "outage 2012": lambda: B.weather_backtest(_summer(2012), _june(2012), 92, seed=1,
+                                              probe=True, outage=(30, 43), fallback=True),
+    "outage 2012, no fallback": lambda: B.weather_backtest(
+        _summer(2012), _june(2012), 92, seed=1, probe=True, outage=(30, 43), fallback=False),
+    "yard 2013, one probe, the survey": lambda: _yard(2013, (0.05,), False),
+    "yard 2013, one probe, the survey, learning": lambda: _yard(2013, (0.05,), True),
+    "yard 2012, two probes, the survey, learning": lambda: _yard(2012, (0.05, 0.12), True),
+    "yard 2012, two probes, each layer's values, learning": lambda: _yard(
+        2012, (0.05, 0.12), True, (0.38, 0.25), ((0.10, 0.20, 0.09),)),
+}
+_BACKTESTED: dict = {}
+
+
+def backtested(name: str) -> dict:
+    """A backtest of `BACKTESTS`, run the first time it is asked for."""
+    if name not in _BACKTESTED:
+        _BACKTESTED[name] = BACKTESTS[name]()
+    return _BACKTESTED[name]
+
+
+GOLDEN = os.path.join(HERE, "golden.json")
+
+
+def _figures(r: dict) -> dict:
+    """What golden.json keeps of a backtest: its water, drainage and hours short to a tenth,
+    its learned field capacity and its decisions."""
+    if "timer" in r:
+        return {k: _figures(v) for k, v in sorted(r.items()) if isinstance(v, dict)}
+    out = {k: round(r[k], 1) for k in ("applied_mm", "drained_mm", "stressed_h") if k in r}
+    if r.get("field_capacity") is not None:
+        out["field_capacity"] = round(r["field_capacity"], 3)
+    if r.get("advice"):
+        out["advice"] = dict(sorted(r["advice"].items()))
+    if r.get("reference_mm") is not None:
+        out["reference_mm"] = round(r["reference_mm"], 1)
+    return out
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestTheGoldenNumbers(unittest.TestCase):
+    """Every shared backtest's figures, as golden.json holds them. A change that moves one
+    fails here, whatever the tests say of it; when the move is meant, write the file again,
+    `FIELDMESH_GOLDEN=write python3 -m unittest test_soilwater.TestTheGoldenNumbers`, and
+    the diff is the record of what moved."""
+
+    def test_each_backtest_gives_its_golden_figures(self):
+        got = {name: _figures(backtested(name)) for name in BACKTESTS}
+        if os.environ.get("FIELDMESH_GOLDEN") == "write":
+            with open(GOLDEN, "w", encoding="utf-8") as h:
+                json.dump(got, h, indent=1, sort_keys=True)
+                h.write("\n")
+            self.skipTest("golden.json written")
+        with open(GOLDEN, encoding="utf-8") as h:
+            golden = json.load(h)
+        self.assertEqual(sorted(golden), sorted(got), "the backtests golden.json holds")
+        for name in BACKTESTS:
+            self.assertEqual(got[name], golden[name], name)
+
+
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
     """The backtest bed with no probe, advised from a station on the farm, on McAllister
@@ -1434,16 +1546,14 @@ class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        import irrigation_drill as D
-        import physics as ph
-        cls.r = S.weather_backtest(ph.RecordedClimate.from_csv(D.SUMMER, seed=1),
-                                   _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc), 92,
-                                   seed=1, record_valve=False)
+        cls.r = backtested("weather 2013")
 
     def test_it_waters_about_as_the_probe_does_and_far_less_than_a_timer(self):
-        """The probe-led advice used 208 mm and the drip timer 552 on the same summer; by the
-        weather, with its margin (`WEATHER_MARGIN`), 225."""
-        self.assertAlmostEqual(self.r["applied_mm"], 208.0, delta=0.25 * 208.0)
+        """Within a quarter of the probe-led advice on the same summer, its margin
+        (`WEATHER_MARGIN`) the difference, and under half the drip timer's."""
+        probe = backtested("probe 2013")["applied_mm"]
+        self.assertAlmostEqual(self.r["applied_mm"], probe, delta=0.25 * probe)
+        self.assertLess(self.r["applied_mm"], 0.5 * backtested("drill 2013")["timer"]["applied_mm"])
         self.assertEqual(self.r["stressed_h"], 0.0)
 
     def test_a_station_installed_today_has_no_estimate_for_two_days(self):
@@ -1453,32 +1563,20 @@ class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestAProbeNearbyOnTheDrought(unittest.TestCase):
     """The backtest bed with no probe through the 2012 drought, its watering unrecorded, a
-    bed of the same soil and crop beside it with a probe (`weather_backtest`). By the
-    weather alone it was given 346.6 mm with no stressed hour."""
-
-    @classmethod
-    def setUpClass(cls):
-        import physics as ph
-        path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
-        start = _dt.datetime(2012, 6, 1, tzinfo=_dt.timezone.utc)
-        cls.r = {bias: S.weather_backtest(ph.RecordedClimate.from_csv(path, seed=1), start, 92,
-                                          seed=1, record_valve=False, reference=True,
-                                          reference_bias=bias)
-                 for bias in (0.0, 0.05)}
+    bed of the same soil and crop beside it with a probe (`weather_backtest`)."""
 
     def test_a_true_probe_whose_rate_is_below_the_margin_corrects_nothing(self):
         """Watered often on its own advice through the drought, the reference's probe read its
-        bed drying at 85% to 111% of FAO-56's estimate, below the margin, so it never
-        corrected the bed. Taken half way to its slower rate, before the margin, the bed was
-        short 33 hours."""
-        r = self.r[0.0]
-        self.assertAlmostEqual(r["applied_mm"], 346.6, delta=0.5)
+        bed drying below the margin, so the bed was advised as by the weather alone. Taken
+        half way to its slower rate, before the margin, the bed was short 33 hours."""
+        r, alone = backtested("weather 2012, reference"), backtested("weather 2012")
+        self.assertAlmostEqual(r["applied_mm"], alone["applied_mm"], delta=0.5)
         self.assertEqual(r["stressed_h"], 0.0)
 
     def test_a_probe_reading_high_never_learns_and_so_corrects_nothing(self):
         """Uncorrected, such a probe took the bed to 397 stressed hours."""
-        r = self.r[0.05]
-        self.assertAlmostEqual(r["applied_mm"], 346.6, delta=0.5)
+        r, alone = backtested("weather 2012, reference 0.05 high"), backtested("weather 2012")
+        self.assertAlmostEqual(r["applied_mm"], alone["applied_mm"], delta=0.5)
         self.assertEqual(r["stressed_h"], 0.0)
 
 
@@ -1492,18 +1590,18 @@ class TestEachProbesNoise(unittest.TestCase):
         return [[r.gauss(0.0, 1.0) for _ in range(50)] for r in streams]
 
     def test_a_probe_added_leaves_the_others_draws_as_they_were(self):
-        two = self.draws(S.noise_streams(1, ["0.1 False", "0.3 False"]))
-        three = self.draws(S.noise_streams(1, ["0.1 False", "0.3 False", "0.6 False"]))
+        two = self.draws(B.noise_streams(1, ["0.1 False", "0.3 False"]))
+        three = self.draws(B.noise_streams(1, ["0.1 False", "0.3 False", "0.6 False"]))
         self.assertEqual(two, three[:2])
 
     def test_one_probe_draws_the_seeds_own_stream_as_before(self):
         import random
-        (one,) = self.draws(S.noise_streams(7, ["0.2 False"]))
+        (one,) = self.draws(B.noise_streams(7, ["0.2 False"]))
         before = random.Random(7)
         self.assertEqual(one, [before.gauss(0.0, 1.0) for _ in range(50)])
 
     def test_each_probe_draws_its_own(self):
-        a, b, c = self.draws(S.noise_streams(1, ["0.1 False", "0.3 False", "0.1 True"]))
+        a, b, c = self.draws(B.noise_streams(1, ["0.1 False", "0.3 False", "0.1 True"]))
         self.assertNotEqual(a, b)
         self.assertNotEqual(b, c)
 
@@ -1523,8 +1621,8 @@ class TestASecondPlantingNotYetSown(unittest.TestCase):
         start = _dt.datetime(2012, 6, 20, tzinfo=_dt.timezone.utc)
         kw = dict(seed=1, depths=(0.10, 0.30), crop="tomato", knows_crop=True,
                   planted=start.date() - _dt.timedelta(days=50), knows_second=False)
-        sown = S.backtest(climate, start, 20, second=("lettuce", start.date()), **kw)
-        later = S.backtest(climate, start, 20,
+        sown = B.backtest(climate, start, 20, second=("lettuce", start.date()), **kw)
+        later = B.backtest(climate, start, 20,
                            second=("lettuce", start.date() + _dt.timedelta(days=30)), **kw)
         self.assertGreater(sown["second_stressed_h"], 0.0)
         self.assertEqual(later["second_stressed_h"], 0.0, "not sown within the run")
@@ -1538,14 +1636,7 @@ class TestBacktestOnARecordedSummer(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        import irrigation_drill as D
-        import physics as ph
-        start = _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc)
-        climate = ph.RecordedClimate.from_csv(D.SUMMER, seed=1)
-        cls.drill = D.season(D.SUMMER, start, 92, seed=1, climate=climate,
-                             policies=("timer", "soil_skip"))
-        climate = ph.RecordedClimate.from_csv(D.SUMMER, seed=1)
-        cls.advisory = S.backtest(climate, start, 92, seed=1)
+        cls.drill, cls.advisory = backtested("drill 2013"), backtested("probe 2013")
 
     def test_it_waters_far_less_than_the_timer_without_more_stress(self):
         timer, a = self.drill["timer"], self.advisory
@@ -1556,7 +1647,7 @@ class TestBacktestOnARecordedSummer(unittest.TestCase):
     def test_it_matches_the_drills_soil_rule_it_replaces(self):
         """The same refill point and dose as the drill's stand-in rule, reached through
         probes, quality and CEL instead of the bed's true water. Not equal: the probe's
-        noise is drawn hourly here and once a morning there (208 mm against 211 on 2013)."""
+        noise is drawn hourly here and once a morning there."""
         rule = self.drill["soil_skip"]["applied_mm"]
         self.assertAlmostEqual(self.advisory["applied_mm"], rule, delta=0.25 * rule)
 
@@ -1574,38 +1665,23 @@ class TestLearningOnTheVirtualFarm(unittest.TestCase):
     point 0.12. A soil test of each layer says 0.20 and 0.09 for the topsoil, 0.38 and
     0.25 for the clay."""
 
-    SURVEY = (0.30, 0.12)
-
     @classmethod
     def setUpClass(cls):
-        import irrigation_drill as D
-        import physics as ph
-
-        def run(year, depths, learn, configured=cls.SURVEY, layers=()):
-            path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data",
-                                f"mcallister-{year}-summer.csv")
-            yard = ph.LayeredBed(name="yard", depth_mm=150,
-                                 horizons=(ph.Horizon(100, **ph.SANDY_LOAM),
-                                           ph.Horizon(500, **ph.COMPACTED_CLAY)))
-            return S.backtest(ph.RecordedClimate.from_csv(path, seed=1),
-                              _dt.datetime(year, 6, 1, tzinfo=_dt.timezone.utc), 92, seed=1,
-                              soil=yard, depths=depths, configured=configured, learn=learn,
-                              layers=layers)
-        cls.topsoil = {learn: run(2013, (0.05,), learn) for learn in (False, True)}
-        cls.survey_2012 = run(2012, (0.05, 0.12), True)
-        cls.tested_2012 = run(2012, (0.05, 0.12), True, (0.38, 0.25), ((0.10, 0.20, 0.09),))
+        cls.topsoil = {learn: backtested("yard 2013, one probe, the survey" + (", learning" if learn else ""))
+                       for learn in (False, True)}
+        cls.survey_2012 = backtested("yard 2012, two probes, the survey, learning")
+        cls.tested_2012 = backtested("yard 2012, two probes, each layer's values, learning")
 
     def test_one_probe_in_the_topsoil_on_the_surveys_values_drowns_the_yard(self):
-        """It reads the topsoil at 0.23 as a quarter short of 0.30 and waters most days:
-        about 680 mm in the summer of 2013, nearly all of it drained past the roots."""
+        """It reads the topsoil's 0.23 to 0.25 as well short of 0.30 and waters most days,
+        nearly all of it drained past the roots."""
         r = self.topsoil[False]
         self.assertGreater(r["applied_mm"], 600)
         self.assertGreater(r["advice"]["soil-water-now"], 45)
 
     def test_learning_the_topsoils_own_capacity_it_waters_less_than_half_as_much(self):
-        """On the simulator of 2026-10-16, 498 mm against 1,122; on the earlier one, a
-        quarter as much. Learning from the drain-downs' upper quartile (`learned_capacity`)
-        reads the topsoil's perched water at 0.25, where the median read 0.23."""
+        """Learning from the drain-downs' upper quartile (`learned_capacity`) reads the
+        topsoil's perched water at about 0.25, where the median read 0.23."""
         off, on = self.topsoil[False], self.topsoil[True]
         self.assertLess(on["applied_mm"], 0.5 * off["applied_mm"])
         self.assertLess(on["drained_mm"], 0.5 * off["drained_mm"])
@@ -1620,12 +1696,8 @@ class TestLearningOnTheVirtualFarm(unittest.TestCase):
 
     def test_given_each_layers_values_as_the_note_asks_it_waits_less(self):
         """One wilting point for two soils counts water the clay holds and the roots
-        cannot take, so through the dry summer of 2012 the advice waited too long: 31
-        hours of stress. With each layer's own values, and the capacities still learned,
-        16, and no note. Not none: the roots hold about 17 mm they can use, and a hot day
-        can take that past half between two mornings. Looking ahead a day (`short_fraction`)
-        took the survey's 116 hours to 31; over thirty summers it took this yard from short
-        in 18 to short in 8."""
+        cannot take, so through the dry summer of 2012 the advice waited too long. With each
+        layer's own values, and the capacities still learned, far less, and no note."""
         self.assertGreater(self.survey_2012["stressed_h"], 20)
         self.assertLess(self.tested_2012["stressed_h"], 0.6 * self.survey_2012["stressed_h"])
         self.assertFalse(self.tested_2012["layered"])
@@ -1633,36 +1705,25 @@ class TestLearningOnTheVirtualFarm(unittest.TestCase):
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestAProbeThatReadsOff(unittest.TestCase):
-    """An uncalibrated probe reads high or low by the same amount all summer. On the
-    advisory's backtest bed, McAllister Farm's 2013, where a true probe's advice used
-    155 mm (docs/notes/soil-sensors.md)."""
-
-    @classmethod
-    def setUpClass(cls):
-        import irrigation_drill as D
-        import physics as ph
-        start = _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc)
-        cls.r = {bias: S.backtest(ph.RecordedClimate.from_csv(D.SUMMER, seed=1), start, 92,
-                                  seed=1, probe_bias=bias)
-                 for bias in (-0.05, 0.05)}
+    """An uncalibrated probe reads high or low by the same amount all summer, on the
+    advisory's backtest bed, McAllister Farm's 2013 (docs/notes/soil-sensors.md)."""
 
     def test_reading_low_it_learns_its_own_full_and_waters_far_less_than_unlearned(self):
-        """Unlearned, a probe 0.05 low called for 1,045 mm. Learning, its drain-downs say
-        where its full is, 0.05 low too, and the advice uses 422 mm, where a true probe's
-        used 208: until it has learned, it waters as the unlearned one does."""
-        low = self.r[-0.05]
+        """Learning, its drain-downs say where its full is, 0.05 low too; until it has
+        learned, it waters as the unlearned one does."""
+        low = backtested("probe 2013, 0.05 low")
         self.assertAlmostEqual(low["field_capacity"], 0.25, delta=0.02)
-        self.assertLess(low["applied_mm"], 500)
+        self.assertLess(low["applied_mm"],
+                        0.5 * backtested("probe 2013, 0.05 low, unlearned")["applied_mm"])
+        self.assertEqual(low["stressed_h"], 0.0)
 
     def test_reading_high_it_waters_too_little_and_so_never_learns(self):
         """A probe 0.05 high says the bed is fuller than it is, so it is watered late and
         little, so the probe sees too few soakings to learn from: the bed goes dry. A second
-        probe in the bed, and the cross-check between them, is what catches this. On the
-        simulator of 2026-10-16 it was given 127 mm where a true probe's advice gave 208,
-        and the bed was short 293 hours."""
-        high = self.r[0.05]
+        probe in the bed, and the cross-check between them, is what catches this."""
+        high = backtested("probe 2013, 0.05 high")
         self.assertEqual(high["field_capacity"], 0.30)
-        self.assertLess(high["applied_mm"], 150)
+        self.assertLess(high["applied_mm"], 0.7 * backtested("probe 2013")["applied_mm"])
         self.assertGreater(high["stressed_h"], 100)
 
 
@@ -1673,17 +1734,11 @@ class TestAProbeOutageCarriedOnTheWeather(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        import physics as ph
-        path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
-        start = _dt.datetime(2012, 6, 1, tzinfo=_dt.timezone.utc)
-        cls.r = {fallback: S.weather_backtest(ph.RecordedClimate.from_csv(path, seed=1), start,
-                                              92, seed=1, probe=True, outage=(30, 43),
-                                              fallback=fallback)
-                 for fallback in (False, True)}
+        cls.r = {False: backtested("outage 2012, no fallback"), True: backtested("outage 2012")}
 
     def test_without_the_fallback_two_weeks_without_advice_dry_the_bed(self):
         r = self.r[False]
-        self.assertEqual(r["advice"]["soil-unseen"], 27, "two looks a day")
+        self.assertGreaterEqual(r["advice"]["soil-unseen"], 2 * 13, "two looks a day")
         self.assertGreater(r["stressed_h"], 100)
 
     def test_with_it_the_advice_goes_on_and_the_bed_is_never_short(self):
@@ -1745,6 +1800,30 @@ class TestHarrowBend(unittest.TestCase):
             self.assertNotIn(m["bed2"]["rule"], ("soil-unseen", "soil-no-probe"), day)
             self.assertEqual(m["bed2"]["context"]["probes"], 2)
             self.assertEqual(len(m["bed2"]["inputs"]["observations"]), 1)
+
+
+class TestABedFromItsConfig(unittest.TestCase):
+
+    def test_a_bed_is_read_with_its_ids_and_dates(self):
+        land, probe = uuid7(), uuid7()
+        bed = S.bed_from_config({"feature": str(land), "field_capacity": 0.30,
+                                 "wilting_point": 0.12,
+                                 "plantings": [{"crop": "tomato", "planted": "2026-05-01"},
+                                               {"crop": "lettuce", "planted": "2026-06-15",
+                                                "probes": [str(probe)]}]})
+        self.assertEqual(bed.feature, land)
+        self.assertEqual(bed.plantings, (("tomato", _dt.date(2026, 5, 1), ()),
+                                         ("lettuce", _dt.date(2026, 6, 15), (probe,))))
+        self.assertEqual(S.bed_from_config({"feature": str(land), "field_capacity": 0.30,
+                                            "wilting_point": 0.12, "crop": "tomato",
+                                            "planted": "2026-05-01"}).planted,
+                         _dt.date(2026, 5, 1))
+
+    def test_what_the_advisory_derives_cannot_be_set(self):
+        for key, value in (("et_scale", 1.2), ("clock", {}), ("timing_depth_mm", 150.0)):
+            with self.assertRaises(ValueError, msg=key):
+                S.bed_from_config({"feature": str(uuid7()), "field_capacity": 0.30,
+                                   "wilting_point": 0.12, key: value})
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
@@ -1817,7 +1896,7 @@ class TestTheWateringCheck(unittest.TestCase):
     @staticmethod
     def score(path, start, blocked):
         import physics as ph
-        r = S.backtest(ph.RecordedClimate.from_csv(path, seed=1), start, 92, seed=1,
+        r = B.backtest(ph.RecordedClimate.from_csv(path, seed=1), start, 92, seed=1,
                        check=S.watering_check(), blocked=frozenset(blocked))
         out = {"caught": 0, "missed": 0, "false": 0, "quiet": 0}
         for c in r["checks"]:
@@ -1827,13 +1906,21 @@ class TestTheWateringCheck(unittest.TestCase):
                 out["false" if c["alert"] else "quiet"] += 1
         return out, r
 
+    @staticmethod
+    def waterings_2013():
+        """The days the advice watered on 2013 with nothing blocked."""
+        return sorted({c["day"] for c in backtested("probe 2013")["checks"]})
+
     def test_it_catches_every_watering_that_never_arrived_on_2013(self):
+        """Every other watering of the summer blocked. A blocked morning's watering is often
+        advised again that afternoon, and blocked again: two checks on one day."""
         import irrigation_drill as D
-        got, r = self.score(D.SUMMER, _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc),
-                            {13, 30, 48, 76, 90})
-        # On 13 and 90 the afternoon's look waters again, and is blocked again.
-        self.assertEqual(got, {"caught": 7, "missed": 0, "false": 0, "quiet": 10})
-        self.assertEqual(r["stressed_h"], 0.0, "the next morning's advice waters it again")
+        blocked = set(self.waterings_2013()[::2])
+        got, r = self.score(D.SUMMER, _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc), blocked)
+        self.assertGreaterEqual(got["caught"], len(blocked))
+        self.assertEqual((got["missed"], got["false"]), (0, 0))
+        self.assertGreater(got["quiet"], 0)
+        self.assertEqual(r["stressed_h"], 0.0, "the next look's advice waters it again")
 
     def test_and_on_a_summer_it_was_not_tuned_on(self):
         path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
@@ -1848,15 +1935,14 @@ class TestTheWateringCheck(unittest.TestCase):
         import irrigation_drill as D
         import physics as ph
         start = _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc)
-        r = S.backtest(ph.RecordedClimate.from_csv(D.SUMMER, seed=1), start, 92, seed=1,
-                       check=S.watering_check(), blocked=frozenset({13, 48, 90}),
-                       forgotten=frozenset({30, 76}), valve=True)
+        days = self.waterings_2013()
+        blocked, forgotten = set(days[0::4]), set(days[2::4])
+        r = B.backtest(ph.RecordedClimate.from_csv(D.SUMMER, seed=1), start, 92, seed=1,
+                       check=S.watering_check(), blocked=frozenset(blocked),
+                       forgotten=frozenset(forgotten), valve=True)
         said = {c["day"]: c["key"] for c in r["checks"] if c["alert"]}
-        self.assertEqual(said, {13: "soilwater.regimen.no_water_arrived",
-                                48: "soilwater.regimen.no_water_arrived",
-                                90: "soilwater.regimen.no_water_arrived",
-                                30: "soilwater.regimen.not_watered",
-                                76: "soilwater.regimen.not_watered"})
+        self.assertEqual(said, {**{d: "soilwater.regimen.no_water_arrived" for d in blocked},
+                                **{d: "soilwater.regimen.not_watered" for d in forgotten}})
         self.assertTrue(all(not c["alert"] for c in r["checks"] if c["day"] not in said))
 
     def test_advice_not_to_water_plans_nothing(self):
