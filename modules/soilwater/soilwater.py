@@ -98,19 +98,14 @@ class Bed:
     #: first run the shallow yard was short in 2 summers of 30, never more than 12 hours,
     #: and the deeper bed never, but the deeper one took 28% more water.
     short_fraction: float = 0.5
-    #: Lower the depletion fraction on a hot day, as FAO-56 adjusts it for how fast the bed
-    #: is drying (Eq. 8.5 in the 2025 revision): `p + 0.04 (5 − ETc)`, ETc in mm a day,
-    #: held between 0.1 and 0.8, but never above `depletion_fraction`. On a hot day the crop
-    #: is short sooner, with more water left. FAO-56 also raises p on a mild day; on the
-    #: thirty summers that left the backtest bed short in 7 summers against 3 (README), so
-    #: it is not raised. ETc is the probes' drying rate, or by the weather the day's Kc · ETo.
-    adjust_p: bool = False
     #: The depletion fraction while any planting is in its initial stage, its few roots
     #: mostly in the soil the sun dries; None keeps `depletion_fraction` throughout. A
     #: seedbed is watered lightly and often (`young`). Among older plantings, it is the
     #: refill point of the young one's roots alone (`timing_depth_mm`); the older keep
     #: theirs. On the simulator of 2026-10-16, tomatoes' first month went short in 25
-    #: summers of 30 without it, 9 with it, for 4% more water.
+    #: summers of 30 without it, 9 with it, for 4% more water; held until the roots pass
+    #: `YOUNG_ROOTS_MM`, tomatoes by probes went from 41 hours short to 1 and lettuce from
+    #: 162 to none on one draw of the noise, from 112 to 68 and 366 to 43 on another.
     young_fraction: float | None = 0.2
     #: The share of the rain that reaches the bed: 0 under a tunnel or a roof, less under a
     #: canopy or plastic mulch. None: all of it, unless its probes show it is covered, where
@@ -130,10 +125,6 @@ class Bed:
     #: Learn the bed's field capacity from its own probes (`learned_capacity`), the
     #: configured value standing until there is enough to learn from.
     learn: bool = True
-    #: Which drain-downs it learns from (`learned_capacity`): `"all"`, their median, as
-    #: since 2026-10-11; `"soakings"`, only those the probe drained a lot of water from;
-    #: or `"upper"`, the upper quartile of all their levels. Trials, 2026-10-16.
-    learn_from: str = "upper"
     #: What covers the soil (`model.SURFACES`: bare, organic or inorganic mulch, plastic,
     #: turf) and what grows in it (`PLANTINGS`). The bed's record, written into each
     #: decision, so a season's advice can be read against what the bed was: a mulched
@@ -386,14 +377,27 @@ def basal_day(crop: str, days: float, gdd: float | None = None) -> float:
 SECOND_CHECK_HOUR = 13
 
 
+#: A planting stays young (`young`) while its roots are shallower than this, past its
+#: initial stage if need be: the stage ends with the roots still the 15 cm they were sown
+#: with and the crop beginning to use more, and on the simulator of 2026-10-16 the crops'
+#: shortages by probes fell in the days after it. Every crop's roots pass it in their
+#: development stage.
+YOUNG_ROOTS_MM = 250.0
+
+
 def young(bed: Bed, day: _dt.date) -> bool:
-    """Whether any sown planting of the bed is in its crop's initial stage on `day`: its few
-    roots in the top of the soil, its leaves not yet shading it."""
+    """Whether any sown planting of the bed is young on `day`: in its crop's initial stage,
+    or its roots still shallower than `YOUNG_ROOTS_MM`; its few roots in the top of the soil,
+    its leaves not yet shading it."""
     for crop, planted in plantings_of(bed):
         if crop is None or planted is None or planted > day:
             continue
         c = CROPS.get(crop)
-        if c and c["season_days"] and 0 <= crop_days(bed, day, (crop, planted)) < c["stages"][0]:
+        if not (c and c["season_days"]):
+            continue
+        if 0 <= crop_days(bed, day, (crop, planted)) < c["stages"][0]:
+            return True
+        if crop_stage(bed, day, (crop, planted))[1] < YOUNG_ROOTS_MM:
             return True
     return False
 
@@ -499,59 +503,30 @@ ROOT_SIGN_BELOW = 0.02
 #: counts against it: the curve is a typical crop's, a week early or late, and roots near
 #: their front draw little.
 ROOT_SIGN_PAST_MM = 150.0
-#: Where the farm's timezone is known, the stair-step itself: roots draw by day, so a probe
-#: whose fall per hour from 08:00 to 18:00 is `ROOT_SIGN_DAY_SHARE` or more of the day's and
-#: night's (20:00 to 04:00) together has roots at it. One that falls at least as fast by
-#: night, `ROOT_SIGN_NIGHT_SHARE` or less, is draining, or being drawn on from above, and
-#: has none: drainage and water creeping up to drier soil run day and night alike. Between
-#: the two the probe's noise can hide a slow drinker's steps, and it says nothing.
-ROOT_SIGN_DAY_SHARE = 0.7
-ROOT_SIGN_NIGHT_SHARE = 0.5
 #: A stop seen at the same probe on `ROOT_HOLD_MORNINGS` of the last `ROOT_HOLD_DAYS`
 #: mornings stands (`Advisor._held`), on mornings that cannot see it too: waterings leave
 #: too few dry days to judge by, or roots right above draw a probe under the stop.
 ROOT_HOLD_DAYS = 7
 ROOT_HOLD_MORNINGS = 3
-ROOT_SIGN_DAY_H = (8, 18)
-ROOT_SIGN_NIGHT_H = (20, 4)
 
 
-def _sign_days(at: _dt.datetime, timezone: str | None) -> list:
-    """The last `ROOT_SIGN_DAYS` days, newest first, as `(begin, end, local date or None)`:
-    the 24 hours before `at`, and so on back; or, with the farm's timezone, its days from
-    04:00 to 04:00, the day's date the local date the day began on."""
-    if timezone is None:
-        return [(at - (k + 1) * 24 * HOUR, at - k * 24 * HOUR, None)
-                for k in range(ROOT_SIGN_DAYS)]
-    from zoneinfo import ZoneInfo
-    tz = ZoneInfo(timezone)
-    local = at.astimezone(tz)
-    last = local.date() if local.hour >= 4 else local.date() - _dt.timedelta(days=1)
-    out = []
-    for k in range(ROOT_SIGN_DAYS):
-        day = last - _dt.timedelta(days=k + 1)
-        begin = _dt.datetime.combine(day, _dt.time(4), tzinfo=tz)
-        end = _dt.datetime.combine(day + _dt.timedelta(days=1), _dt.time(4), tzinfo=tz)
-        out.append((begin.astimezone(_dt.timezone.utc), end.astimezone(_dt.timezone.utc), day))
-    return out
+def _sign_days(at: _dt.datetime) -> list:
+    """The last `ROOT_SIGN_DAYS` days, newest first, as `(begin, end)`: the 24 hours before
+    `at`, and so on back."""
+    return [(at - (k + 1) * 24 * HOUR, at - k * 24 * HOUR) for k in range(ROOT_SIGN_DAYS)]
 
 
-def root_signs(state, bed: Bed, at: _dt.datetime, timezone: str | None = None,
-               capacities: dict | None = None) -> list:
+def root_signs(state, bed: Bed, at: _dt.datetime, capacities: dict | None = None) -> list:
     """`[(depth_m, falling per day, roots there: True, False, or None)]` for each of the
-    bed's probes, shallowest first. With the farm's `timezone`, a falling probe has roots
-    when it falls by day (`ROOT_SIGN_DAY_SHARE`) and none when it falls by night as much
-    (`ROOT_SIGN_NIGHT_SHARE`);
-    without, when it has gone `ROOT_SIGN_BELOW` under field capacity, and None until then.
-    None too when its dry days are too few. `capacities`, `{datastream id: learned field
-    capacity}`, keeps each probe's for the rest of the morning's look (`_bed_context`)."""
+    bed's probes, shallowest first: a falling probe has roots when it has gone
+    `ROOT_SIGN_BELOW` under field capacity, and None until then. None too when its dry days
+    are too few. `capacities`, `{datastream id: learned field capacity}`, keeps each probe's
+    for the rest of the morning's look (`_bed_context`). (Reading roots by the day's fall
+    against the night's, the stair-step, was an option until 2026-10-17: on the simulator it
+    told a pan from none no better.)"""
     import bisect
     out = []
-    windows = _sign_days(at, timezone)
-    tz = None
-    if timezone is not None:
-        from zoneinfo import ZoneInfo
-        tz = ZoneInfo(timezone)
+    windows = _sign_days(at)
     for ds, depth in probes_of(state, bed, at):
         inst = state.installation_of(ds.sensor, at)
         since = at - _dt.timedelta(days=ROOT_SIGN_DAYS + 1)
@@ -573,8 +548,8 @@ def root_signs(state, bed: Bed, at: _dt.datetime, timezone: str | None = None,
             lo = bisect.bisect_left(stamps, t - 2 * HOUR)
             values = [v for _, v in rows[lo:bisect.bisect_right(stamps, t + 2 * HOUR)]]
             return sum(values) / len(values) if len(values) >= 2 else None
-        falls, low, by_day, by_night = [], under, [], []
-        for begin, end, local_day in windows:
+        falls, low = [], under
+        for begin, end in windows:
             a, b = near(begin), near(end)
             if a is None or b is None or a > under + 0.01:
                 continue
@@ -585,28 +560,12 @@ def root_signs(state, bed: Bed, at: _dt.datetime, timezone: str | None = None,
                 continue
             falls.append(a - b)
             low = min(low, b)
-            if tz is not None:
-                def at_hour(h, next_day=False, d=local_day):
-                    when = _dt.datetime.combine(d + _dt.timedelta(days=int(next_day)),
-                                                _dt.time(h), tzinfo=tz)
-                    return near(when.astimezone(_dt.timezone.utc))
-                (d0, d1), (n0, n1) = ROOT_SIGN_DAY_H, ROOT_SIGN_NIGHT_H
-                points = [at_hour(d0), at_hour(d1), at_hour(n0), at_hour(n1, next_day=True)]
-                if None not in points:
-                    by_day.append((points[0] - points[1]) / (d1 - d0))
-                    by_night.append((points[2] - points[3]) / (n1 + 24 - n0))
         if len(falls) < ROOT_SIGN_MIN_DAYS:
             out.append((depth, 0.0, None))
             continue
         rate = sum(falls) / len(falls)
         if rate < ROOT_SIGN_RATE:
             there = False
-        elif tz is not None and len(by_day) >= ROOT_SIGN_MIN_DAYS:
-            day_rate = max(0.0, sum(by_day) / len(by_day))
-            night_rate = max(0.0, sum(by_night) / len(by_night))
-            share = day_rate / (day_rate + night_rate) if day_rate + night_rate > 0 else 0.0
-            there = (True if share >= ROOT_SIGN_DAY_SHARE
-                     else False if share <= ROOT_SIGN_NIGHT_SHARE else None)
         else:
             there = True if low <= under - ROOT_SIGN_BELOW else None
         out.append((depth, round(rate, 4), there))
@@ -1004,31 +963,24 @@ def drain_downs(readings: list) -> list:
     return out
 
 
-#: A soaking, for `learn_from="soakings"`: the probe was at least this much wetter than the
-#: level it drained back to.
-SOAK_EXCESS = 0.06
-
-
-def learned_capacity(readings: list, learn_from: str = "all"):
-    """A probe's field capacity, learned from its own drain-downs: the median of the
+def learned_capacity(readings: list):
+    """A probe's field capacity, learned from its own drain-downs: the upper quartile of the
     levels it drained back to, from those where it had been clearly wetter
-    (`DRAIN_MIN_EXCESS`), when there are `LEARN_MIN_DRAINS` of them; else None. With
-    `learn_from` `"soakings"`, only the drain-downs `SOAK_EXCESS` wetter; with `"upper"`,
-    the upper quartile of the levels: on a soil that goes on moving water after it has
-    drained, a light watering over drier soil, and the sun on the top, leave a probe lower
-    than its soil's field capacity (`Bed.learn_from`).
+    (`DRAIN_MIN_EXCESS`), when there are `LEARN_MIN_DRAINS` of them; else None. On a soil
+    that goes on moving water after it has drained, a light watering over drier soil, and
+    the sun on the top, leave a probe lower than its soil's field capacity, and their median
+    read it low. (Until 2026-10-17 the median, and the median of the soakings alone, were
+    options; on the simulator a lawn watered back to either was short in nearly every
+    summer of 30.)
     `{"field_capacity", "drains", "half_drain_h"}`, the last the median hours to lose half
     a wetting, or None when none did within its drain-down."""
     import statistics
     kept = [d for d in drain_downs(readings) if d["excess"] >= DRAIN_MIN_EXCESS]
-    if learn_from == "soakings":
-        kept = [d for d in kept if d["excess"] >= SOAK_EXCESS]
     if len(kept) < LEARN_MIN_DRAINS:
         return None
     halves = [d["half_drain_h"] for d in kept if d["half_drain_h"] is not None]
     levels = sorted(d["field_capacity"] for d in kept)
-    level = (levels[(3 * len(levels)) // 4] if learn_from == "upper"
-             else statistics.median(levels))
+    level = levels[(3 * len(levels)) // 4]
     return {"field_capacity": round(level, 3),
             "drains": len(kept),
             "half_drain_h": statistics.median(halves) if halves else None}
@@ -1277,7 +1229,10 @@ def reference_factor(state, bed: Bed, station, at: _dt.datetime, *,
     while day <= last:
         a, b = midnight(day), midnight(day + _dt.timedelta(days=1))
         got = E.eto_of(station, day, summaries[day]) if day in summaries else None
-        if (a is not None and b is not None and got is not None
+        # A day that began wetter than field capacity is left out: what it lost above it
+        # was partly drainage, and below it the crop's alone, so counting only the part
+        # below would read a bed watered often as drying slower than it does.
+        if (a is not None and b is not None and got is not None and a <= capacity
                 and (capacity - a) * grown(bed, day).root_depth_mm
                 < bed.depletion_fraction * (capacity - wilting) * grown(bed, day).root_depth_mm
                 and not wet(day)):
@@ -1379,7 +1334,7 @@ def _capacity(state, bed: Bed, ds, depth_m: float, wilting: float, rows: list,
     for o in rows:
         if o.measured_at >= since and state.quality_as_of(o.id, at)[0] is Usable.GOOD:
             readings.append((o.measured_at, float(o.result)))
-    found = learned_capacity(readings, bed.learn_from)
+    found = learned_capacity(readings)
     if found is None or found["field_capacity"] <= wilting + 0.03:
         return None
     return {**found, "datastream": ds.id, "depth_m": depth_m}
@@ -1391,9 +1346,10 @@ def _capacity(state, bed: Bed, ds, depth_m: float, wilting: float, rows: list,
 #: waters late and short, and its shortfall adds up until rain, since each watering refills
 #: only what it counted. Counted high, it waters a little early and a little over, and the
 #: excess drains. A probe that corrects the balance (`_corrected`) can raise the rate above
-#: this, but not lower it below: on the simulator of 2026-10-16 a probe's rate ran low where
-#: its bed was watered often, and a true reference through the 2012 drought, taken half way
-#: to its slower rate, left the bed short 33 hours. On the backtest bed, whose crop uses
+#: this, but not lower it below: a rate read truly does not make a balance stepped once a
+#: day safe on its own. Through the 2012 drought a reference read its bed at 0.70 to 1.11
+#: of FAO-56's estimate, and taken half way to that, the margin dropped, it left the bed
+#: short 33 hours. On the backtest bed, whose crop uses
 #: about a fifth more than the balance counts, thirty summers with none were short in 21
 #: (1,945 hours) on 249 mm; with 0.1, in 6 (101) on 287; with 0.2, in none on 329. Watering
 #: a fifth more each time, the balance unchanged, left 8 (118 hours) on 298 mm: it still
@@ -1520,14 +1476,12 @@ def _timed_by_balance(base: dict) -> None:
 
 def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = None,
                 station=None, assumed: dict | None = None, reference: Bed | None = None,
-                timezone: str | None = None, held: tuple | None = None,
-                rain_gauge: UUID | None = None, stair_step: bool = True):
+                held: tuple | None = None, rain_gauge: UUID | None = None):
     """What the advisory knew about a bed at `at`: `(context, inputs)` (`_bed_context`),
     with the forecast rain that would reach it (`Bed.rain_share`, or none where its probes
     show it covered: `covered_by_its_probes`, from `rain_gauge` or the station's)."""
     context, inputs = _bed_context(state, bed, at, forecast=forecast, station=station,
-                                   assumed=assumed, reference=reference, timezone=timezone,
-                                   held=held, stair_step=stair_step)
+                                   assumed=assumed, reference=reference, held=held)
     share = bed.rain_share
     gauge = rain_gauge or (station.precipitation if station is not None else None)
     if share is None and gauge is not None and bed.valve is not None and context["has_reading"]:
@@ -1558,16 +1512,14 @@ def bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = No
 
 def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = None,
                  station=None, assumed: dict | None = None, reference: Bed | None = None,
-                 timezone: str | None = None, held: tuple | None = None,
-                 stair_step: bool = True):
+                 held: tuple | None = None):
     """What the advisory knew about a bed at `at`: `(context, inputs)`. A bed with no
     probe in its root zone is advised from the farm's `station` (`eto.Station`) when
     there is one (`weather_balance`), corrected by its `reference` bed's probes when they
     have seen enough dry days (`reference_factor`)."""
     known: dict = {}
     bed, base, inputs, found, in_zone, young_mm, timing_mm = _context_base(
-        state, bed, at, station=station, timezone=timezone, held=held, stair_step=stair_step,
-        capacities=known)
+        state, bed, at, held=held, capacities=known)
     if not in_zone:
         _to_curve(base, young_mm)
         if station is not None:
@@ -1605,8 +1557,7 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
     return base, inputs
 
 
-def _context_base(state, bed: Bed, at: _dt.datetime, *, station, timezone, held, stair_step,
-                  capacities: dict):
+def _context_base(state, bed: Bed, at: _dt.datetime, *, held, capacities: dict):
     """The bed as its crop is on `at`, the depth its watering is timed by, its probes in the
     root zone, and the context and inputs every decision starts from: `(bed, context,
     inputs, plantings, probes in the zone, the youngest roots' depth, the timing depth)`."""
@@ -1616,9 +1567,7 @@ def _context_base(state, bed: Bed, at: _dt.datetime, *, station, timezone, held,
     timing_mm = young_mm
     found = plantings_of(bed)
     if found:
-        signs = root_signs(state, bed, at,
-                           (timezone or (station.timezone if station is not None else None))
-                           if stair_step else None, capacities)
+        signs = root_signs(state, bed, at, capacities)
         stop_mm, seen_m, blocked_m = rooted(curve_mm, signs, held)
         timing_mm = min(young_mm, stop_mm)
         bed = replace(bed, timing_depth_mm=timing_mm if timing_mm < curve_mm else None)
@@ -1843,11 +1792,6 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
 
 # ----------------------------------------------------------------- advisor
 
-def adjusted_p(p: float, etc_mm: float) -> float:
-    """FAO-56's depletion fraction for a day drying at `etc_mm` (Rev.1 Eq. 8.5)."""
-    return min(0.8, max(0.1, p + 0.04 * (5.0 - etc_mm)))
-
-
 #: Without the farm's normal year to stand in for the days its station missed, a crop is
 #: clocked by its station only when the station read this share of its days since sowing.
 CLOCK_COVERAGE = 0.9
@@ -1856,25 +1800,16 @@ CLOCK_COVERAGE = 0.9
 class Advisor:
     """Writes one decision per bed per call: the morning's advice, or why there is none."""
 
-    def __init__(self, log, *, normal=None, timezone: str | None = None,
-                 rain_gauge: UUID | None = None, stair_step: bool = False,
+    def __init__(self, log, *, normal=None, rain_gauge: UUID | None = None,
                  clocks: bool = True) -> None:
         """`normal` is the farm's normal year (`thermal.Normal`): with it and a station, a
-        sown crop's curve runs by the season's warmth (`clocked`). `timezone` is the farm's,
-        for a farm with no station: it says when its days are, for the stair-step
-        (`root_signs`), with `stair_step`. `rain_gauge` is the farm's rain gauge where it has
-        no station's, for seeing a bed under cover (`covered_by_its_probes`).
-
-        `stair_step` reads roots by the day's fall against the night's, where the farm's day
-        is known. Off by default: on the thirty simulated summers it found a pan no better
-        than the fall below field capacity, and saw a stop that was not there on about 15
-        mornings a season against 3 or 4 (README, roots that stop). Without `clocks`, every
-        crop keeps the calendar (`clocked`)."""
+        sown crop's curve runs by the season's warmth (`clocked`). `rain_gauge` is the farm's
+        rain gauge where it has no station's, for seeing a bed under cover
+        (`covered_by_its_probes`). Without `clocks`, every crop keeps the calendar
+        (`clocked`)."""
         self.log = log
         self.normal = normal
-        self.timezone = timezone
         self.rain_gauge = rain_gauge
-        self.stair_step = stair_step
         self.clocks = clocks
         self._temperatures: dict = {}
 
@@ -1931,15 +1866,8 @@ class Advisor:
         assumed = self._assumed(bed, station) if station is not None else None
         context, inputs = bed_context(state, bed, at, forecast=forecast, station=station,
                                       assumed=assumed, reference=reference,
-                                      timezone=self.timezone, held=self._held(bed, at),
-                                      rain_gauge=self.rain_gauge, stair_step=self.stair_step)
+                                      held=self._held(bed, at), rain_gauge=self.rain_gauge)
         timing = context["timing_depth_mm"]
-        if bed.adjust_p:
-            etc = (context["drying_mm_per_day"] if not context["by_weather"]
-                   else context.get("eto_mm", 0.0) * bed.crop_coefficient * bed.et_scale)
-            p = min(bed.depletion_fraction, adjusted_p(bed.depletion_fraction, etc))
-            bed = replace(bed, depletion_fraction=p, short_fraction=max(bed.short_fraction, p))
-            context["depletion_fraction"] = round(p, 3)
         timing_p = None
         if bed.young_fraction is not None and young(bed, at.date()):
             p = min(bed.depletion_fraction, bed.young_fraction)

@@ -683,29 +683,6 @@ class TestLookingAheadToTomorrow(unittest.TestCase):
         self.assertIn("About 0.3 inches brings it back to field capacity", said)
         self.assertIn("pulgadas", S.render(d, "es", g.state, units="us"))
 
-    def test_on_a_hot_day_fao_56_lowers_the_refill_point(self):
-        """Drying about 9 mm a day with 16.5 mm gone: short of a third of 54 mm, and not past
-        half by tomorrow, so the plain rule waits; FAO-56's Eq. 8.5 makes p under 0.2 that
-        day, and it is due."""
-        self.assertAlmostEqual(S.adjusted_p(1 / 3, 9.0), 1 / 3 - 0.16)
-        self.assertEqual((S.adjusted_p(0.5, 0.0), S.adjusted_p(0.2, 20.0)), (0.7, 0.1))
-        g = Garden()
-        g.probe(lambda h: 0.245 + 0.03 * (52 - h) / 24.0)
-        plain, d = g.advice()
-        self.assertEqual(plain, "soil-water-soon")
-        g.bed = S.replace(g.bed, adjust_p=True)
-        rule, d = g.advice()
-        self.assertEqual(rule, "soil-water-now")
-        c = d["context"]
-        self.assertAlmostEqual(c["depletion_fraction"],
-                               S.adjusted_p(1 / 3, c["drying_mm_per_day"]), places=3)
-        self.assertLess(c["depletion_fraction"], 0.2)
-        # A mild day leaves it at a third: FAO-56 would raise it, which waits too long.
-        g2 = Garden()
-        g2.probe(lambda h: 0.245 + 0.004 * (52 - h) / 24.0)
-        g2.bed = S.replace(g2.bed, adjust_p=True)
-        self.assertAlmostEqual(g2.advice()[1]["context"]["depletion_fraction"], 1 / 3, places=3)
-
     def test_short_is_at_or_past_the_refill_point(self):
         with self.assertRaises(ValueError):
             S.Bed(uuid7(), 0.30, 0.12, depletion_fraction=0.4, short_fraction=0.3)
@@ -1017,46 +994,6 @@ class TestRootsSeenByTheirProbes(unittest.TestCase):
         no whole day is dry, so there is nothing to say."""
         (_, rate, there), = self.signs((0.10, lambda h: 0.30 - 0.04 * ((h - 6) % DAY_H) / DAY_H))
         self.assertEqual((rate, there), (0.0, None))
-
-
-def by_day(start, per_day):
-    """Readings that fall `per_day` a day, all of it from 06:00 to 18:00: the stair-step."""
-    def theta(h):
-        days, hour = divmod(h, DAY_H)
-        return start - per_day * (days + min(1.0, max(0.0, (hour - 6) / 12.0)))
-    return theta
-
-
-class TestTheStairStep(unittest.TestCase):
-    """With the farm's timezone, `root_signs` reads the stair-step: roots draw by day. The
-    test's farm keeps UTC."""
-
-    def signs(self, theta, *, days=16, timezone="UTC"):
-        g = Garden()
-        g.probe(theta, depth=0.30, hours=days * DAY_H)
-        return S.root_signs(g.state, g.bed, T0 + days * DAY_H * HOUR, timezone)
-
-    def test_falling_by_day_is_roots_before_the_soil_is_far_under_field_capacity(self):
-        """0.003 a day for five days: 0.015 down, not yet 0.02 under field capacity."""
-        theta = by_day(0.30, 0.003)
-        (_, _, there), = self.signs(theta, days=5)
-        self.assertIs(there, True)
-        (_, _, there), = self.signs(theta, days=5, timezone=None)
-        self.assertIsNone(there)
-
-    def test_falling_by_night_as_by_day_is_no_roots(self):
-        """0.004 a day around the clock, as water draining or creeping up to roots above:
-        well under field capacity in a fortnight, which without the clock looks like roots."""
-        theta = lambda h: 0.30 - 0.004 * h / DAY_H
-        (_, _, there), = self.signs(theta)
-        self.assertIs(there, False)
-        (_, _, there), = self.signs(theta, timezone=None)
-        self.assertIs(there, True)
-
-    def test_its_days_run_04_00_to_04_00_on_the_farms_clock(self):
-        at = _dt.datetime(2026, 7, 10, 9, tzinfo=_dt.timezone.utc)      # 04:00 in Chicago
-        begin, end, day = S._sign_days(at, "America/Chicago")[0]
-        self.assertEqual((begin.hour, end, day), (9, at, _dt.date(2026, 7, 9)))
 
 
 class TestTheRootsTheAdviceCounts(unittest.TestCase):
@@ -1504,11 +1441,13 @@ GOLDEN = os.path.join(HERE, "golden.json")
 
 
 def _figures(r: dict) -> dict:
-    """What golden.json keeps of a backtest: its water, drainage and hours short to a tenth,
-    its learned field capacity and its decisions."""
+    """What golden.json keeps of a backtest: its water, drainage, hours short, hours past its
+    crop's own `p` and short of air, and the transpiration it lost, to a tenth; its learned
+    field capacity and its decisions."""
     if "timer" in r:
         return {k: _figures(v) for k, v in sorted(r.items()) if isinstance(v, dict)}
-    out = {k: round(r[k], 1) for k in ("applied_mm", "drained_mm", "stressed_h") if k in r}
+    out = {k: round(r[k], 1) for k in ("applied_mm", "drained_mm", "stressed_h", "below_p_h",
+                                       "airless_h", "transpiration_lost_mm") if k in r}
     if r.get("field_capacity") is not None:
         out["field_capacity"] = round(r["field_capacity"], 3)
     if r.get("advice"):

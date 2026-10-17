@@ -206,9 +206,10 @@ class TestLayeredBed(unittest.TestCase):
         bed.set_roots(10.0)
         self.assertEqual(bed.depth_mm, 25.0, "at least one layer")
 
-    def test_below_field_capacity_water_creeps_up_to_drier_soil_only_when_asked(self):
-        """Roots that stop at 30 cm dry the soil above; below, water creeps up into it, by
-        night as by day, and none is lost or made. Off, the soil below stays as it was."""
+    def test_below_field_capacity_water_rises_to_drier_soil_unless_turned_off(self):
+        """Roots that stop at 30 cm dry the soil above; below, water rises into it, by night
+        as by day, and none is lost or made. Off (`unsaturated_mm_per_h` 0), the soil below
+        stays as it was."""
         def run(k):
             bed = ph.LayeredBed(name="row", depth_mm=300.0, unsaturated_mm_per_h=k,
                                 horizons=(ph.Horizon(600.0, **ph.SANDY_LOAM),))
@@ -224,7 +225,7 @@ class TestLayeredBed(unittest.TestCase):
             return bed, before, night
         still, _, _ = run(0.0)
         self.assertEqual(still.theta_at(0.31), ph.SANDY_LOAM["field_capacity"])
-        creeping, before, night = run(0.01)
+        creeping, before, night = run(None)
         self.assertLess(creeping.theta_at(0.31), ph.SANDY_LOAM["field_capacity"] - 0.002)
         self.assertLess(night[1], night[0], "it creeps at night too")
         self.assertAlmostEqual(creeping.stored_mm + creeping.et_mm + creeping.deep_mm, before,
@@ -383,6 +384,40 @@ class TestLayeredBed(unittest.TestCase):
         grown, _ = first_hour(1.10)
         self.assertLess(grown.et_mm - 0.5 * 1.10, 0.5 * (ph.KC_MAX - ph.KCB_INI) / 4,
                         "a closed canopy leaves little to evaporate")
+
+    def test_a_dry_top_under_most_of_the_roots_slows_the_crop(self):
+        """Half the root zone dry, the half with three quarters of the roots: by the layers'
+        plain mean half the water is gone, and FAO-56's crop at p 0.5 would not slow; weighed
+        by its roots three quarters is gone, and it uses a quarter of its demand."""
+        bed = ph.LayeredBed(name="row", depth_mm=300.0, unsaturated_mm_per_h=0.0,
+                            horizons=(ph.Horizon(600.0, **SILT_LOAM),))
+        for i in range(bed._roots):
+            bed.layers[i] = SILT_LOAM["wilting_point"] if i < bed._roots // 2 else SILT_LOAM["field_capacity"]
+        self.assertAlmostEqual(bed.stress, 0.75, places=9)
+        self.assertAlmostEqual(bed.water_use, 0.25, places=9)
+
+    def test_what_the_crop_could_not_transpire_is_counted(self):
+        sky = ph.Weather(air_temp_c=25.0, relative_humidity=50.0, rain_mm=0.0, et0_mm=0.5,
+                         raining=False)
+        wet = ph.LayeredBed(name="wet", depth_mm=300.0, unsaturated_mm_per_h=0.0,
+                            horizons=(ph.Horizon(600.0, **SILT_LOAM),))
+        dry = ph.LayeredBed(name="dry", depth_mm=300.0, unsaturated_mm_per_h=0.0,
+                            horizons=(ph.Horizon(600.0, **SILT_LOAM),))
+        dry.layers = [SILT_LOAM["wilting_point"]] * len(dry.layers)
+        for bed in (wet, dry):
+            bed.step(sky)
+        self.assertAlmostEqual(wet.demand_mm, 0.5, places=9)
+        self.assertAlmostEqual(wet.transpired_mm, 0.5, places=9, msg="a wet bed gives it all")
+        self.assertAlmostEqual(dry.demand_mm, 0.5, places=9)
+        self.assertEqual(dry.transpired_mm, 0.0, "a bed at its wilting point gives none")
+
+    def test_a_soaked_root_zone_holds_no_air(self):
+        bed = ph.LayeredBed(name="row", depth_mm=300.0, unsaturated_mm_per_h=0.0,
+                            horizons=(ph.Horizon(600.0, **SILT_LOAM),))
+        self.assertAlmostEqual(bed.air_filled, SILT_LOAM["saturation"] - SILT_LOAM["field_capacity"],
+                               places=9, msg="at field capacity")
+        bed.layers = [SILT_LOAM["saturation"]] * len(bed.layers)
+        self.assertAlmostEqual(bed.air_filled, 0.0, places=9)
 
     def test_a_known_ground_cover_stands_in_for_the_estimate(self):
         """A mown lawn's basal coefficient, 0.90, puts Eq. 76's cover near two thirds; told

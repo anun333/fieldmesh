@@ -21,9 +21,12 @@
    "soil-weather-enough": 24,
    "soil-weather-water-now": 3
   },
+  "airless_h": 0.0,
   "applied_mm": 445.6,
+  "below_p_h": 0.0,
   "drained_mm": 289.0,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "outage 2012, no fallback": {
   "advice": {
@@ -34,9 +37,12 @@
    "soil-water-now": 12,
    "soil-water-soon": 52
   },
+  "airless_h": 0.0,
   "applied_mm": 379.8,
+  "below_p_h": 191.3,
   "drained_mm": 238.1,
-  "stressed_h": 191.3
+  "stressed_h": 191.3,
+  "transpiration_lost_mm": 14.9
  },
  "probe 2013": {
   "advice": {
@@ -46,10 +52,13 @@
    "soil-water-now": 10,
    "soil-water-soon": 52
   },
+  "airless_h": 0.0,
   "applied_mm": 207.6,
+  "below_p_h": 0.0,
   "drained_mm": 235.3,
   "field_capacity": 0.3,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "probe 2013, 0.05 high": {
   "advice": {
@@ -58,10 +67,13 @@
    "soil-water-now": 6,
    "soil-water-soon": 32
   },
+  "airless_h": 0.0,
   "applied_mm": 126.9,
+  "below_p_h": 293.3,
   "drained_mm": 176.0,
   "field_capacity": 0.3,
-  "stressed_h": 293.4
+  "stressed_h": 293.4,
+  "transpiration_lost_mm": 7.6
  },
  "probe 2013, 0.05 low": {
   "advice": {
@@ -71,10 +83,13 @@
    "soil-water-now": 24,
    "soil-water-soon": 52
   },
+  "airless_h": 0.3,
   "applied_mm": 422.1,
+  "below_p_h": 0.0,
   "drained_mm": 449.8,
   "field_capacity": 0.25,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "probe 2013, 0.05 low, unlearned": {
   "advice": {
@@ -83,10 +98,13 @@
    "soil-water-now": 51,
    "soil-water-soon": 34
   },
+  "airless_h": 3.9,
   "applied_mm": 1044.9,
+  "below_p_h": 0.0,
   "drained_mm": 1068.6,
   "field_capacity": 0.3,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "weather 2012": {
   "advice": {
@@ -94,9 +112,12 @@
    "soil-weather-unseen": 4,
    "soil-weather-water-now": 16
   },
+  "airless_h": 0.0,
   "applied_mm": 346.6,
+  "below_p_h": 0.0,
   "drained_mm": 192.7,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "weather 2012, reference": {
   "advice": {
@@ -104,10 +125,13 @@
    "soil-weather-unseen": 4,
    "soil-weather-water-now": 16
   },
+  "airless_h": 0.0,
   "applied_mm": 346.6,
+  "below_p_h": 0.0,
   "drained_mm": 192.7,
   "reference_mm": 482.4,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "weather 2012, reference 0.05 high": {
   "advice": {
@@ -115,10 +139,13 @@
    "soil-weather-unseen": 4,
    "soil-weather-water-now": 16
   },
+  "airless_h": 0.0,
   "applied_mm": 346.6,
+  "below_p_h": 0.0,
   "drained_mm": 192.7,
   "reference_mm": 238.8,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "weather 2013": {
   "advice": {
@@ -127,35 +154,44 @@
    "soil-weather-unseen": 4,
    "soil-weather-water-now": 11
   },
+  "airless_h": 0.0,
   "applied_mm": 225.1,
+  "below_p_h": 0.0,
   "drained_mm": 252.5,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "yard 2012, two probes, each layer's values, learning": {
   "advice": {
-   "soil-enough": 71,
-   "soil-rain-coming": 7,
+   "soil-enough": 70,
+   "soil-rain-coming": 6,
    "soil-too-wet": 15,
    "soil-water-now": 41,
-   "soil-water-soon": 50
+   "soil-water-soon": 52
   },
-  "applied_mm": 342.6,
-  "drained_mm": 197.4,
+  "airless_h": 9.5,
+  "applied_mm": 341.0,
+  "below_p_h": 55.6,
+  "drained_mm": 196.7,
   "field_capacity": 0.316,
-  "stressed_h": 0.5
+  "stressed_h": 4.9,
+  "transpiration_lost_mm": 0.9
  },
  "yard 2012, two probes, the survey, learning": {
   "advice": {
-   "soil-enough": 47,
-   "soil-rain-coming": 3,
-   "soil-too-wet": 23,
-   "soil-water-now": 29,
-   "soil-water-soon": 82
+   "soil-enough": 44,
+   "soil-rain-coming": 5,
+   "soil-too-wet": 20,
+   "soil-water-now": 28,
+   "soil-water-soon": 87
   },
-  "applied_mm": 265.1,
-  "drained_mm": 137.3,
-  "field_capacity": 0.318,
-  "stressed_h": 244.2
+  "airless_h": 11.8,
+  "applied_mm": 254.9,
+  "below_p_h": 565.9,
+  "drained_mm": 137.0,
+  "field_capacity": 0.317,
+  "stressed_h": 269.8,
+  "transpiration_lost_mm": 23.0
  },
  "yard 2013, one probe, the survey": {
   "advice": {
@@ -165,10 +201,13 @@
    "soil-water-now": 98,
    "soil-water-soon": 5
   },
+  "airless_h": 115.8,
   "applied_mm": 1121.8,
+  "below_p_h": 0.0,
   "drained_mm": 1131.1,
   "field_capacity": 0.3,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  },
  "yard 2013, one probe, the survey, learning": {
   "advice": {
@@ -178,9 +217,12 @@
    "soil-water-now": 57,
    "soil-water-soon": 9
   },
+  "airless_h": 86.3,
   "applied_mm": 497.5,
+  "below_p_h": 0.0,
   "drained_mm": 511.5,
   "field_capacity": 0.248,
-  "stressed_h": 0.0
+  "stressed_h": 0.0,
+  "transpiration_lost_mm": 0.0
  }
 }

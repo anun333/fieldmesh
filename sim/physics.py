@@ -372,6 +372,11 @@ class SoilBed:
     drained_mm: float = field(default=0.0, repr=False)
     runoff_mm: float = field(default=0.0, repr=False)
     et_mm: float = field(default=0.0, repr=False)
+    #: What the crop would have transpired with water to spare, and what it did: their
+    #: difference is the transpiration the bed's dryness cost it, FAO-33's measure of
+    #: lost yield. Soil evaporation is in `et_mm`, in neither.
+    demand_mm: float = field(default=0.0, repr=False)
+    transpired_mm: float = field(default=0.0, repr=False)
 
     def __post_init__(self) -> None:
         if not self.wilting_point < self.field_capacity < self.saturation:
@@ -408,6 +413,11 @@ class SoilBed:
         p = self.depletion_fraction
         return max(0.0, min(1.0, (1.0 - self.stress) / (1.0 - p)))
 
+    @property
+    def air_filled(self) -> float:
+        """The root zone's share of its volume holding air: saturation less its water."""
+        return max(0.0, self.saturation - self.theta)
+
     def step(self, weather: Weather, *, irrigation_mm: float = 0.0) -> float:
         """Advance one tick. Returns the new water content."""
         water = self.stored_mm + weather.rain_mm + irrigation_mm
@@ -416,6 +426,8 @@ class SoilBed:
         et = weather.et0_mm * self.crop_coefficient * self.water_use
         water -= et
         self.et_mm += et
+        self.demand_mm += weather.et0_mm * self.crop_coefficient
+        self.transpired_mm += et
 
         # Free drainage of anything above field capacity.
         capacity_mm = self.field_capacity * self.depth_mm
@@ -642,9 +654,8 @@ class LayeredBed(SoilBed):
       potential, so a step cannot overshoot. What crosses the bottom of the roots counts
       in `drained_mm`, net of what comes back up.
 
-      **Given `unsaturated_mm_per_h`, the simulator before 2026-10-15 instead**: a number,
-      `k · (s_lower − s_upper)` a tick, `s` each layer's share of its available water, at
-      most 1; 0 moves nothing below field capacity, as it did by default.
+      With `unsaturated_mm_per_h` 0, nothing moves below field capacity, as before
+      2026-10-15, for a test that looks at one process alone.
 
     So a watering on topsoil over compacted clay fills the topsoil, stalls at the clay and
     perches there, and a long run puts more on than the bed can take. A probe reads its
@@ -674,6 +685,9 @@ class LayeredBed(SoilBed):
     layers: list = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
+        if self.unsaturated_mm_per_h not in (None, 0, 0.0):
+            raise ValueError("unsaturated_mm_per_h is None (Darcy's law) or 0 (no flow below "
+                             "field capacity); the old soil's rate was retired on 2026-10-17")
         if not self.horizons:
             raise ValueError("a layered bed has horizons")
         props = []
@@ -718,14 +732,43 @@ class LayeredBed(SoilBed):
         i = min(len(self.layers) - 1, max(0, int(depth_m * 1000.0 / self.layer_mm)))
         return self.layers[i]
 
+    def _root_shares(self) -> list:
+        """Each root-zone layer's share of the roots, densest at the top and falling in a
+        line to none at the roots' depth (Prasad 1988), or even with `UPTAKE_BY_ROOTS` off."""
+        n = self._roots
+        shares = [(1.0 - (i + 0.5) / n) if UPTAKE_BY_ROOTS else 1.0 for i in range(n)]
+        total = sum(shares)
+        return [x / total for x in shares]
+
+    def _gone(self) -> list:
+        """Each root-zone layer's share of its available water that is gone."""
+        return [1.0 - max(0.0, min(1.0, (theta - h.wilting_point)
+                                   / (h.field_capacity - h.wilting_point)))
+                for theta, h in zip(self.layers[:self._roots], self._props)]
+
     @property
     def stress(self) -> float:
-        """The root zone's share of its available water that is gone, layer by layer."""
-        gone = 0.0
-        for theta, h in zip(self.layers[:self._roots], self._props):
-            gone += 1.0 - max(0.0, min(1.0, (theta - h.wilting_point)
-                                       / (h.field_capacity - h.wilting_point)))
-        return gone / self._roots
+        """The root zone's share of its available water that is gone, each layer weighed
+        by its roots (`_root_shares`). Before 2026-10-17 the layers counted alike, so a dry
+        top under most of the roots counted no more than a wet bottom under few."""
+        return sum(r * g for r, g in zip(self._root_shares(), self._gone()))
+
+    @property
+    def water_use(self) -> float:
+        """FAO-56's `Ks` layer by layer, weighed by the roots in each: a layer gives freely
+        until it has lost `depletion_fraction` of its water, then less in a line to none at
+        its wilting point. Where every layer is as dry, it is FAO-56's `Ks` for the zone;
+        the roots in wetter layers make up what drier ones cannot give (the uptake below).
+        Before 2026-10-17 it was FAO-56's `Ks` of the layers' plain mean."""
+        p = self.depletion_fraction
+        return sum(r * max(0.0, min(1.0, (1.0 - g) / (1.0 - p)))
+                   for r, g in zip(self._root_shares(), self._gone()))
+
+    @property
+    def air_filled(self) -> float:
+        """The root zone's share of its volume holding air, each layer weighed by its roots."""
+        return sum(r * max(0.0, h.saturation - theta) for r, theta, h in
+                   zip(self._root_shares(), self.layers[:self._roots], self._props))
 
     @property
     def stored_mm(self) -> float:
@@ -738,7 +781,9 @@ class LayeredBed(SoilBed):
         kcb = self.basal_coefficient
         if kcb is None and self.crop_coefficient == 0.0:
             kcb = 0.0                                # bare: all of it evaporation
-        et = weather.et0_mm * (self.crop_coefficient if kcb is None else kcb) * self.water_use
+        demand = weather.et0_mm * (self.crop_coefficient if kcb is None else kcb)
+        et = demand * self.water_use
+        self.demand_mm += demand
         if kcb is not None and weather.et0_mm > 0:
             self._evaporate(theta, props, dz, weather.et0_mm, kcb)
         can = [max(0.0, theta[i] - props[i].wilting_point) * dz for i in range(self._roots)]
@@ -767,6 +812,7 @@ class LayeredBed(SoilBed):
                 if left <= 1e-12 or total <= 0:
                     break
             self.et_mm += et - left
+            self.transpired_mm += et - left
 
         for i in reversed(range(n)):
             h = props[i]
@@ -787,22 +833,6 @@ class LayeredBed(SoilBed):
 
         if self.unsaturated_mm_per_h is None:
             self._below_capacity(theta, props, dz, dt)
-        elif self.unsaturated_mm_per_h > 0:
-            for i in range(n - 1):
-                a, b = props[i], props[i + 1]
-                # Above field capacity a layer drains; as far as creeping goes it is full.
-                s_up = min(1.0, (theta[i] - a.wilting_point) / (a.field_capacity - a.wilting_point))
-                s_low = min(1.0, (theta[i + 1] - b.wilting_point)
-                            / (b.field_capacity - b.wilting_point))
-                if s_up >= 1.0 and s_low >= 1.0:
-                    continue
-                flux = self.unsaturated_mm_per_h * dt * (s_low - s_up)
-                # No further than evens: half the gap, in millimetres of the drier layer.
-                most = abs(s_low - s_up) / 2.0 * min(a.field_capacity - a.wilting_point,
-                                                     b.field_capacity - b.wilting_point) * dz
-                flux = max(-most, min(most, flux))
-                theta[i] += flux / dz
-                theta[i + 1] -= flux / dz
 
         water = self.ponded_mm + weather.rain_mm + irrigation_mm
         top = props[0]
