@@ -7,8 +7,9 @@
 
 NASA POWER's daily record (CC BY 4.0) for any point, written in the shape
 `sim/physics.RecordedClimate.from_csv` reads — `date,T2M_MIN,T2M_MAX,T2M,PRECTOTCORR,
-RH2M,ALLSKY_SFC_SW_DWN` under a header that credits the source — so the farm can live
-through thirty real springs rather than the one bundled with the tests.
+RH2M,ALLSKY_SFC_SW_DWN,WS2M` under a header that credits the source — so the farm can live
+through thirty real springs rather than the one bundled with the tests. The wind at 2 m,
+WS2M, since 2026-10-17: files written before have none.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import nasa_power  # noqa: E402
 
-COLUMNS = ("T2M_MIN", "T2M_MAX", "T2M", "PRECTOTCORR", "RH2M", "ALLSKY_SFC_SW_DWN")
+COLUMNS = ("T2M_MIN", "T2M_MAX", "T2M", "PRECTOTCORR", "RH2M", "ALLSKY_SFC_SW_DWN", "WS2M")
 
 
 def write(days: list, lat: float, lon: float, path: str) -> int:

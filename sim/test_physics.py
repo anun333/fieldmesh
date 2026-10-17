@@ -385,6 +385,24 @@ class TestLayeredBed(unittest.TestCase):
         self.assertLess(grown.et_mm - 0.5 * 1.10, 0.5 * (ph.KC_MAX - ph.KCB_INI) / 4,
                         "a closed canopy leaves little to evaporate")
 
+    def test_recorded_weather_can_give_penman_monteith_with_its_own_wind(self):
+        """A day's reference ET by FAO-56 Penman–Monteith, from the record's wind where it has
+        it, summed over the day's ticks; Hargreaves' by default."""
+        day = {"T2M_MIN": 18.0, "T2M_MAX": 31.0, "T2M": 24.5, "RH2M": 65.0,
+               "ALLSKY_SFC_SW_DWN": 24.0, "WS2M": 3.5, "PRECTOTCORR": 0.0}
+        d = _dt.date(2013, 7, 1)
+        rows = [(d + _dt.timedelta(days=k), day) for k in (-1, 0, 1)]
+        pm = ph.RecordedClimate(rows, et0_by="penman", site=(35.06, 243.0))
+        start = _dt.datetime(2013, 7, 1, tzinfo=_dt.timezone.utc)
+        total = sum(pm.step(start + k * ph.STEP).et0_mm for k in range(288))
+        want = ph.fao56_eto(18.0, 31.0, 65.0, 24.0, d.timetuple().tm_yday, 35.06, 243.0, wind_m_s=3.5)
+        self.assertAlmostEqual(total, want, delta=0.02 * want)
+        hargreaves = ph.RecordedClimate(rows)
+        self.assertNotAlmostEqual(sum(hargreaves.step(start + k * ph.STEP).et0_mm for k in range(288)),
+                                  want, delta=0.05)
+        with self.assertRaises(ValueError):
+            ph.RecordedClimate(rows, et0_by="penman")
+
     def test_a_dry_top_under_most_of_the_roots_slows_the_crop(self):
         """Half the root zone dry, the half with three quarters of the roots: by the layers'
         plain mean half the water is gone, and FAO-56's crop at p 0.5 would not slow; weighed

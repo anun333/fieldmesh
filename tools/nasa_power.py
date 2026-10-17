@@ -18,7 +18,7 @@ import os
 import urllib.request
 
 POWER = ("https://power.larc.nasa.gov/api/temporal/daily/point?parameters="
-         "T2M,T2M_MAX,T2M_MIN,PRECTOTCORR,ALLSKY_SFC_SW_DWN,RH2M&community=AG"
+         "T2M,T2M_MAX,T2M_MIN,PRECTOTCORR,ALLSKY_SFC_SW_DWN,RH2M,WS2M&community=AG"
          "&longitude={lon}&latitude={lat}&start={start}0101&end={end}1231&format=JSON")
 FILL = -999.0
 
@@ -41,7 +41,7 @@ def fetch_power(lat: float, lon: float, start: int, end: int, cache: str | None)
 
 
 def days_of(doc: dict) -> list:
-    """[(date, {T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, ALLSKY_SFC_SW_DWN, RH2M})], with
+    """[(date, {T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, ALLSKY_SFC_SW_DWN, RH2M, WS2M})], with
     fill values left out per parameter."""
     params = doc["properties"]["parameter"]
     dates = sorted(next(iter(params.values())))

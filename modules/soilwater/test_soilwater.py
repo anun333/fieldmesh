@@ -1365,6 +1365,37 @@ class TestAdviceCorrectedByAProbeNearby(unittest.TestCase):
         self.assertEqual(d["context"]["margin_percent"], round(100.0 * S.WEATHER_MARGIN))
 
 
+class TestAVirtualFarmThatDeparts(unittest.TestCase):
+    """`backtest.VirtualFarm`: the virtual farm's crop, soil and probes off from what the
+    advice is told, drawn for each backtest."""
+
+    def test_a_farm_is_drawn_the_same_from_one_seed_and_within_its_bounds(self):
+        self.assertEqual(B.VirtualFarm.drawn(7), B.VirtualFarm.drawn(7))
+        self.assertNotEqual(B.VirtualFarm.drawn(7), B.VirtualFarm.drawn(8))
+        for seed in range(200):
+            f = B.VirtualFarm.drawn(seed)
+            self.assertTrue(math.exp(-0.24) - 1e-12 <= f.use <= math.exp(0.24) + 1e-12)
+            self.assertTrue(0.8 - 1e-12 <= f.stages <= 1.2 + 1e-12)
+            self.assertTrue(0.7 - 1e-12 <= f.roots <= 1.3 + 1e-12)
+            self.assertLessEqual(abs(f.capacity), 0.03 + 1e-12)
+
+    def test_its_crop_and_soil_depart_as_drawn(self):
+        f = B.VirtualFarm(use=1.1, stages=1.25, roots=0.8, capacity=0.02, wilting=-0.01)
+        bed = B.growing_bed(farm=f)
+        self.assertAlmostEqual(bed.horizons[0].field_capacity, 0.32)
+        self.assertAlmostEqual(bed.horizons[0].wilting_point, 0.11)
+        B.grow(bed, "tomato", 50, farm=f)
+        kc, root_mm = S.crop_day("tomato", 40)
+        self.assertAlmostEqual(bed.crop_coefficient, kc * 1.1)
+        self.assertLessEqual(bed.depth_mm, root_mm * 0.8 + bed.layer_mm)
+
+    def test_each_probe_reads_off_by_its_own_amount(self):
+        f = B.VirtualFarm.drawn(3)
+        self.assertEqual(f.offset("0.1 False"), f.offset("0.1 False"))
+        self.assertNotEqual(f.offset("0.1 False"), f.offset("0.3 False"))
+        self.assertEqual(B.NOMINAL.offset("0.1 False"), 0.0)
+
+
 # ------------------------------------------------------- backtests the tests share
 
 def _summer(year: int):

@@ -10,9 +10,11 @@ this file does, and is not part of the module's process."""
 from __future__ import annotations
 
 import datetime as _dt
+import math
 import os
+import random
 import sys
-from dataclasses import replace
+from dataclasses import asdict, dataclass, replace
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -32,14 +34,67 @@ PAN = {"saturation": 0.36, "field_capacity": 0.30, "wilting_point": 0.13, "ks_mm
 PAN_MM = 50.0
 
 
-def growing_bed(pan_mm: float | None = None):
+@dataclass(frozen=True)
+class VirtualFarm:
+    """How the virtual farm departs from what the advice is told, for one backtest: its
+    crop uses `use` times its curve's water, runs through its stages `stages` times as long
+    and roots `roots` times as deep; its soil's field capacity and wilting point are
+    `capacity` and `wilting` off (the growing bed's and the backtest bed's; a soil given in
+    whole is as given); and each probe reads off by its own amount, drawn with a spread of
+    `probe_sd`. The advice is told the crop's curve and the soil's values as they are
+    written. `NOMINAL` departs from nothing, and a backtest on it is the one before
+    2026-10-17, to the bit."""
+    use: float = 1.0
+    stages: float = 1.0
+    roots: float = 1.0
+    capacity: float = 0.0
+    wilting: float = 0.0
+    probe_sd: float = 0.0
+    seed: int = 0
+
+    @classmethod
+    def drawn(cls, seed: int, *, use_sd: float = 0.12, stage_sd: float = 0.10,
+              root_sd: float = 0.15, capacity_sd: float = 0.015, wilting_sd: float = 0.01,
+              probe_sd: float = 0.015) -> "VirtualFarm":
+        """A farm drawn from `seed`: its crop's use lognormal about the curve's, the rest
+        normal and held within twice their spread. The spreads are a field's usual
+        departures from a crop's published values and a soil's typical ones, and a factory
+        calibration's error; assumed."""
+        rng = random.Random(f"virtual farm {seed}")
+
+        def held(mean, sd):
+            return max(mean - 2 * sd, min(mean + 2 * sd, rng.gauss(mean, sd)))
+        return cls(use=math.exp(held(0.0, use_sd)), stages=held(1.0, stage_sd),
+                   roots=held(1.0, root_sd), capacity=held(0.0, capacity_sd),
+                   wilting=held(0.0, wilting_sd), probe_sd=probe_sd, seed=seed)
+
+    def offset(self, probe: str) -> float:
+        """How far the probe named `probe` reads off."""
+        if not self.probe_sd:
+            return 0.0
+        return random.Random(f"probe {self.seed} {probe}").gauss(0.0, self.probe_sd)
+
+
+NOMINAL = VirtualFarm()
+
+
+def _departed(bed, farm: VirtualFarm) -> None:
+    """The backtest bed, one bucket, as `farm` has its soil and crop."""
+    bed.field_capacity += farm.capacity
+    bed.wilting_point += farm.wilting
+    bed.theta = bed.field_capacity
+    bed.crop_coefficient *= farm.use
+
+
+def growing_bed(pan_mm: float | None = None, farm: VirtualFarm = NOMINAL):
     """The virtual bed for a crop that grows: the backtest bed's silt loam (field capacity
     0.30, wilting point 0.12) 1.5 m deep in layers, so roots can reach down through it,
     its water moving between layers below field capacity by Darcy's law; a number for
     (`physics.LayeredBed`). With `pan_mm`, a plough pan (`PAN`) lies at that depth, which
     water passes slowly too."""
     import physics as ph
-    silt = dict(saturation=0.45, field_capacity=0.30, wilting_point=0.12, ks_mm_per_h=8.0,
+    silt = dict(saturation=0.45, field_capacity=0.30 + farm.capacity,
+                wilting_point=0.12 + farm.wilting, ks_mm_per_h=8.0,
                 suction_mm=170.0, residual=0.065, pore_connectivity=0.19)   # Rosetta3: Dickson's texture
     if pan_mm is None:
         horizons = (ph.Horizon(1500.0, **silt),)
@@ -59,17 +114,19 @@ ESTABLISHED_COVER = 0.95
 
 
 def grow(soil, crop: str, days: float, hardpan_mm: float | None = None,
-         gdd: float | None = None) -> None:
+         gdd: float | None = None, farm: VirtualFarm = NOMINAL) -> None:
     """The virtual crop `days` after sowing, or `gdd` degree-days for a crop staged in them:
     its crop coefficient, and for a layered soil its basal one (`basal_day`) and, for an
     established crop, its ground cover (`ESTABLISHED_COVER`), its depletion fraction (the
     share of its water it uses freely), and its roots' depth, stopped at `hardpan_mm` when
-    the soil has one."""
+    the soil has one; as `farm` has the crop."""
+    days, gdd = days / farm.stages, (None if gdd is None else gdd / farm.stages)
     kc, root_mm = crop_day(crop, days, gdd)
-    soil.crop_coefficient = kc
+    root_mm = root_mm * farm.roots
+    soil.crop_coefficient = kc * farm.use
     soil.depletion_fraction = CROPS[crop]["p"]
     if hasattr(soil, "basal_coefficient"):
-        soil.basal_coefficient = basal_day(crop, days, gdd)
+        soil.basal_coefficient = basal_day(crop, days, gdd) * farm.use
     if hasattr(soil, "ground_cover") and CROPS[crop]["season_days"] == 0:
         soil.ground_cover = ESTABLISHED_COVER
     soil.set_roots(root_mm if hardpan_mm is None else min(root_mm, hardpan_mm))
@@ -158,6 +215,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              rain_gauge: bool = False, knows_cover: bool = False,
              virtual_crop: str | None = None, dense_pan: bool = False,
              second_check_hour: int | None = SECOND_CHECK_HOUR,
+             farm: VirtualFarm = NOMINAL,
              depletion_fraction: float | None = None,
              young_fraction: float | None = 0.2) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
@@ -221,12 +279,14 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     from model import ClockQuality, Datastream, Installation, Observation
 
     state, fc, truth = forecasts(climate, start, days, seed)
-    b = soil if soil is not None else (growing_bed(hardpan_mm if dense_pan else None) if crop
-                                       else D.bed())
+    b = soil if soil is not None else (growing_bed(hardpan_mm if dense_pan else None, farm)
+                                       if crop else D.bed())
+    if soil is None and not crop:
+        _departed(b, farm)
     b.rain_share = rain_share
     b2 = None
     if second is not None:
-        b2 = growing_bed(hardpan_mm if dense_pan else None)
+        b2 = growing_bed(hardpan_mm if dense_pan else None, farm)
         b2.name = "second"
     world = ph.World(start=start, climate=climate, beds=[b] if b2 is None else [b, b2])
     land, probes = uuid7(), []
@@ -285,6 +345,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     advisor = Advisor(Log(), rain_gauge=gauge.id if gauge else None)
     noise = dict(zip((p.id for p, _, _ in probes),
                      noise_streams(seed, [f"{d} {patch}" for _, d, patch in probes])))
+    offset = {p.id: farm.offset(f"{d} {patch}") for p, d, patch in probes}
     rain_hour = 0.0
     roots, second_h = [], 0.0
     applied, dose_now, stressed_h, stress, advice, last, last_at = 0.0, 0.0, 0.0, [], {}, None, None
@@ -302,17 +363,19 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         when = world.when
         if crop and when.hour == 0 and when.minute == 0:
             grow(b, virtual_crop or crop,
-                 (when.date() - planted).days if planted is not None else 0, hardpan_mm)
+                 (when.date() - planted).days if planted is not None else 0, hardpan_mm,
+                 farm=farm)
             if b2 is not None:
                 if when.date() < second[1]:
                     b2.crop_coefficient = 0.0          # bare, waiting to be sown
                 else:
-                    grow(b2, second[0], (when.date() - second[1]).days, hardpan_mm)
+                    grow(b2, second[0], (when.date() - second[1]).days, hardpan_mm, farm=farm)
         if when.minute == 0:
             for probe, depth, in_patch in probes:
                 patch = b2 if b2 is not None and in_patch else b
                 truth = patch.theta_at(depth) if hasattr(patch, "theta_at") else patch.theta
-                read = truth + probe_bias + noise[probe.id].gauss(0.0, probe_noise)
+                read = (truth + probe_bias + offset[probe.id]
+                        + noise[probe.id].gauss(0.0, probe_noise))
                 state.add(Observation(uuid7(), probe.id, when, 60.0, when, round(read, 3),
                                       ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
                                       calibration=cal))
@@ -368,6 +431,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         if b2 is not None and when.date() >= second[1] and tick.soil_stress[b2.name] >= 0.5:
             second_h += 1.0 / 12.0
     return {"policy": "advisory", "applied_mm": applied, "drained_mm": b.drained_mm,
+            "farm": asdict(farm),
             **score.result(b, b2),
             "second_stressed_h": second_h if b2 is not None else None,
             "runoff_mm": b.runoff_mm, "field_capacity": last["context"]["field_capacity"],
@@ -388,7 +452,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                      clock: bool = False, second: tuple | None = None,
                      knows_second: bool = True, soil=None, virtual_crop: str | None = None,
                      hardpan_mm: float | None = None, knows_hardpan: bool = False,
-                     second_check_hour: int | None = SECOND_CHECK_HOUR) -> dict:
+                     second_check_hour: int | None = SECOND_CHECK_HOUR,
+                     farm: VirtualFarm = NOMINAL, site: tuple | None = None) -> dict:
     """The advisory for the backtest bed with **no probe**, from a station on the farm:
     hourly air temperature, humidity, sunshine and rain, as the virtual farm's recorded
     weather gives them (`backtest` for the rest). Sunshine is each recorded day's total
@@ -440,13 +505,16 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     from model import ClockQuality, Datastream, Installation, Observation
 
     state, fc, truth = forecasts(climate, start, days, seed)
-    b = soil if soil is not None else (growing_bed() if crop else D.bed())
-    rb = growing_bed() if crop else D.bed()
+    b = soil if soil is not None else (growing_bed(farm=farm) if crop else D.bed())
+    rb = growing_bed(farm=farm) if crop else D.bed()
+    if not crop:
+        for bucket in ((b,) if soil is None else ()) + (rb,):
+            _departed(bucket, farm)
     rb.name = "reference"
     grows = virtual_crop or crop
     b2 = None
     if second is not None:
-        b2 = growing_bed()
+        b2 = growing_bed(farm=farm)
         b2.name = "second"
     world = ph.World(start=start, climate=climate,
                      beds=[b] + ([rb] if reference else []) + ([b2] if b2 is not None else []))
@@ -480,8 +548,10 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     ref_ds = add_probe(ref_land) if reference else None
     named = [(ds, name) for ds, name in ((probe_ds, "bed"), (ref_ds, "reference")) if ds]
     noise = dict(zip((ds.id for ds, _ in named), noise_streams(seed, [n for _, n in named])))
+    offset = {ds.id: farm.offset(n) for ds, n in named}
     # The virtual farm's hours are local solar time, so its station's day is UTC's.
-    station = E.Station(lat=D.LAT, elevation_m=D.ELEVATION_M, timezone="UTC",
+    lat, elevation = site if site is not None else (D.LAT, D.ELEVATION_M)
+    station = E.Station(lat=lat, elevation_m=elevation, timezone="UTC",
                         air_temperature=air.id, relative_humidity=rh.id,
                         solar_radiation=sunshine.id, precipitation=rain.id)
     told = dict(crop=crop, planted=planted) if crop and knows_crop else {}
@@ -510,7 +580,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         total_mj = climate.days.get(day, {}).get("ALLSKY_SFC_SW_DWN", 0.0)
         ends = [_dt.datetime.combine(day, _dt.time(), tzinfo=_dt.timezone.utc)
                 + _dt.timedelta(hours=h) for h in range(1, 25)]
-        shape = [SUN.clear_sky_mean_w(D.LAT, 0.0, D.ELEVATION_M, e, 3600.0) for e in ends]
+        shape = [SUN.clear_sky_mean_w(lat, 0.0, elevation, e, 3600.0) for e in ends]
         scale = total_mj * 1e6 / (3600.0 * sum(shape)) if sum(shape) else 0.0
         return {e: w * scale for e, w in zip(ends, shape)}
 
@@ -547,13 +617,14 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
             grown_days, grown_gdd = truth[today] if truth is not None else (calendar, None)
             for sb in (b, rb):
                 grow(sb, grows, grown_days if grown_days is not None else calendar,
-                     hardpan_mm=hardpan_mm, gdd=grown_gdd)
+                     hardpan_mm=hardpan_mm, gdd=grown_gdd, farm=farm)
             if b2 is not None and today < second[1]:
                 b2.crop_coefficient = 0.0              # bare, waiting to be sown
             elif b2 is not None:
                 d2, g2 = (truth2.get(today, (0.0, 0.0)) if truth2 is not None
                           else ((today - second[1]).days, None))
-                grow(b2, second[0], d2 if d2 is not None else (today - second[1]).days, gdd=g2)
+                grow(b2, second[0], d2 if d2 is not None else (today - second[1]).days, gdd=g2,
+                     farm=farm)
         if when.minute == 0:
             if when.hour == 0 or not sun_today:
                 sun_today = hourly_sun(when.date())
@@ -566,7 +637,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         for ds, sb, silent, bias in ((probe_ds, b, outage and outage[0] <= day_n <= outage[1], 0.0),
                                      (ref_ds, rb, False, reference_bias)):
             if ds is not None and when.minute == 0 and not silent:
-                read = sb.theta + bias + noise[ds.id].gauss(0.0, probe_noise)
+                read = sb.theta + bias + offset[ds.id] + noise[ds.id].gauss(0.0, probe_noise)
                 state.add(Observation(uuid7(), ds.id, when, 60.0, when, round(read, 3),
                                       ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
                                       calibration=cal))
@@ -615,6 +686,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         if b2 is not None and when.date() >= second[1] and tick.soil_stress[b2.name] >= 0.5:
             second_h += 1.0 / 12.0
     return {"policy": "weather", "applied_mm": applied[b.name], "drained_mm": b.drained_mm,
+            "farm": asdict(farm),
             **score.result(b, b2),
             "second_stressed_h": second_h if b2 is not None else None,
             "mean_stress": statistics.mean(stress), "stressed_h": stressed_h,

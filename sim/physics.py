@@ -200,21 +200,31 @@ class RecordedClimate:
     * **Humidity** is the day's mean, lower in the warm afternoon, near saturation in
       rain.
     * **Reference ET** is Hargreaves' radiation formula, 0.0135 (T + 17.8) Rs, from the
-      day's sunshine, spread over daylight and cut by rain as `Climate` cuts it.
+      day's sunshine, spread over daylight and cut by rain as `Climate` cuts it; or, with
+      `et0_by="penman"` and the `site`'s `(latitude, elevation m)`, FAO-56 Penman–Monteith
+      from the day's extremes, humidity, sunshine and recorded wind (`WS2M`, 2 m/s where
+      the file has none), as a farm's station would compute it with an anemometer.
 
     Like `Climate`, the hour of `when` is read as the site's local solar time — POWER's
     days are local solar days — so a world on recorded weather starts at a midnight.
     """
 
-    def __init__(self, days, *, seed: int = 1):
+    def __init__(self, days, *, seed: int = 1, et0_by: str = "hargreaves",
+                 site: tuple | None = None):
         self.days = {d: dict(v) for d, v in days}
         if not self.days:
             raise ValueError("no days of weather")
+        if et0_by not in ("hargreaves", "penman") or (et0_by == "penman" and site is None):
+            raise ValueError("et0_by is \"hargreaves\", or \"penman\" with the site's "
+                             "(latitude, elevation m)")
         self.seed = seed
+        self.et0_by, self.site = et0_by, site
+        self._et0: dict = {}
         self._seasonal: dict = {}
 
     @classmethod
-    def from_csv(cls, path: str, *, seed: int = 1) -> "RecordedClimate":
+    def from_csv(cls, path: str, *, seed: int = 1, et0_by: str = "hargreaves",
+                 site: tuple | None = None) -> "RecordedClimate":
         """`date,T2M_MIN,T2M_MAX,...` with `#` comment lines, as sim/data/ holds."""
         rows = []
         with open(path, encoding="utf-8") as h:
@@ -226,7 +236,7 @@ class RecordedClimate:
             cells = line.strip().split(",")
             rows.append((_dt.date.fromisoformat(cells[0]),
                          {k: float(v) for k, v in zip(names[1:], cells[1:]) if v != ""}))
-        return cls(rows, seed=seed)
+        return cls(rows, seed=seed, et0_by=et0_by, site=site)
 
     def _day(self, d: _dt.date) -> dict:
         v = self.days.get(d)
@@ -270,12 +280,23 @@ class RecordedClimate:
         rh = v.get("RH2M", 70.0)
         humidity = max(92.0, rh) if raining else max(25.0, min(100.0, rh + 2.0 * (mean - temp)))
         daylight = max(0.0, math.sin(math.pi * (h - 6.0) / 12.0))
-        et0_day = 0.0135 * (mean + 17.8) * v.get("ALLSKY_SFC_SW_DWN", 15.0) * 0.408
+        et0_day = self._et0_day(when.date(), v, mean)
         et0 = max(0.0, et0_day) * daylight * HOURS_PER_STEP / (24.0 / math.pi)
         if raining:
             et0 *= 0.15
         return Weather(air_temp_c=round(temp, 2), relative_humidity=round(humidity, 1),
                        rain_mm=round(rain, 4), et0_mm=round(et0, 5), raining=raining)
+
+    def _et0_day(self, d: _dt.date, v: dict, mean: float) -> float:
+        """The day's reference ET, mm, by the formula this climate was made with."""
+        if self.et0_by == "hargreaves":
+            return 0.0135 * (mean + 17.8) * v.get("ALLSKY_SFC_SW_DWN", 15.0) * 0.408
+        if d not in self._et0:
+            lat, elevation = self.site
+            self._et0[d] = fao56_eto(v["T2M_MIN"], v["T2M_MAX"], v.get("RH2M", 70.0),
+                                     v.get("ALLSKY_SFC_SW_DWN", 15.0), d.timetuple().tm_yday,
+                                     lat, elevation, wind_m_s=v.get("WS2M", 2.0))
+        return self._et0[d]
 
     def _seasonal_temp(self, when: _dt.datetime) -> float:
         """The deep soil's driver: the mean air temperature of the month around."""
