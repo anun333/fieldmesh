@@ -63,11 +63,13 @@ the bridge already reads.
 ## What fieldmesh's own evidence says about choosing and installing
 
 * **A probe that reads low is forgiven; one that reads high is not.** On the advisory's
-  backtest bed, McAllister Farm's 2013, a true probe's advice used 155 mm.
-  * A probe reading 0.05 low, unlearned, called for 748 mm. Learning its own field
-    capacity from its drain-downs, which are 0.05 low too, it used 256 mm.
-  * A probe reading 0.05 high says the bed is full, so the bed is not watered. The probe
-    then sees too few soakings to learn from, and the bed went dry: 242 hours of stress.
+  backtest bed, McAllister Farm's 2013, a true probe's advice used 208 mm (the simulator
+  of 2026-10-16).
+  * A probe reading 0.05 low, unlearned, called for 1,045 mm. Learning its own field
+    capacity from its drain-downs, which are 0.05 low too, it used 422 mm.
+  * A probe reading 0.05 high says the bed is fuller than it is, so the bed is watered
+    late and little, 127 mm. The probe then sees too few soakings to learn from, and the
+    bed went dry: 293 hours of stress.
   * Learning cannot fix this, because the bias stops the very watering it would learn
     from. A second probe can.
 

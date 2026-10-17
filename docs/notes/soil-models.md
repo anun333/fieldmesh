@@ -6,8 +6,9 @@
 water: on 2026-10-15 the simulator's layered soil began to move water below field
 capacity, and several results changed ([soil advisory](../../modules/soilwater/README.md#water-below-field-capacity)).
 This note sets the simulator beside the models agriculture already uses, and lists what
-it still lacks. Found through Semantic Scholar and the models' own documentation and
-source.*
+it lacked. Found through Semantic Scholar and the models' own documentation and source.
+On 2026-10-16 the simulator took what the list [below](#what-the-simulator-took-2026-10-16)
+asked for, and was checked against HYDRUS-1D and a real profile.*
 
 ## The models
 
@@ -20,7 +21,7 @@ source.*
 | PCSE / WOFOST | a bucket, in classic WOFOST | from the root zone | yes | [PCSE](https://github.com/ajwdewit/pcse), EUPL-1.1 |
 | HYDRUS-1D | Richards' equation, van Genuchten and Mualem | Feddes' function, with root density | yes | freeware from PC-Progress; [phydrus](https://github.com/phydrus/phydrus) and its adapted Fortran, LGPL-3.0 |
 | SWAP | Richards' equation | Feddes', or de Jong van Lier's matric flux potential | yes | an [unofficial mirror](https://github.com/SWAP-model/SWAP), GPL-2.0 |
-| **fieldmesh's simulator** | **Darcy's law between layers, van Genuchten fitted to each horizon's limits, Mualem's conductivity, their geometric mean, since 2026-10-15** | **in proportion to the water each layer can give** | **none** | Apache-2.0 |
+| **fieldmesh's simulator** | **Darcy's law between layers, van Genuchten fitted to each horizon's limits with Rosetta3's residual water, Mualem's conductivity with Rosetta3's `L`, their geometric mean, since 2026-10-15** | **FAO-56's: whole to the crop's `p`, then less; by root density, falling in a line to none at the roots' depth (Prasad 1988), since 2026-10-16** | **FAO-56's dual coefficient, from the top 0.10 m, since 2026-10-16** | Apache-2.0 |
 
 So the simulator's soil before 2026-10-15 was the crop models' bucket: FAO-56's,
 AquaCrop's, near enough DSSAT's. Since then it moves water as the Richards models do,
@@ -45,12 +46,15 @@ though layer by layer and explicitly rather than by solving the equation.
   time, and was then checked against a greenhouse's probes at several depths.
 * **Root uptake.** Feddes et al. (1976) reduce uptake with the soil's suction; de Jong van
   Lier et al. (2008) spread it by the matric flux potential; DSSAT by root length in each
-  layer. The simulator draws from each layer by the water it can give, and the crop slows
-  its use as soon as the root zone is below field capacity (`1 − stress`), where FAO-56
-  keeps it whole until the refill point. Both make the virtual crop gentler than these.
+  layer. Until 2026-10-16 the simulator drew from each layer by the water it could give,
+  and the crop slowed its use as soon as the root zone was below field capacity
+  (`1 − stress`), where FAO-56 keeps it whole until the crop's `p`. Both made the virtual
+  crop gentler than these. It now keeps FAO-56's, and draws by Prasad's (1988) linear root
+  density, most at the top.
 * **Evaporation from the soil.** FAO-56's dual coefficient dries an evaporation layer of
-  0.10 to 0.15 m apart from the crop (Allen et al. 2005). The simulator has none, so a bare
-  patch loses nothing and the top centimetres dry only by roots. Evaporation also lowers
+  0.10 to 0.15 m apart from the crop (Allen et al. 2005). Until 2026-10-16 the simulator
+  had none, so a bare patch lost nothing and the top centimetres dried only by roots; it
+  now dries its top 0.10 m so. Evaporation also lowers
   the level a soil drains to after a wetting (Aldrees and Hafsi 2020): a probe near the
   surface reads field capacity low.
 * **Field capacity, measured.** Ottoni et al. (2014) define it as the water held 48 hours
@@ -72,7 +76,9 @@ though layer by layer and explicitly rather than by solving the equation.
 ## Where a soil's own parameters come from
 
 The simulator fits each horizon's curve through three points of its own: saturation, field
-capacity at 33 kPa, the wilting point at 1500 kPa, with no residual water. Better sources:
+capacity at 33 kPa, the wilting point at 1500 kPa. Since 2026-10-16 the residual water and
+Mualem's `L` are Rosetta3's for each of its soils' texture and bulk density; before, no
+residual and `L` 0.5. Better sources for all of it:
 
 * **Rosetta** (Schaap et al. 2001; recalibrated by Zhang and Schaap 2017): van Genuchten's
   parameters and the saturated conductivity from texture, and bulk density or the 33 and
@@ -83,25 +89,41 @@ capacity at 33 kPa, the wilting point at 1500 kPa, with no residual water. Bette
   in-situ evaluation gave an average R² of 0.41. Its data licence was not found; check it
   before redistributing anything from it.
 
-## What the simulator should take, in order
+## What the simulator took, 2026-10-16
 
-1. **Check its soil against a reference model and a real profile.** HYDRUS-1D through
-   phydrus, run on the same weather as an outside benchmark (not a dependency of
-   fieldmesh); and USCRN's Crossville, Tennessee station, whose hourly records give rain,
-   temperature, humidity and sun with soil water at 5, 10, 20, 50 and 100 cm under grass.
-2. **Keep the crop's use whole to its refill point**, as FAO-56 does, and **draw by root
-   length**, more from the top, as DSSAT does.
-3. **Dry the top by evaporation**, FAO-56's dual coefficient: pyfao56 is public domain,
-   and AquaCrop-OSPy's `soil_evaporation.py` is Apache-2.0.
-4. **A pan as a horizon that passes little water**, not only one that stops roots: the
-   root signs' worth turns on it ([soil advisory](../../modules/soilwater/README.md#roots-that-stop)).
-5. **Each horizon's parameters from Rosetta**, given the survey's texture, in place of the
-   three-point fit.
+The list this note first ended with, in order, and what each did:
 
-Then every table runs again on it, over several draws of the noise.
+1. **Checked against a reference model and a real profile.** HYDRUS-1D, through phydrus
+   in a container (an outside benchmark, not a dependency of fieldmesh), on the same
+   soils: the simulator's water content was within 0.0002 to 0.002 of it, as root mean
+   square error, while water spread and rose by capillarity, and 0.002 to 0.012 while a
+   watering soaked in. The soil before 2026-10-15 was 0.012 to 0.040 out. USCRN's
+   Crossville, Tennessee station, under grass: the simulated soil followed its
+   probes hour by hour, correlation 0.85 to 0.96.
+2. **The crop's use whole to its `p`, drawn by root density.** On Crossville's 98
+   rain-free summer days, the soil before this dried at 5 cm at 0.56 of the rate the
+   probes saw, at 10 cm 0.71, at 20 cm 1.12. FAO-56's use took 5 and 10 cm to 0.71 and
+   0.90; drawing by root density, 5 cm to 0.75 and 20 cm from 1.37 to 1.31. With the
+   evaporation below as well: 0.74, 0.85 and 1.26.
+3. **Evaporation, FAO-56's dual coefficient.** In the simulator, and in the advisory's
+   weather balance for a bed whose crop is named, so that a young crop's wet soil is
+   counted. FAO-56's estimate of a canopy's cover from its basal coefficient (Eq. 76)
+   leaves a mown lawn a third bare, and so evaporating a quarter more than FAO-56's own
+   coefficients for turf; a lawn is taken to cover 0.95 of its ground.
+4. **A pan that passes little water**: a 5 cm horizon of compacted silt loam, saturated
+   conductivity 0.5 mm an hour, as an option of the growing bed (`growing_bed(pan_mm=…)`).
+5. **Rosetta3's residual water and `L`** for each of the simulator's soils, in the three-point
+   fit; not yet its whole curve.
+
+At Crossville the simulated top 5 cm still dried at three quarters of the observed rate,
+and 20 cm a quarter faster: the roots' depth and shape under that grass, and the probes'
+own calibration, are not known. Every table in the [soil advisory](../../modules/soilwater/README.md)
+was run again on it, three draws of the noise each.
 
 ## Sources
 
+* R. G. Allen, L. S. Pereira, D. Raes and M. Smith, *Crop evapotranspiration: guidelines for
+  computing crop water requirements*, FAO Irrigation and Drainage Paper 56, Rome, 1998.
 * R. G. Allen, L. S. Pereira, M. Smith, D. Raes and J. L. Wright, "FAO-56 dual crop
   coefficient method for estimating evaporation from soil and application extensions",
   *Journal of Irrigation and Drainage Engineering* 131(1), 2005, 2–13, [doi:10.1061/(ASCE)0733-9437(2005)131:1(2)](https://doi.org/10.1061/(ASCE)0733-9437(2005)131:1(2)).
@@ -140,6 +162,8 @@ Then every table runs again on it, over several draws of the noise.
   weather based crop modelling to provide improved decision support for sugarcane
   irrigation management", *Computers and Electronics in Agriculture* 105, 2014, 44–53,
   [doi:10.1016/j.compag.2014.04.007](https://doi.org/10.1016/j.compag.2014.04.007).
+* R. Prasad, "A linear root water uptake model", *Journal of Hydrology* 99, 1988, 297–306,
+  [doi:10.1016/0022-1694(88)90055-8](https://doi.org/10.1016/0022-1694(88)90055-8).
 * D. Raes, P. Steduto, T. C. Hsiao and E. Fereres, "AquaCrop — the FAO crop model to
   simulate yield response to water: II. Main algorithms and software description",
   *Agronomy Journal* 101, 2009, 438–447, [doi:10.2134/agronj2008.0140s](https://doi.org/10.2134/agronj2008.0140s).

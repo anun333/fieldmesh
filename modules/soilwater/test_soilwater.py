@@ -495,6 +495,8 @@ class TestAdviceForPlantingsAtDifferentStages(unittest.TestCase):
         self.assertEqual((c["timing_depth_cm"], c["root_depth_cm"], c["plantings"]), (15, 50, 2))
         self.assertAlmostEqual(c["timing_depletion_mm"], 0.07 * 150.0, places=1)
         self.assertAlmostEqual(c["refill_mm"], refill, places=1)
+        self.assertEqual(c["timing_fraction"], 0.2, "the lettuce is young: its own roots' refill point")
+        self.assertNotIn("depletion_fraction", c, "the tomatoes keep theirs")
         text = S.render(d, "en")
         self.assertIn("its shallowest roots, in the top 15 cm, have used 39%", text)
         self.assertIn("down to its deepest roots at 50 cm", text)
@@ -1182,6 +1184,23 @@ class TestByTheWeather(unittest.TestCase):
                          "with no valve recorded, it says it cannot see the watering")
         self.assertEqual(d["inputs"]["estimated"], ["wind"])
 
+    def test_with_nothing_measured_it_counts_the_crop_a_share_high(self):
+        """`WEATHER_MARGIN`: no probe checks the balance, so it errs toward watering."""
+        g = WeatherGarden()
+        station = g.station(12, rain={0: 80.0})
+        _, d = g.advice(self.MORNING(2), station=station)
+        margin = S.WEATHER_MARGIN
+        try:
+            S.WEATHER_MARGIN = 0.0
+            _, plain = g.advice(self.MORNING(2), station=station)
+        finally:
+            S.WEATHER_MARGIN = margin
+        self.assertGreater(margin, 0.0)
+        self.assertAlmostEqual(d["context"]["depletion_mm"],
+                               plain["context"]["depletion_mm"] * (1.0 + margin), delta=0.15)
+        self.assertEqual(d["context"]["margin_percent"], round(100.0 * margin))
+        self.assertNotIn("margin_percent", plain["context"])
+
     def test_two_days_of_three_missing_and_it_cannot_tell(self):
         g = WeatherGarden()
         station = g.station(12, rain={0: 80.0}, gap_days=(8, 9))
@@ -1324,12 +1343,24 @@ class TestAProbeCorrectsTheWeather(unittest.TestCase):
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestAdviceCorrectedByAProbeNearby(unittest.TestCase):
 
-    def test_the_balance_moves_halfway_to_a_slower_rate_and_says_so(self):
+    @staticmethod
+    def without_margin(advise):
+        margin = S.WEATHER_MARGIN
+        try:
+            S.WEATHER_MARGIN = 0.0
+            return advise()
+        finally:
+            S.WEATHER_MARGIN = margin
+
+    def test_with_no_margin_the_balance_moves_halfway_to_a_slower_rate_and_says_so(self):
+        """`REFERENCE_SHARE`, where `WEATHER_MARGIN` is 0."""
         g = ReferenceGarden(0.7)
         at = g.morning(19)
         bed = S.replace(g.bed, reference=g.reference_land)
-        [plain] = S.Advisor(Log()).advise(g.state, [g.bed], at, station=g.station_)
-        events = S.Advisor(Log()).advise(g.state, [bed, g.reference], at, station=g.station_)
+        [plain] = self.without_margin(
+            lambda: S.Advisor(Log()).advise(g.state, [g.bed], at, station=g.station_))
+        events = self.without_margin(
+            lambda: S.Advisor(Log()).advise(g.state, [bed, g.reference], at, station=g.station_))
         corrected = next(e.payload for e in events if e.payload["subject"] == str(g.land))
         ctx = corrected["context"]
         self.assertTrue(ctx["corrected"])
@@ -1344,32 +1375,56 @@ class TestAdviceCorrectedByAProbeNearby(unittest.TestCase):
                       S.render(corrected, "en", g.state))
         self.assertIn("una sonda en un bancal cercano", S.render(corrected, "es", g.state))
 
-    def test_a_faster_rate_is_taken_all_the_way(self):
+    def test_a_rate_slower_than_the_margin_is_recorded_and_not_used(self):
+        """`WEATHER_MARGIN`: a probe's rate ran low on the simulator of 2026-10-16 where its
+        bed was watered often, and taken, left a bed short through the 2012 drought."""
+        g = ReferenceGarden(0.7)
+        at = g.morning(19)
+        bed = S.replace(g.bed, reference=g.reference_land)
+        [plain] = S.Advisor(Log()).advise(g.state, [g.bed], at, station=g.station_)
+        events = S.Advisor(Log()).advise(g.state, [bed, g.reference], at, station=g.station_)
+        d = next(e.payload for e in events if e.payload["subject"] == str(g.land))
+        self.assertFalse(d["context"]["corrected"])
+        self.assertEqual(d["context"]["margin_percent"], round(100.0 * S.WEATHER_MARGIN))
+        self.assertEqual(d["context"]["depletion_mm"], plain.payload["context"]["depletion_mm"])
+        self.assertTrue(d["inputs"]["reference"]["margin_held"])
+        self.assertAlmostEqual(d["inputs"]["reference"]["applied"], 0.85, delta=0.02)
+
+    def test_a_rate_faster_than_the_margin_is_taken_all_the_way(self):
         """More water is the safe error."""
-        g = ReferenceGarden(1.2)
+        g = ReferenceGarden(1.4)
         bed = S.replace(g.bed, reference=g.reference_land)
         events = S.Advisor(Log()).advise(g.state, [bed, g.reference], g.morning(19),
                                          station=g.station_)
         ctx = next(e.payload["context"] for e in events if e.payload["subject"] == str(g.land))
-        self.assertAlmostEqual(ctx["et_percent"], 120, delta=2)
+        self.assertTrue(ctx["corrected"])
+        self.assertAlmostEqual(ctx["et_percent"], 140, delta=2)
+        self.assertNotIn("margin_percent", ctx)
 
     def test_without_its_reference_among_the_beds_it_is_the_balance_alone(self):
         g = ReferenceGarden(0.7)
         bed = S.replace(g.bed, reference=g.reference_land)
         [d] = S.Advisor(Log()).advise(g.state, [bed], g.morning(19), station=g.station_)
         self.assertFalse(d.payload["context"]["corrected"])
+        self.assertEqual(d.payload["context"]["margin_percent"], round(100.0 * S.WEATHER_MARGIN))
 
     def test_a_bed_whose_probe_falls_silent_takes_its_own_probes_rate(self):
         """The probe is in the bed itself and stops at the end of day 16. Two mornings later
-        the fallback carries the bed on the weather, at the rate its probe saw before."""
+        the fallback carries the bed on the weather: with no margin at the rate its probe saw
+        before; with one, that slower rate gives way to it."""
         g = ReferenceGarden(0.7, days=17)
         station = g.station(20, rain={d: 30.0 for d in g.RAIN_DAYS})
-        d = S.Advisor(Log()).judge(g.state, g.reference, g.morning(19), station=station)
+        d = self.without_margin(
+            lambda: S.Advisor(Log()).judge(g.state, g.reference, g.morning(19), station=station))
         self.assertTrue(d["context"]["anchored"])
         self.assertTrue(d["context"]["corrected"])
         self.assertAlmostEqual(d["context"]["et_percent"], 85, delta=2)
         self.assertTrue(d["message"]["key"].endswith("_anchored"),
                         "the probes' silence is the message; the rate is in the record")
+        d = S.Advisor(Log()).judge(g.state, g.reference, g.morning(19), station=station)
+        self.assertTrue(d["context"]["anchored"])
+        self.assertFalse(d["context"]["corrected"])
+        self.assertEqual(d["context"]["margin_percent"], round(100.0 * S.WEATHER_MARGIN))
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
@@ -1386,20 +1441,20 @@ class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
                                    seed=1, record_valve=False)
 
     def test_it_waters_about_as_the_probe_does_and_far_less_than_a_timer(self):
-        """The probe-led advice used 155 mm and the drip timer 552 on the same summer."""
-        self.assertAlmostEqual(self.r["applied_mm"], 155.0, delta=0.25 * 155.0)
+        """The probe-led advice used 208 mm and the drip timer 552 on the same summer; by the
+        weather, with its margin (`WEATHER_MARGIN`), 225."""
+        self.assertAlmostEqual(self.r["applied_mm"], 208.0, delta=0.25 * 208.0)
         self.assertEqual(self.r["stressed_h"], 0.0)
 
     def test_a_station_installed_today_has_no_estimate_for_two_days(self):
-        self.assertEqual(self.r["advice"]["soil-weather-unseen"], 2)
+        self.assertEqual(self.r["advice"]["soil-weather-unseen"], 2 * 2, "two looks a day")
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
 class TestAProbeNearbyOnTheDrought(unittest.TestCase):
     """The backtest bed with no probe through the 2012 drought, its watering unrecorded, a
     bed of the same soil and crop beside it with a probe (`weather_backtest`). By the
-    weather alone it was given 314.4 mm with no stressed hour. Over thirty summers a true
-    reference took that to 237 mm a summer on average, never short (README)."""
+    weather alone it was given 346.6 mm with no stressed hour."""
 
     @classmethod
     def setUpClass(cls):
@@ -1411,17 +1466,19 @@ class TestAProbeNearbyOnTheDrought(unittest.TestCase):
                                           reference_bias=bias)
                  for bias in (0.0, 0.05)}
 
-    def test_a_probe_that_has_not_learned_its_level_by_the_drought_corrects_nothing(self):
-        """Watered on its own advice through the drought, the reference's probe saw too few
-        drain-downs to learn its own field capacity, so it never corrected the bed."""
+    def test_a_true_probe_whose_rate_is_below_the_margin_corrects_nothing(self):
+        """Watered often on its own advice through the drought, the reference's probe read its
+        bed drying at 85% to 111% of FAO-56's estimate, below the margin, so it never
+        corrected the bed. Taken half way to its slower rate, before the margin, the bed was
+        short 33 hours."""
         r = self.r[0.0]
-        self.assertAlmostEqual(r["applied_mm"], 314.4, delta=0.5)
+        self.assertAlmostEqual(r["applied_mm"], 346.6, delta=0.5)
         self.assertEqual(r["stressed_h"], 0.0)
 
     def test_a_probe_reading_high_never_learns_and_so_corrects_nothing(self):
         """Uncorrected, such a probe took the bed to 397 stressed hours."""
         r = self.r[0.05]
-        self.assertAlmostEqual(r["applied_mm"], 314.4, delta=0.5)
+        self.assertAlmostEqual(r["applied_mm"], 346.6, delta=0.5)
         self.assertEqual(r["stressed_h"], 0.0)
 
 
@@ -1499,13 +1556,13 @@ class TestBacktestOnARecordedSummer(unittest.TestCase):
     def test_it_matches_the_drills_soil_rule_it_replaces(self):
         """The same refill point and dose as the drill's stand-in rule, reached through
         probes, quality and CEL instead of the bed's true water. Not equal: the probe's
-        noise is drawn hourly here and once a morning there, which on 2013 moves the
-        total by about a fifth (155 mm against 190)."""
+        noise is drawn hourly here and once a morning there (208 mm against 211 on 2013)."""
         rule = self.drill["soil_skip"]["applied_mm"]
         self.assertAlmostEqual(self.advisory["applied_mm"], rule, delta=0.25 * rule)
 
-    def test_every_morning_got_advice(self):
-        self.assertEqual(sum(self.advisory["advice"].values()), 92)
+    def test_every_look_got_advice(self):
+        """Each morning's, and each afternoon's second look (`SECOND_CHECK_HOUR`)."""
+        self.assertEqual(sum(self.advisory["advice"].values()), 92 * 2)
         self.assertIn("soil-water-now", self.advisory["advice"])
 
 
@@ -1545,12 +1602,15 @@ class TestLearningOnTheVirtualFarm(unittest.TestCase):
         self.assertGreater(r["applied_mm"], 600)
         self.assertGreater(r["advice"]["soil-water-now"], 45)
 
-    def test_learning_the_topsoils_own_capacity_it_waters_a_quarter_as_much(self):
+    def test_learning_the_topsoils_own_capacity_it_waters_less_than_half_as_much(self):
+        """On the simulator of 2026-10-16, 498 mm against 1,122; on the earlier one, a
+        quarter as much. Learning from the drain-downs' upper quartile (`learned_capacity`)
+        reads the topsoil's perched water at 0.25, where the median read 0.23."""
         off, on = self.topsoil[False], self.topsoil[True]
-        self.assertLess(on["applied_mm"], 0.3 * off["applied_mm"])
-        self.assertLess(on["drained_mm"], 0.4 * off["drained_mm"])
+        self.assertLess(on["applied_mm"], 0.5 * off["applied_mm"])
+        self.assertLess(on["drained_mm"], 0.5 * off["drained_mm"])
         self.assertEqual(on["stressed_h"], 0.0)
-        self.assertAlmostEqual(on["field_capacity"], 0.23, delta=0.02)
+        self.assertAlmostEqual(on["field_capacity"], 0.25, delta=0.02)
 
     def test_a_probe_in_each_layer_learns_each_layer_and_says_it_is_layered(self):
         learned = {x["depth_m"]: x for x in self.survey_2012["learned"]}
@@ -1587,19 +1647,22 @@ class TestAProbeThatReadsOff(unittest.TestCase):
                  for bias in (-0.05, 0.05)}
 
     def test_reading_low_it_learns_its_own_full_and_waters_far_less_than_unlearned(self):
-        """Unlearned, a probe 0.05 low called for 748 mm. Learning, its drain-downs say
-        where its full is, 0.05 low too, and the advice uses 256 mm."""
+        """Unlearned, a probe 0.05 low called for 1,045 mm. Learning, its drain-downs say
+        where its full is, 0.05 low too, and the advice uses 422 mm, where a true probe's
+        used 208: until it has learned, it waters as the unlearned one does."""
         low = self.r[-0.05]
         self.assertAlmostEqual(low["field_capacity"], 0.25, delta=0.02)
-        self.assertLess(low["applied_mm"], 300)
+        self.assertLess(low["applied_mm"], 500)
 
-    def test_reading_high_it_never_waters_and_so_never_learns(self):
-        """A probe 0.05 high says the bed is full, so it is not watered, so the probe
-        sees too few soakings to learn from: the bed goes dry. A second probe in the bed,
-        and the cross-check between them, is what catches this."""
+    def test_reading_high_it_waters_too_little_and_so_never_learns(self):
+        """A probe 0.05 high says the bed is fuller than it is, so it is watered late and
+        little, so the probe sees too few soakings to learn from: the bed goes dry. A second
+        probe in the bed, and the cross-check between them, is what catches this. On the
+        simulator of 2026-10-16 it was given 127 mm where a true probe's advice gave 208,
+        and the bed was short 293 hours."""
         high = self.r[0.05]
         self.assertEqual(high["field_capacity"], 0.30)
-        self.assertLess(high["applied_mm"], 50)
+        self.assertLess(high["applied_mm"], 150)
         self.assertGreater(high["stressed_h"], 100)
 
 
@@ -1620,7 +1683,7 @@ class TestAProbeOutageCarriedOnTheWeather(unittest.TestCase):
 
     def test_without_the_fallback_two_weeks_without_advice_dry_the_bed(self):
         r = self.r[False]
-        self.assertEqual(r["advice"]["soil-unseen"], 13)
+        self.assertEqual(r["advice"]["soil-unseen"], 27, "two looks a day")
         self.assertGreater(r["stressed_h"], 100)
 
     def test_with_it_the_advice_goes_on_and_the_bed_is_never_short(self):
@@ -1767,8 +1830,9 @@ class TestTheWateringCheck(unittest.TestCase):
     def test_it_catches_every_watering_that_never_arrived_on_2013(self):
         import irrigation_drill as D
         got, r = self.score(D.SUMMER, _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc),
-                            {14, 30, 46, 78, 90})
-        self.assertEqual(got, {"caught": 5, "missed": 0, "false": 0, "quiet": 7})
+                            {13, 30, 48, 76, 90})
+        # On 13 and 90 the afternoon's look waters again, and is blocked again.
+        self.assertEqual(got, {"caught": 7, "missed": 0, "false": 0, "quiet": 10})
         self.assertEqual(r["stressed_h"], 0.0, "the next morning's advice waters it again")
 
     def test_and_on_a_summer_it_was_not_tuned_on(self):
@@ -1785,14 +1849,14 @@ class TestTheWateringCheck(unittest.TestCase):
         import physics as ph
         start = _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc)
         r = S.backtest(ph.RecordedClimate.from_csv(D.SUMMER, seed=1), start, 92, seed=1,
-                       check=S.watering_check(), blocked=frozenset({14, 46, 90}),
-                       forgotten=frozenset({30, 78}), valve=True)
+                       check=S.watering_check(), blocked=frozenset({13, 48, 90}),
+                       forgotten=frozenset({30, 76}), valve=True)
         said = {c["day"]: c["key"] for c in r["checks"] if c["alert"]}
-        self.assertEqual(said, {14: "soilwater.regimen.no_water_arrived",
-                                46: "soilwater.regimen.no_water_arrived",
+        self.assertEqual(said, {13: "soilwater.regimen.no_water_arrived",
+                                48: "soilwater.regimen.no_water_arrived",
                                 90: "soilwater.regimen.no_water_arrived",
                                 30: "soilwater.regimen.not_watered",
-                                78: "soilwater.regimen.not_watered"})
+                                76: "soilwater.regimen.not_watered"})
         self.assertTrue(all(not c["alert"] for c in r["checks"] if c["day"] not in said))
 
     def test_advice_not_to_water_plans_nothing(self):

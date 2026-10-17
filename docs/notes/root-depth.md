@@ -114,13 +114,16 @@ simulated summers, on the 2025 revision's curve: over a pan at 30 cm the curve a
 tomatoes short every summer for eleven days, and the root signs cut that by more than 99%,
 on a simulated soil that moved no water below field capacity. On a soil that moves it as a
 real one does (since 2026-10-15), water rising out of the soil under the pan kept the crop
-watered on the curve alone, and the signs, though they found the pan, only added water.
-A young planting of lettuce among tomatoes, on the weather's advice for the tomatoes
-alone, was short in 8 summers on the earlier soil and in none on this one; a probe in
-its patch must be named for it, or before it is sown the bare patch's probe holds the
-tomatoes' watering back. Timing the curve by degree-days
-moved a season's water by up to a sixth less or a fifth more with the season's warmth, and
-on this farm's margins left no crop short either way.
+watered on the curve alone. Since 2026-10-16 the simulated roots draw most from the top, as
+real ones do, and the crop uses its water as FAO-56's does: over a dense pan, one that
+passes water slowly, the curve alone went short in 10 to 18 summers and the signs in 9 to
+12, the rooting limit set by hand in 6 to 9. But a probe at 30 cm, drawn on lightly by roots
+densest above it, now reads near level with no pan at all, and the signs see a stop on
+about half of a season's mornings either way. A young planting of lettuce among tomatoes,
+on the weather's advice for the tomatoes alone, was short in 8 summers on the earliest
+soil, none on the soil of 2026-10-15, and 22 now that its patch dries at the surface; told
+of it, never. Timing the curve by degree-days moved a season's water by up to an eighth
+with the season's warmth, and left no crop short either way.
 
 ## Next
 
@@ -128,6 +131,9 @@ on this farm's margins left no crop short either way.
   ranges for (its Table 6.12).
 * **Real beds:** the curve's shape, straight or the *n*th root, the stair-step's
   thresholds against a real probe's noise, and a pan found by its probes and then dug.
+* **A level line that expects the roots' own density**: a probe deep in the roots, where
+  they are sparse, should fall slowly; judged against that, rather than against nothing,
+  it would not read as a stop.
 
 ## Sources
 

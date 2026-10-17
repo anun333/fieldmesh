@@ -12,6 +12,7 @@ the module host's unix socket, and the host answers only what the module's grant
 | [fieldmesh-server.service](fieldmesh-server.service) | the SensorThings data service, read-only over the farm's log, tokens required ([server/](../../server/)) |
 | [fieldmesh-module@notify.service.d/](fieldmesh-module@notify.service.d/channels.conf) | the notifier's one exception: the network, for its push server, and its ntfy tokens as credentials ([modules/notify/](../../modules/notify/)) |
 | [fieldmesh-module@twin.service.d/](fieldmesh-module@twin.service.d/frostwatch.conf) and [fieldmesh-module@twin.timer](fieldmesh-module@twin.timer) | the covered-crop frost watch ([modules/twin/](../../modules/twin/)): one run each evening at 17:30, in GreenLight's own environment, no network |
+| [fieldmesh-module@soilwater.service.d/](fieldmesh-module@soilwater.service.d/advise.conf) and [fieldmesh-module@soilwater.timer](fieldmesh-module@soilwater.timer) | the soil-moisture advice ([modules/soilwater/](../../modules/soilwater/)): one look at every bed at 04:00, before the morning's watering, and again at 13:00 |
 | [fieldmesh-module@board.service.d/](fieldmesh-module@board.service.d/serve.conf) | the farm page: its own state directory for the pages, served on this machine only ([modules/board/](../../modules/board/)) |
 
 ## Installing a module

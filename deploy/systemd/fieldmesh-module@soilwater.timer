@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# The soil-moisture advice, twice a day in the farm's own time: before the morning's
+# watering, and again early in the afternoon, when a bed with little water to spare, a
+# lawn or a shallow topsoil over clay, can be past half of it already (modules/soilwater).
+#   systemctl enable --now fieldmesh-module@soilwater.timer
+
+[Unit]
+Description=fieldmesh soil-moisture advice, at 04:00 and 13:00
+
+[Timer]
+OnCalendar=*-*-* 04,13:00:00
+RandomizedDelaySec=2min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
