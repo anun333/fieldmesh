@@ -40,6 +40,7 @@ it changes.
 from __future__ import annotations
 
 import datetime as _dt
+import functools
 import math
 import os
 import sys
@@ -535,13 +536,16 @@ def _sign_days(at: _dt.datetime, timezone: str | None) -> list:
     return out
 
 
-def root_signs(state, bed: Bed, at: _dt.datetime, timezone: str | None = None) -> list:
+def root_signs(state, bed: Bed, at: _dt.datetime, timezone: str | None = None,
+               capacities: dict | None = None) -> list:
     """`[(depth_m, falling per day, roots there: True, False, or None)]` for each of the
     bed's probes, shallowest first. With the farm's `timezone`, a falling probe has roots
     when it falls by day (`ROOT_SIGN_DAY_SHARE`) and none when it falls by night as much
     (`ROOT_SIGN_NIGHT_SHARE`);
     without, when it has gone `ROOT_SIGN_BELOW` under field capacity, and None until then.
-    None too when its dry days are too few."""
+    None too when its dry days are too few. `capacities`, `{datastream id: learned field
+    capacity}`, keeps each probe's for the rest of the morning's look (`_bed_context`)."""
+    import bisect
     out = []
     windows = _sign_days(at, timezone)
     tz = None
@@ -559,18 +563,23 @@ def root_signs(state, bed: Bed, at: _dt.datetime, timezone: str | None = None) -
                 and state.quality_as_of(o.id, at)[0] is Usable.GOOD]
         under, wilting = bed.limits_at(depth)
         own = _capacity(state, bed, ds, depth, wilting, every, at)
+        if capacities is not None:
+            capacities[ds.id] = own
         if own is not None:
             under = min(under, own["field_capacity"])
+        stamps = [u for u, _ in rows]
 
         def near(t):
-            values = [v for u, v in rows if abs((u - t) / HOUR) <= 2.0]
+            lo = bisect.bisect_left(stamps, t - 2 * HOUR)
+            values = [v for _, v in rows[lo:bisect.bisect_right(stamps, t + 2 * HOUR)]]
             return sum(values) / len(values) if len(values) >= 2 else None
         falls, low, by_day, by_night = [], under, [], []
         for begin, end, local_day in windows:
             a, b = near(begin), near(end)
             if a is None or b is None or a > under + 0.01:
                 continue
-            day = [v for u, v in rows if begin < u <= end]
+            day = [v for _, v in
+                   rows[bisect.bisect_right(stamps, begin):bisect.bisect_right(stamps, end)]]
             means = [sum(w) / 3.0 for w in zip(day, day[1:], day[2:])]
             if any(m > a + 0.02 for m in means):
                 continue
@@ -944,6 +953,13 @@ def drain_fit(points: list):
     return {"field_capacity": fc, "excess": a, "drying_per_day": r * 24.0, "tau_h": tau}
 
 
+@functools.lru_cache(maxsize=4096)
+def _drain_fit_of(points: tuple):
+    """`drain_fit`, remembered: each morning's learning refits the same drain-downs of the
+    last `LEARN_DAYS`, and a drain-down's fit is its readings' alone."""
+    return drain_fit(list(points))
+
+
 def drain_downs(readings: list) -> list:
     """Every drain-down in a probe's hourly readings, `[(time, θ)]` oldest first: from the
     peak of each wetting until the next wetting, or `DRAIN_MAX_H`, when that is at least
@@ -975,8 +991,9 @@ def drain_downs(readings: list) -> list:
         span = times[end - 1] - times[peak]
         if span / HOUR >= DRAIN_MIN_H:
             points = [((times[k] - times[peak]) / HOUR, readings[k][1]) for k in range(peak, end)]
-            fit = drain_fit(points)
+            fit = _drain_fit_of(tuple(points))
             if fit is not None:
+                fit = dict(fit)
                 before = min(smooth[max(0, i - 12):i + 1])
                 half = before + (smooth[peak] - before) / 2.0
                 fit["half_drain_h"] = next(((times[k] - times[peak]) / HOUR
@@ -1547,8 +1564,10 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
     probe in its root zone is advised from the farm's `station` (`eto.Station`) when
     there is one (`weather_balance`), corrected by its `reference` bed's probes when they
     have seen enough dry days (`reference_factor`)."""
+    known: dict = {}
     bed, base, inputs, found, in_zone, young_mm, timing_mm = _context_base(
-        state, bed, at, station=station, timezone=timezone, held=held, stair_step=stair_step)
+        state, bed, at, station=station, timezone=timezone, held=held, stair_step=stair_step,
+        capacities=known)
     if not in_zone:
         _to_curve(base, young_mm)
         if station is not None:
@@ -1559,7 +1578,7 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
             _timed_by_balance(base)
         return base, inputs
     (latest, flagged, series, capacities, limits, fallback, out_of_soil, series_depths,
-     series_sensors) = _probe_readings(state, bed, at, in_zone)
+     series_sensors) = _probe_readings(state, bed, at, in_zone, known)
     if not latest:
         return base, inputs
     base["has_reading"] = True
@@ -1586,7 +1605,8 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
     return base, inputs
 
 
-def _context_base(state, bed: Bed, at: _dt.datetime, *, station, timezone, held, stair_step):
+def _context_base(state, bed: Bed, at: _dt.datetime, *, station, timezone, held, stair_step,
+                  capacities: dict):
     """The bed as its crop is on `at`, the depth its watering is timed by, its probes in the
     root zone, and the context and inputs every decision starts from: `(bed, context,
     inputs, plantings, probes in the zone, the youngest roots' depth, the timing depth)`."""
@@ -1598,7 +1618,7 @@ def _context_base(state, bed: Bed, at: _dt.datetime, *, station, timezone, held,
     if found:
         signs = root_signs(state, bed, at,
                            (timezone or (station.timezone if station is not None else None))
-                           if stair_step else None)
+                           if stair_step else None, capacities)
         stop_mm, seen_m, blocked_m = rooted(curve_mm, signs, held)
         timing_mm = min(young_mm, stop_mm)
         bed = replace(bed, timing_depth_mm=timing_mm if timing_mm < curve_mm else None)
@@ -1651,11 +1671,11 @@ def _context_base(state, bed: Bed, at: _dt.datetime, *, station, timezone, held,
     return bed, base, inputs, found, in_zone, young_mm, timing_mm
 
 
-def _probe_readings(state, bed: Bed, at: _dt.datetime, in_zone: list):
+def _probe_readings(state, bed: Bed, at: _dt.datetime, in_zone: list, known: dict):
     """Each probe in the root zone's readings by `at`: the newest's time, the flags on the
     newest that failed, readings out of the soil, the last good reading to carry the bed
     from, and for each probe fresh enough to use, its good readings, depth, sensor, soil
-    limits and learned field capacity."""
+    limits and learned field capacity, `known`'s where the root signs learned it already."""
     latest, flagged, series, capacities, limits, fallback = [], set(), [], [], [], []
     out_of_soil = []
     series_depths, series_sensors = [], []
@@ -1688,7 +1708,8 @@ def _probe_readings(state, bed: Bed, at: _dt.datetime, in_zone: list):
             series_depths.append(depth)
             series_sensors.append(ds.sensor)
             limits.append(bed.limits_at(depth))
-            capacities.append(_capacity(state, bed, ds, depth, limits[-1][1], rows, at))
+            capacities.append(known[ds.id] if ds.id in known
+                              else _capacity(state, bed, ds, depth, limits[-1][1], rows, at))
     return (latest, flagged, series, capacities, limits, fallback, out_of_soil, series_depths,
             series_sensors)
 

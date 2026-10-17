@@ -76,6 +76,37 @@ def grow(soil, crop: str, days: float, hardpan_mm: float | None = None,
     soil.set_roots(root_mm if hardpan_mm is None else min(root_mm, hardpan_mm))
 
 
+def forecasts(climate, start: _dt.datetime, days: float, seed: int):
+    """The season's rain forecasts in a log, and the hourly truth they were made from
+    (`irrigation_drill.forecasts`). Building them is a third of a backtest's time and the
+    same for every backtest of one summer, draw and span, so with `FIELDMESH_FORECASTS`
+    naming a directory each is built once and kept there, keyed by what it is made from."""
+    import forecaster as FCS
+    import irrigation_drill as D
+    where = os.environ.get("FIELDMESH_FORECASTS")
+    if not where:
+        return D.forecasts(climate, start, days, FCS.Skill(), seed)
+    import hashlib
+    import pickle
+    first, last = (start - _dt.timedelta(days=2)).date(), (start + _dt.timedelta(days=days + 2)).date()
+    window = sorted((d.isoformat(), sorted(v.items())) for d, v in climate.days.items()
+                    if first <= d <= last)
+    key = hashlib.sha256(repr((type(climate).__name__, getattr(climate, "seed", None),
+                               start.isoformat(), float(days), seed, FCS.Skill(),
+                               window)).encode()).hexdigest()[:32]
+    path = os.path.join(where, key + ".pickle")
+    if os.path.exists(path):
+        with open(path, "rb") as h:
+            return pickle.load(h)
+    made = D.forecasts(climate, start, days, FCS.Skill(), seed)
+    os.makedirs(where, exist_ok=True)
+    part = f"{path}.{os.getpid()}"
+    with open(part, "wb") as h:
+        pickle.dump(made, h, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(part, path)
+    return made
+
+
 def noise_streams(seed: int, names: list) -> list:
     """A random stream for each of a backtest's probes, by its name: each draws its noise
     from its own, so a probe added or taken away leaves the others' readings as they were,
@@ -165,7 +196,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     from log import Log
     from model import ClockQuality, Datastream, Installation, Observation
 
-    state, fc, truth = D.forecasts(climate, start, days, FCS.Skill(), seed)
+    state, fc, truth = forecasts(climate, start, days, seed)
     b = soil if soil is not None else (growing_bed(unsaturated_mm_per_h, hardpan_mm if dense_pan else None) if crop
                                        else D.bed())
     b.rain_share = rain_share
@@ -385,7 +416,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     from log import Log
     from model import ClockQuality, Datastream, Installation, Observation
 
-    state, fc, truth = D.forecasts(climate, start, days, FCS.Skill(), seed)
+    state, fc, truth = forecasts(climate, start, days, seed)
     b = soil if soil is not None else (growing_bed(unsaturated_mm_per_h) if crop else D.bed())
     rb = growing_bed(unsaturated_mm_per_h) if crop else D.bed()
     rb.name = "reference"
