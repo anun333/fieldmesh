@@ -62,16 +62,20 @@ class ControllersTest(unittest.TestCase):
         self.assertEqual(D.zimmerman_scale(day(40.0, 5.0, 0.0)), 200.0, "held at 200")
 
     def test_pyfao56s_saved_schedule_waters_the_bed_without_a_probe(self):
+        """On the simulator of 2026-10-16, whose crop uses its whole demand until half its
+        water is gone and about a fifth more than FAO-56's balance counts, the schedule
+        left the bed short 10 hours in June; never, on the earlier one."""
         r = D.season(D.SUMMER, dt.datetime(2013, 6, 1, tzinfo=UTC), 92, policies=("timer", "pyfao56"))
         self.assertGreater(r["pyfao56"]["applied_mm"], 0.0)
         self.assertLess(r["pyfao56"]["applied_mm"], r["timer"]["applied_mm"])
-        self.assertEqual(r["pyfao56"]["stressed_h"], 0.0)
+        self.assertLess(r["pyfao56"]["stressed_h"], 12.0)
 
     def test_each_controller_waters_less_than_the_timer_on_a_wet_summer(self):
         r = D.season(D.SUMMER, dt.datetime(2013, 6, 1, tzinfo=UTC), 30, policies=("timer",) + D.CONTROLLERS)
         for policy in D.CONTROLLERS:
             self.assertLess(r[policy]["applied_mm"], r["timer"]["applied_mm"], policy)
-            self.assertEqual(r[policy]["stressed_h"], 0.0, policy)
+            self.assertLessEqual(r[policy]["stressed_h"], 12.0 if policy == "pyfao56" else 0.0,
+                                 policy)
 
 
 if __name__ == "__main__":

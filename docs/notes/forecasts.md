@@ -215,20 +215,21 @@ next 24 hours, the same skip with perfect knowledge of the rain, watering back t
 capacity only when the bed's own probe reads a third of the available water gone, and
 that rule with the skip. Thirty summers, 315 mm of rain on average:
 
-| rule | water applied | drained below the roots | transpired | hours seriously stressed |
+| rule | water applied | drained below the roots | transpired | hours seriously stressed, a summer |
 | --- | --- | --- | --- | --- |
-| timer | 552 mm | 432 mm | 441 mm | 0 |
-| timer, skip on forecast rain | 484 | 365 | 439 | 0 |
-| timer, skip knowing the rain | 494 | 374 | 440 | 0 |
-| soil probe | 219 | 146 | 395 | 0 |
-| soil probe, skip on forecast rain | 205 | 133 | 393 | 0 |
+| timer | 552 mm | 405 mm | 468 mm | 2 |
+| timer, skip on forecast rain | 484 | 337 | 468 | 2 |
+| timer, skip knowing the rain | 494 | 346 | 468 | 2 |
+| soil probe | 294 | 148 | 468 | 3 |
+| soil probe, skip on forecast rain | 281 | 136 | 468 | 4 |
 
 Skipping on forecast rain saves 12% of a timer's water with no cost to the crop, and does
 as well as perfect knowledge — it skips slightly more often, since a false rain forecast
-costs little when the timer overwaters anyway. **The farm's own soil probe saves 60%**, and
-the forecast adds a little on top. The probe rule's lower transpiration is an upper bound:
-the simulator's stress falls linearly from field capacity, stricter than FAO-56, which
-holds full transpiration until about half the available water is gone. The bundled summer
+costs little when the timer overwaters anyway. **The farm's own soil probe saves 47%**, and
+the forecast adds a little on top, for an hour more of stress a summer. (The simulator of
+2026-10-16, whose crop transpires its whole demand until half its water is gone, as
+FAO-56's does; on the one before, which slowed it from field capacity, the probe saved 60%
+and seemed to transpire less.) The bundled summer
 is 2013, the wettest of the thirty. The free irrigation controllers' own methods on the same
 thirty summers are in [irrigation-projects.md](irrigation-projects.md#their-methods-on-thirty-summers).
 

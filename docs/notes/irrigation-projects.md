@@ -121,21 +121,25 @@ sunshine, with FAO-56's 2 m/s where no wind is recorded. On FAO-56's own Example
 3.79 mm against the published 3.9; the gap is the mean humidity, where the example uses the
 day's maximum and minimum.
 
-| rule | water applied | drained below the roots | transpired | hours seriously stressed |
+| rule | water applied | drained below the roots | transpired | hours seriously stressed, a summer |
 | --- | --- | --- | --- | --- |
-| timer | 552 mm | 432 mm | 441 mm | 0 |
-| **OpenSprinkler ETo, default annual baseline** | **612** | **490** | 442 | 0 |
-| OpenSprinkler Zimmerman | 385 | 271 | 434 | 0 |
-| OpenSprinkler ETo, a summer baseline | 367 | 252 | 435 | 0 |
-| Home Assistant Smart Irrigation | 294 | 177 | 436 | 0 |
-| pyfao56's scheduler, no probe | 322 | 237 | 407 | 0 |
-| this project's soil probe rule | 219 | 146 | 395 | 0.3 (8.5 h in 1993) |
+| timer | 552 mm | 405 mm | 468 mm | 2 |
+| **OpenSprinkler ETo, default annual baseline** | **612** | **464** | 468 | 0 |
+| OpenSprinkler Zimmerman | 385 | 238 | 468 | 6 |
+| OpenSprinkler ETo, a summer baseline | 367 | 220 | 468 | 0 |
+| Home Assistant Smart Irrigation | 294 | 147 | 468 | 6 |
+| pyfao56's scheduler, no probe | 322 | 177 | 468 | 5 |
+| this project's soil probe rule | 294 | 148 | 468 | 3 |
+
+Run again on 2026-10-16, when the simulator's crop began to use its water whole until half
+is gone, as FAO-56's does: every rule now transpires the same, and the differences are in
+water and stress.
 
 The first five rows reproduce the timer's figures in [forecasts.md](forecasts.md#watering-by-forecast-and-by-soil)
 exactly, and the soil probe's.
 
 * **OpenSprinkler's ETo method, left at its default baseline, waters more than the plain
-  timer**: 11% more, and 13% more lost below the roots. Its baseline is an annual figure, a
+  timer**: 11% more, and 15% more lost below the roots. Its baseline is an annual figure, a
   year-round average day of 2.8 mm here, while summer runs at 4.8 mm. So every summer program
   is scaled up by about 1.7, against its cap of 2. Set to a summer baseline, the same method
   saves a third. The baseline matters more than the method, and the default works against
@@ -143,11 +147,11 @@ exactly, and the soil probe's.
   Here the annual mean of FAO-56 ET on POWER data stands in for its MOD16 dataset, so the
   exact factor is this place's estimate, not theirs.
 * **Zimmerman saves 30%** in this humid climate, where its humidity term pulls the scale
-  down. Far drier air would push it the other way.
-* **Home Assistant's bucket saves 47%** with the same transpiration as the timer and no
-  stress: the closest a weather-only rule comes to the soil probe.
-* **The soil probe saves 60%.** Its lower transpiration is an upper bound on its cost,
-  because the simulator's stress falls linearly from field capacity, stricter than FAO-56.
+  down, for 6 hours of stress a summer. Far drier air would push it the other way.
+* **Home Assistant's bucket saves 47%**, as much as the soil probe, for 6 hours of stress a
+  summer against the probe's 3: the closest a weather-only rule comes to it.
+* **The soil probe saves 47%**, with 3 hours of stress a summer. (On the simulator before
+  2026-10-16, whose crop slowed as soon as its soil was below field capacity, 60%.)
 
 One place, one soil and one crop, in a humid climate whose summers average 315 mm of rain.
 Over thirty summers the virtual bed's own water use averages 4.8 mm a day, the same as the
@@ -165,10 +169,10 @@ irrigation drill then waters the virtual bed on that schedule
 (`sim/data/pyfao56-mcallister-summers.csv`, policy `pyfao56`): 12 waterings a summer of about
 25 mm.
 
-* **With no probe it saves 42%** of the timer's water, with no stress. That is more than
-  Zimmerman's or the ETo method's savings and less than Home Assistant's bucket, which waters
-  every day.
-* **It drains more than the probe rule**, 237 mm against 146. It refills by its own model's
+* **With no probe it saves 42%** of the timer's water, for 5 hours of stress a summer. That
+  is more than Zimmerman's or the ETo method's savings and less than Home Assistant's
+  bucket, which waters every day.
+* **It drains more than the probe rule**, 177 mm against 148. It refills by its own model's
   depletion, which runs ahead of what the virtual bed actually lost, so part of each 25 mm
   goes below the roots. An open-loop water balance drifts from the soil. This is where the
   two projects fit together: pyfao56 can update its balance from measured soil water content

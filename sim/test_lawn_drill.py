@@ -41,12 +41,18 @@ class TestTheAddOns(unittest.TestCase):
         self.assertLess(summer(2013, "cycle_soak", "native")["runoff_mm"], 1.0)
         self.assertLess(summer(2013, "rotary", "native")["runoff_mm"], 1.0)
 
-    def test_watering_by_the_weather_saves_a_third_without_drying_the_lawn(self):
+    def test_watering_by_the_weather_saves_a_third_and_dries_only_the_thin_yard(self):
+        """On the silt loam it never dried the lawn. On the builder's yard, 10 cm of
+        topsoil over clay, the timer and the weather's both did on the simulator of
+        2026-10-16: in the 2012 drought the timer for 110 hours and the weather's for 75,
+        in 2013 the timer for 14 and the weather's for 52. Before, the weather's never more
+        than the timer's."""
         for year in (2012, 2013):
             for soil in L.SOILS:
                 timer, weather = summer(year, "timer", soil), summer(year, "weather", soil)
                 self.assertLess(weather["applied_mm"], 0.75 * timer["applied_mm"])
-                self.assertLessEqual(weather["stressed_h"], timer["stressed_h"])
+            self.assertEqual(summer(year, "weather", "native")["stressed_h"], 0.0)
+            self.assertGreater(summer(year, "weather", "yard")["stressed_h"], 0.0)
 
     def test_a_soil_sensor_set_low_starves_a_silt_loam_lawn(self):
         """AE437's automatic set point, 50 to 75% of the reading a day after a soaking,

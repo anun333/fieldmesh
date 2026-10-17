@@ -345,6 +345,10 @@ class SoilBed:
     field_capacity: float = 0.30
     wilting_point: float = 0.12
     crop_coefficient: float = 1.0
+    #: The crop's share of its available water it can use before it uses less: FAO-56's
+    #: `p`, 0.5 for many crops (Allen et al. 1998, Table 22). Below it the crop draws
+    #: freely; past it, less in proportion to the water left (`water_use`).
+    depletion_fraction: float = 0.5
     #: Fraction of the water above field capacity that drains away each hour.
     drainage_per_hour: float = 0.35
     theta: float = 0.28
@@ -395,12 +399,21 @@ class SoilBed:
             return 1.0
         return 1.0 - (self.theta - self.wilting_point) / span
 
+    @property
+    def water_use(self) -> float:
+        """FAO-56's water stress coefficient `Ks` (Eq. 84): 1 while the root zone has
+        lost no more than `depletion_fraction` of its available water, then falling in a
+        line to 0 at the wilting point. Before 2026-10-16 the crop used less as soon as the
+        soil was below field capacity, `1 − stress`, gentler than FAO-56's crop."""
+        p = self.depletion_fraction
+        return max(0.0, min(1.0, (1.0 - self.stress) / (1.0 - p)))
+
     def step(self, weather: Weather, *, irrigation_mm: float = 0.0) -> float:
         """Advance one tick. Returns the new water content."""
         water = self.stored_mm + weather.rain_mm + irrigation_mm
 
-        # Actual ET falls off as the soil dries — a dry bed loses water slower.
-        et = weather.et0_mm * self.crop_coefficient * (1.0 - self.stress)
+        # The crop draws its full demand until the refill point, then less (`water_use`).
+        et = weather.et0_mm * self.crop_coefficient * self.water_use
         water -= et
         self.et_mm += et
 
@@ -515,7 +528,11 @@ class Horizon:
 
     Below field capacity its water is held by suction, along van Genuchten's curve through
     its own limits (`van_genuchten`, `residual` the water no suction takes), and moves as
-    Mualem's conductivity from `ks_mm_per_h` lets it (`suction_at`, `conductivity_at`)."""
+    Mualem's conductivity from `ks_mm_per_h` lets it, `pore_connectivity` his `L`
+    (`suction_at`, `conductivity_at`). The soils here take their residual water and `L`
+    from Rosetta3 (Zhang and Schaap 2017) for their texture, bulk density and limits; at
+    USCRN's Crossville station those followed the probes better than none and 0.5
+    (docs/notes/soil-models.md)."""
 
     thickness_mm: float
     saturation: float
@@ -524,6 +541,7 @@ class Horizon:
     ks_mm_per_h: float
     suction_mm: float = 0.0
     residual: float = 0.0
+    pore_connectivity: float = 0.5
 
     def __post_init__(self) -> None:
         if not 0 < self.wilting_point < self.field_capacity < self.saturation < 1:
@@ -558,17 +576,33 @@ class Horizon:
         """Mualem's conductivity at `theta`, mm an hour."""
         _, _, m = self._vg
         se = self._se(theta)
-        return self.ks_mm_per_h * se ** 0.5 * (1.0 - (1.0 - se ** (1.0 / m)) ** m) ** 2
+        return (self.ks_mm_per_h * se ** self.pore_connectivity
+                * (1.0 - (1.0 - se ** (1.0 / m)) ** m) ** 2)
 
 
 #: A light topsoil and a compacted clay subsoil, the two a landscaped bed is often made
 #: of: round values typical of a sandy loam and of a dense clay, assumed for the virtual
 #: farm rather than taken from one soil survey. The clay's conductivity is a compacted
 #: subsoil's, well below an undisturbed clay's.
+#: The soil's evaporation (`LayeredBed._evaporate`): the layer that dries, its readily
+#: evaporable water, the most a wet surface and crop together lose against the reference
+#: crop (FAO-56 Eq. 72 at its standard 2 m/s wind and 45% afternoon humidity), and a
+#: crop's basal coefficient at sowing (FAO-56 chapter 7: Ze 0.10 to 0.15 m, REW 8 to 10 mm
+#: for loams; Table 17, Kcb ini 0.15 for most annual crops).
+EVAPORATION_LAYER_MM = 100.0
+REW_MM = 9.0
+KC_MAX = 1.2
+KCB_INI = 0.15
+#: Whether the crop draws by root density, densest at the top (`LayeredBed.step`); False
+#: draws from each layer by the water it has left alone, as before 2026-10-16.
+UPTAKE_BY_ROOTS = True
+
 SANDY_LOAM = {"saturation": 0.45, "field_capacity": 0.20, "wilting_point": 0.09,
-              "ks_mm_per_h": 25.0, "suction_mm": 110.0}
+              "ks_mm_per_h": 25.0, "suction_mm": 110.0,
+              "residual": 0.048, "pore_connectivity": -0.86}   # Rosetta3: 65/25/10, 1.5 g/cm3
 COMPACTED_CLAY = {"saturation": 0.46, "field_capacity": 0.38, "wilting_point": 0.25,
-                  "ks_mm_per_h": 1.0, "suction_mm": 300.0}
+                  "ks_mm_per_h": 1.0, "suction_mm": 300.0,
+                  "residual": 0.117, "pore_connectivity": -2.11}  # Rosetta3: 25/30/45, 1.65 g/cm3
 
 
 @dataclass
@@ -582,7 +616,10 @@ class LayeredBed(SoilBed):
     five-minute tick:
 
     * **the crop takes water** from the root zone (`depth_mm`, here the roots' depth, not
-      the soil's), from each layer in proportion to the water it can give;
+      the soil's), its full demand until the zone has lost `depletion_fraction` of its
+      available water and less after (`water_use`), from each layer by its roots, densest
+      at the top, and the water it has left; with no crop (`crop_coefficient` 0), the bare
+      soil dries at its top 10 cm instead (`_evaporate`);
     * **water drains down**, bottom layer first: a layer wetter than its field capacity
       passes the excess on as fast as its own conductivity at that wetness allows,
       `ks · ((θ − fc) / (sat − fc))³`, and no faster than the layer below takes water or
@@ -619,6 +656,15 @@ class LayeredBed(SoilBed):
     layer_mm: float = 25.0
     surface_storage_mm: float = 2.5
     unsaturated_mm_per_h: float | None = None
+    #: FAO-56's basal crop coefficient, the crop's transpiration alone, drawn by the roots;
+    #: given, the soil's top also evaporates by the dual coefficient (`_evaporate`). None
+    #: keeps the single coefficient, evaporation and all, drawn by the roots.
+    basal_coefficient: float | None = None
+    #: The crop's height, m, for its canopy cover (FAO-56 Eq. 76).
+    crop_height_m: float = 0.3
+    #: The share of the ground the canopy covers, where it is known; None estimates it from
+    #: the basal coefficient (Eq. 76), which leaves a third of a mown lawn bare.
+    ground_cover: float | None = None
     ponded_mm: float = field(default=0.0, repr=False)
     #: What has soaked in since water began to arrive, and how dry the top was then.
     soaked_mm: float = field(default=0.0, repr=False)
@@ -689,14 +735,38 @@ class LayeredBed(SoilBed):
         dz, dt, n = self.layer_mm, HOURS_PER_STEP, len(self.layers)
         theta, props = self.layers, self._props
 
-        et = weather.et0_mm * self.crop_coefficient * (1.0 - self.stress)
+        kcb = self.basal_coefficient
+        if kcb is None and self.crop_coefficient == 0.0:
+            kcb = 0.0                                # bare: all of it evaporation
+        et = weather.et0_mm * (self.crop_coefficient if kcb is None else kcb) * self.water_use
+        if kcb is not None and weather.et0_mm > 0:
+            self._evaporate(theta, props, dz, weather.et0_mm, kcb)
         can = [max(0.0, theta[i] - props[i].wilting_point) * dz for i in range(self._roots)]
         if et > 0 and sum(can) > 0:
             et = min(et, sum(can))
-            total = sum(can)
-            for i in range(self._roots):
-                theta[i] -= et * can[i] / total / dz
-            self.et_mm += et
+            # Roots are densest at the top and thin out with depth, so each layer gives in
+            # proportion to its roots, falling in a line to none at the roots' depth (Prasad
+            # 1988; about 40, 30, 20 and 10% by quarters), and to the water it has left.
+            # Where the top is dry the deeper layers give more: the total is the crop's.
+            n_r = self._roots
+            pull = [(1.0 - (i + 0.5) / n_r if UPTAKE_BY_ROOTS else 1.0)
+                    * min(1.0, can[i] / max(1e-12, (props[i].field_capacity - props[i].wilting_point) * dz))
+                    for i in range(n_r)]
+            total = sum(pull)
+            if total <= 0:
+                pull, total = can[:n_r], sum(can)
+            left = et
+            for _ in range(3):                       # a layer cannot give more than it has
+                need = left
+                for i in range(n_r):
+                    take = min(need * pull[i] / total, max(0.0, theta[i] - props[i].wilting_point) * dz)
+                    theta[i] -= take / dz
+                    left -= take
+                pull = [p if theta[i] - props[i].wilting_point > 1e-12 else 0.0 for i, p in enumerate(pull)]
+                total = sum(pull)
+                if left <= 1e-12 or total <= 0:
+                    break
+            self.et_mm += et - left
 
         for i in reversed(range(n)):
             h = props[i]
@@ -759,6 +829,33 @@ class LayeredBed(SoilBed):
             theta[i] = max(0.01, theta[i])
         self._mean()
         return self.theta
+
+    def _evaporate(self, theta: list, props: list, dz: float, et0_mm: float, kcb: float) -> None:
+        """The soil's surface drying, FAO-56's dual coefficient (Allen et al. 1998, chapter 7;
+        2005; as pyfao56 computes it): `Ke = min(Kr (Kcmax − Kcb), few Kcmax)` times the
+        reference ET (Eq. 71), from the top `EVAPORATION_LAYER_MM`. `Kcmax` is `KC_MAX` or
+        `Kcb + 0.05` (Eq. 72); `few` the ground the canopy leaves open (`ground_cover`, or
+        Eqs. 75, 76, every surface wetted); `Kr` 1 until the layer has lost `REW_MM`, then falling in a line to
+        nothing when it has lost all it can, `TEW = (θFC − θWP / 2) × Ze`, drying to half the
+        wilting point (Eqs. 73, 74). Bare soil is `Kcb` 0. Taken from the top layer first."""
+        n = max(1, int(round(EVAPORATION_LAYER_MM / dz)))
+        top = range(min(n, len(theta)))
+        tew = sum((props[i].field_capacity - 0.5 * props[i].wilting_point) * dz for i in top)
+        lost = sum(max(0.0, props[i].field_capacity - theta[i]) * dz for i in top)
+        rew = min(REW_MM, tew)
+        kr = 1.0 if lost <= rew else max(0.0, (tew - lost) / (tew - rew))
+        kc_max = max(KC_MAX, kcb + 0.05)
+        cover = (self.ground_cover if self.ground_cover is not None
+                 else max(0.0, min(0.99, ((kcb - KCB_INI) / (kc_max - KCB_INI)) ** (1 + 0.5 * self.crop_height_m)))
+                 if kcb > KCB_INI else 0.0)
+        e = min(kr * (kc_max - kcb), max(0.01, 1.0 - cover) * kc_max) * et0_mm
+        for i in top:
+            take = min(e, max(0.0, theta[i] - 0.5 * props[i].wilting_point) * dz)
+            theta[i] -= take / dz
+            e -= take
+            self.et_mm += take
+            if e <= 0:
+                break
 
     def _below_capacity(self, theta: list, props: list, dz: float, dt: float) -> None:
         """One tick of Darcy's law between each pair of layers, top down, either of them

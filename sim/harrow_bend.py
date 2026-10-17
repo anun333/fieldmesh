@@ -918,6 +918,12 @@ def season(farm: Farm, *, days: float = 21.0, events: bool = True,
                   until_s=(start + 3 * day + _dt.timedelta(minutes=30)).timestamp(),
                   value=0.45))
         report.record(start + 3 * day, "bed5_deep spikes for half an hour")
+        # The hoop house's humidity sensor freezes on its last reading: §4.2's flatline is
+        # what catches it. Until 2026-10-16 healthy soil probes did, flat overnight in a
+        # soil that moved no water below field capacity.
+        farm.series["hoop_humidity"].sensor.inject(
+            F.Sticking(begins_at_s=(start + 6 * day).timestamp()))
+        report.record(start + 6 * day, "hoop_humidity sticks")
 
     segments = [(0.0, min(days, 9.0))]
     if days > 9.0:

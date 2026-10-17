@@ -71,7 +71,8 @@ ROOTS_MM = 150.0
 #: The survey's silt loam at McAllister Farm. Its intake rate and wetting-front suction
 #: are assumed, typical of a silt loam.
 SILT_LOAM = {"saturation": 0.42, "field_capacity": 0.30, "wilting_point": 0.12,
-             "ks_mm_per_h": 8.0, "suction_mm": 170.0}
+             "ks_mm_per_h": 8.0, "suction_mm": 170.0,
+             "residual": 0.065, "pore_connectivity": 0.19}    # Rosetta3: the survey's Dickson texture
 SOILS = ("native", "yard")
 POLICIES = ("timer", "twice_weekly", "rain_sensor", "soil_sensor", "cycle_soak", "rotary",
             "weather", "all", "on_demand")

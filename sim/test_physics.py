@@ -275,10 +275,11 @@ class TestLayeredBed(unittest.TestCase):
         bed.layers[:] = [at(sand), at(clay)]
         self.assertGreater(bed.layers[1], bed.layers[0] + 0.1)
         before = list(bed.layers)
+        gravity = (sand.conductivity_at(before[0]) * clay.conductivity_at(before[1])) ** 0.5 / 12.0
         bed._below_capacity(bed.layers, bed._props, 25.0, 1.0 / 12.0)
         moved = (before[0] - bed.layers[0]) * 25.0
-        self.assertGreaterEqual(moved, 0.0, "down, by gravity, if at all")
-        self.assertLess(moved, 1e-6)
+        self.assertGreater(moved, 0.0, "down, not up into the drier-looking sand")
+        self.assertAlmostEqual(moved / gravity, 1.0, places=3, msg="by gravity alone")
 
     def test_a_steep_gradient_never_overshoots(self):
         bed = ph.LayeredBed(name="two", depth_mm=25.0, horizons=(ph.Horizon(50.0, **SILT_LOAM),))
@@ -306,6 +307,98 @@ class TestLayeredBed(unittest.TestCase):
         self.assertLess(bed.theta_at(0.31), SILT_LOAM["field_capacity"] - 0.002)
         self.assertLess(night[1], night[0], "at night too")
         self.assertAlmostEqual(bed.stored_mm + bed.et_mm + bed.deep_mm, before, places=6)
+
+    def test_the_crop_uses_its_full_demand_until_its_refill_point(self):
+        """FAO-56's Ks: whole while no more than p of the available water is gone, then
+        falling in a line to nothing at the wilting point."""
+        for bed in (ph.SoilBed(name="b", depletion_fraction=0.5),
+                    ph.LayeredBed(name="l", depth_mm=150.0, depletion_fraction=0.5,
+                                  horizons=(ph.Horizon(150.0, **SILT_LOAM),))):
+            wp, fc = bed.wilting_point, bed.field_capacity
+            for theta, ks in ((fc, 1.0), (fc - 0.4 * (fc - wp), 1.0), (fc - 0.75 * (fc - wp), 0.5),
+                              (wp, 0.0)):
+                if isinstance(bed, ph.LayeredBed):
+                    bed.layers[:] = [theta] * len(bed.layers)
+                    bed._mean()
+                else:
+                    bed.theta = theta
+                self.assertAlmostEqual(bed.water_use, ks, places=9, msg=(type(bed).__name__, theta))
+
+    def test_roots_draw_most_from_the_top_and_the_deeper_soil_makes_up_a_dry_top(self):
+        bed = ph.LayeredBed(name="l", depth_mm=200.0, unsaturated_mm_per_h=0.0,
+                            horizons=(ph.Horizon(200.0, **SILT_LOAM),))
+        before = list(bed.layers)
+        sunny = ph.Weather(air_temp_c=25.0, relative_humidity=50.0, rain_mm=0.0, et0_mm=0.5,
+                           raining=False)
+        bed.step(sunny)
+        lost = [b - a for a, b in zip(bed.layers, before)]
+        self.assertGreater(lost[0], lost[3])
+        self.assertGreater(lost[3], lost[7])
+        self.assertAlmostEqual(sum(lost) * 25.0, 0.5, places=9, msg="the crop's whole demand")
+        dry = ph.LayeredBed(name="l", depth_mm=200.0, unsaturated_mm_per_h=0.0,
+                            horizons=(ph.Horizon(200.0, **SILT_LOAM),))
+        dry.layers[0] = dry.layers[1] = SILT_LOAM["wilting_point"]
+        dry._mean()
+        before = sum(dry.layers)
+        dry.step(sunny)
+        self.assertAlmostEqual((before - sum(dry.layers)) * 25.0, 0.5 * dry.water_use, places=9,
+                               msg="the deeper layers give what the dry top cannot")
+        self.assertEqual(dry.layers[0], SILT_LOAM["wilting_point"])
+
+    def test_bare_soil_dries_at_its_top_in_two_stages(self):
+        """FAO-56's evaporation: as fast as the sky asks until 9 mm are gone, then slower,
+        to half the wilting point at most, and from the top 10 cm only."""
+        bed = ph.LayeredBed(name="bare", depth_mm=25.0, crop_coefficient=0.0, unsaturated_mm_per_h=0.0,
+                            horizons=(ph.Horizon(300.0, **SILT_LOAM),))
+        sky = ph.Weather(air_temp_c=25.0, relative_humidity=50.0, rain_mm=0.0, et0_mm=0.5,
+                         raining=False)
+        bed.step(sky)
+        self.assertAlmostEqual(bed.et_mm, ph.KC_MAX * 0.5, places=9, msg="the first stage")
+        for _ in range(4000):
+            bed.step(sky)
+        top = bed.layers[:4]
+        self.assertLess(bed.et_mm, (SILT_LOAM["field_capacity"] - 0.5 * SILT_LOAM["wilting_point"]) * 100.0 + 1e-6)
+        self.assertGreaterEqual(min(top), 0.5 * SILT_LOAM["wilting_point"] - 1e-12)
+        self.assertEqual(bed.layers[5], SILT_LOAM["field_capacity"], "below 10 cm, untouched")
+        slow = bed.et_mm
+        bed.step(sky)
+        self.assertLess(bed.et_mm - slow, ph.KC_MAX * 0.5 * 0.2, "the second stage")
+
+    def test_under_a_young_crop_the_wet_surface_evaporates_too(self):
+        """FAO-56's dual coefficient: a crop with its basal coefficient draws by its roots,
+        and the wet soil between the plants evaporates as well, from the top 10 cm only,
+        less as the canopy closes."""
+        sky = ph.Weather(air_temp_c=25.0, relative_humidity=50.0, rain_mm=0.0, et0_mm=0.5,
+                         raining=False)
+        def first_hour(kcb):
+            bed = ph.LayeredBed(name="row", depth_mm=300.0, unsaturated_mm_per_h=0.0,
+                                basal_coefficient=kcb, horizons=(ph.Horizon(600.0, **SILT_LOAM),))
+            before = list(bed.layers)
+            bed.step(sky)
+            return bed, [b - a for a, b in zip(bed.layers, before)]
+        young, lost = first_hour(ph.KCB_INI)
+        self.assertAlmostEqual(young.et_mm, 0.5 * ph.KC_MAX, places=9,
+                               msg="Kcb plus Ke reach Kcmax on a wet surface")
+        self.assertGreater(lost[0], 5 * lost[6], "the top dries far faster than 15 cm down")
+        grown, _ = first_hour(1.10)
+        self.assertLess(grown.et_mm - 0.5 * 1.10, 0.5 * (ph.KC_MAX - ph.KCB_INI) / 4,
+                        "a closed canopy leaves little to evaporate")
+
+    def test_a_known_ground_cover_stands_in_for_the_estimate(self):
+        """A mown lawn's basal coefficient, 0.90, puts Eq. 76's cover near two thirds; told
+        it covers 0.95, its wet surface adds no more than 5% of the open ground's share."""
+        sky = ph.Weather(air_temp_c=25.0, relative_humidity=50.0, rain_mm=0.0, et0_mm=0.5,
+                         raining=False)
+        def first_hour(cover):
+            bed = ph.LayeredBed(name="lawn", depth_mm=150.0, unsaturated_mm_per_h=0.0,
+                                basal_coefficient=0.90, ground_cover=cover,
+                                horizons=(ph.Horizon(600.0, **SILT_LOAM),))
+            bed.step(sky)
+            return bed.et_mm - 0.5 * 0.90
+        self.assertAlmostEqual(first_hour(None), 0.5 * (ph.KC_MAX - 0.90), places=9,
+                               msg="estimated, the wet surface reaches Kcmax")
+        self.assertAlmostEqual(first_hour(0.95), 0.5 * 0.05 * ph.KC_MAX, places=9,
+                               msg="covered, only the open 5% evaporates")
 
     def test_rain_does_not_reach_a_bed_under_cover(self):
         open_bed = ph.LayeredBed(name="open", depth_mm=150.0,
