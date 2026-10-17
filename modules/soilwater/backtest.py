@@ -318,7 +318,9 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         seq[0] += 1
         state.add(Observation(uuid7(), valve_ds.id, when, 1.0, when, is_open,
                               ClockQuality.NETWORK, node="opensprinkler", boot=1, seq=seq[0] & 0xFFFF))
-    capacity, wilting = configured or (b.field_capacity, b.wilting_point)
+    # The advice is told the soil as it is written, not as the farm departs from it.
+    shift = (farm.capacity, farm.wilting) if soil is None else (0.0, 0.0)
+    capacity, wilting = configured or (b.field_capacity - shift[0], b.wilting_point - shift[1])
     bed = Bed(land, capacity, wilting, root_depth_mm=300.0 if crop else b.depth_mm,
               skip_rain_mm=D.SKIP_MM, valve=valve_ds.id if valve_ds else None, learn=learn,
               young_fraction=young_fraction,
@@ -453,7 +455,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                      knows_second: bool = True, soil=None, virtual_crop: str | None = None,
                      hardpan_mm: float | None = None, knows_hardpan: bool = False,
                      second_check_hour: int | None = SECOND_CHECK_HOUR,
-                     farm: VirtualFarm = NOMINAL, site: tuple | None = None) -> dict:
+                     farm: VirtualFarm = NOMINAL, site: tuple | None = None,
+                     depletion_fraction: float | None = None) -> dict:
     """The advisory for the backtest bed with **no probe**, from a station on the farm:
     hourly air temperature, humidity, sunshine and rain, as the virtual farm's recorded
     weather gives them (`backtest` for the rest). Sunshine is each recorded day's total
@@ -557,12 +560,16 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     told = dict(crop=crop, planted=planted) if crop and knows_crop else {}
     if second is not None and knows_second:
         told = dict(plantings=((crop, planted), tuple(second)))
-    bed = Bed(land, b.field_capacity, b.wilting_point, root_depth_mm=300.0 if crop else b.depth_mm,
+    # The advice is told the soil as it is written, not as the farm departs from it.
+    shift = (farm.capacity, farm.wilting) if soil is None else (0.0, 0.0)
+    bed = Bed(land, b.field_capacity - shift[0], b.wilting_point - shift[1],
+              root_depth_mm=300.0 if crop else b.depth_mm,
               skip_rain_mm=D.SKIP_MM, valve=valve.id if record_valve else None,
               application_mm_per_h=rate_mm_per_h if record_valve else None,
               reference=ref_land if reference else None,
-              rooting_limit_mm=hardpan_mm if knows_hardpan else None, **told)
-    ref_bed = Bed(ref_land, rb.field_capacity, rb.wilting_point,
+              rooting_limit_mm=hardpan_mm if knows_hardpan else None,
+              **({"depletion_fraction": depletion_fraction} if depletion_fraction else {}), **told)
+    ref_bed = Bed(ref_land, rb.field_capacity - farm.capacity, rb.wilting_point - farm.wilting,
                   root_depth_mm=300.0 if crop else rb.depth_mm, skip_rain_mm=D.SKIP_MM,
                   valve=ref_valve.id, application_mm_per_h=rate_mm_per_h, **told)
     beds = [bed, ref_bed] if reference else [bed]
