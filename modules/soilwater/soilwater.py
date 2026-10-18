@@ -155,6 +155,10 @@ class Bed:
     #: A correction to the balance's ET, from a probe's rate (`_corrected`): it scales the
     #: day's crop coefficient, whatever the crop's curve makes it.
     et_scale: float = 1.0
+    #: The crop's water use against its curve's, where the farm has measured it: from its
+    #: canopy's cover in a photo, or a satellite's ET (OpenET). It scales the weather
+    #: balance's crop coefficient; the margin (`WEATHER_MARGIN`) stays on top of it.
+    use_scale: float = 1.0
     #: How deep the soil lets roots go, mm: a hardpan, compacted subsoil, rock, the bottom
     #: of a raised bed. Roots stop there whatever the crop (`grown`), and a probe at that
     #: depth or below it reads soil they do not enter, so it is not counted.
@@ -1073,7 +1077,7 @@ def weather_balance(state, bed: Bed, station, at: _dt.datetime, *,
         ks = 1.0 if dr <= p * taw else max(0.0, (taw - dr) / ((1.0 - p) * taw))
         kcb = basal_of(bed, day)
         if kcb is None:
-            dr = min(taw, dr + ks * crop.crop_coefficient * bed.et_scale * eto_mm)
+            dr = min(taw, dr + ks * crop.crop_coefficient * bed.use_scale * bed.et_scale * eto_mm)
         else:
             # FAO-56's dual coefficient, as pyfao56 computes it (Eqs. 69 to 79): the crop's
             # transpiration, `Ks Kcb ETo`, and the wet surface's evaporation, `Ke ETo`, from a
@@ -1086,7 +1090,7 @@ def weather_balance(state, bed: Bed, station, at: _dt.datetime, *,
             kr = max(0.0, min(1.0, (tew - de) / (tew - min(REW_MM, tew))))
             evaporation = min(kr * (kc_max - kcb), few * kc_max) * eto_mm
             de = min(tew, de + evaporation / few)
-            dr = min(taw, dr + (ks * kcb * bed.et_scale) * eto_mm + evaporation)
+            dr = min(taw, dr + (ks * kcb * bed.use_scale * bed.et_scale) * eto_mm + evaporation)
         day += _dt.timedelta(days=1)
     # Today's watering so far, which a later look the same day must see: without it the
     # afternoon's check finds the morning's deficit and asks for it again. Today's ET is
@@ -1239,7 +1243,7 @@ def reference_factor(state, bed: Bed, station, at: _dt.datetime, *,
             gained = ((max(0.0, capacity - b) - max(0.0, capacity - a))
                       * grown(bed, day).root_depth_mm)
             measured += gained
-            kc = grown(bed, day).crop_coefficient * bed.et_scale
+            kc = grown(bed, day).crop_coefficient * bed.use_scale * bed.et_scale
             predicted += kc * got[0]
             counted += 1
             if got[0] > 0:

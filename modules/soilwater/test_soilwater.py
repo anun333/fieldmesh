@@ -1139,6 +1139,18 @@ class TestByTheWeather(unittest.TestCase):
         self.assertEqual(d["context"]["margin_percent"], round(100.0 * margin))
         self.assertNotIn("margin_percent", plain["context"])
 
+    def test_the_crops_use_measured_scales_the_balance_its_margin_on_top(self):
+        """`Bed.use_scale`: the crop's water against its curve's, as a canopy photo or a
+        satellite's ET measures it."""
+        g = WeatherGarden()
+        station = g.station(12, rain={0: 80.0})
+        _, plain = g.advice(self.MORNING(2), station=station)
+        g.bed = S.replace(g.bed, use_scale=1.25)
+        _, measured = g.advice(self.MORNING(2), station=station)
+        self.assertAlmostEqual(measured["context"]["depletion_mm"],
+                               plain["context"]["depletion_mm"] * 1.25, delta=0.15)
+        self.assertEqual(measured["context"]["margin_percent"], round(100.0 * S.WEATHER_MARGIN))
+
     def test_two_days_of_three_missing_and_it_cannot_tell(self):
         g = WeatherGarden()
         station = g.station(12, rain={0: 80.0}, gap_days=(8, 9))
@@ -1528,6 +1540,50 @@ class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
 
     def test_a_station_installed_today_has_no_estimate_for_two_days(self):
         self.assertEqual(self.r["advice"]["soil-weather-unseen"], 2 * 2, "two looks a day")
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestWhatTheFarmMeasuresBesides(unittest.TestCase):
+    """The backtests' sensors beyond the probe and the station: a tension sensor beside
+    each probe (`backtest(tension=True)`), an anemometer at the station and the crop's
+    use measured (`weather_backtest(wind=True, use_measured=...)`), on a farm that departs
+    from what the advice is told."""
+
+    FARM = B.VirtualFarm.drawn(5)
+
+    def test_a_tension_sensor_measures_field_capacity_where_learning_reads_it_off(self):
+        """June 2013, tomatoes: the farm's soil holds 0.30 and a little at field capacity;
+        learned from the drain-downs of a wet June it reads 0.35, off the curve 0.31."""
+        june = _june(2013)
+        kw = dict(depths=(0.10, 0.30), crop="tomato", planted=june.date(), farm=self.FARM)
+        learned = B.backtest(_summer(2013), june, 40, **kw)
+        measured = B.backtest(_summer(2013), june, 40, tension=True, **kw)
+        truth = 0.30 + self.FARM.capacity
+        self.assertEqual(measured["learned"][0]["how"], "measured")
+        self.assertAlmostEqual(measured["field_capacity"], truth, delta=0.015)
+        self.assertGreater(abs(learned["field_capacity"] - truth),
+                           abs(measured["field_capacity"] - truth))
+
+    def test_an_anemometer_puts_the_days_wind_in_place_of_two_metres_a_second(self):
+        """A dry, windy June, 40% humidity and 4 m/s each day: measured, the balance counts
+        more water lost. (In McAllister's own humid June the wind hardly moves Penman's ET.)"""
+        climate = _summer(2013)
+        for v in climate.days.values():
+            v["WS2M"], v["RH2M"] = 4.0, 40.0
+        june = _june(2013)
+        kw = dict(crop="tomato", planted=june.date(), farm=self.FARM, record_valve=False)
+        guessed = B.weather_backtest(climate, june, 20, **kw)
+        windy = B.weather_backtest(climate, june, 20, wind=True, **kw)
+        self.assertEqual(guessed["estimated"], ["wind"])
+        self.assertEqual(windy["estimated"], [])
+        self.assertGreater(windy["applied_mm"], guessed["applied_mm"])
+
+    def test_the_crops_use_measured_is_the_farms_within_its_error(self):
+        june = _june(2013)
+        r = B.weather_backtest(_summer(2013), june, 3, crop="tomato", planted=june.date(),
+                               farm=self.FARM, record_valve=False, use_measured=0.07)
+        self.assertNotEqual(r["use_scale"], self.FARM.use)
+        self.assertAlmostEqual(math.log(r["use_scale"] / self.FARM.use), 0.0, delta=3 * 0.07)
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")

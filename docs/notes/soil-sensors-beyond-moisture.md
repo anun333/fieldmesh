@@ -114,6 +114,29 @@ so a backtest can ask what owning one would change before anyone buys it.
 | **a profile probe at many depths** | the water at every 10 cm | the simulator's roots, densest at the top, and the root signs' level line ([roots that stop](../../modules/soilwater/README.md#roots-that-stop)) | yes: every layer's water |
 | **canopy temperature or sap flow** | the crop's own stress | whether a crop loses transpiration when the backtests say it does | not without a leaf's energy balance |
 
+## Everything else that sees a bed's water
+
+*Added 2026-10-18.* The other instruments that bear on when and how much to water, in
+the soil, on the plant or above it, in the order they are worth it to fieldmesh's advice.
+The first three are being tried as the trials tried the advice's defaults: on the virtual
+farm that departs from what the advice is told, McAllister and Davis, 1991 to 2025, each
+against the same bed measuring nothing more ([soilwater trials](../../modules/soilwater/README.md#what-the-trials-show);
+`trials.py`'s `MEASURES`).
+
+| instrument | what it would tell the advice | for watering | in fieldmesh and its backtests |
+| --- | --- | --- | --- |
+| **a tension sensor beside a probe** ([above](#soil-water-tension)) | the bed's field capacity, read off its own curve, where learning reads it from drain-downs | the most: learning can read a capacity far off, low in a hot, dry soil (the trials), high in a wet June (0.35 on a soil holding 0.31; the sensor read 0.31) | **built**; tried: a sensor beside each probe, a tenth out for good and a twentieth each hour (`backtest(tension=True)`) |
+| **an anemometer** at the station | the day's wind, where FAO-56's 2 m/s stands in | where the wind is far from 2 m/s and the air is dry: Penman's aerodynamic term is the wind times the air's dryness, so in a humid summer the wind hardly matters | **built** (`eto.Station.wind_speed`); tried (`weather_backtest(wind=True)`) |
+| **the crop's water use measured**: its canopy's cover photographed (Canopeo, a free phone app, Patrignani and Ochsner 2015), or a satellite's ET (OpenET) | the crop against its curve: a stand thinner or later than the curve uses less | for a crop off its curve, the error the weather's margin guesses at. Cover gives a crop coefficient by Allen and Pereira (2009). OpenET's pixels are 30 m, a field's, not a bed's; over croplands it was 17% out a month, 6% low on the whole (Volk et al. 2024) | **built** as `Bed.use_scale`; tried, measured to a lognormal 0.07 and 0.15 (`weather_backtest(use_measured=...)`); not built: reading a photo or OpenET into it |
+| **a wetting-front detector** (FullStop, Stirzaker 2003; the Chameleon, a tension sensor read by colour) | whether a watering reached the depth it was meant to | checks each refill and the soil's intake, cheaply, by hand | not yet; the layered soil gives each layer's water, so the simulator could say when a front passes |
+| **an atmometer** (ETgage) **or an evaporation pan** | the weather's demand measured, where a station computes it | in place of a full station, not beside one: FAO-56 turns a pan's evaporation into reference ET by a pan coefficient | not yet |
+| **a flow meter and the line's pressure** | how much water reached the bed | the record the balance refills from ([water meters](water-meters.md)) | **built** as the recorded valve |
+| **dendrometers and the pressure chamber** | the plant's own water status, from the stem's daily shrinking or the leaf's water potential | for trees and vines (Fernández and Cuevas 2010); fieldmesh's beds are annual crops and lawns | no: the simulator has no stem |
+| **a well for the water table** (a piezometer) | how near the water table is | only where it lies shallow enough to feed the roots from below, when the balance counts need that is not there | no: the virtual soil drains freely at its foot |
+| **TDR and neutron probes** | the soil's water, more truly than a capacitance probe | as references to calibrate a farm's probes, not as its sensors; a neutron probe's source needs a licence | as error models: the backtests draw each probe's error (`backtest.VirtualFarm`), and a better probe is a smaller one |
+| **a net radiometer** | the sunshine the soil and crop keep | little: FAO-56 computes it from the day's sunshine and temperature, so a pyranometer is what matters | the balance is given the recorded sunshine |
+| **satellite soil moisture** (SMAP) | the top 5 cm's water, over kilometres | none for a bed | no |
+
 ## For a first real bed
 
 Choose moisture probes that report temperature and conductivity too (a TEROS 12, or a
@@ -129,6 +152,25 @@ terms exist, the soil's own retention curve and its salt.
 * T. T. Nguyen, N. Bekin, A. Altman, M. Maier, N. Agam and E. Levintal, "Overcoming barriers
   in long-term, continuous monitoring of soil CO2 flux: a low-cost sensor system", *SOIL*
   11, 2025, [doi:10.5194/soil-11-639-2025](https://doi.org/10.5194/soil-11-639-2025).
+
+* R. J. Stirzaker, "When to turn the water off: scheduling micro-irrigation with a wetting
+  front detector", *Irrigation Science* 22, 2003, 177–185,
+  [doi:10.1007/s00271-003-0083-5](https://doi.org/10.1007/s00271-003-0083-5).
+* A. Patrignani and T. E. Ochsner, "Canopeo: a powerful new tool for measuring fractional
+  green canopy cover", *Agronomy Journal* 107, 2015, 2312–2320,
+  [doi:10.2134/agronj15.0150](https://doi.org/10.2134/agronj15.0150).
+* R. G. Allen and L. S. Pereira, "Estimating crop coefficients from fraction of ground
+  cover and height", *Irrigation Science* 28, 2009, 17–34,
+  [doi:10.1007/s00271-009-0182-z](https://doi.org/10.1007/s00271-009-0182-z).
+* F. S. Melton et al., "OpenET: filling a critical data gap in water management for the
+  western United States", *Journal of the American Water Resources Association* 58, 2022,
+  971–994, [doi:10.1111/1752-1688.12956](https://doi.org/10.1111/1752-1688.12956).
+* J. M. Volk et al., "Assessing the accuracy of OpenET satellite-based evapotranspiration
+  data to support water resource and land management applications", *Nature Water* 2,
+  2024, 193–205, [doi:10.1038/s44221-023-00181-7](https://doi.org/10.1038/s44221-023-00181-7).
+* J. E. Fernández and M. V. Cuevas, "Irrigation scheduling from stem diameter variations:
+  a review", *Agricultural and Forest Meteorology* 150, 2010, 135–151,
+  [doi:10.1016/j.agrformet.2009.11.006](https://doi.org/10.1016/j.agrformet.2009.11.006).
 
 * J. F. Harrington, University of California at Davis, Agricultural Extension Leaflet,
   1954, as reproduced by [Oregon State University Extension](https://extension.oregonstate.edu/gardening/soil-compost/soil-temperature-conditions-vegetable-seed-germination)

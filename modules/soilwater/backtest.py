@@ -32,6 +32,9 @@ from model import DatastreamKind  # noqa: E402
 PAN = {"saturation": 0.36, "field_capacity": 0.30, "wilting_point": 0.13, "ks_mm_per_h": 0.5,
        "suction_mm": 170.0, "residual": 0.066, "pore_connectivity": 0.0}
 PAN_MM = 50.0
+#: A tension sensor's own error, for good: lognormal, a round tenth, as granular-matrix
+#: sensors (Watermarks) differ unit to unit. `backtest(tension=True)`.
+TENSION_SD = 0.10
 
 
 @dataclass(frozen=True)
@@ -215,7 +218,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              rain_gauge: bool = False, knows_cover: bool = False,
              virtual_crop: str | None = None, dense_pan: bool = False,
              second_check_hour: int | None = SECOND_CHECK_HOUR,
-             farm: VirtualFarm = NOMINAL,
+             farm: VirtualFarm = NOMINAL, tension: bool = False, tension_noise: float = 0.05,
              depletion_fraction: float | None = None,
              young_fraction: float | None = 0.2) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
@@ -304,6 +307,29 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                                              depth_m=depth)):
             state.add(rec)
         probes.append((probe, depth, in_patch))
+    # A tension sensor beside each probe in a layered soil, as a Watermark beside it would
+    # be: the soil's suction at that depth off its own curve, each sensor reading a tenth
+    # high or low of it for good (`TENSION_SD`), each hour `tension_noise` out besides.
+    tensions = []
+    for depth, in_patch in placed if tension else ():
+        patch = b2 if b2 is not None and in_patch else b
+        if not hasattr(patch, "_props"):
+            continue
+        sensor = uuid7()
+        raw = Datastream(id=uuid7(), thing=uuid7(), sensor=sensor,
+                         observed_property=V.SOIL_WATER_POTENTIAL, feature=land,
+                         kind=DatastreamKind.RAW, unit="kPa", expected_interval=3600.0,
+                         max_latency=3600.0)
+        ds = Datastream(id=uuid7(), thing=raw.thing, sensor=sensor,
+                        observed_property=V.SOIL_WATER_POTENTIAL, feature=land,
+                        kind=DatastreamKind.DERIVED, derived_from=raw.id, unit="kPa",
+                        expected_interval=3600.0, max_latency=3600.0)
+        for rec in (raw, ds, Installation(uuid7(), sensor, land, start - 24 * HOUR,
+                                          depth_m=depth)):
+            state.add(rec)
+        bias = math.exp(random.Random(f"tension {farm.seed} {depth} {in_patch}")
+                        .gauss(0.0, TENSION_SD))
+        tensions.append((ds, depth, in_patch, bias))
     cal = uuid7()
     valve_ds = None
     if valve:
@@ -348,6 +374,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     noise = dict(zip((p.id for p, _, _ in probes),
                      noise_streams(seed, [f"{d} {patch}" for _, d, patch in probes])))
     offset = {p.id: farm.offset(f"{d} {patch}") for p, d, patch in probes}
+    noise.update(zip((t.id for t, *_ in tensions),
+                     noise_streams(seed, [f"tension {d} {patch}" for _, d, patch, _ in tensions])))
     rain_hour = 0.0
     roots, second_h = [], 0.0
     applied, dose_now, stressed_h, stress, advice, last, last_at = 0.0, 0.0, 0.0, [], {}, None, None
@@ -379,6 +407,14 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                 read = (truth + probe_bias + offset[probe.id]
                         + noise[probe.id].gauss(0.0, probe_noise))
                 state.add(Observation(uuid7(), probe.id, when, 60.0, when, round(read, 3),
+                                      ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
+                                      calibration=cal))
+            for ds, depth, in_patch, bias in tensions:
+                patch = b2 if b2 is not None and in_patch else b
+                i = min(len(patch.layers) - 1, max(0, int(depth * 1000.0 / patch.layer_mm)))
+                kpa = patch._props[i].suction_at(patch.layers[i]) * 9.80665e-3 * bias
+                kpa *= max(0.0, 1.0 + noise[ds.id].gauss(0.0, tension_noise))
+                state.add(Observation(uuid7(), ds.id, when, 60.0, when, round(-kpa, 2),
                                       ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
                                       calibration=cal))
         if when.hour in decide_hours and when.minute == 0:
@@ -456,7 +492,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                      hardpan_mm: float | None = None, knows_hardpan: bool = False,
                      second_check_hour: int | None = SECOND_CHECK_HOUR,
                      farm: VirtualFarm = NOMINAL, site: tuple | None = None,
-                     depletion_fraction: float | None = None) -> dict:
+                     depletion_fraction: float | None = None, wind: bool = False,
+                     use_measured: float | None = None) -> dict:
     """The advisory for the backtest bed with **no probe**, from a station on the farm:
     hourly air temperature, humidity, sunshine and rain, as the virtual farm's recorded
     weather gives them (`backtest` for the rest). Sunshine is each recorded day's total
@@ -530,6 +567,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         state.add(ds)
         return ds
     air, rh = series(V.AIR_TEMPERATURE, "Cel"), series(V.RELATIVE_HUMIDITY, "%")
+    anemometer = series(V.WIND_SPEED, "m/s") if wind else None
     sunshine, rain = series(V.SOLAR_RADIATION, "W/m2"), series(V.PRECIPITATION_DEPTH, "mm")
     valve, ref_valve = series(V.VALVE_OPEN, None), series(V.VALVE_OPEN, None)
     cal = uuid7()
@@ -555,6 +593,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     # The virtual farm's hours are local solar time, so its station's day is UTC's.
     lat, elevation = site if site is not None else (D.LAT, D.ELEVATION_M)
     station = E.Station(lat=lat, elevation_m=elevation, timezone="UTC",
+                        wind_speed=anemometer.id if anemometer is not None else None,
                         air_temperature=air.id, relative_humidity=rh.id,
                         solar_radiation=sunshine.id, precipitation=rain.id)
     told = dict(crop=crop, planted=planted) if crop and knows_crop else {}
@@ -572,6 +611,13 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     ref_bed = Bed(ref_land, rb.field_capacity - farm.capacity, rb.wilting_point - farm.wilting,
                   root_depth_mm=300.0 if crop else rb.depth_mm, skip_rain_mm=D.SKIP_MM,
                   valve=ref_valve.id, application_mm_per_h=rate_mm_per_h, **told)
+    if use_measured is not None:
+        # The crop's use against what the advice reckons, measured with `use_measured`'s
+        # spread of error: a canopy photo's or a satellite's, the farm's own departure
+        # (`VirtualFarm.use`) or, for a bed with no crop named, its bucket's coefficient.
+        actual = farm.use if crop else b.crop_coefficient / bed.crop_coefficient
+        error = random.Random(f"use measured {farm.seed}").gauss(0.0, use_measured)
+        bed = replace(bed, use_scale=actual * math.exp(error))
     beds = [bed, ref_bed] if reference else [bed]
     sim_bed = {str(land): (b, valve, record_valve), str(ref_land): (rb, ref_valve, True)}
     seq = [0]
@@ -616,6 +662,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     score = Score()
     decide_hours = (D.DECIDE_HOUR,) + ((second_check_hour,) if second_check_hour is not None else ())
     rain_hour, sun_today, water_until, used_days, second_h = 0.0, {}, {}, None, 0.0
+    estimated = None
     for n in range(int(days * 24 * 12)):
         when = world.when
         if crop and when.hour == 0 and when.minute == 0:
@@ -657,6 +704,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                 sb, its_valve, recorded = sim_bed[d["subject"]]
                 if sb is b:
                     advice[d["rule"]] = advice.get(d["rule"], 0) + 1
+                    estimated = d["inputs"].get("estimated", estimated)
                     used_days = ((d["context"].get("crop_days"), d["context"].get("crop_gdd")),
                                  truth[when.date()] if truth is not None
                                  else (when.date() - planted).days if crop and planted else None)
@@ -684,6 +732,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
         if when.minute == 0:
             write(air, when, tick.weather.air_temp_c)
             write(rh, when, tick.weather.relative_humidity)
+            if anemometer is not None and "WS2M" in climate.days.get(when.date(), {}):
+                write(anemometer, when, climate.days[when.date()]["WS2M"])
         rain_hour += tick.weather.rain_mm
         s = tick.soil_stress[b.name]
         stress.append(s)
@@ -698,7 +748,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
             "second_stressed_h": second_h if b2 is not None else None,
             "mean_stress": statistics.mean(stress), "stressed_h": stressed_h,
             "advice": advice, "reference_mm": applied[rb.name] if reference else None,
-            "crop_days": used_days}
+            "crop_days": used_days, "estimated": estimated,
+            "use_scale": bed.use_scale}
 
 
 # ------------------------------------------------------------------ process

@@ -14,7 +14,9 @@ on two farms drawn from it (`DRAWS`), each probe's noise and the forecasts drawn
 
 `report` sets each choice beside the default it would replace, on the same site, summer and
 farm, the difference's mean and its 90% interval over those pairs (`BOOTSTRAP` resamples):
-the years the defaults were chosen on (`TUNED`) apart from the rest."""
+the years the defaults were chosen on (`TUNED`) apart from the rest. Then what the farm
+might measure besides (`MEASURES`), each against the bed as built, measuring nothing more:
+the station's wind, the crop's water use, a tension sensor beside each probe."""
 from __future__ import annotations
 
 import argparse
@@ -56,19 +58,62 @@ BEDS = {
 #: The advisory as built: margin `WEATHER_MARGIN`, a young crop's refill point held until its
 #: roots pass `YOUNG_ROOTS_MM`, the root signs on, a third of the water before watering.
 DEFAULTS = {"margin": 0.2, "young": "roots", "signs": True, "p": 1 / 3}
+
+#: The crop's water use measured, the measure's error (lognormal sd): a tight one and a
+#: loose one, as a canopy's cover photographed through the season and a satellite's ET
+#: might be (`Bed.use_scale`).
+USE_SD = (0.07, 0.15)
+#: What a farm might measure besides its probes and its station's air, each bed's, and the
+#: choices of `BEDS` each is crossed with, the bed's others at their defaults: the
+#: station's wind (`weather_backtest(wind=True)`), the crop's use, a tension sensor beside
+#: each probe (`backtest(tension=True)`).
+BY_THE_WEATHER = ({"wind": (False, True), "use": (None,) + USE_SD}, ("margin",))
+MEASURES = {
+    "bucket, by the weather": BY_THE_WEATHER,
+    "tomatoes, probes": ({"tension": (False, True)}, ()),
+    "tomatoes, by the weather": BY_THE_WEATHER,
+    "lettuce, probes": ({"tension": (False, True)}, ()),
+    "lettuce, by the weather": BY_THE_WEATHER,
+    "lawn, its probe": ({"tension": (False, True)}, ("p",)),
+    "lawn, by the weather": BY_THE_WEATHER,
+    "yard, its probes": ({"tension": (False, True)}, ("p",)),
+    "tomatoes over a dense pan, probes": ({"tension": (False, True)}, ()),
+}
+#: Each measure not taken. A backtest's choices leave it out, so a bed measuring nothing
+#: more is the one `BEDS` tries.
+OFF = {"wind": False, "use": None, "tension": False}
+#: Each measure, as the report names it.
+SAID = {"wind": "wind measured", "use": "use measured, sd {}", "tension": "tension sensors"}
 #: What each backtest is scored by (`backtest.Score`).
 SCORES = ("applied_mm", "drained_mm", "transpiration_lost_mm", "stressed_h", "below_p_h",
           "airless_h")
 BOOTSTRAP = 2000
 
 
+def _product(options: dict) -> list:
+    names = sorted(options)
+    return [dict(zip(names, values)) for values in itertools.product(*(options[n] for n in names))]
+
+
+def configs(bed: str) -> list:
+    """Each set of choices the trial tries on `bed`: `BEDS`' choices crossed, then each
+    measure of `MEASURES` crossed with the choices it names, the measures off left out."""
+    options = BEDS[bed]
+    out = _product(options)
+    measures, crossed = MEASURES.get(bed, ({}, ()))
+    built = {n: DEFAULTS[n] for n in options}
+    for measured in _product({**measures, **{n: options[n] for n in crossed}}):
+        choices = {**built, **{n: v for n, v in measured.items() if n not in OFF or OFF[n] != v}}
+        if choices not in out:
+            out.append(choices)
+    return out
+
+
 def jobs() -> list:
     """Every backtest of the trial: `(bed, choices, site, year, draw)`."""
     out = []
-    for bed, options in BEDS.items():
-        names = sorted(options)
-        for values in itertools.product(*(options[n] for n in names)):
-            choices = dict(zip(names, values))
+    for bed in BEDS:
+        for choices in configs(bed):
             for site in SITES:
                 for year in YEARS:
                     for draw in DRAWS:
@@ -94,7 +139,7 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     import lawn_drill as LD
     import physics as ph
     import soilwater as S
-    picked = {**DEFAULTS, **choices}
+    picked = {**DEFAULTS, **OFF, **choices}
     S.WEATHER_MARGIN = picked["margin"]
     S.YOUNG_ROOTS_MM = 250.0 if picked["young"] == "roots" else 0.0
     if not picked["signs"]:
@@ -107,7 +152,9 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     may = _dt.datetime(year, 5, 1, tzinfo=_dt.timezone.utc)
     june = _dt.datetime(year, 6, 1, tzinfo=_dt.timezone.utc)
     common = dict(seed=draw, farm=farm)
-    weather_too = dict(common, record_valve=False, site=lat_elevation)
+    weather_too = dict(common, record_valve=False, site=lat_elevation, wind=picked["wind"],
+                       use_measured=picked["use"])
+    probes_too = dict(common, tension=picked["tension"])
     if bed == "bucket, its probe":
         r = B.backtest(climate, june, 92, **common)
     elif bed == "bucket, by the weather":
@@ -115,7 +162,7 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     elif bed in ("tomatoes, probes", "lettuce, probes"):
         crop = "tomato" if bed.startswith("tomatoes") else "lettuce"
         r = B.backtest(climate, may, S.CROPS[crop]["season_days"], depths=(0.10, 0.30),
-                       crop=crop, planted=may.date(), knows_crop=True, **common)
+                       crop=crop, planted=may.date(), knows_crop=True, **probes_too)
     elif bed in ("tomatoes, by the weather", "lettuce, by the weather"):
         crop = "tomato" if bed.startswith("tomatoes") else "lettuce"
         r = B.weather_backtest(climate, may, S.CROPS[crop]["season_days"], crop=crop,
@@ -123,7 +170,7 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     elif bed == "lawn, its probe":
         r = B.backtest(climate, june, 92, soil=LD.lawn("native"), crop="turf_cool",
                        knows_crop=True, hardpan_mm=LD.ROOTS_MM, knows_hardpan=True,
-                       depths=(0.07,), depletion_fraction=shallow, **common)
+                       depths=(0.07,), depletion_fraction=shallow, **probes_too)
     elif bed == "lawn, by the weather":
         r = B.weather_backtest(climate, june, 92, soil=LD.lawn("native"), crop="turf_cool",
                                knows_crop=True, virtual_crop="turf_cool",
@@ -135,11 +182,11 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
                                        ph.Horizon(500, **ph.COMPACTED_CLAY)))
         r = B.backtest(climate, june, 92, soil=yard, depths=(0.05, 0.12),
                        configured=(0.38, 0.25), learn=True, layers=((0.10, 0.20, 0.09),),
-                       depletion_fraction=shallow, **common)
+                       depletion_fraction=shallow, **probes_too)
     elif bed == "tomatoes over a dense pan, probes":
         r = B.backtest(climate, may, S.CROPS["tomato"]["season_days"],
                        depths=(0.10, 0.30, 0.60), crop="tomato", planted=may.date(),
-                       knows_crop=True, hardpan_mm=300.0, dense_pan=True, **common)
+                       knows_crop=True, hardpan_mm=300.0, dense_pan=True, **probes_too)
     else:
         raise ValueError(bed)
     line = {"bed": bed, "choices": choices, "site": site, "year": year, "draw": draw,
@@ -182,19 +229,50 @@ def _interval(diffs: list, rng: random.Random) -> tuple:
     return sum(diffs) / n, means[int(0.05 * BOOTSTRAP)], means[int(0.95 * BOOTSTRAP) - 1]
 
 
+def _choices(choices: dict) -> str:
+    return json.dumps(sorted(choices.items()))
+
+
+def _shown(value) -> str:
+    return f"{value:.2g}" if isinstance(value, float) else str(value)
+
+
+def _against(by: dict, bed: str, base: dict, tried: dict, rng: random.Random) -> list:
+    """`(held out, pairs, cells)` for `tried` against `base` on `bed`, the tuned summers' and
+    the held-out ones', each score's paired difference's mean and 90% interval."""
+    out = []
+    for held_out in (False, True):
+        pairs = []
+        for site in SITES:
+            for year in YEARS:
+                for draw in DRAWS:
+                    a = by.get((bed, _choices(base), site, year, draw))
+                    b = by.get((bed, _choices(tried), site, year, draw))
+                    if a and b and _tuned(a) != held_out:
+                        pairs.append((a, b))
+        if not pairs:
+            continue
+        cells = []
+        for score in ("applied_mm", "transpiration_lost_mm", "airless_h"):
+            mean, lo, hi = _interval([b[score] - a[score] for a, b in pairs], rng)
+            cells.append(f"{mean:+.1f} ({lo:+.1f} to {hi:+.1f})")
+        out.append((held_out, pairs, cells))
+    return out
+
+
 def report(path: str) -> str:
-    """Markdown: each bed as built, and each choice against the default it would replace."""
+    """Markdown: each bed as built, each choice against the default it would replace, and
+    each measure besides against the bed as built."""
     rows = []
     with open(path, encoding="utf-8") as h:
         for line in h:
             rows.append(json.loads(line))
-    by = {(r["bed"], json.dumps(sorted(r["choices"].items())), r["site"], r["year"], r["draw"]): r
-          for r in rows}
+    by = {(r["bed"], _choices(r["choices"]), r["site"], r["year"], r["draw"]): r for r in rows}
     rng = random.Random(1)
     out = ["| bed | summers | water | lost transpiration | summers losing over 1 mm | "
            "hours short of air |", "| --- | --- | --- | --- | --- | --- |"]
     for bed, options in BEDS.items():
-        built = json.dumps(sorted({n: DEFAULTS[n] for n in options}.items()))
+        built = _choices({n: DEFAULTS[n] for n in options})
         for held_out in (False, True):
             got = [r for k, r in by.items() if k[0] == bed and k[1] == built
                    and _tuned(r) != held_out]
@@ -206,33 +284,32 @@ def report(path: str) -> str:
                        f"{sum(r['transpiration_lost_mm'] for r in got) / n:.1f} mm | "
                        f"{sum(1 for r in got if r['transpiration_lost_mm'] > 1.0)} | "
                        f"{sum(r['airless_h'] for r in got) / n:.0f} |")
-    out += ["", "| bed | choice, against the default | summers | water | lost transpiration | "
-            "hours short of air |", "| --- | --- | --- | --- | --- | --- |"]
+    head = ("| bed | {}, against {} | summers | water | lost transpiration | "
+            "hours short of air |")
+    out += ["", head.format("choice", "the default"), "| --- | --- | --- | --- | --- | --- |"]
     for bed, options in BEDS.items():
+        base = {n: DEFAULTS[n] for n in options}
         for name, values in sorted(options.items()):
             for value in values:
                 if value == DEFAULTS[name]:
                     continue
-                for held_out in (False, True):
-                    base = {n: DEFAULTS[n] for n in options}
-                    tried = dict(base, **{name: value})
-                    pairs = []
-                    for site in SITES:
-                        for year in YEARS:
-                            for draw in DRAWS:
-                                a = by.get((bed, json.dumps(sorted(base.items())), site, year, draw))
-                                b = by.get((bed, json.dumps(sorted(tried.items())), site, year, draw))
-                                if a and b and _tuned(a) != held_out:
-                                    pairs.append((a, b))
-                    if not pairs:
-                        continue
-                    cells = []
-                    for score in ("applied_mm", "transpiration_lost_mm", "airless_h"):
-                        mean, lo, hi = _interval([b[score] - a[score] for a, b in pairs], rng)
-                        cells.append(f"{mean:+.1f} ({lo:+.1f} to {hi:+.1f})")
-                    shown = f"{value:.2g}" if isinstance(value, float) else str(value)
-                    out.append(f"| {bed} | {name} {shown}, {'held out' if held_out else 'tuned'}"
-                               f" | {len(pairs)} | " + " | ".join(cells) + " |")
+                for held_out, pairs, cells in _against(by, bed, base, dict(base, **{name: value}), rng):
+                    out.append(f"| {bed} | {name} {_shown(value)}, "
+                               f"{'held out' if held_out else 'tuned'} | {len(pairs)} | "
+                               + " | ".join(cells) + " |")
+    out += ["", head.format("measured", "the bed as built"), "| --- | --- | --- | --- | --- | --- |"]
+    for bed, options in BEDS.items():
+        base = {n: DEFAULTS[n] for n in options}
+        for tried in configs(bed):
+            measured = [n for n in tried if n in OFF]
+            if not measured:
+                continue
+            what = ", ".join(SAID[n].format(tried[n]) for n in measured)
+            what += "".join(f", {n} {_shown(tried[n])}" for n in sorted(options)
+                            if tried[n] != DEFAULTS[n])
+            for held_out, pairs, cells in _against(by, bed, base, tried, rng):
+                out.append(f"| {bed} | {what}, {'held out' if held_out else 'tuned'} | "
+                           f"{len(pairs)} | " + " | ".join(cells) + " |")
     return "\n".join(out)
 
 
