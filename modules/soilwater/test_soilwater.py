@@ -1401,11 +1401,169 @@ class TestAVirtualFarmThatDeparts(unittest.TestCase):
         self.assertAlmostEqual(bed.crop_coefficient, kc * 1.1)
         self.assertLessEqual(bed.depth_mm, root_mm * 0.8 + bed.layer_mm)
 
+    def test_its_station_and_its_crops_roots_depart_as_drawn(self):
+        for seed in range(200):
+            f = B.VirtualFarm.drawn(seed)
+            self.assertLessEqual(abs(f.station_temp_c), 1.0 + 1e-12)
+            self.assertLessEqual(abs(f.station_rh), 6.0 + 1e-12)
+            self.assertTrue(math.exp(-0.1) - 1e-12 <= f.station_sun <= math.exp(0.1) + 1e-12)
+            self.assertTrue(math.exp(-0.4) - 1e-12 <= f.station_wind <= math.exp(0.4) + 1e-12)
+            self.assertTrue(0.5 <= f.compensation <= 1.0)
+
+    def test_a_soil_given_whole_departs_and_the_one_given_is_left_alone(self):
+        import lawn_drill as LD
+        given = LD.lawn("native")
+        f = B.VirtualFarm(capacity=0.02, wilting=-0.01, use=1.1)
+        bed = B._departed_soil(given, f, crop=False)
+        self.assertAlmostEqual(bed.field_capacity, given.field_capacity + 0.02)
+        self.assertAlmostEqual(bed.wilting_point, given.wilting_point - 0.01)
+        self.assertAlmostEqual(bed.crop_coefficient, given.crop_coefficient * 1.1)
+        self.assertEqual(given.layers[0], given.horizons[0].field_capacity)
+
+    def test_the_farms_station_reads_as_its_sensors_do(self):
+        """A pyranometer reading a fifth high: the balance counts more water, and asks it."""
+        june = _june(2013)
+        kw = dict(crop="tomato", planted=june.date(), record_valve=False)
+        true = B.weather_backtest(_summer(2013), june, 20, farm=B.VirtualFarm(), **kw)
+        high = B.weather_backtest(_summer(2013), june, 20, farm=B.VirtualFarm(station_sun=1.2),
+                                  **kw)
+        self.assertGreater(high["applied_mm"], true["applied_mm"])
+        self.assertEqual(high["transpiration_lost_mm"], true["transpiration_lost_mm"],
+                         "the farm's own crop is the same crop")
+
     def test_each_probe_reads_off_by_its_own_amount(self):
         f = B.VirtualFarm.drawn(3)
         self.assertEqual(f.offset("0.1 False"), f.offset("0.1 False"))
         self.assertNotEqual(f.offset("0.1 False"), f.offset("0.3 False"))
         self.assertEqual(B.NOMINAL.offset("0.1 False"), 0.0)
+
+
+class TestWhatTheAuditOf20261018Found(unittest.TestCase):
+    """The advice as an adversarial reading of it on 2026-10-18 found it wrong, each case as
+    it was built then, and what it says now."""
+
+    MORNING = staticmethod(lambda day: _dt.datetime(2026, 7, 1, 9, tzinfo=_dt.timezone.utc)
+                           + _dt.timedelta(days=day))
+
+    def test_rain_coming_does_not_hold_a_bed_the_rain_would_leave_short(self):
+        """97% of its water gone and 10 mm forecast: it said rain is coming."""
+        g = Garden()
+        g.probe(lambda h: 0.125)
+        self.assertEqual(g.advice(forecast=g.rain(10.0 / 24.0))[0], "soil-water-now")
+        g = Garden()
+        g.probe(lambda h: 0.235)                        # just past the refill point
+        self.assertEqual(g.advice(forecast=g.rain(1.0))[0], "soil-rain-coming",
+                         "24 mm forecast brings it well back")
+
+    def test_a_silent_probe_is_carried_and_not_dropped(self):
+        """A 60 cm root zone, its top probe dry and silent 12 hours, its deeper one wet: the
+        deeper stood for the whole zone, and it said enough."""
+        out = {}
+        for hours in (52, 40):
+            g = Garden()
+            g.bed = S.replace(g.bed, root_depth_mm=600.0)
+            g.probe(lambda h: 0.14, depth=0.10, hours=hours)
+            g.probe(lambda h: 0.28, depth=0.40)
+            out[hours] = g.advice()
+        self.assertEqual(out[40][0], out[52][0])
+        self.assertEqual(out[40][1]["context"]["depletion_mm"],
+                         out[52][1]["context"]["depletion_mm"])
+        self.assertEqual(out[40][1]["context"]["probes_carried"], 1)
+        self.assertEqual(len(out[40][1]["inputs"]["carried"]), 1)
+
+    def test_a_wet_subsoil_does_not_cancel_a_dry_top(self):
+        """Two thirds of the top's water gone over water perched at 0.48: it said too wet."""
+        g = Garden()
+        g.bed = S.replace(g.bed, root_depth_mm=400.0)
+        g.probe(lambda h: 0.18, depth=0.10)
+        g.probe(lambda h: 0.48, depth=0.30)
+        rule, d = g.advice()
+        self.assertEqual(rule, "soil-water-now")
+        self.assertAlmostEqual(d["context"]["refill_mm"], (0.30 - 0.18) * 200.0, delta=0.5)
+
+    def test_a_probe_in_percent_is_not_read_as_a_fraction(self):
+        """15% read as 15: a soil past saturation, too wet every morning, never watered."""
+        g = Garden()
+        raw = FX.raw_datastream(unit="%", observed_property=V.SOIL_WATER,
+                                expected_interval=3600.0, max_latency=3600.0)
+        ds = FX.derived_datastream(raw, unit="%")
+        cal = FX.calibration(raw.sensor)
+        for rec in (raw, ds, cal, Installation(uuid7(), raw.sensor, g.land, T0 - 24 * HOUR,
+                                               depth_m=0.20)):
+            g.state.add(rec)
+        for h in range(53):
+            g.state.add(FX.observation(ds, result=15.0, measured_at=T0 + h * HOUR,
+                                       calibration=cal.id, seq=h))
+        self.assertEqual(g.advice()[0], "soil-no-probe")
+
+    def test_five_minute_readings_dry_as_hourly_ones(self):
+        """At five-minute readings the drying window was 18 hours, and the look-ahead
+        nothing."""
+        rates = []
+        for minutes in (60, 5):
+            g = Garden()
+            raw = FX.raw_datastream(unit="1", observed_property=V.SOIL_WATER,
+                                    expected_interval=60.0 * minutes, max_latency=3600.0)
+            ds = FX.derived_datastream(raw, unit="cm3/cm3")
+            cal = FX.calibration(raw.sensor)
+            for rec in (raw, ds, cal, Installation(uuid7(), raw.sensor, g.land, T0 - 24 * HOUR,
+                                                   depth_m=0.20)):
+                g.state.add(rec)
+            for i in range(52 * 60 // minutes + 1):
+                when = T0 + _dt.timedelta(minutes=i * minutes)
+                g.state.add(FX.observation(ds, result=round(0.29 - 0.001 * i * minutes / 60.0, 4),
+                                           measured_at=when, calibration=cal.id, seq=i & 0xFFFF))
+            rates.append(g.advice()[1]["context"]["drying_mm_per_day"])
+        self.assertGreater(rates[0], 5.0)
+        self.assertAlmostEqual(rates[1], rates[0], delta=0.2)
+
+    def test_a_reference_drying_past_the_limit_is_taken_at_the_limit(self):
+        """Drying at 1.6 times the balance, it was dropped, and the bed counted at the
+        margin's 1.2."""
+        g = ReferenceGarden(1.6)
+        bed = S.replace(g.bed, reference=g.reference_land)
+        events = S.Advisor(Log()).advise(g.state, [bed, g.reference], g.morning(19),
+                                         station=g.station_)
+        ctx = next(e.payload["context"] for e in events if e.payload["subject"] == str(g.land))
+        self.assertTrue(ctx["corrected"])
+        self.assertAlmostEqual(ctx["et_percent"], 100.0 * S.REFERENCE_LIMITS[1], delta=1)
+
+    def test_a_day_that_fills_the_bed_counts_only_its_use_beyond_its_water(self):
+        """FAO-56's Eq. 85: 80 mm of rain on day 0, more than the bed lacked and the day
+        used; by day 2's morning the bed has lost day 1's use alone."""
+        g = WeatherGarden()
+        station = g.station(12, rain={0: 80.0})
+        b = S.weather_balance(g.state, g.bed, station, self.MORNING(2))
+        self.assertAlmostEqual(b["depletion_mm"], b["et_mm"], delta=0.05)
+
+    def test_the_rain_since_midnight_comes_off(self):
+        """12 mm before the 04:00 look is in neither yesterday's balance nor the forecast."""
+        dry, wet = WeatherGarden(), WeatherGarden()
+        a = dry.station(12, rain={0: 80.0})
+        b = wet.station(12, rain={0: 80.0, 6: 24.0 * 3.0})       # 3 mm an hour on day 6
+        at = self.MORNING(6)
+        less = (S.weather_balance(dry.state, dry.bed, a, at)["depletion_mm"]
+                - S.weather_balance(wet.state, wet.bed, b, at)["depletion_mm"])
+        self.assertAlmostEqual(less, 4 * 3.0, delta=0.5)
+
+    def test_by_the_weather_it_looks_a_day_ahead(self):
+        """A shallow bed short of its refill point today, past half its water by tomorrow:
+        by the weather it waited, where by its probes it would water."""
+        g = WeatherGarden()
+        g.bed = S.replace(g.bed, root_depth_mm=120.0)
+        station = g.station(12, rain={0: 80.0})
+        rule, d = g.advice(self.MORNING(2), station=station)
+        c = d["context"]
+        self.assertLess(c["depletion_mm"], g.bed.depletion_fraction * 0.18 * 120)
+        self.assertGreaterEqual(c["depletion_mm"] + c["drying_mm_per_day"],
+                                g.bed.short_fraction * 0.18 * 120)
+        self.assertEqual(rule, "soil-weather-water-now")
+
+    def test_a_bed_configured_past_sense_is_refused(self):
+        for bad in (dict(skip_rain_mm=0.0), dict(rain_share=1.5), dict(rain_share=-0.1),
+                    dict(use_scale=0.0), dict(young_fraction=0.0), dict(et_scale=-1.0)):
+            with self.assertRaises(ValueError, msg=str(bad)):
+                S.Bed(uuid7(), 0.30, 0.12, **bad)
 
 
 # ------------------------------------------------------- backtests the tests share
@@ -1939,14 +2097,17 @@ class TestTheWateringCheck(unittest.TestCase):
 
     def test_it_catches_every_watering_that_never_arrived_on_2013(self):
         """Every other watering of the summer blocked. A blocked morning's watering is often
-        advised again that afternoon, and blocked again: two checks on one day."""
+        advised again that afternoon, and blocked again: two checks on one day. Watered at
+        12 mm an hour, as the backtests water since 2026-10-18, the next look's watering
+        takes longer to reach the roots than one put on within the hour, and the bed was
+        short ten minutes."""
         import irrigation_drill as D
         blocked = set(self.waterings_2013()[::2])
         got, r = self.score(D.SUMMER, _dt.datetime(2013, 6, 1, tzinfo=_dt.timezone.utc), blocked)
         self.assertGreaterEqual(got["caught"], len(blocked))
         self.assertEqual((got["missed"], got["false"]), (0, 0))
         self.assertGreater(got["quiet"], 0)
-        self.assertEqual(r["stressed_h"], 0.0, "the next look's advice waters it again")
+        self.assertLessEqual(r["stressed_h"], 0.5, "the next look's advice waters it again")
 
     def test_and_on_a_summer_it_was_not_tuned_on(self):
         path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")

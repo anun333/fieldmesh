@@ -57,6 +57,31 @@ class ForecasterTest(unittest.TestCase):
         shared = sorted(set(a) & set(b))
         self.assertNotEqual([a[t] for t in shared], [b[t] for t in shared], "two issues differ")
 
+    def test_whole_days_missed_and_spells_forecast_on_dry_days(self):
+        """`event_miss`, `event_false_alarm`: each day's draw the same in every issue."""
+        t0 = dt.datetime(2026, 1, 1, tzinfo=UTC)
+        truth = [(t0 + i * HOUR, 10.0, 1.0 if (i // 24) % 2 == 0 else 0.0) for i in range(24 * 30)]
+        always = F.Forecaster(truth, seed=3, skill=F.Skill(miss=0.0, false_alarm=0.0,
+                                                           event_miss=1.0, event_false_alarm=1.0))
+        rain = always.run(t0 + 6 * HOUR)["precipitation"]
+        for t, mm in rain:
+            day_wet = (int((t - t0) / HOUR) // 24) % 2 == 0
+            if day_wet:
+                self.assertEqual(mm, 0.0, "a rain day missed whole")
+        dry_days = {t.date() for t, mm in rain if mm > 0}
+        self.assertTrue(dry_days)
+        self.assertTrue(all((int((dt.datetime.combine(d, dt.time(), tzinfo=UTC) - t0) / HOUR) // 24) % 2
+                            for d in dry_days), "spells only on dry days")
+        some = F.Skill(event_miss=0.3, event_false_alarm=0.1)
+        f = F.Forecaster(truth, seed=3, skill=some)
+        a, b = f.run(t0 + 6 * HOUR)["precipitation"], f.run(t0 + 12 * HOUR)["precipitation"]
+        missed = lambda run: {t.date() for t, mm in run if mm == 0.0
+                              and truth[int((t - t0) / HOUR)][2] > 0}
+        both = {t.date() for t, _ in a} & {t.date() for t, _ in b}
+        self.assertTrue(missed(b) & both)
+        self.assertLessEqual(missed(b) & both, missed(a),
+                             "a day missed nearer is missed further off: one draw a day")
+
     def test_the_spread_grows_as_declared(self):
         skill = F.Skill(sd0_c=1.0, sd_per_day_c=0.5)
         f = F.Forecaster(self.truth(), skill=skill, seed=1)

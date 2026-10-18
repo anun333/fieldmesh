@@ -158,7 +158,7 @@ def run_policy(policy: str, climate, start: _dt.datetime, days: float, state, fc
         when = world.when
         if when.hour == DECIDE_HOUR and when.minute == 0:
             day = (when.date() - start.date()).days
-            ahead = sum(o.result for o in state.forecast(fc.id, when, when + 24 * HOUR))
+            ahead = sum(o.result for o in state.forecast(fc.id, when, when + 24 * HOUR, as_of=when))
             really = sum(rain_by_hour.get(when + k * HOUR, 0.0) for k in range(24))
             reading = b.theta + probe.gauss(0.0, probe_noise)
             want = 0.0

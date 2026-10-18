@@ -64,17 +64,19 @@ class ControllersTest(unittest.TestCase):
     def test_pyfao56s_saved_schedule_waters_the_bed_without_a_probe(self):
         """On the simulator of 2026-10-16, whose crop uses its whole demand until half its
         water is gone and about a fifth more than FAO-56's balance counts, the schedule
-        left the bed short 10 hours in June; never, on the earlier one."""
+        left the bed short 10 hours in June; never, on the earlier one. On 2026-10-18's,
+        which keeps a rain day's reference ET whole where it had lost about a sixth of it,
+        31 hours, 19 of them in June: a schedule made in advance cannot see that."""
         r = D.season(D.SUMMER, dt.datetime(2013, 6, 1, tzinfo=UTC), 92, policies=("timer", "pyfao56"))
         self.assertGreater(r["pyfao56"]["applied_mm"], 0.0)
         self.assertLess(r["pyfao56"]["applied_mm"], r["timer"]["applied_mm"])
-        self.assertLess(r["pyfao56"]["stressed_h"], 12.0)
+        self.assertLess(r["pyfao56"]["stressed_h"], 36.0)
 
     def test_each_controller_waters_less_than_the_timer_on_a_wet_summer(self):
         r = D.season(D.SUMMER, dt.datetime(2013, 6, 1, tzinfo=UTC), 30, policies=("timer",) + D.CONTROLLERS)
         for policy in D.CONTROLLERS:
             self.assertLess(r[policy]["applied_mm"], r["timer"]["applied_mm"], policy)
-            self.assertLessEqual(r[policy]["stressed_h"], 12.0 if policy == "pyfao56" else 0.0,
+            self.assertLessEqual(r[policy]["stressed_h"], 24.0 if policy == "pyfao56" else 0.0,
                                  policy)
 
 

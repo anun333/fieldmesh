@@ -526,6 +526,70 @@ class TestLayeredBed(unittest.TestCase):
         self.assertLess(cycled.runoff_mm, long_run.runoff_mm)
 
 
+class TestTheCropAndTheSoilOf20261018(unittest.TestCase):
+    """What the simulator's audit of 2026-10-18 changed: roots that make up for a dry top,
+    a crop that runs short sooner on a hot day, evaporation spread through the top 10 cm
+    and never below the soil's residual water, and a rain day's reference ET kept whole."""
+
+    SILT = dict(saturation=0.45, field_capacity=0.30, wilting_point=0.12, ks_mm_per_h=8.0,
+                suction_mm=170.0, residual=0.065, pore_connectivity=0.19)
+    SKY = dict(air_temp_c=25.0, relative_humidity=50.0, rain_mm=0.0, raining=False)
+
+    def bed(self, **kw):
+        return ph.LayeredBed(name="l", depth_mm=200.0, unsaturated_mm_per_h=0.0,
+                             horizons=(ph.Horizon(400.0, **self.SILT),), **kw)
+
+    def test_roots_in_wet_soil_make_up_for_a_dry_top_as_far_as_the_compensation_allows(self):
+        weather = ph.Weather(et0_mm=0.5, **self.SKY)
+        for compensation, full in ((0.5, True), (1.0, False), (None, False)):
+            bed = self.bed(compensation=compensation)
+            bed.layers[0] = bed.layers[1] = self.SILT["wilting_point"]
+            bed._mean()
+            before = sum(bed.layers)
+            bed.step(weather)
+            drawn = (before - sum(bed.layers)) * bed.layer_mm
+            if full:
+                self.assertAlmostEqual(drawn, 0.5, places=9, msg="the whole demand")
+            else:
+                self.assertLess(drawn, 0.5 - 0.02, msg=str(compensation))
+            self.assertEqual(bed.layers[0], self.SILT["wilting_point"])
+
+    def test_on_a_hot_day_the_crop_runs_short_with_more_water_left(self):
+        """FAO-56's `p + 0.04 (5 − ETc)`: at 8 mm a day, 0.4 becomes 0.28."""
+        bed = self.bed(p_follows_demand=True, depletion_fraction=0.4)
+        self.assertEqual(bed.p_now, 0.4, "before it has seen a day")
+        bed.step(ph.Weather(et0_mm=0.0, et0_day_mm=8.0, **self.SKY))
+        self.assertAlmostEqual(bed.p_now, 0.28, places=9)
+        bed.step(ph.Weather(et0_mm=0.0, et0_day_mm=3.0, **self.SKY))
+        self.assertAlmostEqual(bed.p_now, 0.48, places=9)
+        fixed = self.bed(depletion_fraction=0.4)
+        fixed.step(ph.Weather(et0_mm=0.0, et0_day_mm=8.0, **self.SKY))
+        self.assertEqual(fixed.p_now, 0.4)
+
+    def test_bare_soil_dries_through_its_top_10_cm_and_not_below_its_residual_water(self):
+        bed = ph.LayeredBed(name="bare", depth_mm=100.0, crop_coefficient=0.0,
+                            horizons=(ph.Horizon(400.0, **self.SILT),))
+        for _ in range(12 * 24 * 30):
+            bed.step(ph.Weather(et0_mm=0.04, **self.SKY))
+        floor = max(0.5 * self.SILT["wilting_point"], self.SILT["residual"] + 0.005)
+        self.assertGreaterEqual(min(bed.layers), floor - 1e-12)
+        self.assertLess(bed.layers[1], self.SILT["field_capacity"] - 0.05,
+                        "the second layer gives too, not the top alone")
+        self.assertLess(bed.layers[0], bed.layers[3], "the nearer the surface, the more")
+
+    def test_a_rain_day_keeps_its_reference_et_whole(self):
+        rc = ph.RecordedClimate([(_dt.date(2026, 6, 30 + k) if k == 0 else _dt.date(2026, 7, k),
+                                  {"T2M_MIN": 18.0, "T2M_MAX": 30.0, "RH2M": 60.0,
+                                   "ALLSKY_SFC_SW_DWN": 22.0, "WS2M": 2.0,
+                                   "PRECTOTCORR": 20.0 if k == 1 else 0.0})
+                                 for k in range(4)], seed=1, et0_by="penman", site=(35.0, 200.0))
+        start = _dt.datetime(2026, 7, 1, tzinfo=_dt.timezone.utc)
+        steps = [rc.step(start + i * ph.STEP) for i in range(12 * 24)]
+        self.assertTrue(any(w.raining for w in steps))
+        self.assertAlmostEqual(sum(w.et0_mm for w in steps), steps[0].et0_day_mm, places=3)
+        self.assertTrue(all(w.et0_day_mm == steps[0].et0_day_mm for w in steps))
+
+
 class TestIrrigation(unittest.TestCase):
     def test_millimetres_become_water_content_over_the_root_depth(self):
         bed = ph.SoilBed(name="b", theta=0.20, depth_mm=300.0)

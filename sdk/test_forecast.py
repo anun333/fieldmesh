@@ -78,6 +78,16 @@ class LiveTest(unittest.TestCase):
             self.assertEqual(len(s.live_observations(strict=True)), 4, "no clash raised")
             self.assertEqual(len(s.observations_of(self.ds.id)), 6, "every run is kept")
 
+    def test_as_of_a_moment_only_the_issues_out_by_then(self):
+        """A decision taken at T0 + 1 h sees the early run alone, though the log it is
+        replayed from holds the later one too."""
+        s = self.state(self.early + self.late)
+        then = s.forecast(self.ds.id, T0, T0 + 4 * HOUR, as_of=T0 + HOUR)
+        self.assertEqual([o.result for o in then], [5.0, 4.0, 3.0, 2.0])
+        now = s.forecast(self.ds.id, T0, T0 + 4 * HOUR, as_of=T0 + 2 * HOUR)
+        self.assertEqual([o.result for o in now], [5.0, 4.0, -1.0, -2.0])
+        self.assertEqual(s.forecast(self.ds.id, T0, T0 + 4 * HOUR, as_of=T0 - HOUR), [])
+
     def test_the_module_projection_agrees(self):
         live = P.live_observations(self.late + self.early, strict=True)
         self.assertEqual(sorted(o.result for o in live.values()), [-2.0, -1.0, 4.0, 5.0])

@@ -423,6 +423,9 @@ class State:
     #: arrives late, after a newer one, simply never becomes live (Q26).
     _forecast_live: dict = field(default_factory=dict, repr=False)   # ds -> {valid: obs}
     _forecast_keys: set = field(default_factory=set, repr=False)     # (ds, valid, issued)
+    #: Every issue for each valid time, in the order they came, for the forecast as it
+    #: stood at a past moment (`forecast(as_of=...)`).
+    _forecast_issues: dict = field(default_factory=dict, repr=False)  # ds -> {valid: [obs]}
     _last_issue: dict = field(default_factory=dict, repr=False)
 
     def observations_of(self, datastream_id: UUID) -> list:
@@ -602,11 +605,25 @@ class State:
         """When a forecast datastream's newest run was issued, or None."""
         return self._last_issue.get(datastream_id)
 
-    def forecast(self, datastream_id: UUID, start: _dt.datetime, end: _dt.datetime) -> list:
+    def forecast(self, datastream_id: UUID, start: _dt.datetime, end: _dt.datetime, *,
+                 as_of: _dt.datetime | None = None) -> list:
         """The live forecast between two valid times, in time order: for each hour,
-        the latest issue that covered it."""
-        hours = self._forecast_live.get(datastream_id, {})
-        return [hours[at] for at in sorted(hours) if start <= at < end]
+        the latest issue that covered it. With `as_of`, the forecast as it stood then: the
+        latest issue issued and received by that moment, as a decision taken then saw it
+        (a log replayed, or a backtest that holds a season's issues from its start)."""
+        if as_of is None:
+            hours = self._forecast_live.get(datastream_id, {})
+            return [hours[at] for at in sorted(hours) if start <= at < end]
+        out = []
+        issues = self._forecast_issues.get(datastream_id, {})
+        for at in sorted(t for t in issues if start <= t < end):
+            known = None
+            for o in issues[at]:
+                if o.issued_at <= as_of and o.received_at <= as_of:
+                    known = o if known is None else later_issue(known, o)
+            if known is not None:
+                out.append(known)
+        return out
 
     def has_issue(self, datastream_id: UUID, valid_at: _dt.datetime, issued_at: _dt.datetime) -> bool:
         """Whether this run's value for this hour is already in the log — live or not."""
@@ -664,6 +681,8 @@ class State:
             if record.issued_at is not None:
                 hours = self._forecast_live.setdefault(record.datastream, {})
                 self._forecast_keys.add((record.datastream, record.measured_at, record.issued_at))
+                self._forecast_issues.setdefault(record.datastream, {}).setdefault(
+                    record.measured_at, []).append(record)
                 current = hours.get(record.measured_at)
                 if current is None:
                     hours[record.measured_at] = record

@@ -13,7 +13,12 @@ forecaster reads the world's own future and adds an error of a declared size:
   `sd_per_day_c` each day, around a fixed `bias_c`;
 * **rain**: hours that rain are forecast dry with a probability that grows with lead
   time (`miss`), dry hours forecast wet likewise (`false_alarm`), and forecast
-  amounts are the true ones scaled by a log-normal factor.
+  amounts are the true ones scaled by a log-normal factor. Hour by hour, a day of
+  several hours' rain is almost never missed, so a forecast's misses and false alarms
+  can also be whole days (`event_miss`, `event_false_alarm`): a rain day forecast dry,
+  a dry day forecast a wet spell. Each day's draw is the same in every issue, so a day
+  missed at a week's lead is caught as it nears only as the probability falls, as a
+  model's error persists from one run to the next.
 
 The defaults resemble published skill — around 1.5 °C of spread at a day, near 3.5 at a
 week — without being calibrated to any one service; a test that needs a sharper or a
@@ -47,6 +52,12 @@ class Skill:
     miss: float = 0.10              # at a day; doubles by a week
     false_alarm: float = 0.03
     amount_sd: float = 0.5          # of log(forecast / true)
+    #: A rain day (1 mm or more) forecast dry, at a day's lead, growing as `miss` does;
+    #: and a dry day forecast a spell of `false_spell_mm` (log-normal median) over three
+    #: hours. Off by default, so a test of the hourly skill is as it was.
+    event_miss: float = 0.0
+    event_false_alarm: float = 0.0
+    false_spell_mm: float = 6.0
 
     def sd(self, lead_h: float) -> float:
         return self.sd0_c + self.sd_per_day_c * lead_h / 24.0
@@ -74,6 +85,7 @@ class Forecaster:
         rng = random.Random(self.seed * 7_919 + int(issued_at.timestamp()))
         s = self.skill
         temps, rain = [], []
+        missed, spells = self._events(start, issued_at)
         # Start at the full spread: an error that built up from zero would make the
         # first hours look sharper than the declared skill.
         prev_sd = s.sd((first - issued_at).total_seconds() / 3600.0)
@@ -89,13 +101,44 @@ class Forecaster:
             prev_sd = sd
             temps.append((t, round(temp + s.bias_c + error, 2)))
             g = s.growth(lead)
-            if mm > 0.0:
+            if t.date() in missed:
+                rain.append((t, 0.0))
+            elif t in spells:
+                rain.append((t, spells[t]))
+            elif mm > 0.0:
                 wet = rng.random() >= min(1.0, s.miss * g)
                 rain.append((t, round(mm * math.exp(rng.gauss(0.0, s.amount_sd)), 2) if wet else 0.0))
             else:
                 spurious = rng.random() < min(1.0, s.false_alarm * g)
                 rain.append((t, round(rng.uniform(0.2, 2.0), 2) if spurious else 0.0))
         return {"air_temperature": temps, "precipitation": rain}
+
+    def _events(self, start: int, issued_at: _dt.datetime) -> tuple:
+        """The days this issue misses whole, and the hours of the dry days it forecasts a
+        spell on, `{hour: mm}`: each day's chance drawn once from the forecaster's seed and
+        the day, against a threshold that grows with lead time."""
+        s = self.skill
+        if not (s.event_miss or s.event_false_alarm):
+            return frozenset(), {}
+        days = {}
+        for i in range(start, min(len(self.truth), start + self.horizon_h)):
+            t, _, mm = self.truth[i]
+            days.setdefault(t.date(), []).append((t, mm))
+        missed, spells = set(), {}
+        for day, hours in days.items():
+            noon = _dt.datetime.combine(day, _dt.time(12), tzinfo=hours[0][0].tzinfo)
+            g = s.growth(max(0.0, (noon - issued_at).total_seconds() / 3600.0))
+            rng = random.Random(f"{self.seed} rain day {day.isoformat()}")
+            u, start_h, amount = rng.random(), rng.randrange(24), rng.lognormvariate(
+                math.log(s.false_spell_mm), 0.6)
+            if sum(mm for _, mm in hours) >= 1.0:
+                if u < min(1.0, s.event_miss * g):
+                    missed.add(day)
+            elif u < min(1.0, s.event_false_alarm * g):
+                for t, _ in hours:
+                    if start_h <= t.hour < start_h + 3:
+                        spells[t] = round(amount / 3.0, 2)
+        return frozenset(missed), spells
 
     def ensemble(self, issued_at: _dt.datetime, members: int = 20, *, spread: float = 0.7,
                  horizon_h: int | None = None) -> list:

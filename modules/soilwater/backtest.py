@@ -42,11 +42,14 @@ class VirtualFarm:
     """How the virtual farm departs from what the advice is told, for one backtest: its
     crop uses `use` times its curve's water, runs through its stages `stages` times as long
     and roots `roots` times as deep; its soil's field capacity and wilting point are
-    `capacity` and `wilting` off (the growing bed's and the backtest bed's; a soil given in
-    whole is as given); and each probe reads off by its own amount, drawn with a spread of
-    `probe_sd`. The advice is told the crop's curve and the soil's values as they are
-    written. `NOMINAL` departs from nothing, and a backtest on it is the one before
-    2026-10-17, to the bit."""
+    `capacity` and `wilting` off (every horizon's, a soil given in whole too); and each
+    probe reads off by its own amount, drawn with a spread of `probe_sd`. The farm's
+    station reads its air `station_temp_c` warm and its humidity `station_rh` points high,
+    its sunshine and its wind `station_sun` and `station_wind` times, for its sensors and
+    its siting. Its crop's roots in wetter soil make up for those in drier as far as
+    `compensation` lets them (`physics.LayeredBed.compensation`). The advice is told the
+    crop's curve and the soil's values as they are written. `NOMINAL` departs from
+    nothing, its crop compensating half way between none and much."""
     use: float = 1.0
     stages: float = 1.0
     roots: float = 1.0
@@ -54,6 +57,11 @@ class VirtualFarm:
     wilting: float = 0.0
     probe_sd: float = 0.0
     seed: int = 0
+    station_temp_c: float = 0.0
+    station_rh: float = 0.0
+    station_sun: float = 1.0
+    station_wind: float = 1.0
+    compensation: float = 0.75
 
     @classmethod
     def drawn(cls, seed: int, *, use_sd: float = 0.12, stage_sd: float = 0.10,
@@ -62,14 +70,21 @@ class VirtualFarm:
         """A farm drawn from `seed`: its crop's use lognormal about the curve's, the rest
         normal and held within twice their spread. The spreads are a field's usual
         departures from a crop's published values and a soil's typical ones, and a factory
-        calibration's error; assumed."""
+        calibration's error; the station's, a farm station's sensors and siting (half a
+        degree, three points of humidity, a twentieth of its sunshine, a fifth of its
+        wind); the compensation, anywhere from much (0.5) to none (1). All assumed."""
         rng = random.Random(f"virtual farm {seed}")
 
         def held(mean, sd):
             return max(mean - 2 * sd, min(mean + 2 * sd, rng.gauss(mean, sd)))
-        return cls(use=math.exp(held(0.0, use_sd)), stages=held(1.0, stage_sd),
-                   roots=held(1.0, root_sd), capacity=held(0.0, capacity_sd),
-                   wilting=held(0.0, wilting_sd), probe_sd=probe_sd, seed=seed)
+        farm = dict(use=math.exp(held(0.0, use_sd)), stages=held(1.0, stage_sd),
+                    roots=held(1.0, root_sd), capacity=held(0.0, capacity_sd),
+                    wilting=held(0.0, wilting_sd))
+        station = dict(station_temp_c=held(0.0, 0.5), station_rh=held(0.0, 3.0),
+                       station_sun=math.exp(held(0.0, 0.05)),
+                       station_wind=math.exp(held(0.0, 0.2)))
+        return cls(**farm, **station, compensation=rng.uniform(0.5, 1.0),
+                   probe_sd=probe_sd, seed=seed)
 
     def offset(self, probe: str) -> float:
         """How far the probe named `probe` reads off."""
@@ -88,6 +103,31 @@ def _departed(bed, farm: VirtualFarm) -> None:
     bed.theta = bed.field_capacity
     bed.crop_coefficient *= farm.use
 
+
+def _departed_soil(soil, farm: VirtualFarm, crop: bool):
+    """A layered soil given in whole (a lawn's, the yard's), as `farm` has it: each
+    horizon's field capacity and wilting point off by the farm's, and with no crop named,
+    its water use by the farm's `use`. A new bed; the one given is left as it was."""
+    import dataclasses
+    if not hasattr(soil, "horizons"):
+        return soil
+    horizons = tuple(dataclasses.replace(
+        h, field_capacity=min(h.saturation - 0.02, h.field_capacity + farm.capacity),
+        wilting_point=max(h.residual + 0.01, h.wilting_point + farm.wilting))
+        for h in soil.horizons)
+    bed = dataclasses.replace(soil, horizons=horizons, layers=None)
+    if not crop:
+        bed.crop_coefficient *= farm.use
+    return bed
+
+
+def _as_farm_grows(bed, farm: VirtualFarm) -> None:
+    """The virtual crop as the farm's: short sooner on a hot day, as FAO-56's is
+    (`physics.SoilBed.p_follows_demand`), and its roots making up for each other as far as
+    `farm.compensation` lets them."""
+    bed.p_follows_demand = True
+    if hasattr(bed, "compensation"):
+        bed.compensation = farm.compensation
 
 def growing_bed(pan_mm: float | None = None, farm: VirtualFarm = NOMINAL):
     """The virtual bed for a crop that grows: the backtest bed's silt loam (field capacity
@@ -135,29 +175,40 @@ def grow(soil, crop: str, days: float, hardpan_mm: float | None = None,
     soil.set_roots(root_mm if hardpan_mm is None else min(root_mm, hardpan_mm))
 
 
+def forecast_skill():
+    """The backtests' forecaster: the drill's hourly skill, and whole days wrong besides, a
+    rain day in four forecast dry at a day's lead and a dry day in twelve forecast a spell
+    (`forecaster.Skill.event_miss`): round values, worse than the hourly skill alone, which
+    all but never missed a day's rain. (Before 2026-10-18, the hourly skill alone.)"""
+    import forecaster as FCS
+    return FCS.Skill(event_miss=0.25, event_false_alarm=1 / 12)
+
+
 def forecasts(climate, start: _dt.datetime, days: float, seed: int):
     """The season's rain forecasts in a log, and the hourly truth they were made from
-    (`irrigation_drill.forecasts`). Building them is a third of a backtest's time and the
-    same for every backtest of one summer, draw and span, so with `FIELDMESH_FORECASTS`
-    naming a directory each is built once and kept there, keyed by what it is made from."""
-    import forecaster as FCS
+    (`irrigation_drill.forecasts`), with `forecast_skill`. Building them is a third of a
+    backtest's time and the same for every backtest of one summer, draw and span, so with
+    `FIELDMESH_FORECASTS` naming a directory each is built once and kept there, keyed by
+    what it is made from. The advice reads each morning's forecast as it stood then
+    (`State.forecast(as_of=...)`), not the later issues the log holds."""
     import irrigation_drill as D
+    skill = forecast_skill()
     where = os.environ.get("FIELDMESH_FORECASTS")
     if not where:
-        return D.forecasts(climate, start, days, FCS.Skill(), seed)
+        return D.forecasts(climate, start, days, skill, seed)
     import hashlib
     import pickle
     first, last = (start - _dt.timedelta(days=2)).date(), (start + _dt.timedelta(days=days + 2)).date()
     window = sorted((d.isoformat(), sorted(v.items())) for d, v in climate.days.items()
                     if first <= d <= last)
     key = hashlib.sha256(repr((type(climate).__name__, getattr(climate, "seed", None),
-                               start.isoformat(), float(days), seed, FCS.Skill(),
+                               start.isoformat(), float(days), seed, skill,
                                window)).encode()).hexdigest()[:32]
     path = os.path.join(where, key + ".pickle")
     if os.path.exists(path):
         with open(path, "rb") as h:
             return pickle.load(h)
-    made = D.forecasts(climate, start, days, FCS.Skill(), seed)
+    made = D.forecasts(climate, start, days, skill, seed)
     os.makedirs(where, exist_ok=True)
     part = f"{path}.{os.getpid()}"
     with open(part, "wb") as h:
@@ -169,27 +220,39 @@ def forecasts(climate, start: _dt.datetime, days: float, seed: int):
 #: Hours a root zone counts as short of air: less than a tenth of its volume holding air,
 #: below which roots and soil life start to suffocate (Grable and Siemer 1968).
 AIRLESS_SHARE = 0.10
+#: And waterlogged: under a twentieth. A tenth is only a few points above field capacity
+#: in the silt loams here (0.12 to 0.15 of air at field capacity), so the hours under it
+#: count a watering's first day; under a twentieth, soil wetter than it can hold.
+WATERLOGGED_SHARE = 0.05
 
 
 class Score:
     """How a backtest bed fared, besides its hours short (half its available water gone):
     the hours its crop used less than its full demand, past its own `p`; the hours its
     root zone was short of air; and the transpiration its dryness cost it, mm, FAO-33's
-    measure of lost yield (`physics.SoilBed.demand_mm`)."""
+    measure of lost yield (`physics.SoilBed.demand_mm`). Besides: what ran off, and what
+    the whole soil holds at the end against the start, so a bed that drew on the water
+    below its roots, or lost it off the top, shows it."""
 
-    def __init__(self):
-        self.below_p_h = self.airless_h = 0.0
+    def __init__(self, bed=None):
+        self.below_p_h = self.airless_h = self.waterlogged_h = 0.0
+        self.stored0 = bed.stored_mm if bed is not None else None
 
     def tick(self, bed) -> None:
         if bed.water_use < 1.0 - 1e-9:
             self.below_p_h += 1.0 / 12.0
         if bed.air_filled < AIRLESS_SHARE:
             self.airless_h += 1.0 / 12.0
+        if bed.air_filled < WATERLOGGED_SHARE:
+            self.waterlogged_h += 1.0 / 12.0
 
     def result(self, bed, second=None) -> dict:
         out = {"below_p_h": self.below_p_h, "airless_h": self.airless_h,
+               "waterlogged_h": self.waterlogged_h,
                "transpiration_lost_mm": bed.demand_mm - bed.transpired_mm,
-               "demand_mm": bed.demand_mm}
+               "demand_mm": bed.demand_mm, "runoff_mm": bed.runoff_mm,
+               "stored_change_mm": (bed.stored_mm - self.stored0
+                                    if self.stored0 is not None else None)}
         if second is not None:
             out["second_transpiration_lost_mm"] = second.demand_mm - second.transpired_mm
         return out
@@ -220,12 +283,16 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              second_check_hour: int | None = SECOND_CHECK_HOUR,
              farm: VirtualFarm = NOMINAL, tension: bool = False, tension_noise: float = 0.05,
              depletion_fraction: float | None = None,
-             young_fraction: float | None = 0.2) -> dict:
+             young_fraction: float | None = 0.2, settings: dict | None = None,
+             rate_mm_per_h: float = 12.0) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
     drip timer most farms run. Hourly probe readings at 20 cm, the drill's forecasts in
-    the log, the advice at 04:00 and the watering from 05:00.
+    the log, the advice at 04:00 and the watering from 05:00, at `rate_mm_per_h` for as
+    long as the advice's millimetres take, as `weather_backtest` waters. (Until 2026-10-18
+    the whole refill went on within the hour, faster than the soil takes it, and what it
+    could not take ran off.)
 
     With `check`, a watering-check regimen (`watering_check()`) runs after each advice to
     water, and the days in `blocked` (counted from `start`) are waterings that never reach
@@ -269,7 +336,9 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     its patch (`Bed.plantings`). `rain_share` is the share of the rain that reaches the
     virtual bed (0 under a tunnel), while the forecasts are the open sky's; `rain_gauge`
     gives the farm a gauge in the open, and `knows_cover` sets the bed's `rain_share`.
-    `virtual_crop` is what the virtual bed truly grows, where it differs from `crop`. The
+    `virtual_crop` is what the virtual bed truly grows, where it differs from `crop`. With
+    `tension`, a tension sensor beside each probe in a layered soil (`TENSION_SD`, and
+    `tension_noise` each hour). `settings` are further fields of the advice's `Bed`. The
     result's `second_stressed_h` is the second planting's hours short."""
     import statistics
 
@@ -282,8 +351,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     from model import ClockQuality, Datastream, Installation, Observation
 
     state, fc, truth = forecasts(climate, start, days, seed)
-    b = soil if soil is not None else (growing_bed(hardpan_mm if dense_pan else None, farm)
-                                       if crop else D.bed())
+    b = (_departed_soil(soil, farm, bool(crop)) if soil is not None
+         else growing_bed(hardpan_mm if dense_pan else None, farm) if crop else D.bed())
     if soil is None and not crop:
         _departed(b, farm)
     b.rain_share = rain_share
@@ -291,6 +360,9 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     if second is not None:
         b2 = growing_bed(hardpan_mm if dense_pan else None, farm)
         b2.name = "second"
+    for virtual in (b, b2):
+        if virtual is not None:
+            _as_farm_grows(virtual, farm)
     world = ph.World(start=start, climate=climate, beds=[b] if b2 is None else [b, b2])
     land, probes = uuid7(), []
     placed = [(d, d in in_second) for d in depths] + [(d, True) for d in second_depths]
@@ -345,16 +417,18 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         state.add(Observation(uuid7(), valve_ds.id, when, 1.0, when, is_open,
                               ClockQuality.NETWORK, node="opensprinkler", boot=1, seq=seq[0] & 0xFFFF))
     # The advice is told the soil as it is written, not as the farm departs from it.
-    shift = (farm.capacity, farm.wilting) if soil is None else (0.0, 0.0)
-    capacity, wilting = configured or (b.field_capacity - shift[0], b.wilting_point - shift[1])
+    written = ((soil.field_capacity, soil.wilting_point) if soil is not None
+               else (b.field_capacity - farm.capacity, b.wilting_point - farm.wilting))
+    capacity, wilting = configured or written
     bed = Bed(land, capacity, wilting, root_depth_mm=300.0 if crop else b.depth_mm,
               skip_rain_mm=D.SKIP_MM, valve=valve_ds.id if valve_ds else None, learn=learn,
+              application_mm_per_h=rate_mm_per_h if valve_ds else None,
               young_fraction=young_fraction,
               **({"depletion_fraction": depletion_fraction} if depletion_fraction else {}),
               layers=tuple(layers), crop=crop if knows_crop else None,
               planted=planted if crop and knows_crop else None,
               rooting_limit_mm=hardpan_mm if knows_hardpan else None,
-              rain_share=rain_share if knows_cover else None)
+              rain_share=rain_share if knows_cover else None, **(settings or {}))
     if second is not None and knows_second:
         if name_probes:
             first_sensors = tuple(pr.sensor for pr, _, there in probes if not there)
@@ -378,10 +452,10 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                      noise_streams(seed, [f"tension {d} {patch}" for _, d, patch, _ in tensions])))
     rain_hour = 0.0
     roots, second_h = [], 0.0
-    applied, dose_now, stressed_h, stress, advice, last, last_at = 0.0, 0.0, 0.0, [], {}, None, None
-    score = Score()
+    applied, stressed_h, stress, advice, last, last_at = 0.0, 0.0, [], {}, None, None
+    watering = None                     # (begin, until, day): the watering under way
+    score = Score(b)
     decide_hours = (D.DECIDE_HOUR,) + ((second_check_hour,) if second_check_hour is not None else ())
-    water_at = D.WATER_HOUR
     runner = None
     if check is not None:
         import regimen as G
@@ -420,7 +494,6 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         if when.hour in decide_hours and when.minute == 0:
             # Through `advise`, as the module's own process runs, so each morning is in the
             # advisor's log for the next to read (`Advisor._held`).
-            water_at = when.hour + 1
             d = next(e.payload for e in advisor.advise(state, [bed], when, forecast=fc.id)
                      if e.payload["topic"].startswith("advice/"))
             advice[d["rule"]] = advice.get(d["rule"], 0) + 1
@@ -429,21 +502,28 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             roots.append(((when - start).days, c["roots_expected_cm"], c["root_depth_cm"],
                           c["roots_seen_cm"], c["roots_blocked_cm"] if c["roots_blocked"] else None))
             want = d["context"]["refill_mm"] if d["rule"] == "soil-water-now" else 0.0
-            dose_now = want / 12.0
+            if want > 0:
+                # From the next hour, at the bed's rate, for as long as the millimetres take.
+                begin = when + HOUR
+                watering = (begin, begin + _dt.timedelta(hours=want / rate_mm_per_h),
+                            (begin - start).days)
+                if valve_ds is not None and watering[2] not in forgotten:
+                    report(begin, True)
+                    report(watering[1], False)
             if runner is not None:
                 runner.start(check, watering_check_context(d, bed), when, subject=bed.feature)
-        day = (when - start).days
-        if when.hour == water_at and dose_now and day not in forgotten:
-            if valve_ds is not None and when.minute == 0:
-                report(when, True)
-            if day not in blocked:
-                world.irrigate(b.name, dose_now)
-                if b2 is not None:
-                    world.irrigate(b2.name, dose_now)
-            applied += dose_now
-        if valve_ds is not None and when.hour == water_at + 1 and when.minute == 0 \
-                and dose_now and day not in forgotten:
-            report(when, False)
+        if watering is not None and when >= watering[0]:
+            begin, until, day = watering
+            minutes = max(0.0, (min(when + ph.STEP, until) - when) / _dt.timedelta(minutes=1))
+            if minutes > 0 and day not in forgotten:
+                mm = rate_mm_per_h * minutes / 60.0
+                if day not in blocked:
+                    world.irrigate(b.name, mm)
+                    if b2 is not None:
+                        world.irrigate(b2.name, mm)
+                applied += mm
+            if when + ph.STEP >= until:
+                watering = None
         if runner is not None and when.minute == 0:
             for e in runner.tick(when, respond):
                 checks.append({"day": (_dt.datetime.fromisoformat(e.payload["due_at"]) - start).days,
@@ -451,8 +531,6 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                                "key": (e.payload["message"] or {}).get("key"),
                                "rise_percent": e.payload["context"].get("rise_percent"),
                                "expected_percent": round(e.payload["context"]["expected_percent"], 1)})
-        if when.hour == water_at + 1 and when.minute == 0:
-            dose_now = 0.0
         tick = world.step()
         if gauge is not None:
             rain_hour += tick.weather.rain_mm
@@ -472,7 +550,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
             "farm": asdict(farm),
             **score.result(b, b2),
             "second_stressed_h": second_h if b2 is not None else None,
-            "runoff_mm": b.runoff_mm, "field_capacity": last["context"]["field_capacity"],
+            "field_capacity": last["context"]["field_capacity"],
             "learned": [{k: v for k, v in x.items() if k != "datastream"}
                         for x in last["inputs"].get("learned", [])],
             "layered": Advisor.layering(last, bed, last_at) is not None,
@@ -493,12 +571,17 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                      second_check_hour: int | None = SECOND_CHECK_HOUR,
                      farm: VirtualFarm = NOMINAL, site: tuple | None = None,
                      depletion_fraction: float | None = None, wind: bool = False,
-                     use_measured: float | None = None) -> dict:
+                     use_measured: float | None = None, wind_normal: bool = False,
+                     settings: dict | None = None) -> dict:
     """The advisory for the backtest bed with **no probe**, from a station on the farm:
     hourly air temperature, humidity, sunshine and rain, as the virtual farm's recorded
     weather gives them (`backtest` for the rest). Sunshine is each recorded day's total
-    spread over the hours in the clear sky's shape (`sun.py`); there is no wind sensor,
-    so FAO-56's 2 m/s stands in. Watering runs at `rate_mm_per_h` from 05:00 for as long
+    spread over the hours in the clear sky's shape (`sun.py`). With `wind`, an anemometer
+    reads each day's recorded wind; with `wind_normal`, the station has the site's mean wind
+    for each month over its other years (`eto.Station.wind_normal`); else FAO-56's 2 m/s
+    stands in. With `use_measured`, the crop's use against its curve is measured to that
+    lognormal error (`Bed.use_scale`). `settings` are further fields of the advice's `Bed`
+    (`adjust_p`, say). Watering runs at `rate_mm_per_h` from 05:00 for as long
     as the advice's millimetres take, and with `record_valve` the valve reports it.
 
     Scored as `backtest` is. The balance's reference ET is FAO-56 Penman–Monteith; the
@@ -545,7 +628,8 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     from model import ClockQuality, Datastream, Installation, Observation
 
     state, fc, truth = forecasts(climate, start, days, seed)
-    b = soil if soil is not None else (growing_bed(farm=farm) if crop else D.bed())
+    b = (_departed_soil(soil, farm, bool(crop)) if soil is not None
+         else growing_bed(farm=farm) if crop else D.bed())
     rb = growing_bed(farm=farm) if crop else D.bed()
     if not crop:
         for bucket in ((b,) if soil is None else ()) + (rb,):
@@ -556,6 +640,9 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     if second is not None:
         b2 = growing_bed(farm=farm)
         b2.name = "second"
+    for virtual in (b, rb, b2):
+        if virtual is not None:
+            _as_farm_grows(virtual, farm)
     world = ph.World(start=start, climate=climate,
                      beds=[b] + ([rb] if reference else []) + ([b2] if b2 is not None else []))
     land, ref_land = uuid7(), uuid7()
@@ -592,7 +679,17 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     offset = {ds.id: farm.offset(n) for ds, n in named}
     # The virtual farm's hours are local solar time, so its station's day is UTC's.
     lat, elevation = site if site is not None else (D.LAT, D.ELEVATION_M)
-    station = E.Station(lat=lat, elevation_m=elevation, timezone="UTC",
+    normal = None
+    if wind_normal:
+        # The site's mean wind each month over its other years, as a farm would have it
+        # from NASA POWER's record: not the summer's own.
+        by_month = {}
+        for day, v in climate.days.items():
+            if day.year != start.year and "WS2M" in v:
+                by_month.setdefault(day.month, []).append(v["WS2M"])
+        normal = tuple(round(sum(by_month[m]) / len(by_month[m]), 2) if m in by_month else 2.0
+                       for m in range(1, 13))
+    station = E.Station(lat=lat, elevation_m=elevation, timezone="UTC", wind_normal=normal,
                         wind_speed=anemometer.id if anemometer is not None else None,
                         air_temperature=air.id, relative_humidity=rh.id,
                         solar_radiation=sunshine.id, precipitation=rain.id)
@@ -600,14 +697,16 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     if second is not None and knows_second:
         told = dict(plantings=((crop, planted), tuple(second)))
     # The advice is told the soil as it is written, not as the farm departs from it.
-    shift = (farm.capacity, farm.wilting) if soil is None else (0.0, 0.0)
-    bed = Bed(land, b.field_capacity - shift[0], b.wilting_point - shift[1],
+    written = ((soil.field_capacity, soil.wilting_point) if soil is not None
+               else (b.field_capacity - farm.capacity, b.wilting_point - farm.wilting))
+    bed = Bed(land, *written,
               root_depth_mm=300.0 if crop else b.depth_mm,
               skip_rain_mm=D.SKIP_MM, valve=valve.id if record_valve else None,
               application_mm_per_h=rate_mm_per_h if record_valve else None,
               reference=ref_land if reference else None,
               rooting_limit_mm=hardpan_mm if knows_hardpan else None,
-              **({"depletion_fraction": depletion_fraction} if depletion_fraction else {}), **told)
+              **({"depletion_fraction": depletion_fraction} if depletion_fraction else {}), **told,
+              **(settings or {}))
     ref_bed = Bed(ref_land, rb.field_capacity - farm.capacity, rb.wilting_point - farm.wilting,
                   root_depth_mm=300.0 if crop else rb.depth_mm, skip_rain_mm=D.SKIP_MM,
                   valve=ref_valve.id, application_mm_per_h=rate_mm_per_h, **told)
@@ -623,6 +722,15 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
     seq = [0]
 
     def write(ds, when, value):
+        # The farm's station reads as its sensors and its siting have it (`VirtualFarm`).
+        if ds is air:
+            value += farm.station_temp_c
+        elif ds is rh:
+            value = max(1.0, min(100.0, value + farm.station_rh))
+        elif ds is sunshine:
+            value *= farm.station_sun
+        elif ds is anemometer:
+            value *= farm.station_wind
         seq[0] += 1
         state.add(Observation(uuid7(), ds.id, when, 60.0, when, value, ClockQuality.NETWORK,
                               node="station", boot=1, seq=seq[0] & 0xFFFF))
@@ -659,7 +767,7 @@ def weather_backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1
                 truth2 = clock_of(second[0], second[1])
     advisor = Advisor(Log(), normal=normal if clock else None, clocks=clock)
     applied, stressed_h, stress, advice = {b.name: 0.0, rb.name: 0.0, "second": 0.0}, 0.0, [], {}
-    score = Score()
+    score = Score(b)
     decide_hours = (D.DECIDE_HOUR,) + ((second_check_hour,) if second_check_hour is not None else ())
     rain_hour, sun_today, water_until, used_days, second_h = 0.0, {}, {}, None, 0.0
     estimated = None

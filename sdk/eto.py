@@ -111,6 +111,10 @@ class Station:
     solar_radiation: UUID | None = None
     wind_speed: UUID | None = None
     wind_height_m: float = 2.0
+    #: The site's mean wind at 2 m in each month, January first, m/s: a regional figure
+    #: for the days it has no wind of its own, as FAO-56 prefers to its 2 m/s (NASA
+    #: POWER's WS2M over the years, `tools/nasa_power.py`).
+    wind_normal: tuple | None = None
     precipitation: UUID | None = None
     krs: float = 0.16
 
@@ -146,6 +150,15 @@ def _readings(state, datastream: UUID | None, start, end, at) -> list:
             continue
         out.append((o.measured_at, convert(float(o.result))))
     return sorted(out)
+
+
+def rain_between(state, station: Station, start: _dt.datetime, end: _dt.datetime,
+                 at: _dt.datetime) -> float | None:
+    """The station's rain between two moments, mm, from the readings the checks had passed
+    by `at`; None for a station with no gauge."""
+    if station.precipitation is None:
+        return None
+    return sum(v for _, v in _readings(state, station.precipitation, start, end, at))
 
 
 def _spans_day(rows) -> bool:
@@ -225,11 +238,14 @@ def eto_of(station: Station, day: _dt.date, s: dict | None):
     """`(eto_mm, rain_mm, estimated)` from a day's summary, or None."""
     if s is None:
         return None
+    u2, normal = s["u2"], False
+    if u2 is None and station.wind_normal is not None:
+        u2, normal = float(station.wind_normal[day.month - 1]), True
     eto, estimated = eto_daily(s["tmin"], s["tmax"], lat=station.lat,
                                elevation_m=station.elevation_m,
                                day_of_year=day.timetuple().tm_yday, rs=s["rs"],
-                               rh_mean=s["rh_mean"], u2=s["u2"], krs=station.krs)
-    return eto, s["rain"], estimated
+                               rh_mean=s["rh_mean"], u2=u2, krs=station.krs)
+    return eto, s["rain"], estimated + (("wind normal",) if normal else ())
 
 
 def eto_for_day(state, station: Station, day: _dt.date, at: _dt.datetime):

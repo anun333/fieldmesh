@@ -129,6 +129,29 @@ class TestADayFromTheLog(unittest.TestCase):
         self.assertLess(eto, 8.0)
         self.assertEqual((rain, estimated), (2.0, ()))
 
+    def test_with_no_anemometer_the_sites_monthly_normal_stands_in(self):
+        """`Station.wind_normal`: the month's mean wind at the site, not FAO-56's 2 m/s;
+        the station's own wind, where it has some, is used before either."""
+        import dataclasses
+        state = P.state_from_log(self.log)
+        measured = E.eto_for_day(state, self.station, self.day, self.at)
+        calm = dataclasses.replace(self.station, wind_speed=None)
+        guessed = E.eto_for_day(state, calm, self.day, self.at)
+        normal = [2.0] * 12
+        normal[6] = 2.0                                  # July's normal: the measured 2 m/s
+        local = E.eto_for_day(state, dataclasses.replace(calm, wind_normal=tuple(normal)),
+                              self.day, self.at)
+        self.assertEqual(guessed[2], ("wind",))
+        self.assertEqual(local[2], ("wind normal",))
+        self.assertAlmostEqual(local[0], measured[0], places=9)
+        normal[6] = 4.0
+        windy = E.eto_for_day(state, dataclasses.replace(calm, wind_normal=tuple(normal)),
+                              self.day, self.at)
+        self.assertNotAlmostEqual(windy[0], local[0], places=3)
+        kept = E.eto_for_day(state, dataclasses.replace(self.station, wind_normal=tuple(normal)),
+                             self.day, self.at)
+        self.assertEqual(kept, measured)
+
 
 if __name__ == "__main__":
     unittest.main()

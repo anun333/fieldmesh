@@ -55,9 +55,22 @@ class Weather:
     #: weather does, from the sky's long-wave: `cloud_from_longwave`). None leaves rain as
     #: the only sign of cloud, as the seeded climate has.
     cloud: float | None = None
+    #: The day's reference ET, mm, where the climate knows it (recorded weather does), for
+    #: a crop whose `p` follows how fast it is drawing (`SoilBed.p_follows_demand`).
+    et0_day_mm: float | None = None
 
 
 SIGMA = 5.670374419e-8          # Stefan–Boltzmann, W m-2 K-4
+#: A rain hour's reference ET, against a dry hour's at the same sun (`RecordedClimate`).
+RAIN_ET_SHARE = 0.15
+
+
+def _daylight_share(start_h: float, end_h: float) -> tuple[float, float]:
+    """`(the day's daylight weight, the part of it between two hours)`, the weight
+    `sin(π (h − 6) / 12)` summed tick by tick as `RecordedClimate.step` spends it."""
+    ticks = [k * HOURS_PER_STEP for k in range(int(round(24.0 / HOURS_PER_STEP)))]
+    weight = [max(0.0, math.sin(math.pi * (h - 6.0) / 12.0)) for h in ticks]
+    return (sum(weight), sum(w for h, w in zip(ticks, weight) if start_h <= h < end_h))
 
 
 def fao56_eto(tmin_c: float, tmax_c: float, rh_mean_pct: float, rs_mj_m2: float, day_of_year: int,
@@ -221,6 +234,7 @@ class RecordedClimate:
         self.et0_by, self.site = et0_by, site
         self._et0: dict = {}
         self._seasonal: dict = {}
+        self._wet_share: dict = {}
 
     @classmethod
     def from_csv(cls, path: str, *, seed: int = 1, et0_by: str = "hargreaves",
@@ -282,10 +296,18 @@ class RecordedClimate:
         daylight = max(0.0, math.sin(math.pi * (h - 6.0) / 12.0))
         et0_day = self._et0_day(when.date(), v, mean)
         et0 = max(0.0, et0_day) * daylight * HOURS_PER_STEP / (24.0 / math.pi)
-        if raining:
-            et0 *= 0.15
+        # The air dries little while it rains, so a rain hour has RAIN_ET_SHARE of its
+        # share of the day's reference ET and the dry hours the rest: the day's Penman–
+        # Monteith already counts its cloud. (Until 2026-10-18 the rain hours' share was
+        # lost, and a rain day's reference ET a sixth below its Penman–Monteith.)
+        if spell is not None:
+            if spell not in self._wet_share:
+                self._wet_share[spell] = _daylight_share(spell[0], spell[0] + spell[1])
+            day, wet = self._wet_share[spell]
+            et0 *= (RAIN_ET_SHARE if raining else 1.0) * day / (day - (1.0 - RAIN_ET_SHARE) * wet)
         return Weather(air_temp_c=round(temp, 2), relative_humidity=round(humidity, 1),
-                       rain_mm=round(rain, 4), et0_mm=round(et0, 5), raining=raining)
+                       rain_mm=round(rain, 4), et0_mm=round(et0, 5), raining=raining,
+                       et0_day_mm=et0_day)
 
     def _et0_day(self, d: _dt.date, v: dict, mean: float) -> float:
         """The day's reference ET, mm, by the formula this climate was made with."""
@@ -370,6 +392,12 @@ class SoilBed:
     #: `p`, 0.5 for many crops (Allen et al. 1998, Table 22). Below it the crop draws
     #: freely; past it, less in proportion to the water left (`water_use`).
     depletion_fraction: float = 0.5
+    #: Whether the crop's `p` follows how fast it is drawing, as FAO-56 adjusts Table 22's
+    #: (its note; Eq. 8.5 of the 2025 revision): `p + 0.04 (5 − ETc)`, ETc the day's crop
+    #: water use, mm, held between 0.1 and 0.8. On a hot day the roots cannot keep up as
+    #: soon. Off, `p` is the table's all season, as before 2026-10-18.
+    p_follows_demand: bool = False
+    _etc_day: float | None = field(default=None, init=False, repr=False)
     #: Fraction of the water above field capacity that drains away each hour.
     drainage_per_hour: float = 0.35
     theta: float = 0.28
@@ -428,11 +456,24 @@ class SoilBed:
     @property
     def water_use(self) -> float:
         """FAO-56's water stress coefficient `Ks` (Eq. 84): 1 while the root zone has
-        lost no more than `depletion_fraction` of its available water, then falling in a
-        line to 0 at the wilting point. Before 2026-10-16 the crop used less as soon as the
-        soil was below field capacity, `1 − stress`, gentler than FAO-56's crop."""
-        p = self.depletion_fraction
+        lost no more than `p_now` of its available water, then falling in a line to 0 at
+        the wilting point. Before 2026-10-16 the crop used less as soon as the soil was
+        below field capacity, `1 − stress`, gentler than FAO-56's crop."""
+        p = self.p_now
         return max(0.0, min(1.0, (1.0 - self.stress) / (1.0 - p)))
+
+    @property
+    def p_now(self) -> float:
+        """The crop's `p` today: `depletion_fraction`, or as the day's demand moves it
+        (`p_follows_demand`)."""
+        p = self.depletion_fraction
+        if self.p_follows_demand and self._etc_day is not None:
+            p = min(0.8, max(0.1, p + 0.04 * (5.0 - self._etc_day)))
+        return p
+
+    def _note_demand(self, weather: Weather) -> None:
+        if self.p_follows_demand and weather.et0_day_mm is not None:
+            self._etc_day = weather.et0_day_mm * self.crop_coefficient
 
     @property
     def air_filled(self) -> float:
@@ -441,6 +482,7 @@ class SoilBed:
 
     def step(self, weather: Weather, *, irrigation_mm: float = 0.0) -> float:
         """Advance one tick. Returns the new water content."""
+        self._note_demand(weather)
         water = self.stored_mm + weather.rain_mm + irrigation_mm
 
         # The crop draws its full demand until the refill point, then less (`water_use`).
@@ -697,6 +739,13 @@ class LayeredBed(SoilBed):
     #: The share of the ground the canopy covers, where it is known; None estimates it from
     #: the basal coefficient (Eq. 76), which leaves a third of a mown lawn bare.
     ground_cover: float | None = None
+    #: How far roots in wetter soil make up for roots in drier (Jarvis 1989; HYDRUS's
+    #: compensated uptake, Šimůnek and Hopmans 2009): the crop draws its full demand while
+    #: its roots' stress index, each layer's `Ks` weighed by its roots, is at least this,
+    #: and less in proportion below it, each layer giving by its roots and its `Ks`. 1 makes
+    #: up for nothing, the zone's use the roots' `Ks`. None keeps the uptake before
+    #: 2026-10-18, which, uncompensated, drew from each layer by its roots and its water.
+    compensation: float | None = None
     ponded_mm: float = field(default=0.0, repr=False)
     #: What has soaked in since water began to arrive, and how dry the top was then.
     soaked_mm: float = field(default=0.0, repr=False)
@@ -781,9 +830,16 @@ class LayeredBed(SoilBed):
         its wilting point. Where every layer is as dry, it is FAO-56's `Ks` for the zone;
         the roots in wetter layers make up what drier ones cannot give (the uptake below).
         Before 2026-10-17 it was FAO-56's `Ks` of the layers' plain mean."""
-        p = self.depletion_fraction
-        return sum(r * max(0.0, min(1.0, (1.0 - g) / (1.0 - p)))
-                   for r, g in zip(self._root_shares(), self._gone()))
+        index = sum(r * k for r, k in zip(self._root_shares(), self._layer_ks()))
+        if self.compensation is None:
+            return index
+        return min(1.0, index / self.compensation)
+
+    def _layer_ks(self) -> list:
+        """Each root-zone layer's `Ks`: 1 until it has lost `p_now` of its water, then
+        falling in a line to none at its wilting point."""
+        p = self.p_now
+        return [max(0.0, min(1.0, (1.0 - g) / (1.0 - p))) for g in self._gone()]
 
     @property
     def air_filled(self) -> float:
@@ -799,6 +855,7 @@ class LayeredBed(SoilBed):
         dz, dt, n = self.layer_mm, HOURS_PER_STEP, len(self.layers)
         theta, props = self.layers, self._props
 
+        self._note_demand(weather)
         kcb = self.basal_coefficient
         if kcb is None and self.crop_coefficient == 0.0:
             kcb = 0.0                                # bare: all of it evaporation
@@ -808,7 +865,10 @@ class LayeredBed(SoilBed):
         if kcb is not None and weather.et0_mm > 0:
             self._evaporate(theta, props, dz, weather.et0_mm, kcb)
         can = [max(0.0, theta[i] - props[i].wilting_point) * dz for i in range(self._roots)]
-        if et > 0 and sum(can) > 0:
+        if self.compensation is not None:
+            if et > 0 and sum(can) > 0:
+                self._draw_compensated(theta, props, dz, min(et, sum(can)))
+        elif et > 0 and sum(can) > 0:
             et = min(et, sum(can))
             # Roots are densest at the top and thin out with depth, so each layer gives in
             # proportion to its roots, falling in a line to none at the roots' depth (Prasad
@@ -881,6 +941,25 @@ class LayeredBed(SoilBed):
         self._mean()
         return self.theta
 
+    def _draw_compensated(self, theta: list, props: list, dz: float, et: float) -> None:
+        """Take the crop's `et` from the root zone, each layer by its roots times its `Ks`
+        (`compensation`); what a layer has not got, from the others."""
+        pull = [r * k for r, k in zip(self._root_shares(), self._layer_ks())]
+        left = et
+        for _ in range(4):
+            total = sum(pull)
+            if left <= 1e-12 or total <= 0:
+                break
+            need = left
+            for i in range(self._roots):
+                take = min(need * pull[i] / total, max(0.0, theta[i] - props[i].wilting_point) * dz)
+                theta[i] -= take / dz
+                left -= take
+            pull = [p if theta[i] - props[i].wilting_point > 1e-12 else 0.0
+                    for i, p in enumerate(pull)]
+        self.et_mm += et - left
+        self.transpired_mm += et - left
+
     def _evaporate(self, theta: list, props: list, dz: float, et0_mm: float, kcb: float) -> None:
         """The soil's surface drying, FAO-56's dual coefficient (Allen et al. 1998, chapter 7;
         2005; as pyfao56 computes it): `Ke = min(Kr (Kcmax − Kcb), few Kcmax)` times the
@@ -888,10 +967,15 @@ class LayeredBed(SoilBed):
         `Kcb + 0.05` (Eq. 72); `few` the ground the canopy leaves open (`ground_cover`, or
         Eqs. 75, 76, every surface wetted); `Kr` 1 until the layer has lost `REW_MM`, then falling in a line to
         nothing when it has lost all it can, `TEW = (θFC − θWP / 2) × Ze`, drying to half the
-        wilting point (Eqs. 73, 74). Bare soil is `Kcb` 0. Taken from the top layer first."""
+        wilting point (Eqs. 73, 74), and no drier than a little above the water no suction
+        takes (`Horizon.residual`). Bare soil is `Kcb` 0. Each layer gives by the water it
+        has to give, the nearer the surface the more. (Until 2026-10-18 it was taken from
+        the top layer first, which dried below its residual water: its suction without end,
+        it took nothing from below, and the roots in it went without.)"""
         n = max(1, int(round(EVAPORATION_LAYER_MM / dz)))
         top = range(min(n, len(theta)))
-        tew = sum((props[i].field_capacity - 0.5 * props[i].wilting_point) * dz for i in top)
+        floor = {i: max(0.5 * props[i].wilting_point, props[i].residual + 0.005) for i in top}
+        tew = sum((props[i].field_capacity - floor[i]) * dz for i in top)
         lost = sum(max(0.0, props[i].field_capacity - theta[i]) * dz for i in top)
         rew = min(REW_MM, tew)
         kr = 1.0 if lost <= rew else max(0.0, (tew - lost) / (tew - rew))
@@ -900,13 +984,18 @@ class LayeredBed(SoilBed):
                  else max(0.0, min(0.99, ((kcb - KCB_INI) / (kc_max - KCB_INI)) ** (1 + 0.5 * self.crop_height_m)))
                  if kcb > KCB_INI else 0.0)
         e = min(kr * (kc_max - kcb), max(0.01, 1.0 - cover) * kc_max) * et0_mm
-        for i in top:
-            take = min(e, max(0.0, theta[i] - 0.5 * props[i].wilting_point) * dz)
-            theta[i] -= take / dz
-            e -= take
-            self.et_mm += take
-            if e <= 0:
+        for _ in range(3):
+            room = {i: max(0.0, theta[i] - floor[i]) * dz for i in top}
+            weight = {i: room[i] * (len(top) - k) for k, i in enumerate(top)}
+            total = sum(weight.values())
+            if e <= 1e-12 or total <= 0:
                 break
+            want = e
+            for i in top:
+                take = min(want * weight[i] / total, room[i])
+                theta[i] -= take / dz
+                e -= take
+                self.et_mm += take
 
     def _below_capacity(self, theta: list, props: list, dz: float, dt: float) -> None:
         """One tick of Darcy's law between each pair of layers, top down, either of them

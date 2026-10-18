@@ -405,8 +405,9 @@ class ModuleHost:
 
     def _op_forecast(self, g, req):
         ds = self._readable(g, req["datastream"])
+        as_of = _time(req["as_of"]) if req.get("as_of") else None
         return [codec.dump(o) for o in
-                self.state.forecast(ds.id, _time(req["start"]), _time(req["end"]))]
+                self.state.forecast(ds.id, _time(req["start"]), _time(req["end"]), as_of=as_of)]
 
     def _op_installation(self, g, req):
         device = UUID(req["device"])
@@ -553,10 +554,11 @@ class RemoteState:
         found = self.client.call("label", entity=str(entity), language=language)
         return codec.load(found) if found else None
 
-    def forecast(self, datastream_id, start, end) -> list:
+    def forecast(self, datastream_id, start, end, *, as_of=None) -> list:
+        extra = {"as_of": as_of.isoformat()} if as_of is not None else {}
         return [codec.load(x) for x in self.client.call(
             "forecast", datastream=str(datastream_id), start=start.isoformat(),
-            end=end.isoformat())]
+            end=end.isoformat(), **extra)]
 
 
 class RemoteLog:
