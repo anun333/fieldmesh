@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
-# The soil-moisture advisory's backtests, 2026-10-11 to 2026-10-17
+# The soil-moisture advisory's backtests, 2026-10-11 to 2026-10-18
 
 *The record of what the [soil-moisture advisory](../../modules/soilwater/README.md) was
 tried on, on the virtual farm as each day had it, and what each try showed: the tables
@@ -1183,3 +1183,163 @@ a summer, hours a summer with under a tenth of the root zone holding air).
 | tomatoes over a dense pan, probes | signs False, held out | 80 | -43.5 (-63.7 to -23.9) | +36.2 (+31.3 to +41.3) | -43.4 (-51.5 to -35.6) |
 | tomatoes over a dense pan, probes | young stage, tuned | 60 | -13.3 (-25.5 to -0.9) | +0.2 (-0.0 to +0.4) | -8.3 (-15.8 to -0.7) |
 | tomatoes over a dense pan, probes | young stage, held out | 80 | -18.2 (-35.1 to -2.0) | +1.1 (-0.0 to +2.3) | -0.7 (-8.5 to +7.3) |
+
+## Measuring more, 2026-10-18
+
+The same trial on code c1de215, with what a farm might measure besides (`trials.py`'s
+`MEASURES`): the station's wind (`weather_backtest(wind=True)`); the crop's water use, one
+number for the season measured to a lognormal 0.07 or 0.15 (`use_measured`); a tension
+sensor beside each probe, each sensor a tenth out for good and a twentieth each hour
+(`backtest(tension=True)`). Each crossed with the choices it bears on, on the same farms and
+summers, 9,380 backtests more; the 5,320 above were not run again, and three of them run
+again on c1de215 agreed to the bit. Each against the bed as built, measuring nothing more:
+the difference's mean and its 90% interval. Made by `python3 trials.py report`.
+
+| bed | measured, against the bed as built | summers | water | lost transpiration | hours short of air |
+| --- | --- | --- | --- | --- | --- |
+| bucket, by the weather | wind measured, margin 0, tuned | 60 | -111.0 (-118.9 to -103.3) | +2.2 (+0.7 to +4.0) | -0.5 (-0.9 to -0.2) |
+| bucket, by the weather | wind measured, margin 0, held out | 80 | -83.0 (-87.1 to -79.1) | +28.1 (+22.7 to +34.2) | -0.1 (-0.2 to -0.0) |
+| bucket, by the weather | use measured, sd 0.07, margin 0, tuned | 60 | -69.5 (-83.3 to -55.2) | +0.0 (+0.0 to +0.0) | -0.4 (-0.8 to +0.0) |
+| bucket, by the weather | use measured, sd 0.07, margin 0, held out | 80 | -73.5 (-87.5 to -59.9) | +19.0 (+12.8 to +25.5) | -0.1 (-0.2 to -0.0) |
+| bucket, by the weather | use measured, sd 0.07, wind measured, margin 0, tuned | 60 | -94.9 (-110.0 to -81.0) | +0.1 (+0.0 to +0.2) | -0.4 (-0.9 to +0.0) |
+| bucket, by the weather | use measured, sd 0.07, wind measured, margin 0, held out | 80 | -41.5 (-56.6 to -25.5) | +0.6 (-4.9 to +5.7) | -0.0 (-0.1 to +0.0) |
+| bucket, by the weather | use measured, sd 0.15, margin 0, tuned | 60 | -63.2 (-84.5 to -41.9) | +0.9 (+0.2 to +1.7) | -0.2 (-0.6 to +0.2) |
+| bucket, by the weather | use measured, sd 0.15, margin 0, held out | 80 | -62.7 (-83.1 to -42.0) | +29.7 (+20.5 to +40.4) | -0.1 (-0.2 to +0.0) |
+| bucket, by the weather | use measured, sd 0.15, wind measured, margin 0, tuned | 60 | -92.8 (-113.2 to -72.5) | +3.2 (+1.6 to +5.0) | -0.3 (-0.7 to +0.2) |
+| bucket, by the weather | use measured, sd 0.15, wind measured, margin 0, held out | 80 | -29.1 (-51.1 to -5.9) | +14.4 (+6.4 to +23.5) | -0.0 (-0.1 to +0.0) |
+| bucket, by the weather | wind measured, margin 0.1, tuned | 60 | -70.2 (-76.7 to -63.6) | +0.6 (+0.1 to +1.2) | -0.2 (-0.5 to +0.1) |
+| bucket, by the weather | wind measured, margin 0.1, held out | 80 | -23.1 (-28.0 to -18.2) | +4.0 (+2.4 to +6.0) | -0.0 (-0.1 to +0.0) |
+| bucket, by the weather | use measured, sd 0.07, margin 0.1, tuned | 60 | -25.0 (-40.9 to -8.5) | +0.0 (+0.0 to +0.0) | +0.1 (-0.4 to +0.5) |
+| bucket, by the weather | use measured, sd 0.07, margin 0.1, held out | 80 | -13.8 (-29.0 to +1.3) | -3.5 (-8.5 to +1.2) | -0.1 (-0.2 to -0.0) |
+| bucket, by the weather | use measured, sd 0.07, wind measured, margin 0.1, tuned | 60 | -56.5 (-71.6 to -40.8) | +0.0 (+0.0 to +0.0) | -0.0 (-0.4 to +0.3) |
+| bucket, by the weather | use measured, sd 0.07, wind measured, margin 0.1, held out | 80 | +24.7 (+6.5 to +42.1) | -9.2 (-13.5 to -4.9) | -0.1 (-0.1 to +0.0) |
+| bucket, by the weather | use measured, sd 0.15, margin 0.1, tuned | 60 | -22.3 (-44.2 to +1.3) | +0.1 (+0.0 to +0.3) | +0.2 (-0.2 to +0.6) |
+| bucket, by the weather | use measured, sd 0.15, margin 0.1, held out | 80 | +0.2 (-23.2 to +26.1) | +9.1 (+1.5 to +16.8) | +0.1 (-0.1 to +0.5) |
+| bucket, by the weather | use measured, sd 0.15, wind measured, margin 0.1, tuned | 60 | -53.7 (-75.9 to -31.7) | +0.7 (+0.3 to +1.1) | -0.1 (-0.4 to +0.3) |
+| bucket, by the weather | use measured, sd 0.15, wind measured, margin 0.1, held out | 80 | +38.3 (+13.3 to +65.1) | +0.2 (-6.3 to +6.7) | +0.4 (-0.1 to +1.1) |
+| bucket, by the weather | wind measured, tuned | 60 | -32.3 (-37.6 to -27.0) | +0.0 (+0.0 to +0.0) | -0.1 (-0.3 to -0.0) |
+| bucket, by the weather | wind measured, held out | 80 | +38.0 (+29.9 to +45.3) | -7.3 (-10.2 to -4.6) | -0.0 (-0.0 to +0.0) |
+| bucket, by the weather | use measured, sd 0.07, tuned | 60 | +15.9 (-1.6 to +32.5) | +0.0 (+0.0 to +0.0) | +0.2 (-0.2 to +0.7) |
+| bucket, by the weather | use measured, sd 0.07, held out | 80 | +47.4 (+30.8 to +66.3) | -9.6 (-14.1 to -5.5) | +0.1 (-0.0 to +0.3) |
+| bucket, by the weather | use measured, sd 0.07, wind measured, tuned | 60 | -18.2 (-35.0 to -1.5) | +0.0 (+0.0 to +0.0) | +0.0 (-0.3 to +0.3) |
+| bucket, by the weather | use measured, sd 0.07, wind measured, held out | 80 | +88.9 (+68.5 to +108.5) | -10.2 (-14.5 to -6.0) | +0.3 (-0.0 to +0.8) |
+| bucket, by the weather | use measured, sd 0.15, tuned | 60 | +21.1 (-5.3 to +47.1) | +0.0 (+0.0 to +0.0) | +0.5 (-0.1 to +1.1) |
+| bucket, by the weather | use measured, sd 0.15, held out | 80 | +63.2 (+37.8 to +88.7) | -1.6 (-7.5 to +4.4) | +0.8 (+0.1 to +1.8) |
+| bucket, by the weather | use measured, sd 0.15, wind measured, tuned | 60 | -16.6 (-41.6 to +8.9) | +0.0 (+0.0 to +0.1) | +0.0 (-0.3 to +0.4) |
+| bucket, by the weather | use measured, sd 0.15, wind measured, held out | 80 | +102.9 (+75.8 to +131.7) | -6.5 (-11.8 to -1.5) | +1.4 (+0.2 to +3.0) |
+| tomatoes, probes | tension sensors, tuned | 60 | -198.2 (-229.6 to -168.7) | +1.8 (+1.3 to +2.5) | -70.5 (-82.3 to -58.6) |
+| tomatoes, probes | tension sensors, held out | 80 | -111.2 (-136.4 to -87.5) | +1.6 (-0.4 to +3.7) | -26.1 (-34.5 to -18.5) |
+| tomatoes, by the weather | wind measured, margin 0, tuned | 60 | -146.1 (-155.4 to -136.9) | +0.4 (+0.2 to +0.6) | -73.6 (-84.0 to -64.0) |
+| tomatoes, by the weather | wind measured, margin 0, held out | 80 | -92.3 (-99.7 to -84.7) | +3.3 (+2.6 to +4.1) | -71.4 (-82.1 to -60.9) |
+| tomatoes, by the weather | use measured, sd 0.07, margin 0, tuned | 60 | -106.8 (-121.8 to -91.3) | +0.5 (+0.3 to +0.8) | -58.4 (-71.9 to -46.2) |
+| tomatoes, by the weather | use measured, sd 0.07, margin 0, held out | 80 | -119.6 (-134.3 to -104.6) | +21.5 (+16.3 to +27.0) | -70.3 (-83.1 to -57.7) |
+| tomatoes, by the weather | use measured, sd 0.07, wind measured, margin 0, tuned | 60 | -156.2 (-169.8 to -142.0) | +0.9 (+0.6 to +1.3) | -84.6 (-98.7 to -71.2) |
+| tomatoes, by the weather | use measured, sd 0.07, wind measured, margin 0, held out | 80 | -78.9 (-96.6 to -60.8) | +8.5 (+5.3 to +12.1) | -41.8 (-56.0 to -28.0) |
+| tomatoes, by the weather | use measured, sd 0.15, margin 0, tuned | 60 | -107.5 (-128.5 to -85.9) | +0.9 (+0.5 to +1.4) | -59.5 (-75.0 to -44.4) |
+| tomatoes, by the weather | use measured, sd 0.15, margin 0, held out | 80 | -106.8 (-129.7 to -82.7) | +26.5 (+19.5 to +34.5) | -55.1 (-69.7 to -41.4) |
+| tomatoes, by the weather | use measured, sd 0.15, wind measured, margin 0, tuned | 60 | -155.4 (-178.3 to -133.9) | +2.2 (+1.2 to +3.4) | -88.1 (-106.2 to -70.9) |
+| tomatoes, by the weather | use measured, sd 0.15, wind measured, margin 0, held out | 80 | -63.8 (-90.1 to -37.7) | +13.5 (+8.4 to +19.2) | -26.5 (-43.1 to -7.8) |
+| tomatoes, by the weather | wind measured, margin 0.1, tuned | 60 | -100.1 (-108.1 to -92.5) | +0.3 (+0.1 to +0.4) | -47.9 (-54.7 to -40.7) |
+| tomatoes, by the weather | wind measured, margin 0.1, held out | 80 | -18.1 (-26.3 to -9.8) | -0.2 (-0.5 to +0.0) | -1.8 (-9.7 to +6.9) |
+| tomatoes, by the weather | use measured, sd 0.07, margin 0.1, tuned | 60 | -63.6 (-80.3 to -47.4) | +0.2 (+0.1 to +0.4) | -32.9 (-43.9 to -22.7) |
+| tomatoes, by the weather | use measured, sd 0.07, margin 0.1, held out | 80 | -51.0 (-69.2 to -32.3) | +7.8 (+4.8 to +11.3) | -36.3 (-49.9 to -24.0) |
+| tomatoes, by the weather | use measured, sd 0.07, wind measured, margin 0.1, tuned | 60 | -109.2 (-124.1 to -93.9) | +0.5 (+0.3 to +0.7) | -58.3 (-71.4 to -46.7) |
+| tomatoes, by the weather | use measured, sd 0.07, wind measured, margin 0.1, held out | 80 | -6.1 (-26.6 to +14.8) | +2.1 (+0.6 to +3.9) | +3.9 (-10.8 to +20.8) |
+| tomatoes, by the weather | use measured, sd 0.15, margin 0.1, tuned | 60 | -56.5 (-80.5 to -33.9) | +0.4 (+0.2 to +0.7) | -34.5 (-50.3 to -18.9) |
+| tomatoes, by the weather | use measured, sd 0.15, margin 0.1, held out | 80 | -36.6 (-62.8 to -9.4) | +12.4 (+7.5 to +18.2) | -22.5 (-39.2 to -5.6) |
+| tomatoes, by the weather | use measured, sd 0.15, wind measured, margin 0.1, tuned | 60 | -108.2 (-130.9 to -84.3) | +0.9 (+0.5 to +1.3) | -59.1 (-75.4 to -43.1) |
+| tomatoes, by the weather | use measured, sd 0.15, wind measured, margin 0.1, held out | 80 | +7.6 (-20.3 to +37.6) | +5.4 (+2.1 to +9.4) | +9.4 (-9.0 to +30.2) |
+| tomatoes, by the weather | wind measured, tuned | 60 | -60.6 (-67.6 to -53.3) | +0.1 (+0.1 to +0.2) | -27.3 (-32.5 to -22.1) |
+| tomatoes, by the weather | wind measured, held out | 80 | +46.9 (+36.7 to +56.5) | -1.1 (-1.4 to -0.8) | +43.3 (+32.9 to +55.2) |
+| tomatoes, by the weather | use measured, sd 0.07, tuned | 60 | -14.6 (-33.1 to +2.9) | +0.1 (+0.0 to +0.2) | -4.5 (-15.2 to +6.3) |
+| tomatoes, by the weather | use measured, sd 0.07, held out | 80 | +17.8 (-0.9 to +36.7) | +2.4 (+0.7 to +4.3) | +7.7 (-4.7 to +20.9) |
+| tomatoes, by the weather | use measured, sd 0.07, wind measured, tuned | 60 | -69.6 (-86.5 to -52.1) | +0.3 (+0.2 to +0.4) | -38.1 (-49.5 to -27.4) |
+| tomatoes, by the weather | use measured, sd 0.07, wind measured, held out | 80 | +62.6 (+40.4 to +85.0) | -0.3 (-1.0 to +0.5) | +49.2 (+33.9 to +66.2) |
+| tomatoes, by the weather | use measured, sd 0.15, tuned | 60 | -14.1 (-39.4 to +12.5) | +0.2 (+0.1 to +0.3) | -12.0 (-28.8 to +4.0) |
+| tomatoes, by the weather | use measured, sd 0.15, held out | 80 | +31.7 (+3.7 to +59.8) | +5.2 (+2.1 to +8.8) | +14.3 (-2.0 to +31.7) |
+| tomatoes, by the weather | use measured, sd 0.15, wind measured, tuned | 60 | -57.8 (-83.1 to -32.8) | +0.4 (+0.2 to +0.7) | -35.2 (-51.3 to -20.4) |
+| tomatoes, by the weather | use measured, sd 0.15, wind measured, held out | 80 | +79.6 (+49.4 to +111.4) | +1.5 (-0.5 to +3.9) | +50.4 (+31.3 to +70.9) |
+| lettuce, probes | tension sensors, tuned | 60 | -109.5 (-127.8 to -90.8) | +2.3 (+1.5 to +3.1) | -56.5 (-64.8 to -48.5) |
+| lettuce, probes | tension sensors, held out | 80 | -25.0 (-40.0 to -10.1) | -3.2 (-6.0 to -0.5) | -19.2 (-26.7 to -11.8) |
+| lettuce, by the weather | wind measured, margin 0, tuned | 60 | -48.6 (-54.7 to -42.7) | +0.2 (+0.1 to +0.2) | -19.8 (-23.0 to -16.8) |
+| lettuce, by the weather | wind measured, margin 0, held out | 80 | -37.4 (-40.7 to -34.0) | +1.1 (+0.9 to +1.4) | -22.2 (-25.1 to -19.0) |
+| lettuce, by the weather | use measured, sd 0.07, margin 0, tuned | 60 | -39.6 (-46.5 to -32.7) | +0.3 (+0.2 to +0.5) | -18.1 (-21.9 to -14.4) |
+| lettuce, by the weather | use measured, sd 0.07, margin 0, held out | 80 | -52.7 (-59.6 to -45.7) | +7.0 (+5.0 to +9.0) | -37.5 (-43.1 to -31.9) |
+| lettuce, by the weather | use measured, sd 0.07, wind measured, margin 0, tuned | 60 | -53.0 (-59.9 to -45.6) | +0.5 (+0.3 to +0.7) | -24.5 (-28.5 to -20.2) |
+| lettuce, by the weather | use measured, sd 0.07, wind measured, margin 0, held out | 80 | -31.0 (-38.5 to -23.3) | +2.9 (+1.8 to +4.1) | -19.6 (-25.4 to -13.9) |
+| lettuce, by the weather | use measured, sd 0.15, margin 0, tuned | 60 | -38.9 (-48.7 to -28.8) | +0.5 (+0.3 to +0.8) | -20.5 (-26.1 to -15.3) |
+| lettuce, by the weather | use measured, sd 0.15, margin 0, held out | 80 | -46.2 (-55.9 to -36.1) | +8.1 (+5.6 to +10.7) | -32.7 (-39.1 to -25.7) |
+| lettuce, by the weather | use measured, sd 0.15, wind measured, margin 0, tuned | 60 | -51.2 (-61.6 to -41.4) | +0.8 (+0.4 to +1.2) | -26.3 (-32.1 to -20.3) |
+| lettuce, by the weather | use measured, sd 0.15, wind measured, margin 0, held out | 80 | -25.6 (-36.5 to -15.2) | +4.3 (+2.6 to +6.3) | -18.8 (-25.6 to -11.7) |
+| lettuce, by the weather | wind measured, margin 0.1, tuned | 60 | -32.6 (-37.8 to -27.6) | +0.1 (+0.1 to +0.2) | -12.6 (-15.6 to -9.8) |
+| lettuce, by the weather | wind measured, margin 0.1, held out | 80 | -6.8 (-11.1 to -2.6) | -0.1 (-0.2 to +0.1) | +1.4 (-2.0 to +5.2) |
+| lettuce, by the weather | use measured, sd 0.07, margin 0.1, tuned | 60 | -21.1 (-28.4 to -13.6) | +0.1 (+0.1 to +0.2) | -8.9 (-12.2 to -5.7) |
+| lettuce, by the weather | use measured, sd 0.07, margin 0.1, held out | 80 | -23.0 (-30.6 to -15.7) | +2.8 (+1.6 to +4.1) | -18.7 (-23.5 to -13.9) |
+| lettuce, by the weather | use measured, sd 0.07, wind measured, margin 0.1, tuned | 60 | -35.4 (-42.6 to -27.8) | +0.2 (+0.1 to +0.3) | -16.1 (-19.7 to -12.3) |
+| lettuce, by the weather | use measured, sd 0.07, wind measured, margin 0.1, held out | 80 | -1.6 (-10.3 to +6.9) | +0.8 (+0.2 to +1.4) | -0.7 (-5.6 to +4.6) |
+| lettuce, by the weather | use measured, sd 0.15, margin 0.1, tuned | 60 | -18.1 (-29.0 to -6.9) | +0.2 (+0.0 to +0.3) | -10.1 (-15.4 to -4.4) |
+| lettuce, by the weather | use measured, sd 0.15, margin 0.1, held out | 80 | -16.7 (-27.2 to -5.3) | +4.1 (+2.3 to +6.1) | -16.1 (-22.4 to -9.7) |
+| lettuce, by the weather | use measured, sd 0.15, wind measured, margin 0.1, tuned | 60 | -35.2 (-46.1 to -24.1) | +0.3 (+0.2 to +0.6) | -17.3 (-23.2 to -11.6) |
+| lettuce, by the weather | use measured, sd 0.15, wind measured, margin 0.1, held out | 80 | +3.7 (-8.2 to +15.9) | +1.7 (+0.6 to +3.0) | -1.3 (-7.9 to +5.1) |
+| lettuce, by the weather | wind measured, tuned | 60 | -17.5 (-22.2 to -13.1) | +0.0 (+0.0 to +0.1) | -6.9 (-9.2 to -5.0) |
+| lettuce, by the weather | wind measured, held out | 80 | +22.1 (+17.7 to +26.5) | -0.4 (-0.6 to -0.3) | +15.0 (+10.8 to +19.3) |
+| lettuce, by the weather | use measured, sd 0.07, tuned | 60 | -2.2 (-10.6 to +6.8) | +0.0 (-0.1 to +0.1) | -0.5 (-4.3 to +3.4) |
+| lettuce, by the weather | use measured, sd 0.07, held out | 80 | +6.2 (-1.5 to +14.3) | +1.0 (+0.2 to +1.9) | -0.1 (-4.2 to +4.1) |
+| lettuce, by the weather | use measured, sd 0.07, wind measured, tuned | 60 | -18.8 (-27.0 to -10.2) | +0.1 (+0.0 to +0.2) | -8.8 (-12.7 to -4.9) |
+| lettuce, by the weather | use measured, sd 0.07, wind measured, held out | 80 | +26.7 (+16.8 to +35.7) | -0.1 (-0.4 to +0.2) | +14.7 (+9.7 to +19.9) |
+| lettuce, by the weather | use measured, sd 0.15, tuned | 60 | +0.3 (-11.7 to +12.2) | +0.0 (-0.1 to +0.2) | -1.4 (-6.5 to +4.1) |
+| lettuce, by the weather | use measured, sd 0.15, held out | 80 | +11.7 (-0.0 to +22.8) | +1.7 (+0.5 to +3.3) | -0.9 (-7.2 to +5.3) |
+| lettuce, by the weather | use measured, sd 0.15, wind measured, tuned | 60 | -15.8 (-27.5 to -3.6) | +0.1 (+0.0 to +0.3) | -7.9 (-13.5 to -2.5) |
+| lettuce, by the weather | use measured, sd 0.15, wind measured, held out | 80 | +33.3 (+20.8 to +46.5) | +0.5 (-0.2 to +1.3) | +14.8 (+8.5 to +21.1) |
+| lawn, its probe | tension sensors, tuned | 60 | -21.1 (-26.4 to -16.3) | +0.4 (+0.3 to +0.6) | -74.8 (-90.6 to -60.1) |
+| lawn, its probe | tension sensors, held out | 80 | +89.7 (+76.6 to +102.9) | -63.8 (-74.0 to -54.2) | +29.6 (+19.0 to +39.3) |
+| lawn, its probe | tension sensors, p 0.2, tuned | 60 | +7.3 (+2.2 to +11.9) | -0.4 (-0.5 to -0.2) | -15.3 (-32.5 to +1.3) |
+| lawn, its probe | tension sensors, p 0.2, held out | 80 | +106.2 (+93.3 to +119.7) | -71.2 (-81.3 to -60.4) | +23.6 (+15.4 to +31.9) |
+| lawn, by the weather | wind measured, margin 0, tuned | 60 | -105.0 (-110.7 to -99.2) | +0.1 (+0.0 to +0.2) | -58.3 (-64.3 to -52.3) |
+| lawn, by the weather | wind measured, margin 0, held out | 80 | -80.4 (-83.8 to -77.1) | +13.5 (+9.7 to +17.4) | -65.0 (-73.5 to -56.9) |
+| lawn, by the weather | use measured, sd 0.07, margin 0, tuned | 60 | -86.8 (-100.9 to -72.6) | +0.0 (+0.0 to +0.0) | -44.4 (-53.4 to -36.2) |
+| lawn, by the weather | use measured, sd 0.07, margin 0, held out | 80 | -99.3 (-112.2 to -85.9) | +16.8 (+12.8 to +21.1) | -90.5 (-104.1 to -76.4) |
+| lawn, by the weather | use measured, sd 0.07, wind measured, margin 0, tuned | 60 | -115.4 (-130.0 to -101.6) | +0.0 (+0.0 to +0.0) | -58.8 (-68.1 to -49.1) |
+| lawn, by the weather | use measured, sd 0.07, wind measured, margin 0, held out | 80 | -69.2 (-83.4 to -55.2) | +4.3 (+1.6 to +7.1) | -44.0 (-56.5 to -30.9) |
+| lawn, by the weather | use measured, sd 0.15, margin 0, tuned | 60 | -86.4 (-106.2 to -66.7) | +0.0 (+0.0 to +0.0) | -50.9 (-64.4 to -37.9) |
+| lawn, by the weather | use measured, sd 0.15, margin 0, held out | 80 | -88.1 (-106.9 to -68.9) | +25.6 (+18.1 to +33.5) | -77.9 (-95.1 to -59.8) |
+| lawn, by the weather | use measured, sd 0.15, wind measured, margin 0, tuned | 60 | -115.0 (-134.4 to -94.5) | +0.1 (+0.0 to +0.3) | -73.0 (-89.8 to -57.7) |
+| lawn, by the weather | use measured, sd 0.15, wind measured, margin 0, held out | 80 | -57.0 (-76.7 to -35.8) | +14.4 (+8.9 to +20.5) | -48.1 (-66.2 to -29.4) |
+| lawn, by the weather | wind measured, margin 0.1, tuned | 60 | -70.6 (-74.8 to -66.3) | +0.0 (+0.0 to +0.0) | -34.7 (-38.7 to -30.7) |
+| lawn, by the weather | wind measured, margin 0.1, held out | 80 | -22.2 (-26.8 to -17.7) | +1.8 (+0.9 to +2.7) | -14.0 (-17.9 to -10.0) |
+| lawn, by the weather | use measured, sd 0.07, margin 0.1, tuned | 60 | -47.5 (-62.0 to -32.7) | +0.0 (+0.0 to +0.0) | -24.7 (-32.9 to -16.4) |
+| lawn, by the weather | use measured, sd 0.07, margin 0.1, held out | 80 | -43.7 (-58.1 to -29.5) | +1.5 (-0.7 to +3.8) | -20.2 (-32.6 to -8.1) |
+| lawn, by the weather | use measured, sd 0.07, wind measured, margin 0.1, tuned | 60 | -77.0 (-91.2 to -61.8) | +0.0 (+0.0 to +0.0) | -37.1 (-45.9 to -28.1) |
+| lawn, by the weather | use measured, sd 0.07, wind measured, margin 0.1, held out | 80 | -9.9 (-25.5 to +6.1) | -1.8 (-3.6 to -0.2) | +9.8 (-2.0 to +22.3) |
+| lawn, by the weather | use measured, sd 0.15, margin 0.1, tuned | 60 | -47.9 (-69.5 to -24.9) | +0.0 (+0.0 to +0.0) | -29.6 (-40.9 to -18.3) |
+| lawn, by the weather | use measured, sd 0.15, margin 0.1, held out | 80 | -31.8 (-51.8 to -11.8) | +10.6 (+5.7 to +16.1) | -27.9 (-45.3 to -9.7) |
+| lawn, by the weather | use measured, sd 0.15, wind measured, margin 0.1, tuned | 60 | -78.6 (-100.7 to -56.5) | +0.0 (+0.0 to +0.0) | -46.0 (-58.9 to -33.7) |
+| lawn, by the weather | use measured, sd 0.15, wind measured, margin 0.1, held out | 80 | +1.5 (-20.3 to +23.2) | +4.5 (+0.8 to +8.2) | +1.2 (-16.7 to +20.1) |
+| lawn, by the weather | wind measured, tuned | 60 | -33.4 (-37.2 to -29.5) | +0.0 (+0.0 to +0.0) | -13.4 (-16.5 to -10.6) |
+| lawn, by the weather | wind measured, held out | 80 | +35.6 (+29.9 to +41.4) | -2.1 (-3.4 to -1.0) | +29.5 (+24.1 to +35.2) |
+| lawn, by the weather | use measured, sd 0.07, tuned | 60 | -9.6 (-26.1 to +7.2) | +0.0 (+0.0 to +0.0) | -8.9 (-17.4 to -1.0) |
+| lawn, by the weather | use measured, sd 0.07, held out | 80 | +12.4 (-3.6 to +28.2) | -2.1 (-3.9 to -0.6) | +20.8 (+8.8 to +32.5) |
+| lawn, by the weather | use measured, sd 0.07, wind measured, tuned | 60 | -40.3 (-55.1 to -24.1) | +0.0 (+0.0 to +0.0) | -20.1 (-28.3 to -11.6) |
+| lawn, by the weather | use measured, sd 0.07, wind measured, held out | 80 | +48.1 (+29.7 to +66.8) | -2.5 (-4.1 to -1.1) | +44.9 (+31.9 to +57.3) |
+| lawn, by the weather | use measured, sd 0.15, tuned | 60 | -8.0 (-31.5 to +16.0) | +0.0 (+0.0 to +0.0) | -10.3 (-20.9 to +1.1) |
+| lawn, by the weather | use measured, sd 0.15, held out | 80 | +25.4 (+2.8 to +48.7) | +3.2 (-0.2 to +6.7) | +17.0 (-0.4 to +34.5) |
+| lawn, by the weather | use measured, sd 0.15, wind measured, tuned | 60 | -40.5 (-63.4 to -18.3) | +0.0 (+0.0 to +0.0) | -25.0 (-36.2 to -13.5) |
+| lawn, by the weather | use measured, sd 0.15, wind measured, held out | 80 | +62.3 (+37.7 to +87.2) | -0.1 (-2.5 to +2.3) | +43.0 (+24.8 to +59.4) |
+| yard, its probes | tension sensors, tuned | 60 | -57.7 (-63.3 to -52.0) | +3.8 (+3.2 to +4.3) | -1.2 (-1.6 to -0.8) |
+| yard, its probes | tension sensors, held out | 80 | +7.1 (+1.5 to +12.5) | -10.3 (-13.5 to -7.5) | -0.2 (-0.3 to -0.0) |
+| yard, its probes | tension sensors, p 0.2, tuned | 60 | -41.1 (-46.5 to -35.9) | -0.3 (-0.7 to -0.0) | -0.5 (-0.9 to -0.1) |
+| yard, its probes | tension sensors, p 0.2, held out | 80 | +19.4 (+13.4 to +25.1) | -18.5 (-22.4 to -15.0) | -0.1 (-0.2 to -0.0) |
+| tomatoes over a dense pan, probes | tension sensors, tuned | 60 | -223.0 (-249.5 to -196.2) | +3.2 (+2.3 to +4.2) | -120.4 (-132.9 to -108.0) |
+| tomatoes over a dense pan, probes | tension sensors, held out | 80 | -114.7 (-138.2 to -90.6) | +3.1 (+0.0 to +5.8) | -56.5 (-68.9 to -44.7) |
+
+Three of the tomato summers by probes, run again to see each probe's field capacity (the
+soil's, plus the probe's own error, as the probe reads it), learned and measured:
+
+| summer | probe | as the probe reads it | learned | measured |
+| --- | --- | --- | --- | --- |
+| McAllister 2003 | 10 cm | 0.334 | 0.379 | 0.337 |
+| | 30 cm | 0.289 | 0.337 | 0.283 |
+| McAllister 2011 | 10 cm | 0.296 | 0.331 | 0.299 |
+| | 30 cm | 0.292 | 0.338 | 0.293 |
+| Davis 2010 | 10 cm | 0.281 | 0.296 | 0.267 |
+| | 30 cm | 0.323 | none | 0.311 |

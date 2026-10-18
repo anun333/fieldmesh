@@ -118,16 +118,16 @@ so a backtest can ask what owning one would change before anyone buys it.
 
 *Added 2026-10-18.* The other instruments that bear on when and how much to water, in
 the soil, on the plant or above it, in the order they are worth it to fieldmesh's advice.
-The first three are being tried as the trials tried the advice's defaults: on the virtual
-farm that departs from what the advice is told, McAllister and Davis, 1991 to 2025, each
-against the same bed measuring nothing more ([soilwater trials](../../modules/soilwater/README.md#what-the-trials-show);
+The first three were tried on 2026-10-18 as the trials tried the advice's defaults: on the
+virtual farm that departs from what the advice is told, McAllister and Davis, 1991 to 2025,
+each against the same bed measuring nothing more ([what measuring more would buy](../../modules/soilwater/README.md#what-measuring-more-would-buy);
 `trials.py`'s `MEASURES`).
 
 | instrument | what it would tell the advice | for watering | in fieldmesh and its backtests |
 | --- | --- | --- | --- |
-| **a tension sensor beside a probe** ([above](#soil-water-tension)) | the bed's field capacity, read off its own curve, where learning reads it from drain-downs | the most: learning can read a capacity far off, low in a hot, dry soil (the trials), high in a wet June (0.35 on a soil holding 0.31; the sensor read 0.31) | **built**; tried: a sensor beside each probe, a tenth out for good and a twentieth each hour (`backtest(tension=True)`) |
-| **an anemometer** at the station | the day's wind, where FAO-56's 2 m/s stands in | where the wind is far from 2 m/s and the air is dry: Penman's aerodynamic term is the wind times the air's dryness, so in a humid summer the wind hardly matters | **built** (`eto.Station.wind_speed`); tried (`weather_backtest(wind=True)`) |
-| **the crop's water use measured**: its canopy's cover photographed (Canopeo, a free phone app, Patrignani and Ochsner 2015), or a satellite's ET (OpenET) | the crop against its curve: a stand thinner or later than the curve uses less | for a crop off its curve, the error the weather's margin guesses at. Cover gives a crop coefficient by Allen and Pereira (2009). OpenET's pixels are 30 m, a field's, not a bed's; over croplands it was 17% out a month, 6% low on the whole (Volk et al. 2024) | **built** as `Bed.use_scale`; tried, measured to a lognormal 0.07 and 0.15 (`weather_backtest(use_measured=...)`); not built: reading a photo or OpenET into it |
+| **a tension sensor beside a probe** ([above](#soil-water-tension)) | the bed's field capacity, read off its own curve, where learning reads it from drain-downs | the most: learning can read a capacity far off, low in a hot, dry soil (the trials), high in a wet June (0.35 on a soil holding 0.31; the sensor read 0.31) | **built**; tried, each sensor a tenth out for good (`backtest(tension=True)`): it read each probe's capacity within 0.015. With a refill point of a fifth gone, the shallow beds at Davis lost 3 mm a summer where they had lost 22 and 75, and used no more water at McAllister. The crops by probes were given up to two-fifths less water, but lost 2 to 3 mm more |
+| **an anemometer** at the station | the day's wind, where FAO-56's 2 m/s stands in | where the wind is far from 2 m/s and the air is dry: Penman's aerodynamic term is the wind times the air's dryness, so in a humid summer the wind hardly matters | **built** (`eto.Station.wind_speed`); tried (`weather_backtest(wind=True)`): 6 to 11% less water at calm McAllister for no more loss, 4 to 6% more at windy Davis, the bucket losing 3 mm a summer for 10. It does not make a smaller margin safe |
+| **the crop's water use measured**: its canopy's cover photographed (Canopeo, a free phone app, Patrignani and Ochsner 2015), or a satellite's ET (OpenET) | the crop against its curve: a stand thinner or later than the curve uses less | for a crop off its curve, the error the weather's margin guesses at. Cover gives a crop coefficient by Allen and Pereira (2009). OpenET's pixels are 30 m, a field's, not a bed's; over croplands it was 17% out a month, 6% low on the whole (Volk et al. 2024) | **built** as `Bed.use_scale`; tried as one number for the season, measured to a lognormal 0.07 and 0.15 (`weather_backtest(use_measured=...)`): it helped where the error was the bed's own coefficient (the bucket, the lawn), not the crops'. Not tried: photos through the season, which would follow the crop's stages; not built: reading a photo or OpenET into it |
 | **a wetting-front detector** (FullStop, Stirzaker 2003; the Chameleon, a tension sensor read by colour) | whether a watering reached the depth it was meant to | checks each refill and the soil's intake, cheaply, by hand | not yet; the layered soil gives each layer's water, so the simulator could say when a front passes |
 | **an atmometer** (ETgage) **or an evaporation pan** | the weather's demand measured, where a station computes it | in place of a full station, not beside one: FAO-56 turns a pan's evaporation into reference ET by a pan coefficient | not yet |
 | **a flow meter and the line's pressure** | how much water reached the bed | the record the balance refills from ([water meters](water-meters.md)) | **built** as the recorded valve |
@@ -143,6 +143,10 @@ Choose moisture probes that report temperature and conductivity too (a TEROS 12,
 LoRaWAN probe), not the bare capacitive boards, and put one tension sensor beside one of
 them. That one bed then feeds the moisture advisory, the sowing advisory, and, once their
 terms exist, the soil's own retention curve and its salt.
+
+If any bed is watered by the weather, give the station an anemometer: in the trials it
+moved the balance the right way at both sites, less water where the wind is calm and more
+where it blows.
 
 ## Sources
 

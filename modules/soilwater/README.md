@@ -153,6 +153,75 @@ the crop could not draw for want of water. Each bed as built:
 Every choice against its default, the difference's mean and its 90% interval, is in
 [the backtests' record](../../docs/notes/soilwater-backtests.md#the-trials-of-2026-10-17).
 
+### What measuring more would buy
+
+Then three things a farm might measure besides were tried on the same farms and summers
+(`trials.py`'s `MEASURES`, 9,380 backtests more, code c1de215, 2026-10-18): the station's
+wind, where FAO-56's 2 m/s stands in (`weather_backtest(wind=True)`); the crop's water use
+against its curve, as a canopy photo or a satellite's ET would give it, one number for the
+season measured to a lognormal 0.07 or 0.15 (`use_measured`, `Bed.use_scale`); and a
+tension sensor beside each probe, each a tenth out for good (`backtest(tension=True)`).
+Water and lost transpiration, the mean a summer; "use" is measured to 0.07:
+
+| bed | measured | water, tuned | lost, tuned | water, held out | lost, held out |
+| --- | --- | --- | --- | --- | --- |
+| bucket, by the weather | nothing more | 329 mm | 0.0 mm | 660 mm | 10.2 mm |
+| | wind | 297 | 0.0 | 698 | 3.0 |
+| | wind and use | 311 | 0.0 | 749 | 0.0 |
+| tomatoes, by the weather | nothing more | 570 | 0.7 | 1057 | 5.0 |
+| | wind | 510 | 0.8 | 1104 | 3.9 |
+| | wind and use | 501 | 1.0 | 1120 | 4.7 |
+| lettuce, by the weather | nothing more | 297 | 0.5 | 528 | 2.7 |
+| | wind | 279 | 0.6 | 550 | 2.3 |
+| | wind and use | 278 | 0.6 | 555 | 2.6 |
+| lawn, by the weather | nothing more | 357 | 0.0 | 637 | 2.5 |
+| | wind | 324 | 0.0 | 673 | 0.4 |
+| | wind and use | 317 | 0.0 | 685 | 0.0 |
+| tomatoes, probes | nothing more | 506 | 1.8 | 1102 | 13.8 |
+| | tension | 308 | 3.7 | 991 | 15.5 |
+| lettuce, probes | nothing more | 251 | 1.8 | 458 | 20.8 |
+| | tension | 141 | 4.1 | 433 | 17.7 |
+| tomatoes over a dense pan, probes | nothing more | 537 | 2.9 | 1066 | 20.1 |
+| | tension | 314 | 6.1 | 952 | 23.1 |
+| lawn, its probe | nothing more | 137 | 0.4 | 438 | 74.5 |
+| | tension | 116 | 0.8 | 528 | 10.7 |
+| | tension, watered at a fifth gone | 144 | 0.0 | 544 | 3.3 |
+| yard, its probes | nothing more | 234 | 1.5 | 547 | 21.5 |
+| | tension | 176 | 5.3 | 555 | 11.2 |
+| | tension, watered at a fifth gone | 193 | 1.2 | 567 | 3.0 |
+
+* **An anemometer earns its place on every bed by the weather.** FAO-56's 2 m/s is twice
+  McAllister's summer wind and under Davis's, so without one the balance counted
+  McAllister's beds' water high and Davis's low. Measured, McAllister's beds were given 6
+  to 11% less with no more loss, and Davis's 4 to 6% more, the bucket losing 3.0 mm a
+  summer for 10.2 and the lawn 0.4 for 2.5. It does not make the margin safe to cut: with
+  the wind measured and a margin of 0.1, McAllister's beds were given a further 5 to 13%
+  less, but Davis's bucket lost 14.3 mm and its lawn 4.3, more than as built.
+* **For a shallow bed, a tension sensor with a refill point of a fifth gone** kept the
+  lawn by its probe to 3.3 mm lost at Davis for 74.5, and the yard to 3.0 for 21.5, and
+  at McAllister the lawn was given 144 mm for 137 and the yard 193 for 234, losing nothing
+  more. A fifth gone alone, on the learned capacity, had cost McAllister's lawn 105 mm more
+  and 263 more hours of a root zone short of air.
+* **For the crops by probes, the true field capacity cut the water but not the loss.**
+  With the sensors they were given 5 to 44% less, and their root zones were short of air
+  for two-fifths fewer hours, but they lost 2 to 3 mm more a summer (lettuce held out, 3
+  less). In three summers checked, learning had read the tomatoes' probes 0.015 to 0.05
+  above their soil's capacity as each probe reads it, and the sensors within 0.015. So the
+  crops' losses by probes at Davis, 15 to 23 mm a summer with the sensors, are not their
+  field capacity; why they lose more than by the weather is open.
+* **The crop's use, measured as one number for the season, helped only where the error was
+  the bed's coefficient**: Davis's bucket lost 0.7 mm for 10.2 and its lawn 0.4 for 2.5,
+  and with the wind measured too, nothing. Tomatoes and lettuce lost more, 7.4 mm for 5.0
+  and 3.7 for 2.7, most likely because where it lowered the count it took away cover the
+  margin gave against the wind, and one number cannot follow a crop running early or
+  late. Photos through the season, which would follow its stages too, were not tried.
+* The virtual soil's field capacity is the water it holds at 33 kPa, where the advice
+  reads it off a tension sensor, so here the sensor is out only by its own error. In a
+  real soil the drained-to point and 33 kPa differ, most in sands (`Bed.capacity_kpa`).
+
+Each measure against the bed as built, with its 90% interval, is in
+[the backtests' record](../../docs/notes/soilwater-backtests.md#measuring-more-2026-10-18).
+
 ## The bed's own soil
 
 A soil survey maps the native soil. A landscaped yard, a raised bed or a market garden
@@ -366,7 +435,9 @@ it keeps), is advised by FAO-56's daily root-zone balance instead (`weather_bala
 * **Each day's reference ET** is FAO-56 Penman–Monteith from the station's readings that
   the checks passed (`sdk/eto.py`, which reproduces FAO-56's Example 18: 3.88 mm). Missing
   sunshine, humidity or wind are replaced by FAO-56's own stand-ins, and each decision
-  lists which it used.
+  lists which it used. Of these, an anemometer is worth adding: its 2 m/s is twice a calm
+  summer's wind and less than a windy one's ([measuring more](#what-measuring-more-would-buy)).
+  `Bed.use_scale` is the crop's use against its curve, where the farm has measured it.
 * **The balance**: each day the depletion falls by the gauge's rain and the watering, and
   rises by the crop's use, `Ks · Kc · ETo`, `Ks` slowing the crop once it has used its own
   `p`; for a bed whose crop is named, `(Ks Kcb + Ke) ETo`, FAO-56's dual coefficient.
