@@ -90,10 +90,9 @@ a dry year that soil can be too dry for roots to enter, which no curve on its ow
   and a probe set into the pan is not counted.
 * **Root signs from the probes** (`root_signs`), over the last two weeks of dry days. A
   probe whose soil stays level has no roots; one that falls and goes 0.02 under field
-  capacity has roots. Optionally, where the farm's day is known, the stair-step decides
-  instead: a fall by day has roots, one as fast by night is draining. On the simulated
-  summers the two found a pan as well as each other, and the stair-step saw false stops
-  on more mornings, so it is not the default. Where a probe the curve passed at least
+  capacity has roots. The stair-step, a fall by day against one as fast by night, was an
+  option until 2026-10-17: on the simulated summers it found a pan no better and saw false
+  stops on more mornings, and it was retired. Where a probe the curve passed at least
   15 cm ago has no roots, under one that has, the roots likely stop between the two, and
   a note asks for the rooting limit.
 * **A range of roots, not one depth.** When to water is timed by the shallow end, how much
@@ -129,8 +128,8 @@ with the season's warmth, and left no crop short either way.
 
 * **The other crops' degree-days**, for the ten the revision gives only approximate
   ranges for (its Table 6.12).
-* **Real beds:** the curve's shape, straight or the *n*th root, the stair-step's
-  thresholds against a real probe's noise, and a pan found by its probes and then dug.
+* **Real beds:** the curve's shape, straight or the *n*th root, the level line against a
+  real probe's noise, and a pan found by its probes and then dug.
 * **A level line that expects the roots' own density**: a probe deep in the roots, where
   they are sparse, should fall slowly; judged against that, rather than against nothing,
   it would not read as a stop.

@@ -93,7 +93,26 @@ reference bed, to check the simulator against, rather than on every farm.
 * **Nitrate and pH electrodes left in the soil** drift and do not last; a lab test a few
   times a season is cheaper and more trustworthy.
 * **Soil oxygen and carbon dioxide** sensors are research instruments in price, for narrower
-  questions: waterlogging, soil respiration.
+  questions: waterlogging, soil respiration ([below](#dearer-and-optional)).
+
+## Dearer, and optional
+
+Some instruments a farm need not buy would check what fieldmesh's advice rests on, and
+what its virtual farm ([sim/physics.py](../../sim/physics.py)) only assumes. They are
+optional hardware: a pilot's reference bed, a farm that wants to know, a study. Each is set
+here beside what it would test, and whether the simulator could already make its readings,
+so a backtest can ask what owning one would change before anyone buys it.
+
+| instrument | what it measures | what it would check | the simulator |
+| --- | --- | --- | --- |
+| **soil oxygen** (a galvanic cell in the soil air) | oxygen where the roots are | overwatering's harm: the backtests score it as hours with under a tenth of the root zone holding air (`backtest.Score`), a stand-in for oxygen | not yet: a gas module on the layered soil (diffusion through the air-filled pores, roots and microbes using it) would give its timing well and its level roughly; HYDRUS-1D's CO2 module (Šimůnek and Suarez 1993) would benchmark it |
+| **soil carbon dioxide** (an infrared cell in the soil air; open builds cost about USD 700, Nguyen et al. 2025) | soil respiration | little for watering; the soil's life | the same module; NEON's soil CO2 profiles would test it |
+| **tension past 1000 kPa** (a METER TEROS 21) | how hard the soil holds its water, as dry as a crop takes it | the wilting point a probe cannot learn (README, not yet), and the simulator's retention curves | yes: each layer's curve gives it (`physics.Horizon.suction_at`) |
+| **a research weather station** (a METER ATMOS 41, sonic wind and a pyranometer) | the wind and sunshine a cheap station estimates | the weather balance's stand-ins: with no anemometer FAO-56 assumes 2 m/s, where McAllister's summers average 1.0 and Davis's 2.7 ([soilwater trials](../../modules/soilwater/README.md#what-the-trials-show)) | yes: the balance can be given the recorded wind and sunshine |
+| **a weighing or drainage lysimeter** | the bed's own water use and drainage | the weather's margin, which guesses how far a station's balance is from a bed's use; the simulator's crop | its own use, so circular: on a farm, the one instrument that measures what the margin guesses |
+| **reference probes in pairs** (Stevens HydraProbes) | the soil's water, to a percent | each probe's calibration error, which the backtests now draw (0.015, `backtest.VirtualFarm`), and drift | yes, as error models |
+| **a profile probe at many depths** | the water at every 10 cm | the simulator's roots, densest at the top, and the root signs' level line ([roots that stop](../../modules/soilwater/README.md#roots-that-stop)) | yes: every layer's water |
+| **canopy temperature or sap flow** | the crop's own stress | whether a crop loses transpiration when the backtests say it does | not without a leaf's energy balance |
 
 ## For a first real bed
 
@@ -103,6 +122,13 @@ them. That one bed then feeds the moisture advisory, the sowing advisory, and, o
 terms exist, the soil's own retention curve and its salt.
 
 ## Sources
+
+* J. Šimůnek and D. L. Suarez, "Modeling of carbon dioxide transport and production in
+  soil: 1. Model development", *Water Resources Research* 29(2), 1993, 487–497,
+  [doi:10.1029/92WR02225](https://doi.org/10.1029/92WR02225).
+* T. T. Nguyen, N. Bekin, A. Altman, M. Maier, N. Agam and E. Levintal, "Overcoming barriers
+  in long-term, continuous monitoring of soil CO2 flux: a low-cost sensor system", *SOIL*
+  11, 2025, [doi:10.5194/soil-11-639-2025](https://doi.org/10.5194/soil-11-639-2025).
 
 * J. F. Harrington, University of California at Davis, Agricultural Extension Leaflet,
   1954, as reproduced by [Oregon State University Extension](https://extension.oregonstate.edu/gardening/soil-compost/soil-temperature-conditions-vegetable-seed-germination)
