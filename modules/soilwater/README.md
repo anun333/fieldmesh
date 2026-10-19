@@ -533,6 +533,11 @@ so, and says both things a probe cannot tell apart:
 > points, where 18 mm of watering should add about 6.0. If it was watered, check the drip
 > line and its emitters; if it was not, it still needs water.
 
+A watering that should add less than 5 points is not judged: over a dry top most of a small
+one stays above the probes, and on the summers of 2012 and 2013, every other watering
+blocked, one of 4.1 points that came rose 1.2 and was said not to have, the only false
+alarm in 105; 3 blocked waterings of 68 went unjudged for it.
+
 **With the valve reporting, it says which.** A bed can name the series of the valve that
 waters it (`Bed.valve`, the `valve_open` term). An OpenSprinkler controller reports each
 station opening and shutting over MQTT, and the bridge puts that in the log

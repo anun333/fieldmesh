@@ -2183,7 +2183,8 @@ class TestTheWateringCheck(unittest.TestCase):
     def test_smaller_waterings_are_harder_to_check(self):
         """With the hot-day refill point (`Bed.adjust_p`), waterings in the 2012 drought are
         smaller, and one that arrived, its top soil dry, rose its probe at 20 cm by 1.2
-        points of the 4.6 expected and was said not to have: a false alarm in fifteen."""
+        points of the 4.6 expected and was said not to have; a watering expected to raise
+        the root zone less than 5 points is not judged since (2026-10-19)."""
         import physics as ph
         path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
         blocked = frozenset(range(0, 92, 2))
@@ -2191,8 +2192,8 @@ class TestTheWateringCheck(unittest.TestCase):
                        _dt.datetime(2012, 6, 1, tzinfo=_dt.timezone.utc), 92, seed=1,
                        check=S.watering_check(), blocked=blocked, settings={"adjust_p": True})
         false = [c for c in r["checks"] if c["day"] not in blocked and c["alert"]]
-        self.assertLessEqual(len(false), 2)
-        self.assertTrue(all(c["expected_percent"] < 6.0 for c in false))
+        self.assertEqual(false, [], "below the floor (`min_expected`) it is not judged")
+        self.assertTrue(all(c["expected_percent"] >= 5.0 for c in r["checks"]))
 
     def test_with_the_valve_reporting_it_says_which_of_the_two_it_was(self):
         """An OpenSprinkler's station through the MQTT bridge: on a blocked day the valve
@@ -2216,6 +2217,8 @@ class TestTheWateringCheck(unittest.TestCase):
         for rule in ("soil-enough", "soil-rain-coming", "soil-too-wet"):
             ctx = S.watering_check_context({"rule": rule, "context": {"refill_mm": 20.0}}, bed)
             self.assertEqual(G.plan(S.watering_check(), ctx), [])
+        small = S.watering_check_context({"rule": "soil-water-now", "context": {"refill_mm": 12.0}}, bed)
+        self.assertEqual(G.plan(S.watering_check(), small), [], "4 points: too small to judge")
         ctx = S.watering_check_context({"rule": "soil-water-now", "context": {"refill_mm": 18.0}}, bed)
         steps = G.plan(S.watering_check(), ctx)
         self.assertEqual(steps[0], {"kind": "wait", "minutes": 60.0 + 90.0 + 180.0})

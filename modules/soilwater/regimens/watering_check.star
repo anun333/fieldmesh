@@ -13,6 +13,11 @@ def plan(ctx, params):
         return []
     mm = ctx["refill_mm"]
     expected = mm / ctx["root_depth_mm"]
+    # A watering expected to raise the root zone less than params["min_expected"] is not
+    # judged: over a dry top most of a small one stays above the probes, and one that came
+    # reads as one that did not.
+    if expected < params["min_expected"]:
+        return []
     minutes = params["water_after_min"] + mm / params["mm_per_hour"] * 60.0 + params["soak_min"]
     return [
         wait(minutes),

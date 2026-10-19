@@ -2280,9 +2280,13 @@ def layering_rule() -> R.Rule:
 #: drip line's rate, three hours for the water to reach the probes, and the share of the
 #: expected rise that counts as arrived. On the recorded summer (`backtest.py`), across 51
 #: waterings, every bed that was watered rose by at least 0.74 of what its watering
-#: should add and no blocked one by more than 0.27; half is the middle of that gap.
+#: should add and no blocked one by more than 0.27; half is the middle of that gap. A
+#: watering expected to raise it less than 5 points is not judged (`min_expected`): on the
+#: summers of 2012 and 2013, every other watering blocked, one of 4.1, over a dry top, rose
+#: 1.2 and was said not to have come, the only false alarm of 105; 3 blocked waterings of
+#: 68 go unjudged for it.
 WATERING_CHECK = {"water_after_min": 60.0, "mm_per_hour": 12.0, "soak_min": 180.0,
-                  "share": 0.5}
+                  "share": 0.5, "min_expected": 0.05}
 
 
 def watering_check(params=None):
