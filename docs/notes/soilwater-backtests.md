@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
-# The soil-moisture advisory's backtests, 2026-10-11 to 2026-10-18
+# The soil-moisture advisory's backtests, 2026-10-11 to 2026-10-19
 
 *The record of what the [soil-moisture advisory](../../modules/soilwater/README.md) was
 tried on, on the virtual farm as each day had it, and what each try showed: the tables
@@ -10,7 +10,9 @@ how it got there.*
 *Read each table with its date. The simulator changed under them: on 2026-10-15 its soil
 began to move water below field capacity; on 2026-10-16 its crop began to use its water as
 FAO-56's does, from the top of its roots, and its bare soil to dry; on 2026-10-17 its crop
-began to slow by the water near its roots. And the advice changed with what they showed.
+began to slow by the water near its roots; on 2026-10-18 its roots began to make up for each
+other, its crop to run short sooner on a hot day, and the backtests to water probe-led beds
+at the weather beds' rate, with forecasts as they stood ([the audit](#the-audit-of-2026-10-18)). And the advice changed with what they showed.
 Since retired, and so found here only: `Bed.adjust_p` (FAO-56's lower refill point on a hot
 day), the root signs' stair-step, learning field capacity by the median of the drain-downs
 or from soakings alone, and the simulator's soil before 2026-10-15.*
@@ -1109,6 +1111,10 @@ the watering the valve did, which would catch it in sand too.
 
 ## The trials of 2026-10-17
 
+*Before [the audit of 2026-10-18](#the-audit-of-2026-10-18): the probe-led beds' refills went on
+within the hour and ran off, the advice read forecasts issued after it, and the crop did not
+make up for a dry top. Its figures stand as they were run.*
+
 [trials.py](../../modules/soilwater/trials.py) on code 4475640: ten beds, each with the
 choices that bear on it, through McAllister's and Davis's recorded summers of 1991 to 2025,
 each summer on two farms drawn for it (`backtest.VirtualFarm`), the farm's water loss
@@ -1185,6 +1191,10 @@ a summer, hours a summer with under a tenth of the root zone holding air).
 | tomatoes over a dense pan, probes | young stage, held out | 80 | -18.2 (-35.1 to -2.0) | +1.1 (-0.0 to +2.3) | -0.7 (-8.5 to +7.3) |
 
 ## Measuring more, 2026-10-18
+
+*Before [the audit of 2026-10-18](#the-audit-of-2026-10-18): the probe-led beds' refills went on
+within the hour and ran off, the advice read forecasts issued after it, and the crop did not
+make up for a dry top. Its figures stand as they were run.*
 
 The same trial on code c1de215, with what a farm might measure besides (`trials.py`'s
 `MEASURES`): the station's wind (`weather_backtest(wind=True)`); the crop's water use, one
@@ -1343,3 +1353,482 @@ soil's, plus the probe's own error, as the probe reads it), learned and measured
 | | 30 cm | 0.292 | 0.338 | 0.293 |
 | Davis 2010 | 10 cm | 0.281 | 0.296 | 0.267 |
 | | 30 cm | 0.323 | none | 0.311 |
+
+## The audit of 2026-10-18
+
+The simulator, the advice and the trials were each read by someone set to break them, and
+each finding checked before anything changed. What was found, and what was done:
+
+### The simulator
+
+* **The crop did not make up for a dry top.** Its use was its demand times its roots' Ks
+  layer by layer, so a dry top layer cut the whole crop's use however wet the soil below
+  was; the docstring said the deeper roots made it up, and they did not. Swapping in
+  FAO-56's Ks on the root zone's mean, a Davis summer's tomatoes by probes lost 1.0 mm for
+  16.8. Now the roots in wetter soil make up for those in drier as Jarvis (1989) has it, as
+  HYDRUS does (Šimůnek and Hopmans 2009), each farm's crop as far as a compensation drawn for
+  it between much (0.5) and none (1) lets it (`physics.LayeredBed.compensation`,
+  `VirtualFarm.compensation`).
+* **Evaporation took the top 25 mm first, below its residual water.** Its suction was then
+  without end, nothing rose into it from below, and the most roots went without. Now it is
+  spread through the top 10 cm, the nearer the surface the more, and stops a little above
+  the residual water.
+* **The crop's p was the table's all summer.** FAO-56 lowers it on a day the crop draws
+  fast, `p + 0.04 (5 − ETc)`: at Davis's 8 or 9 mm a day, tomatoes' 0.4 is 0.2 to 0.28. The
+  virtual crop's p now follows its day's demand (`SoilBed.p_follows_demand`).
+* **A rain day lost a sixth of its reference ET.** The hours it rained had 15% of their
+  share and the rest was lost, where the day's Penman–Monteith already counts its cloud; at
+  McAllister, a station's balance counted 6% above the farm's water use for no other
+  reason. Now the rain hours' share goes to the dry hours.
+* **Found and not changed:** above field capacity water drains by a cubic rule, not
+  Mualem's conductivity, and a soil at field capacity never drains further; the soil below
+  the roots, at field capacity, gave the crop 60 to 86 mm a season; rain always soaks in,
+  at 2.5 mm an hour; no canopy catches rain; watering is perfectly even; both start full.
+  Each bears on the numbers below and is in UNTESTED.
+
+### The advice
+
+Each of these was a hand-built bed for which the advice was wrong; each is now a test
+(`TestWhatTheAuditOf20261018Found`).
+
+* **Rain forecast held a bed with 97% of its water gone**, 11.5 mm against a 102 mm
+  deficit, as long as the forecast kept sliding. Now rain holds a watering only if it would
+  leave the bed short of half its water by tomorrow.
+* **A silent probe left the others to speak for the whole root zone**: a dry top probe 12
+  hours stale over a wet one, and the bed had plenty. Now it stands for its slice at its last
+  reading, less what the others have dried since, and the decision says so.
+* **A wet subsoil cancelled a dry top**: two thirds of the top's water gone over water
+  perched at 0.48, and it said too wet. Now each probe's deficit counts on its own.
+* **A probe in percent was read as a fraction**, 15 as 15, and the bed never watered. Now a
+  series not in a volume fraction is not one of the bed's probes.
+* **Read every five minutes, a probe had no drying rate**: the window was a count of
+  readings, 18 hours of them. Now it is hours, the readings thinned to one an hour.
+* **A reference drying faster than 1.5 times the balance was dropped**, and the bed counted
+  at the margin's 1.2. Now it is taken at 1.5.
+* **The weather balance's margin, and a probe's correction, scaled the crop's transpiration
+  alone**: for a young tomato the 20% margin was 3%. Now they scale the whole of its use.
+* **A day whose rain or watering filled the bed counted its whole use besides**: the water
+  came off first and stopped at full. Now the day's water and its use are taken together,
+  FAO-56's Eq. 85, what the root zone cannot hold draining.
+* **The rain since midnight** was in neither the balance nor the forecast. It comes off now.
+* **By the weather the advice looked no further than its refill point**, where by probes it
+  looks a day ahead. It does now, by the balance's last day.
+* **A cover the probes had seen held for the forecast alone**, not for the balance that
+  carries the bed when they fall silent. It holds for both now.
+* **A bed's layers were left out of the weather balance's available water.** They are in.
+* **A bed configured past sense** (no rain skipping a watering, a share of rain over one, a
+  crop that uses nothing) gave advice. It is refused.
+* **Found and not changed:** the soil above the shallowest probe is read as that probe
+  reads (a probe at 3 cm cut one Davis summer's loss from 38 mm to 9, on the simulator
+  before the audit; tried again below); a dead or misreporting rain gauge goes unseen; the
+  refill reaches past the deepest probe to the roots' depth by assumption; the crop's days
+  are counted in UTC. In UNTESTED.
+
+### The trials
+
+* **Watering by probes went on within the hour**, as much as 40 mm an hour on a soil that
+  takes 8, and what it could not take ran off: 67 to 89 mm a Davis tomato summer, unscored,
+  and none by the weather, watered at 12 mm an hour. Now both water at 12 mm an hour.
+* **Each morning's advice read forecasts issued after it**: the season's issues were all in
+  the log from its start, and the advice read the latest. Now it reads the forecast as it
+  stood (`State.forecast(as_of=...)`).
+* **The forecasts all but never missed a day's rain**: each hour's miss was drawn alone.
+  Now a rain day in four is missed whole at a day's lead, and a dry day in twelve forecast a
+  spell (`backtest.forecast_skill`).
+* **The station read the farm's own weather exactly**, so by the weather the advice's only
+  errors were the wind and the crop. Now each farm's station is off by its sensors and its
+  siting (`VirtualFarm.station_*`).
+* **The lawn's and the yard's soils, given whole, did not depart.** They do.
+* **Each summer's probe noise and forecasts were drawn from the draw alone**, the same every
+  summer. Now from the summer's farm.
+* **"Held out" was Davis, and has been spent**: the fixes above were found looking at it.
+  The defaults were chosen on McAllister and Davis and then tried, once, on two sites kept
+  sealed until then, Bushland, Texas, and Tifton, Georgia.
+* **The scores**: runoff, the soil's water at the end against the start, the crop's demand
+  (for the share of it lost) and hours waterlogged (under a twentieth of air) are now
+  scored. Hours under a tenth of air, a few points above field capacity in these silt
+  loams, counted a watering's first day.
+* **Fine:** the pairing, the code stamps, the forecast cache; resampling whole summers or
+  five-year blocks widened the intervals by up to two-fifths and turned no conclusion.
+
+## The trials of 2026-10-18 and 19
+
+On the code after [the audit](#the-audit-of-2026-10-18): ten beds at McAllister and Davis,
+1991 to 2025, one farm a summer (`trials.py`, its `BEDS` and `MEASURES`), 5,880 backtests on
+51dffc9; then, its reading of the crop's use fixed, the hot-day refill point's probe
+configurations again (1,680, as committed in 735d41f); then, once, the sealed sites (1,330
+on 735d41f). Made by `python3 trials.py report`.
+
+### How the defaults were to be chosen
+
+Written before the open sites' trial ran, and amended once, before the rerun, as below.
+
+Groups: McAllister 1991–2020, McAllister 2021–2025, Davis. Pairs are the same summer's
+farm, each against the bed as built (margin 0.2, 2 m/s wind, no hot-day refill point, no
+bound on learning). "Lost" is lost transpiration, mm a summer.
+
+1. **Weather beds, no anemometer.** Among {margin 0.1, 0.2} × {2 m/s, the wind's monthly
+   normal} × {hot-day refill point off, on}, the default is the one using least water
+   such that, in every group and for every weather bed, its mean lost is no more than the
+   bed as built's + 0.5 mm, and the 90% interval of the difference reaches no higher than
+   +1.0 mm. If none beats the bed as built, it stays.
+2. **Weather beds, with an anemometer.** The same rule among margins 0.1 and 0.2 with the
+   wind measured, giving the advice for a station that has one.
+3. **Probe beds.** The hot-day refill point becomes the default if, at Davis, it cuts the
+   mean lost of the crop beds (tomatoes, lettuce, dense pan) with the interval below 0, and
+   in neither McAllister group raises any probe bed's mean lost by more than 0.5 mm.
+   Learning within 0.05 becomes the default if, added to whatever (1)–(3) chose, no probe
+   bed's mean lost rises by more than 0.5 mm in any group and it cuts the water or the
+   hours waterlogged of at least half the probe beds.
+4. **Hardware.** A tension sensor or a probe at 5 cm is recommended where it cuts the bed's
+   mean lost at Davis by a third or more of the bed as built's.
+5. **Sealed.** Bushland and Tifton are then run once: the bed as built against the defaults
+   chosen, and the hardware recommended. Reported as they come; a default that does worse
+   there than as built is said so and not quietly kept.
+
+**Amendment, 2026-10-19 01:07, before the hot-day refill point was tried again.**
+
+The open sites' trial showed rule 3 weighed only lost transpiration: the hot-day refill
+point, reading the crop's use from the probes' drying, took drainage for use in wet
+summers and more than doubled six McAllister tomato summers' water, nearly all of it
+drained. Its use is now read only from a day that began at least 0.02 below field
+capacity. Tried again on the open sites (its configurations alone), it becomes the
+default only if, besides rule 3, in neither McAllister group does it (with learning within
+0.05, as chosen) add more than a tenth to any probe bed's mean water; else it stays off,
+and the bound alone is the default.
+
+### What the rules chose
+
+* **By the weather, no anemometer:** margin 0.2 and FAO-56's 2 m/s, as built. Margin 0.1
+  added 23 mm a summer to Davis's bucket's loss; the site's monthly normal wind at 0.2,
+  0.8 mm to McAllister's bucket's (interval to 1.7); the hot-day refill point at 0.2 passed
+  but used more water.
+* **With an anemometer:** margin 0.2, as built: at 0.2 the measured wind added 1.1 mm to
+  McAllister's bucket's loss (interval 0.2 to 2.1).
+* **The hot-day refill point by probes:** as first written it passed rule 3 and was set as
+  the default; then its water was seen, more than twice the as-built in six McAllister
+  tomato summers, nearly all drained, its reading of use having taken drainage for it. Its
+  use read only from a day that began 0.02 below the lower of the learned and configured
+  field capacity, it cost no water (the amendment), and cut tomatoes' lost transpiration
+  at Davis by 1.8 mm (interval −3.5 to −0.3) and the dense pan's by 4.3 (−7.1 to −1.9), and
+  lettuce's not (+0.1, −2.5 to +2.6): off.
+* **Learning within 0.05:** on its own, it raised Davis's lettuce's mean lost by just over
+  0.5 mm (+0.5, −0.1 to +1.4): off. It was also seen, by the tests, to hold a bed whose
+  survey is badly wrong short of its own soil.
+* **Hardware:** a tension sensor for the lawn, the yard and lettuce, which it cut at Davis
+  by 47, 15 and 4 mm of 55, 28 and 11.5; a probe at 5 cm for none.
+
+### The open sites
+
+Code: 51dffc9, 51dffc9+crop-drying. Each summer one farm.
+
+| bed | summers | water | lost transpiration | share of demand | summers losing over 1% | hours waterlogged | ran off | stored at the end |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| bucket, its probe, Davis | 35 | 692 mm | 15.8 mm | 2.1% | 13 | 0 | 0 mm | -14 mm |
+| bucket, its probe, McAllister 1991–2020 | 30 | 252 mm | 0.3 mm | 0.1% | 0 | 0 | 0 mm | -8 mm |
+| bucket, its probe, McAllister 2021–2025 | 5 | 232 mm | 0.4 mm | 0.1% | 0 | 0 | 0 mm | -10 mm |
+| bucket, by the weather, Davis | 35 | 711 mm | 14.3 mm | 1.8% | 12 | 0 | 0 mm | -14 mm |
+| bucket, by the weather, McAllister 1991–2020 | 30 | 297 mm | 0.2 mm | 0.0% | 0 | 0 | 0 mm | -6 mm |
+| bucket, by the weather, McAllister 2021–2025 | 5 | 298 mm | 0.0 mm | 0.0% | 0 | 0 | 0 mm | -6 mm |
+| tomatoes, probes, Davis | 35 | 1135 mm | 7.3 mm | 1.0% | 9 | 1 | 0 mm | +5 mm |
+| tomatoes, probes, McAllister 1991–2020 | 30 | 551 mm | 0.1 mm | 0.0% | 0 | 13 | 0 mm | +40 mm |
+| tomatoes, probes, McAllister 2021–2025 | 5 | 673 mm | 0.1 mm | 0.0% | 0 | 10 | 0 mm | +54 mm |
+| tomatoes, by the weather, Davis | 35 | 1213 mm | 0.8 mm | 0.1% | 2 | 5 | 0 mm | +20 mm |
+| tomatoes, by the weather, McAllister 1991–2020 | 30 | 564 mm | 0.2 mm | 0.1% | 1 | 12 | 0 mm | +40 mm |
+| tomatoes, by the weather, McAllister 2021–2025 | 5 | 530 mm | 0.0 mm | 0.0% | 0 | 2 | 0 mm | +40 mm |
+| lettuce, probes, Davis | 35 | 504 mm | 11.5 mm | 3.7% | 15 | 1 | 0 mm | -21 mm |
+| lettuce, probes, McAllister 1991–2020 | 30 | 252 mm | 0.3 mm | 0.1% | 1 | 9 | 0 mm | +32 mm |
+| lettuce, probes, McAllister 2021–2025 | 5 | 352 mm | 0.0 mm | 0.0% | 0 | 8 | 0 mm | +43 mm |
+| lettuce, by the weather, Davis | 35 | 608 mm | 0.6 mm | 0.2% | 2 | 5 | 0 mm | +28 mm |
+| lettuce, by the weather, McAllister 1991–2020 | 30 | 285 mm | 0.1 mm | 0.1% | 1 | 12 | 0 mm | +43 mm |
+| lettuce, by the weather, McAllister 2021–2025 | 5 | 263 mm | 0.2 mm | 0.1% | 0 | 3 | 0 mm | +38 mm |
+| lawn, its probe, Davis | 35 | 515 mm | 54.8 mm | 9.0% | 27 | 0 | 0 mm | -53 mm |
+| lawn, its probe, McAllister 1991–2020 | 30 | 162 mm | 0.0 mm | 0.0% | 0 | 31 | 0 mm | -6 mm |
+| lawn, its probe, McAllister 2021–2025 | 5 | 159 mm | 0.0 mm | 0.0% | 0 | 36 | 0 mm | +3 mm |
+| lawn, by the weather, Davis | 35 | 689 mm | 1.7 mm | 0.2% | 3 | 37 | 0 mm | +0 mm |
+| lawn, by the weather, McAllister 1991–2020 | 30 | 301 mm | 0.0 mm | 0.0% | 0 | 61 | 0 mm | +11 mm |
+| lawn, by the weather, McAllister 2021–2025 | 5 | 301 mm | 0.0 mm | 0.0% | 0 | 56 | 0 mm | +16 mm |
+| yard, its probes, Davis | 35 | 598 mm | 28.4 mm | 4.3% | 23 | 0 | 0 mm | -23 mm |
+| yard, its probes, McAllister 1991–2020 | 30 | 246 mm | 0.9 mm | 0.2% | 3 | 6 | 2 mm | +13 mm |
+| yard, its probes, McAllister 2021–2025 | 5 | 232 mm | 1.6 mm | 0.4% | 1 | 6 | 3 mm | +23 mm |
+| tomatoes over a dense pan, probes, Davis | 35 | 1124 mm | 13.3 mm | 1.9% | 13 | 5 | 0 mm | +13 mm |
+| tomatoes over a dense pan, probes, McAllister 1991–2020 | 30 | 557 mm | 0.8 mm | 0.2% | 2 | 37 | 13 mm | +49 mm |
+| tomatoes over a dense pan, probes, McAllister 2021–2025 | 5 | 569 mm | 0.5 mm | 0.1% | 0 | 29 | 7 mm | +64 mm |
+
+| bed | against the bed as built | summers | water | lost transpiration | hours waterlogged |
+| --- | --- | --- | --- | --- | --- |
+| bucket, its probe | hot-day refill point, Davis | 35 | -3.8 (-12.3 to +4.0) | +0.9 (-2.2 to +4.5) | +0.0 (+0.0 to +0.0) |
+| bucket, its probe | hot-day refill point, McAllister 1991–2020 | 30 | +5.1 (-2.6 to +13.7) | -0.1 (-0.1 to -0.0) | +0.0 (+0.0 to +0.0) |
+| bucket, its probe | hot-day refill point, McAllister 2021–2025 | 5 | +10.9 (-4.7 to +26.4) | +0.2 (-0.1 to +0.6) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | margin 0, Davis | 35 | -119.4 (-123.6 to -115.4) | +59.2 (+48.4 to +69.6) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | margin 0, McAllister 1991–2020 | 30 | -73.3 (-79.9 to -66.6) | +4.3 (+1.3 to +8.1) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | margin 0, McAllister 2021–2025 | 5 | -72.7 (-90.4 to -53.3) | +0.1 (+0.0 to +0.2) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | margin 0.1, Davis | 35 | -59.0 (-62.7 to -55.3) | +23.2 (+17.6 to +29.0) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | margin 0.1, McAllister 1991–2020 | 30 | -40.2 (-46.9 to -33.7) | +1.4 (+0.2 to +3.2) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | margin 0.1, McAllister 2021–2025 | 5 | -42.8 (-49.6 to -35.1) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | wind measured, margin 0.1, Davis | 35 | -17.5 (-26.7 to -8.1) | +6.3 (+2.9 to +10.1) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | wind measured, margin 0.1, McAllister 1991–2020 | 30 | -66.9 (-75.6 to -57.8) | +4.1 (+1.0 to +7.4) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | wind measured, margin 0.1, McAllister 2021–2025 | 5 | -62.5 (-75.4 to -46.9) | +0.0 (+0.0 to +0.1) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | wind measured, Davis | 35 | +47.7 (+37.5 to +58.2) | -6.6 (-10.1 to -3.7) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | wind measured, McAllister 1991–2020 | 30 | -36.5 (-43.3 to -30.0) | +1.1 (+0.2 to +2.1) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | wind measured, McAllister 2021–2025 | 5 | -26.4 (-30.3 to -23.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | the wind's monthly normal, margin 0.1, Davis | 35 | -11.6 (-15.2 to -7.8) | +3.0 (+1.7 to +4.5) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | the wind's monthly normal, margin 0.1, McAllister 1991–2020 | 30 | -63.7 (-71.7 to -54.8) | +3.6 (+1.1 to +6.5) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | the wind's monthly normal, margin 0.1, McAllister 2021–2025 | 5 | -60.6 (-76.5 to -44.9) | +0.0 (+0.0 to +0.1) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | the wind's monthly normal, Davis | 35 | +56.6 (+52.8 to +60.5) | -8.6 (-12.9 to -5.2) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | the wind's monthly normal, McAllister 1991–2020 | 30 | -32.4 (-38.8 to -26.3) | +0.8 (+0.2 to +1.6) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | the wind's monthly normal, McAllister 2021–2025 | 5 | -26.7 (-36.1 to -17.3) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | hot-day refill point, margin 0.1, Davis | 35 | -57.3 (-60.3 to -54.3) | +20.1 (+14.6 to +25.9) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | hot-day refill point, margin 0.1, McAllister 1991–2020 | 30 | -36.5 (-41.2 to -31.7) | +0.8 (+0.1 to +1.8) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | hot-day refill point, margin 0.1, McAllister 2021–2025 | 5 | -43.5 (-55.6 to -31.9) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | hot-day refill point, Davis | 35 | +2.7 (+0.0 to +5.6) | -2.6 (-3.5 to -1.8) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | hot-day refill point, McAllister 1991–2020 | 30 | -0.3 (-3.5 to +2.9) | -0.1 (-0.2 to -0.0) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | hot-day refill point, McAllister 2021–2025 | 5 | +9.1 (+0.8 to +17.8) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| tomatoes, probes | hot-day refill point, Davis | 35 | +4.8 (-16.5 to +27.4) | -1.8 (-3.5 to -0.3) | +0.4 (-0.2 to +1.1) |
+| tomatoes, probes | hot-day refill point, McAllister 1991–2020 | 30 | -3.1 (-14.0 to +6.8) | -0.0 (-0.1 to -0.0) | -0.2 (-0.5 to +0.1) |
+| tomatoes, probes | hot-day refill point, McAllister 2021–2025 | 5 | -7.1 (-14.3 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| tomatoes, probes | tension sensors, Davis | 35 | -100.7 (-132.4 to -70.1) | -0.1 (-3.9 to +3.3) | -0.3 (-0.6 to -0.1) |
+| tomatoes, probes | tension sensors, McAllister 1991–2020 | 30 | -220.0 (-259.6 to -180.8) | +0.4 (+0.1 to +0.9) | -4.0 (-5.9 to -2.4) |
+| tomatoes, probes | tension sensors, McAllister 2021–2025 | 5 | -362.1 (-421.0 to -306.7) | +0.9 (+0.2 to +1.5) | -9.3 (-13.3 to -5.3) |
+| tomatoes, probes | learning within 0.05, Davis | 35 | -10.5 (-20.9 to -2.3) | -1.4 (-4.4 to +0.3) | -0.1 (-0.1 to -0.0) |
+| tomatoes, probes | learning within 0.05, McAllister 1991–2020 | 30 | -40.9 (-56.8 to -26.1) | +0.1 (-0.0 to +0.2) | -1.9 (-3.0 to -1.1) |
+| tomatoes, probes | learning within 0.05, McAllister 2021–2025 | 5 | -43.2 (-102.6 to +11.0) | +0.0 (+0.0 to +0.1) | -6.0 (-9.9 to -2.2) |
+| tomatoes, probes | hot-day refill point, learning within 0.05, Davis | 35 | -2.9 (-24.7 to +20.7) | -2.4 (-5.4 to -0.3) | +0.2 (-0.3 to +0.7) |
+| tomatoes, probes | hot-day refill point, learning within 0.05, McAllister 1991–2020 | 30 | -36.2 (-54.4 to -19.1) | +0.0 (-0.1 to +0.2) | -2.0 (-3.0 to -1.1) |
+| tomatoes, probes | hot-day refill point, learning within 0.05, McAllister 2021–2025 | 5 | -50.2 (-105.7 to +2.5) | +0.0 (+0.0 to +0.1) | -6.0 (-10.5 to -2.3) |
+| tomatoes, probes | hot-day refill point, tension sensors, Davis | 35 | -90.8 (-122.1 to -60.5) | -2.7 (-6.3 to +0.5) | -0.3 (-0.7 to -0.1) |
+| tomatoes, probes | hot-day refill point, tension sensors, McAllister 1991–2020 | 30 | -217.8 (-255.7 to -180.2) | +0.2 (+0.0 to +0.5) | -4.2 (-6.2 to -2.6) |
+| tomatoes, probes | hot-day refill point, tension sensors, McAllister 2021–2025 | 5 | -356.9 (-420.2 to -295.3) | +0.9 (+0.2 to +1.6) | -9.3 (-12.9 to -5.3) |
+| tomatoes, probes | a probe at 5 cm, Davis | 35 | +6.1 (-16.9 to +31.5) | -1.5 (-2.6 to -0.5) | +0.4 (-0.2 to +1.2) |
+| tomatoes, probes | a probe at 5 cm, McAllister 1991–2020 | 30 | -33.8 (-54.9 to -14.2) | -0.0 (-0.1 to +0.1) | -1.8 (-2.7 to -1.0) |
+| tomatoes, probes | a probe at 5 cm, McAllister 2021–2025 | 5 | -143.9 (-241.6 to -51.7) | +0.0 (-0.2 to +0.3) | -6.5 (-10.5 to -2.9) |
+| tomatoes, probes | hot-day refill point, a probe at 5 cm, Davis | 35 | +3.4 (-18.8 to +24.9) | -3.7 (-5.9 to -1.8) | +0.2 (-0.2 to +0.8) |
+| tomatoes, probes | hot-day refill point, a probe at 5 cm, McAllister 1991–2020 | 30 | -35.2 (-54.4 to -16.3) | -0.1 (-0.1 to -0.0) | -1.8 (-2.6 to -0.9) |
+| tomatoes, probes | hot-day refill point, a probe at 5 cm, McAllister 2021–2025 | 5 | -135.3 (-206.2 to -64.4) | -0.1 (-0.2 to +0.1) | -5.7 (-8.9 to -2.5) |
+| tomatoes, by the weather | margin 0, Davis | 35 | -210.7 (-217.6 to -204.1) | +15.5 (+10.0 to +21.1) | -3.2 (-5.9 to -1.1) |
+| tomatoes, by the weather | margin 0, McAllister 1991–2020 | 30 | -141.9 (-152.6 to -131.4) | +0.2 (+0.0 to +0.4) | -2.1 (-3.0 to -1.3) |
+| tomatoes, by the weather | margin 0, McAllister 2021–2025 | 5 | -127.5 (-148.0 to -108.2) | +0.0 (+0.0 to +0.1) | -0.7 (-1.3 to -0.2) |
+| tomatoes, by the weather | margin 0.1, Davis | 35 | -101.5 (-106.5 to -96.8) | +1.3 (+0.6 to +2.1) | -1.7 (-3.0 to -0.6) |
+| tomatoes, by the weather | margin 0.1, McAllister 1991–2020 | 30 | -69.7 (-79.5 to -60.1) | +0.0 (-0.0 to +0.1) | -0.8 (-1.4 to -0.2) |
+| tomatoes, by the weather | margin 0.1, McAllister 2021–2025 | 5 | -74.7 (-91.4 to -57.8) | +0.0 (+0.0 to +0.0) | -0.6 (-1.4 to -0.1) |
+| tomatoes, by the weather | wind measured, margin 0.1, Davis | 35 | -44.2 (-57.6 to -30.6) | +0.5 (+0.0 to +1.1) | -1.1 (-2.0 to -0.3) |
+| tomatoes, by the weather | wind measured, margin 0.1, McAllister 1991–2020 | 30 | -124.0 (-138.1 to -111.4) | +0.1 (+0.0 to +0.2) | -1.3 (-2.2 to -0.5) |
+| tomatoes, by the weather | wind measured, margin 0.1, McAllister 2021–2025 | 5 | -120.2 (-143.4 to -99.2) | +0.0 (+0.0 to +0.1) | -0.7 (-1.5 to -0.2) |
+| tomatoes, by the weather | wind measured, Davis | 35 | +66.3 (+50.9 to +81.3) | -0.1 (-0.3 to +0.1) | +1.0 (+0.3 to +1.7) |
+| tomatoes, by the weather | wind measured, McAllister 1991–2020 | 30 | -53.5 (-64.1 to -43.8) | +0.0 (-0.1 to +0.1) | -0.5 (-1.0 to +0.0) |
+| tomatoes, by the weather | wind measured, McAllister 2021–2025 | 5 | -52.1 (-75.3 to -29.0) | +0.0 (+0.0 to +0.0) | -0.1 (-1.1 to +0.9) |
+| tomatoes, by the weather | the wind's monthly normal, margin 0.1, Davis | 35 | -28.6 (-33.0 to -24.5) | +0.1 (-0.0 to +0.4) | -0.6 (-1.0 to -0.3) |
+| tomatoes, by the weather | the wind's monthly normal, margin 0.1, McAllister 1991–2020 | 30 | -117.5 (-132.0 to -104.6) | +0.1 (+0.0 to +0.2) | -1.2 (-2.1 to -0.4) |
+| tomatoes, by the weather | the wind's monthly normal, margin 0.1, McAllister 2021–2025 | 5 | -115.3 (-141.3 to -88.9) | +0.0 (+0.0 to +0.1) | -0.7 (-1.5 to -0.2) |
+| tomatoes, by the weather | the wind's monthly normal, Davis | 35 | +81.2 (+76.0 to +86.1) | -0.3 (-0.6 to -0.1) | +1.4 (+0.6 to +2.2) |
+| tomatoes, by the weather | the wind's monthly normal, McAllister 1991–2020 | 30 | -48.6 (-57.5 to -39.3) | +0.0 (-0.1 to +0.1) | -0.4 (-0.8 to +0.0) |
+| tomatoes, by the weather | the wind's monthly normal, McAllister 2021–2025 | 5 | -34.4 (-66.4 to -6.7) | +0.0 (+0.0 to +0.0) | +0.6 (-0.8 to +2.2) |
+| tomatoes, by the weather | hot-day refill point, margin 0.1, Davis | 35 | -96.5 (-101.2 to -91.7) | -0.1 (-0.3 to -0.0) | -2.2 (-4.1 to -0.7) |
+| tomatoes, by the weather | hot-day refill point, margin 0.1, McAllister 1991–2020 | 30 | -63.4 (-71.2 to -55.5) | +0.0 (-0.0 to +0.0) | -1.0 (-1.6 to -0.3) |
+| tomatoes, by the weather | hot-day refill point, margin 0.1, McAllister 2021–2025 | 5 | -63.7 (-90.3 to -39.4) | +0.0 (+0.0 to +0.0) | -0.5 (-1.2 to +0.3) |
+| tomatoes, by the weather | hot-day refill point, Davis | 35 | +9.2 (+5.9 to +12.8) | -0.6 (-1.2 to -0.2) | -0.9 (-2.0 to -0.0) |
+| tomatoes, by the weather | hot-day refill point, McAllister 1991–2020 | 30 | +6.3 (+0.1 to +12.6) | -0.1 (-0.2 to -0.0) | -0.0 (-0.4 to +0.4) |
+| tomatoes, by the weather | hot-day refill point, McAllister 2021–2025 | 5 | -1.6 (-12.3 to +8.0) | +0.0 (+0.0 to +0.0) | -0.5 (-1.1 to +0.1) |
+| lettuce, probes | hot-day refill point, Davis | 35 | -0.7 (-7.6 to +5.9) | +0.1 (-2.5 to +2.6) | +0.1 (+0.0 to +0.3) |
+| lettuce, probes | hot-day refill point, McAllister 1991–2020 | 30 | +2.9 (-1.7 to +7.7) | -0.2 (-0.5 to +0.0) | +0.1 (-0.2 to +0.4) |
+| lettuce, probes | hot-day refill point, McAllister 2021–2025 | 5 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| lettuce, probes | tension sensors, Davis | 35 | -12.8 (-28.6 to +2.0) | -4.0 (-7.8 to -0.7) | -0.4 (-0.7 to -0.1) |
+| lettuce, probes | tension sensors, McAllister 1991–2020 | 30 | -90.6 (-114.4 to -67.7) | +0.3 (-0.1 to +0.8) | -1.5 (-2.3 to -0.7) |
+| lettuce, probes | tension sensors, McAllister 2021–2025 | 5 | -199.0 (-241.1 to -156.9) | +1.0 (+0.2 to +2.0) | -6.8 (-10.5 to -3.4) |
+| lettuce, probes | learning within 0.05, Davis | 35 | -3.5 (-7.4 to -0.3) | +0.5 (-0.0 to +1.3) | -0.2 (-0.4 to -0.0) |
+| lettuce, probes | learning within 0.05, McAllister 1991–2020 | 30 | -12.8 (-20.5 to -6.2) | +0.0 (+0.0 to +0.0) | -0.6 (-1.1 to -0.2) |
+| lettuce, probes | learning within 0.05, McAllister 2021–2025 | 5 | -10.7 (-32.2 to +0.0) | +0.0 (+0.0 to +0.0) | -0.5 (-1.5 to +0.0) |
+| lettuce, probes | hot-day refill point, learning within 0.05, Davis | 35 | -5.2 (-12.7 to +2.1) | +0.7 (-2.0 to +3.3) | -0.2 (-0.4 to -0.0) |
+| lettuce, probes | hot-day refill point, learning within 0.05, McAllister 1991–2020 | 30 | -10.7 (-19.5 to -2.9) | -0.2 (-0.5 to +0.0) | -0.6 (-1.1 to -0.2) |
+| lettuce, probes | hot-day refill point, learning within 0.05, McAllister 2021–2025 | 5 | -10.7 (-32.2 to +0.0) | +0.0 (+0.0 to +0.0) | -0.5 (-1.0 to +0.0) |
+| lettuce, probes | hot-day refill point, tension sensors, Davis | 35 | -11.7 (-26.8 to +4.3) | -4.3 (-8.0 to -0.8) | -0.4 (-0.7 to -0.1) |
+| lettuce, probes | hot-day refill point, tension sensors, McAllister 1991–2020 | 30 | -88.4 (-113.0 to -63.5) | +0.3 (-0.2 to +0.7) | -1.5 (-2.3 to -0.7) |
+| lettuce, probes | hot-day refill point, tension sensors, McAllister 2021–2025 | 5 | -194.5 (-236.2 to -151.3) | +0.7 (+0.2 to +1.3) | -6.8 (-10.3 to -3.4) |
+| lettuce, probes | a probe at 5 cm, Davis | 35 | -3.7 (-16.6 to +8.2) | -3.1 (-6.4 to +0.1) | -0.3 (-0.7 to -0.0) |
+| lettuce, probes | a probe at 5 cm, McAllister 1991–2020 | 30 | -13.4 (-30.2 to +2.7) | -0.2 (-0.6 to -0.0) | -1.0 (-1.9 to -0.3) |
+| lettuce, probes | a probe at 5 cm, McAllister 2021–2025 | 5 | -52.3 (-92.5 to -28.3) | -0.0 (-0.1 to -0.0) | -5.7 (-8.4 to -3.0) |
+| lettuce, probes | hot-day refill point, a probe at 5 cm, Davis | 35 | +2.4 (-12.1 to +14.6) | -3.8 (-7.1 to -0.6) | -0.3 (-0.7 to -0.1) |
+| lettuce, probes | hot-day refill point, a probe at 5 cm, McAllister 1991–2020 | 30 | -11.3 (-27.0 to +3.4) | -0.2 (-0.6 to -0.0) | -1.0 (-1.8 to -0.3) |
+| lettuce, probes | hot-day refill point, a probe at 5 cm, McAllister 2021–2025 | 5 | -54.7 (-92.0 to -31.7) | -0.0 (-0.1 to -0.0) | -5.9 (-8.7 to -3.0) |
+| lettuce, by the weather | margin 0, Davis | 35 | -103.3 (-108.2 to -97.9) | +5.1 (+3.3 to +7.1) | -3.2 (-5.2 to -1.6) |
+| lettuce, by the weather | margin 0, McAllister 1991–2020 | 30 | -68.0 (-74.4 to -60.7) | +0.2 (+0.0 to +0.4) | -2.3 (-3.4 to -1.3) |
+| lettuce, by the weather | margin 0, McAllister 2021–2025 | 5 | -49.0 (-66.3 to -31.7) | -0.1 (-0.3 to +0.0) | -1.3 (-2.4 to -0.1) |
+| lettuce, by the weather | margin 0.1, Davis | 35 | -53.2 (-56.1 to -50.1) | +0.6 (+0.2 to +1.0) | -1.7 (-2.6 to -0.9) |
+| lettuce, by the weather | margin 0.1, McAllister 1991–2020 | 30 | -34.5 (-38.1 to -30.6) | +0.1 (+0.0 to +0.3) | -0.9 (-1.6 to -0.2) |
+| lettuce, by the weather | margin 0.1, McAllister 2021–2025 | 5 | -19.7 (-30.2 to -8.4) | -0.0 (-0.1 to +0.0) | -0.5 (-1.9 to +0.8) |
+| lettuce, by the weather | wind measured, margin 0.1, Davis | 35 | -27.3 (-34.0 to -20.5) | +0.1 (-0.0 to +0.3) | -1.0 (-1.6 to -0.4) |
+| lettuce, by the weather | wind measured, margin 0.1, McAllister 1991–2020 | 30 | -48.6 (-54.4 to -42.7) | +0.1 (+0.0 to +0.3) | -1.6 (-2.4 to -0.8) |
+| lettuce, by the weather | wind measured, margin 0.1, McAllister 2021–2025 | 5 | -30.1 (-43.8 to -15.4) | +0.0 (+0.0 to +0.1) | -0.8 (-2.0 to +0.4) |
+| lettuce, by the weather | wind measured, Davis | 35 | +28.1 (+21.0 to +35.3) | -0.2 (-0.3 to -0.1) | +0.7 (+0.2 to +1.2) |
+| lettuce, by the weather | wind measured, McAllister 1991–2020 | 30 | -15.2 (-19.4 to -11.0) | +0.0 (+0.0 to +0.0) | -0.2 (-0.7 to +0.3) |
+| lettuce, by the weather | wind measured, McAllister 2021–2025 | 5 | -5.5 (-13.9 to +3.9) | -0.0 (-0.1 to +0.0) | -0.2 (-1.8 to +1.3) |
+| lettuce, by the weather | the wind's monthly normal, margin 0.1, Davis | 35 | -23.2 (-25.9 to -20.6) | +0.0 (-0.1 to +0.1) | -0.6 (-0.9 to -0.4) |
+| lettuce, by the weather | the wind's monthly normal, margin 0.1, McAllister 1991–2020 | 30 | -47.3 (-52.8 to -41.8) | +0.1 (+0.0 to +0.3) | -1.6 (-2.5 to -0.8) |
+| lettuce, by the weather | the wind's monthly normal, margin 0.1, McAllister 2021–2025 | 5 | -26.4 (-39.3 to -14.3) | +0.0 (+0.0 to +0.1) | -0.7 (-1.7 to +0.5) |
+| lettuce, by the weather | the wind's monthly normal, Davis | 35 | +33.9 (+29.7 to +38.0) | -0.2 (-0.4 to -0.1) | +0.9 (+0.5 to +1.3) |
+| lettuce, by the weather | the wind's monthly normal, McAllister 1991–2020 | 30 | -14.3 (-18.5 to -10.3) | +0.0 (+0.0 to +0.0) | -0.2 (-0.5 to +0.2) |
+| lettuce, by the weather | the wind's monthly normal, McAllister 2021–2025 | 5 | -2.4 (-14.6 to +6.9) | -0.0 (-0.1 to +0.0) | -0.2 (-1.8 to +1.3) |
+| lettuce, by the weather | hot-day refill point, margin 0.1, Davis | 35 | -48.5 (-51.2 to -45.7) | -0.1 (-0.3 to +0.0) | -2.2 (-3.5 to -1.1) |
+| lettuce, by the weather | hot-day refill point, margin 0.1, McAllister 1991–2020 | 30 | -36.7 (-40.5 to -32.7) | +0.0 (-0.0 to +0.0) | -1.3 (-2.1 to -0.6) |
+| lettuce, by the weather | hot-day refill point, margin 0.1, McAllister 2021–2025 | 5 | -17.0 (-23.8 to -7.8) | -0.0 (-0.1 to +0.0) | -1.0 (-2.4 to +0.5) |
+| lettuce, by the weather | hot-day refill point, Davis | 35 | +2.8 (+0.4 to +5.2) | -0.4 (-0.6 to -0.2) | -1.1 (-1.8 to -0.5) |
+| lettuce, by the weather | hot-day refill point, McAllister 1991–2020 | 30 | +1.3 (-1.8 to +4.4) | -0.0 (-0.1 to -0.0) | -0.3 (-0.7 to +0.1) |
+| lettuce, by the weather | hot-day refill point, McAllister 2021–2025 | 5 | +5.2 (-2.0 to +12.0) | -0.1 (-0.2 to +0.0) | -0.5 (-1.8 to +0.7) |
+| lawn, its probe | p 0.2, Davis | 35 | +72.5 (+56.8 to +91.2) | -40.2 (-49.9 to -30.9) | +0.6 (+0.1 to +1.3) |
+| lawn, its probe | p 0.2, McAllister 1991–2020 | 30 | +89.6 (+73.4 to +105.9) | -0.0 (-0.1 to -0.0) | +10.0 (+7.7 to +12.7) |
+| lawn, its probe | p 0.2, McAllister 2021–2025 | 5 | +109.8 (+32.2 to +189.3) | -0.0 (-0.0 to +0.0) | +7.9 (+3.3 to +12.6) |
+| lawn, its probe | hot-day refill point, Davis | 35 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| lawn, its probe | hot-day refill point, McAllister 1991–2020 | 30 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| lawn, its probe | hot-day refill point, McAllister 2021–2025 | 5 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| lawn, its probe | hot-day refill point, p 0.2, Davis | 35 | +73.3 (+57.4 to +91.9) | -40.8 (-50.9 to -31.6) | +0.6 (+0.1 to +1.3) |
+| lawn, its probe | hot-day refill point, p 0.2, McAllister 1991–2020 | 30 | +89.6 (+72.7 to +106.5) | -0.0 (-0.1 to -0.0) | +10.0 (+7.6 to +12.8) |
+| lawn, its probe | hot-day refill point, p 0.2, McAllister 2021–2025 | 5 | +109.8 (+33.1 to +189.3) | -0.0 (-0.1 to +0.0) | +7.9 (+3.3 to +12.7) |
+| lawn, its probe | tension sensors, Davis | 35 | +79.2 (+64.3 to +95.3) | -46.8 (-60.5 to -34.2) | +0.3 (-0.1 to +0.6) |
+| lawn, its probe | tension sensors, McAllister 1991–2020 | 30 | -25.8 (-37.0 to -15.2) | +0.1 (-0.0 to +0.2) | -2.9 (-4.4 to -1.4) |
+| lawn, its probe | tension sensors, McAllister 2021–2025 | 5 | -29.3 (-53.8 to -6.7) | +0.1 (+0.0 to +0.3) | -3.7 (-7.2 to -0.3) |
+| lawn, its probe | tension sensors, p 0.2, Davis | 35 | +90.1 (+73.5 to +108.9) | -52.2 (-67.2 to -37.4) | +0.2 (-0.1 to +0.5) |
+| lawn, its probe | tension sensors, p 0.2, McAllister 1991–2020 | 30 | +0.7 (-9.6 to +10.2) | -0.0 (-0.1 to -0.0) | +1.5 (+0.1 to +2.8) |
+| lawn, its probe | tension sensors, p 0.2, McAllister 2021–2025 | 5 | -9.9 (-36.7 to +13.2) | -0.0 (-0.1 to +0.0) | -2.2 (-6.2 to +1.1) |
+| lawn, its probe | learning within 0.05, Davis | 35 | +25.1 (+19.0 to +31.9) | -15.5 (-20.5 to -11.1) | +0.0 (+0.0 to +0.0) |
+| lawn, its probe | learning within 0.05, McAllister 1991–2020 | 30 | -0.1 (-0.3 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (-0.0 to +0.1) |
+| lawn, its probe | learning within 0.05, McAllister 2021–2025 | 5 | -0.0 (-0.1 to +0.0) | +0.0 (+0.0 to +0.0) | -0.0 (-0.0 to +0.0) |
+| lawn, its probe | learning within 0.05, p 0.2, Davis | 35 | +73.9 (+57.2 to +91.3) | -40.8 (-50.5 to -31.4) | +0.6 (+0.1 to +1.3) |
+| lawn, its probe | learning within 0.05, p 0.2, McAllister 1991–2020 | 30 | +85.9 (+70.4 to +101.4) | -0.0 (-0.1 to -0.0) | +9.5 (+7.6 to +11.4) |
+| lawn, its probe | learning within 0.05, p 0.2, McAllister 2021–2025 | 5 | +90.4 (+32.2 to +150.6) | -0.0 (-0.1 to +0.0) | +6.5 (+2.6 to +11.7) |
+| lawn, its probe | hot-day refill point, learning within 0.05, Davis | 35 | +25.1 (+19.1 to +31.0) | -15.5 (-20.2 to -10.9) | +0.0 (+0.0 to +0.0) |
+| lawn, its probe | hot-day refill point, learning within 0.05, McAllister 1991–2020 | 30 | -0.1 (-0.3 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (-0.0 to +0.1) |
+| lawn, its probe | hot-day refill point, learning within 0.05, McAllister 2021–2025 | 5 | -0.0 (-0.1 to +0.0) | +0.0 (+0.0 to +0.0) | -0.0 (-0.0 to +0.0) |
+| lawn, its probe | hot-day refill point, learning within 0.05, p 0.2, Davis | 35 | +74.3 (+58.3 to +92.5) | -41.2 (-51.6 to -31.2) | +0.6 (+0.1 to +1.3) |
+| lawn, its probe | hot-day refill point, learning within 0.05, p 0.2, McAllister 1991–2020 | 30 | +85.9 (+71.1 to +101.0) | -0.0 (-0.1 to -0.0) | +9.5 (+7.6 to +11.5) |
+| lawn, its probe | hot-day refill point, learning within 0.05, p 0.2, McAllister 2021–2025 | 5 | +90.4 (+32.2 to +147.7) | -0.0 (-0.1 to +0.0) | +6.5 (+2.6 to +10.8) |
+| lawn, its probe | hot-day refill point, tension sensors, Davis | 35 | +79.1 (+64.4 to +94.9) | -46.8 (-59.7 to -34.5) | +0.3 (-0.1 to +0.6) |
+| lawn, its probe | hot-day refill point, tension sensors, McAllister 1991–2020 | 30 | -25.8 (-36.9 to -14.9) | +0.1 (-0.0 to +0.2) | -2.9 (-4.6 to -1.4) |
+| lawn, its probe | hot-day refill point, tension sensors, McAllister 2021–2025 | 5 | -29.3 (-54.5 to -6.7) | +0.1 (+0.0 to +0.3) | -3.7 (-7.2 to -0.3) |
+| lawn, its probe | hot-day refill point, tension sensors, p 0.2, Davis | 35 | +90.1 (+73.7 to +108.3) | -52.2 (-66.8 to -38.3) | +0.2 (-0.1 to +0.5) |
+| lawn, its probe | hot-day refill point, tension sensors, p 0.2, McAllister 1991–2020 | 30 | +0.7 (-10.0 to +11.0) | -0.0 (-0.1 to -0.0) | +1.5 (+0.1 to +2.9) |
+| lawn, its probe | hot-day refill point, tension sensors, p 0.2, McAllister 2021–2025 | 5 | -9.9 (-32.9 to +13.2) | -0.0 (-0.1 to +0.0) | -2.2 (-6.2 to +1.4) |
+| lawn, by the weather | margin 0, Davis | 35 | -116.5 (-119.4 to -113.3) | +25.3 (+16.7 to +34.3) | -25.9 (-32.3 to -20.1) |
+| lawn, by the weather | margin 0, McAllister 1991–2020 | 30 | -72.8 (-78.5 to -67.2) | +0.1 (+0.0 to +0.3) | -9.5 (-11.7 to -7.5) |
+| lawn, by the weather | margin 0, McAllister 2021–2025 | 5 | -68.1 (-79.4 to -56.8) | +0.0 (+0.0 to +0.0) | -6.6 (-9.2 to -4.0) |
+| lawn, by the weather | margin 0.1, Davis | 35 | -58.7 (-61.1 to -56.2) | +6.3 (+2.6 to +10.4) | -14.2 (-18.5 to -10.4) |
+| lawn, by the weather | margin 0.1, McAllister 1991–2020 | 30 | -35.4 (-38.7 to -32.0) | +0.0 (+0.0 to +0.0) | -4.2 (-5.1 to -3.3) |
+| lawn, by the weather | margin 0.1, McAllister 2021–2025 | 5 | -30.8 (-42.1 to -19.3) | +0.0 (+0.0 to +0.0) | -1.3 (-2.8 to +0.1) |
+| lawn, by the weather | wind measured, margin 0.1, Davis | 35 | -17.9 (-27.1 to -8.6) | +2.0 (+0.0 to +4.5) | -4.9 (-7.7 to -2.4) |
+| lawn, by the weather | wind measured, margin 0.1, McAllister 1991–2020 | 30 | -64.2 (-71.3 to -56.9) | +0.0 (+0.0 to +0.0) | -8.5 (-10.7 to -6.4) |
+| lawn, by the weather | wind measured, margin 0.1, McAllister 2021–2025 | 5 | -57.0 (-73.1 to -40.8) | +0.0 (+0.0 to +0.0) | -4.1 (-7.3 to -1.6) |
+| lawn, by the weather | wind measured, Davis | 35 | +43.7 (+34.2 to +53.6) | -1.3 (-2.8 to -0.2) | +8.6 (+6.0 to +11.5) |
+| lawn, by the weather | wind measured, McAllister 1991–2020 | 30 | -32.6 (-38.3 to -27.2) | +0.0 (+0.0 to +0.0) | -3.7 (-4.9 to -2.6) |
+| lawn, by the weather | wind measured, McAllister 2021–2025 | 5 | -31.2 (-46.9 to -17.0) | +0.0 (+0.0 to +0.0) | -0.8 (-2.6 to +0.6) |
+| lawn, by the weather | the wind's monthly normal, margin 0.1, Davis | 35 | -9.0 (-10.8 to -7.1) | +0.6 (+0.1 to +1.2) | -2.3 (-3.8 to -0.9) |
+| lawn, by the weather | the wind's monthly normal, margin 0.1, McAllister 1991–2020 | 30 | -63.7 (-71.2 to -57.2) | +0.0 (+0.0 to +0.0) | -8.6 (-10.7 to -6.6) |
+| lawn, by the weather | the wind's monthly normal, margin 0.1, McAllister 2021–2025 | 5 | -56.8 (-73.0 to -41.7) | +0.0 (+0.0 to +0.0) | -4.3 (-7.7 to -2.0) |
+| lawn, by the weather | the wind's monthly normal, Davis | 35 | +53.5 (+50.8 to +56.1) | -1.6 (-3.3 to -0.3) | +9.9 (+8.4 to +11.6) |
+| lawn, by the weather | the wind's monthly normal, McAllister 1991–2020 | 30 | -27.8 (-32.7 to -22.9) | +0.0 (+0.0 to +0.0) | -2.6 (-3.4 to -1.9) |
+| lawn, by the weather | the wind's monthly normal, McAllister 2021–2025 | 5 | -28.3 (-44.0 to -12.5) | +0.0 (+0.0 to +0.0) | -0.4 (-2.2 to +1.3) |
+| lawn, by the weather | hot-day refill point, margin 0.1, Davis | 35 | -58.7 (-61.1 to -56.0) | +6.3 (+2.7 to +10.5) | -14.2 (-18.5 to -10.4) |
+| lawn, by the weather | hot-day refill point, margin 0.1, McAllister 1991–2020 | 30 | -35.4 (-39.0 to -32.0) | +0.0 (+0.0 to +0.0) | -4.2 (-5.1 to -3.4) |
+| lawn, by the weather | hot-day refill point, margin 0.1, McAllister 2021–2025 | 5 | -30.8 (-42.1 to -19.3) | +0.0 (+0.0 to +0.0) | -1.3 (-2.8 to +0.1) |
+| lawn, by the weather | hot-day refill point, Davis | 35 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| lawn, by the weather | hot-day refill point, McAllister 1991–2020 | 30 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| lawn, by the weather | hot-day refill point, McAllister 2021–2025 | 5 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | p 0.2, Davis | 35 | +23.0 (+17.0 to +29.7) | -17.3 (-23.2 to -11.8) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | p 0.2, McAllister 1991–2020 | 30 | +34.6 (+27.2 to +42.5) | -0.8 (-1.2 to -0.4) | +0.3 (+0.0 to +0.7) |
+| yard, its probes | p 0.2, McAllister 2021–2025 | 5 | +26.5 (+10.6 to +43.1) | -1.4 (-3.7 to -0.1) | +0.0 (+0.0 to +0.1) |
+| yard, its probes | hot-day refill point, Davis | 35 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | hot-day refill point, McAllister 1991–2020 | 30 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | hot-day refill point, McAllister 2021–2025 | 5 | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | hot-day refill point, p 0.2, Davis | 35 | +23.0 (+16.9 to +29.9) | -17.3 (-23.5 to -12.1) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | hot-day refill point, p 0.2, McAllister 1991–2020 | 30 | +34.6 (+27.6 to +42.1) | -0.8 (-1.2 to -0.4) | +0.3 (+0.0 to +0.7) |
+| yard, its probes | hot-day refill point, p 0.2, McAllister 2021–2025 | 5 | +26.5 (+10.6 to +42.9) | -1.4 (-3.7 to -0.1) | +0.0 (+0.0 to +0.1) |
+| yard, its probes | tension sensors, Davis | 35 | +18.6 (+7.4 to +31.7) | -14.6 (-24.7 to -6.0) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | tension sensors, McAllister 1991–2020 | 30 | -56.0 (-65.8 to -46.3) | +1.1 (+0.6 to +1.7) | -0.6 (-1.0 to -0.2) |
+| yard, its probes | tension sensors, McAllister 2021–2025 | 5 | -63.4 (-75.5 to -51.4) | +3.0 (+1.4 to +4.6) | -0.1 (-0.5 to +0.0) |
+| yard, its probes | tension sensors, p 0.2, Davis | 35 | +29.5 (+17.8 to +41.7) | -22.3 (-32.8 to -13.6) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | tension sensors, p 0.2, McAllister 1991–2020 | 30 | -42.5 (-54.2 to -31.3) | -0.2 (-0.7 to +0.3) | -0.3 (-0.7 to +0.1) |
+| yard, its probes | tension sensors, p 0.2, McAllister 2021–2025 | 5 | -45.6 (-59.9 to -31.0) | -0.3 (-1.7 to +0.7) | -0.1 (-0.4 to +0.0) |
+| yard, its probes | learning within 0.05, Davis | 35 | +1.0 (-0.0 to +2.3) | -0.7 (-1.6 to +0.1) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | learning within 0.05, McAllister 1991–2020 | 30 | -8.9 (-15.1 to -3.6) | +0.1 (-0.0 to +0.2) | -0.1 (-0.3 to +0.0) |
+| yard, its probes | learning within 0.05, McAllister 2021–2025 | 5 | -21.7 (-48.2 to -5.5) | -0.0 (-0.1 to +0.0) | -0.2 (-0.6 to +0.0) |
+| yard, its probes | learning within 0.05, p 0.2, Davis | 35 | +22.8 (+16.9 to +28.8) | -17.1 (-23.2 to -11.8) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | learning within 0.05, p 0.2, McAllister 1991–2020 | 30 | +16.4 (+9.4 to +22.7) | -0.8 (-1.2 to -0.4) | +0.2 (-0.1 to +0.7) |
+| yard, its probes | learning within 0.05, p 0.2, McAllister 2021–2025 | 5 | +12.2 (-15.3 to +39.2) | -1.2 (-3.0 to -0.1) | -0.1 (-0.2 to +0.1) |
+| yard, its probes | hot-day refill point, learning within 0.05, Davis | 35 | +1.0 (-0.1 to +2.2) | -0.7 (-1.6 to +0.1) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | hot-day refill point, learning within 0.05, McAllister 1991–2020 | 30 | -8.9 (-15.4 to -3.5) | +0.1 (-0.0 to +0.2) | -0.1 (-0.3 to +0.0) |
+| yard, its probes | hot-day refill point, learning within 0.05, McAllister 2021–2025 | 5 | -21.7 (-47.3 to -5.9) | -0.0 (-0.1 to +0.0) | -0.2 (-0.6 to +0.0) |
+| yard, its probes | hot-day refill point, learning within 0.05, p 0.2, Davis | 35 | +22.8 (+16.9 to +29.1) | -17.2 (-23.0 to -12.0) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | hot-day refill point, learning within 0.05, p 0.2, McAllister 1991–2020 | 30 | +16.4 (+9.1 to +22.9) | -0.8 (-1.2 to -0.4) | +0.2 (-0.1 to +0.7) |
+| yard, its probes | hot-day refill point, learning within 0.05, p 0.2, McAllister 2021–2025 | 5 | +12.2 (-18.8 to +39.2) | -1.2 (-3.0 to -0.1) | -0.1 (-0.2 to +0.1) |
+| yard, its probes | hot-day refill point, tension sensors, Davis | 35 | +18.6 (+7.4 to +30.7) | -14.6 (-24.2 to -6.1) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | hot-day refill point, tension sensors, McAllister 1991–2020 | 30 | -56.0 (-65.9 to -45.8) | +1.1 (+0.6 to +1.7) | -0.6 (-1.0 to -0.2) |
+| yard, its probes | hot-day refill point, tension sensors, McAllister 2021–2025 | 5 | -63.4 (-75.5 to -50.8) | +3.0 (+1.4 to +4.6) | -0.1 (-0.5 to +0.0) |
+| yard, its probes | hot-day refill point, tension sensors, p 0.2, Davis | 35 | +29.5 (+17.9 to +42.3) | -22.3 (-32.5 to -12.9) | +0.0 (+0.0 to +0.0) |
+| yard, its probes | hot-day refill point, tension sensors, p 0.2, McAllister 1991–2020 | 30 | -42.5 (-53.3 to -31.3) | -0.2 (-0.7 to +0.3) | -0.3 (-0.7 to +0.1) |
+| yard, its probes | hot-day refill point, tension sensors, p 0.2, McAllister 2021–2025 | 5 | -45.6 (-60.1 to -31.0) | -0.3 (-1.7 to +0.7) | -0.1 (-0.4 to +0.0) |
+| tomatoes over a dense pan, probes | hot-day refill point, Davis | 35 | +16.8 (+0.5 to +34.9) | -4.3 (-7.1 to -1.9) | -1.3 (-2.6 to +0.1) |
+| tomatoes over a dense pan, probes | hot-day refill point, McAllister 1991–2020 | 30 | +6.8 (-3.6 to +18.2) | -0.4 (-0.6 to -0.2) | +0.6 (-1.4 to +3.4) |
+| tomatoes over a dense pan, probes | hot-day refill point, McAllister 2021–2025 | 5 | +2.8 (-0.6 to +9.1) | -0.0 (-0.1 to +0.0) | +0.2 (-0.0 to +0.5) |
+| tomatoes over a dense pan, probes | tension sensors, Davis | 35 | -72.4 (-97.2 to -48.2) | -2.4 (-7.2 to +1.8) | -3.5 (-5.5 to -1.7) |
+| tomatoes over a dense pan, probes | tension sensors, McAllister 1991–2020 | 30 | -206.7 (-243.8 to -171.4) | +0.6 (+0.1 to +1.1) | -10.4 (-13.9 to -7.5) |
+| tomatoes over a dense pan, probes | tension sensors, McAllister 2021–2025 | 5 | -243.5 (-283.8 to -201.9) | +1.2 (+0.2 to +2.5) | -8.9 (-15.7 to -2.4) |
+| tomatoes over a dense pan, probes | learning within 0.05, Davis | 35 | -2.1 (-5.5 to +0.9) | -0.4 (-0.9 to -0.0) | -0.2 (-0.4 to +0.0) |
+| tomatoes over a dense pan, probes | learning within 0.05, McAllister 1991–2020 | 30 | -26.9 (-41.0 to -14.4) | -0.1 (-0.2 to +0.0) | -2.1 (-3.9 to -0.5) |
+| tomatoes over a dense pan, probes | learning within 0.05, McAllister 2021–2025 | 5 | -21.0 (-62.9 to +0.0) | -0.0 (-0.0 to +0.0) | +0.4 (+0.0 to +1.1) |
+| tomatoes over a dense pan, probes | hot-day refill point, learning within 0.05, Davis | 35 | +13.7 (-1.9 to +31.2) | -4.6 (-7.5 to -2.3) | -1.2 (-2.7 to +0.1) |
+| tomatoes over a dense pan, probes | hot-day refill point, learning within 0.05, McAllister 1991–2020 | 30 | -18.6 (-36.4 to -1.4) | -0.4 (-0.6 to -0.2) | -1.4 (-4.1 to +1.7) |
+| tomatoes over a dense pan, probes | hot-day refill point, learning within 0.05, McAllister 2021–2025 | 5 | -18.2 (-59.8 to +6.2) | -0.1 (-0.1 to -0.0) | +0.5 (-0.0 to +1.1) |
+| tomatoes over a dense pan, probes | hot-day refill point, tension sensors, Davis | 35 | -66.4 (-90.9 to -41.1) | -4.6 (-9.4 to -0.6) | -3.8 (-6.1 to -1.8) |
+| tomatoes over a dense pan, probes | hot-day refill point, tension sensors, McAllister 1991–2020 | 30 | -206.5 (-242.9 to -170.3) | +0.1 (-0.2 to +0.5) | -10.2 (-13.6 to -7.2) |
+| tomatoes over a dense pan, probes | hot-day refill point, tension sensors, McAllister 2021–2025 | 5 | -244.6 (-277.8 to -205.3) | +1.2 (+0.3 to +2.6) | -8.8 (-15.7 to -2.0) |
+
+### The sealed sites
+
+Bushland, Texas, and Tifton, Georgia, run once, the advice as built against the hardware
+recommended. The tension sensor's help for the lawn held at Bushland (−13.4 of 23.5); for
+lettuce and the yard it did not, both losing 1 to 2 mm more at Tifton. An anemometer, not
+recommended for the calm open sites, cut every bed by the weather's loss at windy Bushland.
+
+Code: 735d41f. Each summer one farm.
+
+| bed | summers | water | lost transpiration | share of demand | summers losing over 1% | hours waterlogged | ran off | stored at the end |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| bucket, its probe, Bushland (sealed) | 35 | 542 mm | 19.4 mm | 2.6% | 21 | 0 | 0 mm | -12 mm |
+| bucket, its probe, Tifton (sealed) | 35 | 273 mm | 0.6 mm | 0.1% | 1 | 0 | 0 mm | -6 mm |
+| bucket, by the weather, Bushland (sealed) | 35 | 529 mm | 27.4 mm | 3.4% | 22 | 0 | 0 mm | -11 mm |
+| bucket, by the weather, Tifton (sealed) | 35 | 245 mm | 4.7 mm | 0.8% | 6 | 0 | 0 mm | -8 mm |
+| tomatoes, probes, Bushland (sealed) | 35 | 1023 mm | 5.0 mm | 0.7% | 9 | 3 | 0 mm | +23 mm |
+| tomatoes, probes, Tifton (sealed) | 35 | 550 mm | 0.4 mm | 0.1% | 0 | 11 | 0 mm | +36 mm |
+| tomatoes, by the weather, Bushland (sealed) | 35 | 968 mm | 3.9 mm | 0.5% | 3 | 4 | 0 mm | +4 mm |
+| tomatoes, by the weather, Tifton (sealed) | 35 | 550 mm | 0.2 mm | 0.0% | 0 | 11 | 0 mm | +30 mm |
+| lettuce, probes, Bushland (sealed) | 35 | 508 mm | 9.4 mm | 2.5% | 14 | 2 | 0 mm | +5 mm |
+| lettuce, probes, Tifton (sealed) | 35 | 286 mm | 0.3 mm | 0.1% | 2 | 6 | 0 mm | +27 mm |
+| lettuce, by the weather, Bushland (sealed) | 35 | 523 mm | 4.6 mm | 1.2% | 11 | 5 | 0 mm | +13 mm |
+| lettuce, by the weather, Tifton (sealed) | 35 | 334 mm | 0.2 mm | 0.1% | 1 | 9 | 0 mm | +34 mm |
+| lawn, its probe, Bushland (sealed) | 35 | 406 mm | 23.5 mm | 3.4% | 16 | 12 | 0 mm | -22 mm |
+| lawn, its probe, Tifton (sealed) | 35 | 161 mm | 0.3 mm | 0.1% | 1 | 34 | 0 mm | -0 mm |
+| lawn, by the weather, Bushland (sealed) | 35 | 520 mm | 5.5 mm | 0.7% | 4 | 41 | 0 mm | -0 mm |
+| lawn, by the weather, Tifton (sealed) | 35 | 253 mm | 0.3 mm | 0.1% | 1 | 61 | 0 mm | +9 mm |
+| yard, its probes, Bushland (sealed) | 35 | 485 mm | 18.1 mm | 2.5% | 21 | 2 | 0 mm | +0 mm |
+| yard, its probes, Tifton (sealed) | 35 | 249 mm | 1.5 mm | 0.3% | 3 | 9 | 7 mm | +15 mm |
+| tomatoes over a dense pan, probes, Bushland (sealed) | 35 | 985 mm | 9.3 mm | 1.2% | 14 | 9 | 0 mm | +23 mm |
+| tomatoes over a dense pan, probes, Tifton (sealed) | 35 | 592 mm | 1.0 mm | 0.2% | 2 | 37 | 16 mm | +44 mm |
+
+| bed | against the bed as built | summers | water | lost transpiration | hours waterlogged |
+| --- | --- | --- | --- | --- | --- |
+| bucket, by the weather | wind measured, Bushland (sealed) | 35 | +91.7 (+78.6 to +104.8) | -17.2 (-23.4 to -11.7) | +0.0 (+0.0 to +0.0) |
+| bucket, by the weather | wind measured, Tifton (sealed) | 35 | -8.2 (-11.5 to -5.0) | +0.8 (+0.3 to +1.6) | +0.0 (+0.0 to +0.0) |
+| tomatoes, probes | tension sensors, Bushland (sealed) | 35 | -147.1 (-187.4 to -111.0) | +1.0 (-0.2 to +2.3) | -1.2 (-1.9 to -0.6) |
+| tomatoes, probes | tension sensors, Tifton (sealed) | 35 | -193.4 (-224.6 to -161.9) | +0.6 (+0.1 to +1.1) | -4.0 (-5.5 to -2.7) |
+| tomatoes, by the weather | wind measured, Bushland (sealed) | 35 | +201.8 (+166.6 to +237.6) | -3.4 (-6.4 to -1.0) | +8.1 (+5.8 to +10.7) |
+| tomatoes, by the weather | wind measured, Tifton (sealed) | 35 | -8.3 (-15.5 to -1.2) | -0.0 (-0.1 to +0.0) | +0.1 (-0.3 to +0.4) |
+| lettuce, probes | tension sensors, Bushland (sealed) | 35 | -43.0 (-65.0 to -22.3) | -1.8 (-4.5 to +0.8) | -0.4 (-0.8 to -0.1) |
+| lettuce, probes | tension sensors, Tifton (sealed) | 35 | -67.9 (-82.4 to -53.5) | +1.0 (+0.3 to +2.0) | -1.8 (-2.3 to -1.2) |
+| lettuce, by the weather | wind measured, Bushland (sealed) | 35 | +122.6 (+98.6 to +147.4) | -4.0 (-7.2 to -1.5) | +6.6 (+4.7 to +8.7) |
+| lettuce, by the weather | wind measured, Tifton (sealed) | 35 | -0.7 (-4.4 to +3.3) | +0.0 (-0.0 to +0.1) | +0.0 (-0.2 to +0.3) |
+| lawn, its probe | tension sensors, Bushland (sealed) | 35 | +18.7 (+5.1 to +34.9) | -13.4 (-25.3 to -3.2) | +0.5 (-0.2 to +1.4) |
+| lawn, its probe | tension sensors, Tifton (sealed) | 35 | -27.3 (-40.4 to -15.0) | +0.3 (+0.1 to +0.5) | -2.6 (-3.8 to -1.4) |
+| lawn, by the weather | wind measured, Bushland (sealed) | 35 | +104.5 (+87.1 to +122.7) | -3.9 (-7.1 to -1.2) | +21.2 (+17.4 to +25.5) |
+| lawn, by the weather | wind measured, Tifton (sealed) | 35 | -5.6 (-8.8 to -2.3) | -0.0 (-0.1 to +0.0) | -1.5 (-2.6 to -0.4) |
+| yard, its probes | tension sensors, Bushland (sealed) | 35 | -21.1 (-30.3 to -11.5) | +1.1 (-2.3 to +4.3) | -0.3 (-0.5 to -0.1) |
+| yard, its probes | tension sensors, Tifton (sealed) | 35 | -61.2 (-70.5 to -52.0) | +2.3 (+1.0 to +3.8) | -0.1 (-0.2 to +0.0) |
+| tomatoes over a dense pan, probes | tension sensors, Bushland (sealed) | 35 | -95.9 (-128.5 to -65.2) | +1.9 (-1.1 to +4.7) | -3.4 (-5.5 to -1.5) |
+| tomatoes over a dense pan, probes | tension sensors, Tifton (sealed) | 35 | -213.7 (-238.5 to -187.5) | +0.8 (+0.4 to +1.4) | -11.5 (-15.4 to -7.9) |

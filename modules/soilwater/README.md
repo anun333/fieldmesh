@@ -10,7 +10,7 @@ module's evidence base before that module exists.
 | advice | when |
 | --- | --- |
 | **water now**, and how many millimetres | the root zone has lost its crop's share of the plant-available water (FAO-56's `p`, a third by default): back up to field capacity |
-| **rain coming** | it is due, but 10 mm or more is forecast in the next 24 hours |
+| **rain coming** | it is due, but 10 mm or more is forecast in the next 24 hours, enough to leave it short of half its water by tomorrow |
 | **water soon** | at the rate it has dried since it was last wetted, it is due within two days |
 | **too wet** | wetter than field capacity: water is draining past the roots |
 | **enough** | and how much of the available water is left |
@@ -23,7 +23,9 @@ module's evidence base before that module exists.
 
 The arithmetic is FAO-56's root-zone balance read from the probes rather than modelled:
 `TAW = (field capacity − wilting point) × root depth`, depletion
-`Dr = (field capacity − θ) × root depth`, water when `Dr ≥ p × TAW`, `Dr` millimetres.
+`Dr = (field capacity − θ) × root depth`, water when `Dr ≥ p × TAW`, `Dr` millimetres. Each
+probe's deficit counts on its own: soil past field capacity under one probe is draining
+and does not fill the dry soil under another, so a wet subsoil does not cancel a dry top.
 The soil's limits come from a soil test or the survey (`tools/soil_survey.py`), by layer
 where the soil changes with depth. The field capacity is then learned from the probes
 themselves ([below](#the-beds-own-soil)).
@@ -43,9 +45,13 @@ next morning. The afternoon's look counts the morning's watering, recorded or ad
 never asks for the same water twice.
 
 **Only readings that had passed the health checks by that morning count**
-(`State.quality_as_of`), so a stuck or drifting probe never waters a bed, and a silent one
-is dropped rather than averaged in. Rain coming is read from a forecast datastream in the
-log (Q26), so the forecast an advice rested on sits beside it.
+(`State.quality_as_of`), so a stuck or drifting probe never waters a bed. A probe gone
+silent while others still read stands for its slice at its last good reading, less what
+the others have dried since, and the decision lists it (`carried`); when all are silent,
+the bed is carried on the weather. A series not in a volume fraction (`FRACTION_UNITS`) is
+not one of the bed's probes. Readings are counted an hour at a time, however often a probe
+reads. Rain coming is read from a forecast datastream in the log (Q26), as it stood that
+morning (`State.forecast(as_of=...)`), so the forecast an advice rested on sits beside it.
 
 ## Backtested
 
@@ -62,7 +68,11 @@ HYDRUS-1D and a real station's probes, is in [soil models](../../docs/notes/soil
 **Scored by** the water given and what drained past the roots; the hours the bed had lost
 half its available water; and, since 2026-10-17, the transpiration its dryness cost the
 crop (FAO-33's measure of lost yield), the hours it used less than its full demand, and the
-hours its root zone held less than a tenth air, overwatering's harm (`backtest.Score`).
+hours its root zone held less than a tenth air; since 2026-10-18, the hours it held less
+than a twentieth, waterlogged (a tenth is a few points above field capacity in these silt
+loams), what ran off, and what the whole soil held at the end against the start, so a bed
+that drew on the water below its roots shows it (`backtest.Score`). Watered by probes or
+by the weather, the water goes on at 12 mm an hour for as long as it takes.
 
 **On the farm as it is written** (`backtest.NOMINAL`): McAllister Farm's recorded summer of
 2013, June to August, a 30 cm root zone in a silt loam, the drill's forecasts in the log,
@@ -71,11 +81,12 @@ the advisory followed to the letter, beside the drip timer most farms run
 
 | | water applied | drained past the roots | hours stressed ≥ 0.5 | mean stress |
 | --- | --- | --- | --- | --- |
-| drip timer, every second morning | 552 mm | 580 mm | 0 | 0.06 |
-| timer, skipping when rain is forecast | 444 mm | 472 mm | 0 | 0.06 |
-| **the advisory** | **208 mm** | **235 mm** | **0** | **0.12** |
+| drip timer, every second morning | 552 mm | 552 mm | 0 | 0.06 |
+| timer, skipping when rain is forecast | 444 mm | 444 mm | 0 | 0.06 |
+| **the advisory** | **221 mm** | **221 mm** | **0** | **0.12** |
 
-62% less water and 59% less drained, with no hour of real stress. The cost is a drier root
+60% less water and 60% less drained, with no hour of real stress (since 2026-10-18; the
+figures before it are in [the record](../../docs/notes/soilwater-backtests.md#the-backtest-bed-2013)). The cost is a drier root
 zone on average, which is the trade a refill point makes, and the reason `p` is the crop's
 to set. The tests run this and a dozen other single summers once each (`BACKTESTS` in
 test_soilwater.py), say what must stay true of them, and hold their exact figures in
@@ -83,144 +94,97 @@ test_soilwater.py), say what must stay true of them, and hold their exact figure
 
 **On a farm that departs from what the advice is told** (`backtest.VirtualFarm`): its crop
 using more or less than its curve, running early or late, rooting deeper or shallower; its
-soil's limits off; each probe off by its own calibration error; its water loss
-Penman–Monteith with the day's own wind, where the farm's station assumes 2 m/s. The
+soil's limits off; each probe off by its own calibration error; its crop's roots making up
+for each other as far as a strength drawn for it lets them; its station's sensors and
+siting off; its water loss Penman–Monteith with the day's own wind, where the farm's
+station assumes 2 m/s; its rain forecasts missing whole days and forecasting spells that
+do not come, and read as they stood each morning. The
 advisory's defaults were tried so in [trials.py](trials.py), on McAllister's summers and on
-Davis, California's, dry and windier, each on two farms drawn for it
+Davis, California's, dry and windier, then at two sites kept sealed, each on a farm drawn for it
 ([below](#what-the-trials-show)). How each table here came to be, and the advice changed
 for what it showed, from 2026-10-11, is in
 [the backtests' record](../../docs/notes/soilwater-backtests.md).
 
 ## What the trials show
 
-The advisory's defaults were tried by [trials.py](trials.py) on a virtual farm that departs
-from what the advice is told (`backtest.VirtualFarm`): ten beds, each with the choices that
-bear on it, through McAllister Farm's recorded summers of 1991 to 2025 and those of Davis,
-California, dry and windier, each summer on two farms drawn for it, 5,320 backtests
-(code 4475640, 2026-10-17). The defaults were chosen on McAllister's 1991 to 2020
-("tuned"); McAllister's 2021 to 2025 and all of Davis's are "held out", nearly all of them
-Davis. Water and lost transpiration are the mean a summer, the transpiration being what
-the crop could not draw for want of water. Each bed as built:
+The advisory was tried by [trials.py](trials.py) on a virtual farm that departs from what
+the advice is told (`backtest.VirtualFarm`, [above](#backtested)): ten beds, through the
+recorded summers of 1991 to 2025 at four sites, each summer on a farm drawn for it. Its
+choices were tried at McAllister Farm, Tennessee, humid, and Davis, California, dry and
+windier (5,880 backtests on code 51dffc9, 2026-10-18; the hot-day refill point's run
+again on its fix, as committed in 735d41f), and read by rules written before the trial ran. Then
+the advice as chosen, and the hardware those rules recommended, were run once at two sites
+kept sealed until then: Bushland, Texas, semi-arid, windy and high, and Tifton, Georgia,
+humid and hot (1,330 backtests, code 735d41f). Each bed as built, the mean of a summer:
+the water given, the transpiration the crop could not draw for want of water and its share
+of what it would have drawn, and the hours it was waterlogged (under a twentieth of air):
 
-| bed | summers | water | lost transpiration | summers losing over 1 mm | hours short of air |
-| --- | --- | --- | --- | --- | --- |
-| bucket, its probe, tuned | 60 | 239 mm | 0.1 mm | 3 | 0 |
-| bucket, its probe, held out | 80 | 645 mm | 1.2 mm | 17 | 0 |
-| bucket, by the weather, tuned | 60 | 329 mm | 0.0 mm | 0 | 1 |
-| bucket, by the weather, held out | 80 | 660 mm | 10.2 mm | 20 | 0 |
-| tomatoes, probes, tuned | 60 | 506 mm | 1.8 mm | 25 | 185 |
-| tomatoes, probes, held out | 80 | 1102 mm | 13.8 mm | 74 | 57 |
-| tomatoes, by the weather, tuned | 60 | 570 mm | 0.7 mm | 14 | 307 |
-| tomatoes, by the weather, held out | 80 | 1057 mm | 5.0 mm | 47 | 174 |
-| lettuce, probes, tuned | 60 | 251 mm | 1.8 mm | 29 | 142 |
-| lettuce, probes, held out | 80 | 458 mm | 20.8 mm | 73 | 44 |
-| lettuce, by the weather, tuned | 60 | 297 mm | 0.5 mm | 12 | 185 |
-| lettuce, by the weather, held out | 80 | 528 mm | 2.7 mm | 36 | 120 |
-| lawn, its probe, tuned | 60 | 137 mm | 0.4 mm | 7 | 335 |
-| lawn, its probe, held out | 80 | 438 mm | 74.5 mm | 70 | 64 |
-| lawn, by the weather, tuned | 60 | 357 mm | 0.0 mm | 0 | 529 |
-| lawn, by the weather, held out | 80 | 637 mm | 2.5 mm | 11 | 291 |
-| yard, its probes, tuned | 60 | 234 mm | 1.5 mm | 26 | 22 |
-| yard, its probes, held out | 80 | 547 mm | 21.5 mm | 76 | 2 |
-| tomatoes over a dense pan, probes, tuned | 60 | 537 mm | 2.9 mm | 35 | 311 |
-| tomatoes over a dense pan, probes, held out | 80 | 1066 mm | 20.1 mm | 78 | 141 |
+| bed | McAllister | Davis | Bushland | Tifton |
+| --- | --- | --- | --- | --- |
+| bucket, its probe | 249 mm, 0.3 (0.1%), 0 h | 692 mm, 15.8 (2.1%), 0 h | 542 mm, 19.4 (2.6%), 0 h | 273 mm, 0.6 (0.1%), 0 h |
+| bucket, by the weather | 297 mm, 0.2 (0.0%), 0 h | 711 mm, 14.3 (1.8%), 0 h | 529 mm, 27.4 (3.4%), 0 h | 245 mm, 4.7 (0.8%), 0 h |
+| tomatoes, probes | 568 mm, 0.1 (0.0%), 12 h | 1135 mm, 7.3 (1.0%), 1 h | 1023 mm, 5.0 (0.7%), 3 h | 550 mm, 0.4 (0.1%), 11 h |
+| tomatoes, by the weather | 559 mm, 0.2 (0.1%), 11 h | 1213 mm, 0.8 (0.1%), 5 h | 968 mm, 3.9 (0.5%), 4 h | 550 mm, 0.2 (0.0%), 11 h |
+| lettuce, probes | 266 mm, 0.2 (0.1%), 9 h | 504 mm, 11.5 (3.7%), 1 h | 508 mm, 9.4 (2.5%), 2 h | 286 mm, 0.3 (0.1%), 6 h |
+| lettuce, by the weather | 282 mm, 0.1 (0.1%), 10 h | 608 mm, 0.6 (0.2%), 5 h | 523 mm, 4.6 (1.2%), 5 h | 334 mm, 0.2 (0.1%), 9 h |
+| lawn, its probe | 162 mm, 0.0 (0.0%), 32 h | 515 mm, 54.8 (9.0%), 0 h | 406 mm, 23.5 (3.4%), 12 h | 161 mm, 0.3 (0.1%), 34 h |
+| lawn, by the weather | 301 mm, 0.0 (0.0%), 61 h | 689 mm, 1.7 (0.2%), 37 h | 520 mm, 5.5 (0.7%), 41 h | 253 mm, 0.3 (0.1%), 61 h |
+| yard, its probes | 244 mm, 1.0 (0.3%), 6 h | 598 mm, 28.4 (4.3%), 0 h | 485 mm, 18.1 (2.5%), 2 h | 249 mm, 1.5 (0.3%), 9 h |
+| tomatoes over a dense pan, probes | 559 mm, 0.7 (0.2%), 36 h | 1124 mm, 13.3 (1.9%), 5 h | 985 mm, 9.3 (1.2%), 9 h | 592 mm, 1.0 (0.2%), 37 h |
 
-* **Held out, in a dry summer, the probes lose more than the weather.** By the weather, with
-  its margin, the beds lost 3 to 10 mm of transpiration a summer held out; by probes, the
-  crops and the lawn 14 to 75, though the backtest bed, one bucket, only 1. Learning reads
-  a hot, dry soil's field capacity low: in one Davis summer checked, the lawn's probe
-  learned 0.21 from 14 drain-downs where its soil holds what that probe would read as 0.28,
-  each watering spreading on into drier soil below as the grass drew hard, and watered back
-  only to 0.21 the lawn lost 37 mm. A soak test ([below](#a-soak-test-field-capacity-on-the-day)),
-  wetting the root zone well past field capacity on purpose, may read it better; it has not
-  been tried on the simulator.
-* **The weather's margin earns its keep where it was not tuned.** Without it the beds
-  were given 36 to 130 mm a summer less and, held out, lost 6 to 53 mm more transpiration;
-  at a tenth, half the saving for a fifth to a third of the loss. On the summers it was
-  chosen on, going without it lost them almost nothing.
-* **A young crop's refill point held by its roots** kept lettuce by probes from losing 1.3
-  mm a summer (tuned) and 5.7 (held out) that the initial stage alone lost; for tomatoes it
-  made little difference.
-* **The root signs earn their place**, by timing the watering by the soil above a stop
-  they may or may not have found: without them, tomatoes over a dense pan lost 6 and 36 mm
-  more, and tomatoes by probes with no pan 0.6 and 4.2.
-* **A shallow bed watered at a fifth gone** (`Bed.depletion_fraction` 0.2) kept the lawn
-  by its probe from 57 mm of the 75 it lost at Davis, and the yard from 15 of its 22, for 20
-  to 90 mm more water; at McAllister it bought next to nothing for 30 to 105 mm, and the
-  lawns hundreds of hours of a root zone short of air. It is a setting for a shallow bed in
-  a dry, hot place, not a default.
+* **In a humid summer either way works**: at McAllister and Tifton no bed lost a fiftieth
+  of its crop's transpiration, by its probes or by the weather. The beds by the weather
+  were given about as much as by probes, a lawn up to twice as much.
+* **In a dry one the probes lose more than the weather, which pays in water.** At Davis
+  and Bushland the probe-led crops and lawn lost 5 to 55 mm a summer, the same beds by the
+  weather under 1 to 6, for up to a third more water. The probes water a bed when the root
+  zone as a whole has lost its share; the crop's roots are densest at the top, and on a hot
+  day the top runs short first: a Davis summer traced layer by layer showed it, not the
+  field capacity learned ([record](../../docs/notes/soilwater-backtests.md#the-audit-of-2026-10-18)).
+* **The weather's margin earns its keep where it is dry.** At margin 0.1 Davis's bucket lost
+  23 mm a summer more, its lawn 6; at McAllister, up to a millimetre and a half. It stays
+  at 0.2. Where the wind blows and the station has no anemometer it is not
+  enough: at Bushland, by FAO-56's 2 m/s, the bucket lost 27 mm a summer.
+* **The hot-day refill point** (`Bed.adjust_p`), FAO-56's lower `p` on a fast-drying day,
+  cut tomatoes' lost transpiration at Davis by 1.8 mm a summer and over a dense pan by 4.3,
+  and lettuce's not at all, so it is an option, not the default
+  ([above](#hot-days-and-beds-under-cover)). Read from any day's drying, as it first was,
+  it took a wet summer's drainage for the crop's use and doubled six McAllister tomato
+  summers' water.
+* **Learning held within 0.05 of the configured field capacity** (`Bed.learn_within`) cut
+  the lawn's loss at Davis by 15 mm and saved McAllister's crops 10 to 40 mm of water, but
+  added half a millimetre to Davis's lettuce, past what the rules allowed, and holds back
+  a bed whose survey is badly wrong; an option ([below](#the-beds-own-soil)).
+* **Young crops and the root signs** were tried on 2026-10-17 and not again
+  ([record](../../docs/notes/soilwater-backtests.md#the-trials-of-2026-10-17)).
 
-Every choice against its default, the difference's mean and its 90% interval, is in
-[the backtests' record](../../docs/notes/soilwater-backtests.md#the-trials-of-2026-10-17).
+Every choice against the bed as built, with its 90% interval, site by site, is in
+[the backtests' record](../../docs/notes/soilwater-backtests.md#the-trials-of-2026-10-18-and-19).
 
 ### What measuring more would buy
 
-Then three things a farm might measure besides were tried on the same farms and summers
-(`trials.py`'s `MEASURES`, 9,380 backtests more, code c1de215, 2026-10-18): the station's
-wind, where FAO-56's 2 m/s stands in (`weather_backtest(wind=True)`); the crop's water use
-against its curve, as a canopy photo or a satellite's ET would give it, one number for the
-season measured to a lognormal 0.07 or 0.15 (`use_measured`, `Bed.use_scale`); and a
-tension sensor beside each probe, each a tenth out for good (`backtest(tension=True)`).
-Water and lost transpiration, the mean a summer; "use" is measured to 0.07:
-
-| bed | measured | water, tuned | lost, tuned | water, held out | lost, held out |
-| --- | --- | --- | --- | --- | --- |
-| bucket, by the weather | nothing more | 329 mm | 0.0 mm | 660 mm | 10.2 mm |
-| | wind | 297 | 0.0 | 698 | 3.0 |
-| | wind and use | 311 | 0.0 | 749 | 0.0 |
-| tomatoes, by the weather | nothing more | 570 | 0.7 | 1057 | 5.0 |
-| | wind | 510 | 0.8 | 1104 | 3.9 |
-| | wind and use | 501 | 1.0 | 1120 | 4.7 |
-| lettuce, by the weather | nothing more | 297 | 0.5 | 528 | 2.7 |
-| | wind | 279 | 0.6 | 550 | 2.3 |
-| | wind and use | 278 | 0.6 | 555 | 2.6 |
-| lawn, by the weather | nothing more | 357 | 0.0 | 637 | 2.5 |
-| | wind | 324 | 0.0 | 673 | 0.4 |
-| | wind and use | 317 | 0.0 | 685 | 0.0 |
-| tomatoes, probes | nothing more | 506 | 1.8 | 1102 | 13.8 |
-| | tension | 308 | 3.7 | 991 | 15.5 |
-| lettuce, probes | nothing more | 251 | 1.8 | 458 | 20.8 |
-| | tension | 141 | 4.1 | 433 | 17.7 |
-| tomatoes over a dense pan, probes | nothing more | 537 | 2.9 | 1066 | 20.1 |
-| | tension | 314 | 6.1 | 952 | 23.1 |
-| lawn, its probe | nothing more | 137 | 0.4 | 438 | 74.5 |
-| | tension | 116 | 0.8 | 528 | 10.7 |
-| | tension, watered at a fifth gone | 144 | 0.0 | 544 | 3.3 |
-| yard, its probes | nothing more | 234 | 1.5 | 547 | 21.5 |
-| | tension | 176 | 5.3 | 555 | 11.2 |
-| | tension, watered at a fifth gone | 193 | 1.2 | 567 | 3.0 |
-
-* **An anemometer earns its place on every bed by the weather.** FAO-56's 2 m/s is twice
-  McAllister's summer wind and under Davis's, so without one the balance counted
-  McAllister's beds' water high and Davis's low. Measured, McAllister's beds were given 6
-  to 11% less with no more loss, and Davis's 4 to 6% more, the bucket losing 3.0 mm a
-  summer for 10.2 and the lawn 0.4 for 2.5. It does not make the margin safe to cut: with
-  the wind measured and a margin of 0.1, McAllister's beds were given a further 5 to 13%
-  less, but Davis's bucket lost 14.3 mm and its lawn 4.3, more than as built.
-* **For a shallow bed, a tension sensor with a refill point of a fifth gone** kept the
-  lawn by its probe to 3.3 mm lost at Davis for 74.5, and the yard to 3.0 for 21.5, and
-  at McAllister the lawn was given 144 mm for 137 and the yard 193 for 234, losing nothing
-  more. A fifth gone alone, on the learned capacity, had cost McAllister's lawn 105 mm more
-  and 263 more hours of a root zone short of air.
-* **For the crops by probes, the true field capacity cut the water but not the loss.**
-  With the sensors they were given 5 to 44% less, and their root zones were short of air
-  for two-fifths fewer hours, but they lost 2 to 3 mm more a summer (lettuce held out, 3
-  less). In three summers checked, learning had read the tomatoes' probes 0.015 to 0.05
-  above their soil's capacity as each probe reads it, and the sensors within 0.015. So the
-  crops' losses by probes at Davis, 15 to 23 mm a summer with the sensors, are not their
-  field capacity; why they lose more than by the weather is open.
-* **The crop's use, measured as one number for the season, helped only where the error was
-  the bed's coefficient**: Davis's bucket lost 0.7 mm for 10.2 and its lawn 0.4 for 2.5,
-  and with the wind measured too, nothing. Tomatoes and lettuce lost more, 7.4 mm for 5.0
-  and 3.7 for 2.7, most likely because where it lowered the count it took away cover the
-  margin gave against the wind, and one number cannot follow a crop running early or
-  late. Photos through the season, which would follow its stages too, were not tried.
-* The virtual soil's field capacity is the water it holds at 33 kPa, where the advice
-  reads it off a tension sensor, so here the sensor is out only by its own error. In a
-  real soil the drained-to point and 33 kPa differ, most in sands (`Bed.capacity_kpa`).
-
-Each measure against the bed as built, with its 90% interval, is in
-[the backtests' record](../../docs/notes/soilwater-backtests.md#measuring-more-2026-10-18).
+* **An anemometer earns its place where the wind blows.** At Bushland it cut the beds by the
+  weather's lost transpiration by 3 to 17 mm a summer, for 90 to 200 mm more water. At calm
+  McAllister and Tifton it added up to a millimetre to the bucket's loss and saved a little
+  water: FAO-56's 2 m/s is twice their summer wind, and its over-count was part of the
+  margin's cover. The site's monthly normal wind (`Station.wind_normal`) did the same at
+  McAllister and was not taken as the default. (Before the audit of 2026-10-18 the station
+  read the farm's own weather exactly, and an anemometer looked right everywhere.)
+* **A tension sensor beside each probe saves water where learning reads high, and is a
+  lawn's cure in a dry place.** In the humid summers, where learning reads field capacity
+  high, it cut the probe beds' water by a sixth to a half (tomatoes' by 190 to 360 mm a
+  summer); in the dry ones the crops' by up to a seventh. It cut the lawn's lost
+  transpiration by 47 mm a summer at Davis and 13 at Bushland, giving it more water.
+  Elsewhere it cost up to 3 mm a summer: lettuce and the yard, which it helped at Davis,
+  lost 1 to 2 mm more at Tifton. The virtual soil's field capacity is the
+  water it holds at 33 kPa, where the advice reads it off a tension sensor, so here the
+  sensor is out only by its own error; in a real soil the drained-to point and 33 kPa
+  differ, most in sands.
+* **A probe at 5 cm over the others** cut tomatoes' and lettuce's lost transpiration at
+  Davis by 1.5 and 3.1 mm a summer; less than a third of it.
+* **The crop's use measured**, as one number for the season, was tried before the audit,
+  and helped only where the error was the bed's coefficient
+  ([record](../../docs/notes/soilwater-backtests.md#measuring-more-2026-10-18)).
 
 ## The bed's own soil
 
@@ -245,7 +209,23 @@ field capacity from its own drain-downs** (`learned_capacity`):
   low, enough to leave a lawn short in nearly every summer on the simulator.
 
 Until then, and for a value within 0.03 of its soil's wilting point, the configured value
-stands. `Bed(learn=False)` turns learning off. What it learns is the level the bed
+stands. `Bed(learn=False)` turns learning off.
+
+**Learning reads some soils wrong.** Where drainage slows by degrees, the fit's line runs
+back to the peak high: in wet summers the trials' crop beds learned 0.015 to 0.05 above
+their soil's capacity as each probe reads it. In a hot, dry lawn the waterings spread on
+into drier soil below, each drains back lower, and what is learned sinks with them. A
+tension sensor measures the capacity instead, and is the cure (the lawn at Davis lost 47 mm
+a summer fewer with one). `Bed.learn_within` holds learning within a distance of the
+configured value: at 0.05 it cut the lawn's loss at Davis by 15 mm, but added half a
+millimetre to lettuce's, and it stops a bed learning a survey that is badly wrong (the
+builder's yard below was short twice as long), so it is an option. When it holds a probe
+back, a note says so:
+
+> bed 3's probe at 20 cm drains back to 22% water after a soaking, but the bed is set up
+> for a soil that holds 30%, and the advice goes no further than 5 points from that. If
+> the soil's values are a survey's or a guess, give the bed a soil test's, run a soak test,
+> or put a tension sensor beside the probe. What it learns is the level the bed
 actually holds a day or two after a soaking, the in-place sense of field capacity (Twarakavi,
 Sakai and Šimůnek 2009, *Water Resources Research* 45,
 [doi:10.1029/2009WR007944](https://doi.org/10.1029/2009WR007944)).
@@ -387,10 +367,15 @@ worth their place is not known ([UNTESTED](../../docs/UNTESTED.md)).
 
 ## Hot days, and beds under cover
 
-**On a hot day** the refill point stays where it is: FAO-56's lower `p` for a bed drying
-faster than 5 mm a day (Rev.1 Eq. 8.5) was an option until 2026-10-17, and on the simulator
-it ended no shortage, which fell before mid-season, for half again the water
-([record](../../docs/notes/soilwater-backtests.md#hot-days-and-beds-under-cover)).
+**On a hot day** the refill point stays where it is by default. FAO-56's lower `p` for a
+bed drying faster than 5 mm a day (Rev.1 Eq. 8.5) is an option (`Bed.adjust_p`), by probes
+alone, the crop's use read from their drying on a day the soil was not draining
+(`CROP_DRYING_BELOW`): read from any day's, a wet summer's drainage passed for use, and six
+McAllister tomato summers took twice the water. At Davis it cut tomatoes' lost
+transpiration by 1.8 mm a summer and tomatoes over a dense pan's by 4.3, lettuce's not at
+all ([what the trials show](#what-the-trials-show)). Its smaller waterings are harder for
+the watering check to tell from none: in the 2012 drought one that arrived, over a dry top,
+was said not to have.
 
 **A bed under cover.** Rain forecast for the farm does not reach a bed under a tunnel or
 a roof, and "rain is coming: wait" is the wrong advice for it. `Bed.rain_share` says how
@@ -410,7 +395,10 @@ holds its water along van Genuchten's curve, fitted through its own saturation, 
 capacity at 33 kPa and wilting point at 1500 kPa with Rosetta3's residual water, and passes
 it by Darcy's law at Mualem's conductivity (`physics.Horizon`). Water held near capacity at
 the top reaches the bottom of the roots on its own, and water below the roots rises to
-them. Checked against HYDRUS-1D on the same soils ([soil models](../../docs/notes/soil-models.md#what-the-simulator-took-2026-10-16)).
+them. Checked against HYDRUS-1D on the same soils ([soil models](../../docs/notes/soil-models.md#what-the-simulator-took-2026-10-16)),
+over three days without roots; not over a season with them. Above field capacity it drains
+by a simpler rule than Mualem's, and a soil at field capacity drains no further, so the
+soil below the roots stays a store at field capacity all summer (UNTESTED).
 Before it, the soil moved no water below field capacity, and several early results were
 that soil's ([record](../../docs/notes/soilwater-backtests.md#water-below-field-capacity)).
 
@@ -420,7 +408,14 @@ The virtual farm's crop, since 2026-10-16: it uses its whole demand until it has
 own `p` of its water, then less in a line to the wilting point (FAO-56's `Ks`), layer by
 layer, weighed by its roots, densest at the top (Prasad 1988), since 2026-10-17; the top
 10 cm of its soil evaporates apart from it by FAO-56's dual coefficient, a mown lawn
-covering 0.95 of its ground. At USCRN's Crossville station it dried a soil under grass at
+covering 0.95 of its ground. Since 2026-10-18 its roots in wetter soil make up for those in
+drier, as Jarvis (1989) and HYDRUS have it, each farm's crop as far as a strength drawn for
+it between much and none lets it (`LayeredBed.compensation`): before, a dry top layer cut
+the whole crop's use, however wet the soil below. Its `p` follows the day's demand, as
+FAO-56 lowers it on a day the crop draws fast (`p + 0.04 (5 − ETc)`; tomatoes' 0.4 is 0.28
+at Davis's 8 mm a day). Its evaporation is spread through the top 10 cm and stops above the
+soil's residual water, where it took the top 25 mm first and dried it past the curve. A rain
+day keeps its reference ET whole, where it had lost about a sixth. At USCRN's Crossville station it dried a soil under grass at
 0.74 to 1.26 of the rate the probes saw at 5 to 20 cm
 ([soil models](../../docs/notes/soil-models.md#what-the-simulator-took-2026-10-16)). Every
 crop takes about twice the water it did on the crop before, which slowed as soon as its soil
@@ -435,14 +430,25 @@ it keeps), is advised by FAO-56's daily root-zone balance instead (`weather_bala
 * **Each day's reference ET** is FAO-56 Penman–Monteith from the station's readings that
   the checks passed (`sdk/eto.py`, which reproduces FAO-56's Example 18: 3.88 mm). Missing
   sunshine, humidity or wind are replaced by FAO-56's own stand-ins, and each decision
-  lists which it used. Of these, an anemometer is worth adding: its 2 m/s is twice a calm
-  summer's wind and less than a windy one's ([measuring more](#what-measuring-more-would-buy)).
+  lists which it used. Of these, an anemometer is worth adding where the wind blows: 2 m/s
+  is less than a windy summer's wind, and the balance counts low; at a calm site it is twice
+  the summer's wind and errs on the safe side ([measuring more](#what-measuring-more-would-buy)).
+  A station can instead be given its site's mean wind for each month
+  (`Station.wind_normal`, from NASA POWER's record), which FAO-56 prefers to 2 m/s; at calm
+  McAllister it cost the bucket a millimetre a summer, and it is not the default.
   `Bed.use_scale` is the crop's use against its curve, where the farm has measured it.
-* **The balance**: each day the depletion falls by the gauge's rain and the watering, and
-  rises by the crop's use, `Ks · Kc · ETo`, `Ks` slowing the crop once it has used its own
-  `p`; for a bed whose crop is named, `(Ks Kcb + Ke) ETo`, FAO-56's dual coefficient.
-* **A margin**: with nothing measured, the crop's use is counted a fifth above FAO-56's
-  estimate (`WEATHER_MARGIN`). The estimate is not the bed: the station's reference ET and
+* **The balance**: each day the depletion grows by the crop's use, `Ks · Kc · ETo`, `Ks`
+  slowing the crop once it has used its own `p`, and falls by the gauge's rain and the
+  watering, the two together (FAO-56's Eq. 85), what the root zone cannot hold draining; for
+  a bed whose crop is named, `(Ks Kcb + Ke) ETo`, FAO-56's dual coefficient. Its available
+  water is its layers' (`Bed.layers`) where they are given. The rain since midnight comes
+  off the morning's depletion, and the morning looks a day ahead, the balance's last day's
+  use for tomorrow's, as the probes' drying rate does. (Until 2026-10-18 the day's water
+  came off first and stopped at full, so a day that filled the bed counted its whole use
+  besides, a rainy summer's balance counting high; and it looked no further than its
+  refill point.)
+* **A margin**: with nothing measured, the crop's use, its evaporation with it, is counted
+  a fifth above FAO-56's estimate (`WEATHER_MARGIN`). The estimate is not the bed: the station's reference ET and
   the crop's coefficient can each be a tenth or more out, and a balance that counts low
   waters late and short, its shortfall adding up until rain, since each watering refills
   only what it counted. Counted high, it waters a little early and a little over, and the
@@ -482,7 +488,7 @@ the bed's crop coefficient all the way when the probe sees it drying faster, hal
 slower, because more water is the safe error, and **never below the margin**: a rate read
 truly does not make a balance stepped once a day safe on its own. It is not used with
 fewer than five such days, until every probe in the reference has learned its own field
-capacity, or outside 0.5 to 1.5. The same rate, read from a bed's own probes before they
+capacity, or below 0.5; above 1.5 it is taken at 1.5. The same rate, read from a bed's own probes before they
 fell silent, carries the fallback above.
 
 > bed 3 is due water by the farm's weather, with its water use set at 125% of the weather's
@@ -607,11 +613,14 @@ drying; this records why.
   (its Table 6.12), in place of the 1998 days taken at the farm's normal year;
 * which lawn coefficient is right for a real lawn, 1998's or the revision's
   (`turf_lawn`): a lawn's own rate, learned from a probed bed nearby, would say;
-* field capacity in a hot, dry soil: learning reads it low there ([above](#what-the-trials-show)),
-  and whether a soak test reads it better is not yet tried;
-* a shallow bed's earlier refill point where the crop dries it fast: at a fifth gone, it
-  spared a lawn and a yard most of what they lost at Davis, and cost water for nothing at
-  McAllister ([above](#what-the-trials-show)); it might follow the bed's own drying rate;
+* field capacity without a tension sensor: learning reads a hot, dry soil low and a wet
+  summer's high ([above](#the-beds-own-soil)), and whether a soak test reads it better is
+  not yet tried; separating slow drainage from the crop's drying needs the day's sun;
+* why probe-led beds lose more than the weather's in a dry place: the top of the root zone
+  runs short first on a hot day; a refill point timed by the top third, where most roots
+  are, is not yet tried; the hot-day refill point with a probe at 5 cm cut tomatoes' loss
+  at Davis by 3.7 mm a summer and lettuce's by 3.8, more than either alone, and was not
+  tried at the sealed sites;
 * root signs that judge a probe's level against what the roots' density predicts at its
   depth: with roots densest at the top, a deep probe reads near level with no pan at all
   ([above](#roots-that-stop));
