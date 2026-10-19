@@ -1826,13 +1826,14 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
     zone the watering is timed by, how fast each dries, and the forecast's rain. `carried`
     are the probes in the root zone gone silent or untrusted while others still read,
     `(weight, depth, datastream, rows, last good)`: each stands for its slice at its last
-    good reading, moved as the others have moved since (`series_rows`, each reading
-    probe's whole record), and the decision says so. (Until 2026-10-18 the others stood for
+    good reading, drier as the others have dried since, wetter only as those at or below it
+    have wetted (`series_rows`, each reading probe's whole record), and the decision says so. (Until 2026-10-18 the others stood for
     the whole zone, and a stale top probe over a wetter one below read a bed short of water
     as having plenty. Until 2026-10-19 it moved only as they dried, and only within the
     drying window's two days: on the records of three Tennessee SCAN stations, a 10 cm probe
-    hidden for three days 596 times, it was 0.007 off a day in and 0.018 three days in;
-    moved both ways from its own last reading, 0.006 and 0.010.)"""
+    hidden for three days 596 times, it was 0.007 off a day in and 0.018 three days in; as
+    now, 0.006 and 0.011. Wetted as all the others wetted, a 20 cm probe under two shallower
+    ones was carried wetter than it got after rain, worse than not moved at all.)"""
     root_m = bed.root_depth_mm / 1000.0
     # Probes named for plantings: the youngest's time the watering; the oldest's, and any
     # no planting names, measure the refill.
@@ -1876,15 +1877,21 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
                   and state.quality_as_of(o.id, at)[0] is Usable.GOOD]
         return sum(values) / len(values) if values else None
 
+    def change(pairs):
+        return (sum(sw * (now - then) for sw, then, now, _ in pairs) / sum(sw for sw, *_ in pairs)
+                if pairs else 0.0)
+
     extra = []
     for w, depth, ds, rows, last_good in carried:
         # How the reading probes have moved since this one's last good reading, weighed as
-        # their slices are, those that read then and now.
-        pairs = [(sw, near(srows, last_good[0]), good[-1].result)
-                 for (sw, good), srows in zip(series, series_rows or [[]] * len(series))]
-        pairs = [(sw, then, now) for sw, then, now in pairs if then is not None]
-        moved = (sum(sw * (now - then) for sw, then, now in pairs) / sum(sw for sw, _, _ in pairs)
-                 if pairs else 0.0)
+        # their slices are, those that read then and now: drier as they all dried, wetter
+        # only as those at or below it wetted. Water seen below has passed through it;
+        # water seen only above it may never come down so far.
+        pairs = [(sw, near(srows, last_good[0]), good[-1].result, sd)
+                 for (sw, good), srows, sd in zip(series, series_rows or [[]] * len(series),
+                                                   series_depths)]
+        pairs = [x for x in pairs if x[1] is not None]
+        moved = min(0.0, change(pairs)) + max(0.0, change([x for x in pairs if x[3] >= depth]))
         fc, wp = bed.limits_at(depth)
         value = max(soil_floor(depth, wp), last_good[1] + moved)
         extra.append((w, value, _capacity(state, bed, ds, depth, wp, rows, at), (fc, wp)))

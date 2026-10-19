@@ -1489,8 +1489,8 @@ class TestWhatTheAuditOf20261018Found(unittest.TestCase):
         self.assertEqual(out[40][1]["context"]["probes_carried"], 1)
         self.assertEqual(len(out[40][1]["inputs"]["carried"]), 1)
 
-    def test_a_silent_probe_moves_as_the_others_have_wetted_or_dried(self):
-        """Its top and bottom neighbours wetted by 0.06 since its last reading: it is
+    def test_a_silent_probe_wets_as_the_probe_below_it_has(self):
+        """Its neighbours above and below wetted by 0.06 since its last reading: it is
         carried 0.06 wetter, not held where it was (until 2026-10-19 only drying moved it)."""
         g = Garden()
         g.bed = S.replace(g.bed, root_depth_mm=300.0)
@@ -1499,6 +1499,17 @@ class TestWhatTheAuditOf20261018Found(unittest.TestCase):
         g.probe(lambda h: 0.24 if h < 30 else 0.30, depth=0.20)
         [c] = g.advice()[1]["inputs"]["carried"]
         self.assertAlmostEqual(c["carried_at"], 0.22 + 0.06, places=3)
+
+    def test_rain_seen_only_above_a_silent_probe_does_not_wet_it(self):
+        """Only the probe above it wetted: the water may not come down so far, and a 20 cm
+        probe under two shallower ones, carried as they wetted, ran wetter than it got."""
+        g = Garden()
+        g.bed = S.replace(g.bed, root_depth_mm=300.0)
+        g.probe(lambda h: 0.20 if h < 30 else 0.30, depth=0.05)
+        g.probe(lambda h: 0.22, depth=0.10, hours=20)
+        g.probe(lambda h: 0.24, depth=0.20)
+        [c] = g.advice()[1]["inputs"]["carried"]
+        self.assertAlmostEqual(c["carried_at"], 0.22, places=3)
 
     def test_a_long_silence_counts_the_drying_since_its_own_last_reading(self):
         """Silent 110 hours, its neighbours drying 0.001 an hour all the while: carried down
