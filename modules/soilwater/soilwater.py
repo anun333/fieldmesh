@@ -136,6 +136,12 @@ class Bed:
     #: Learn the bed's field capacity from its own probes (`learned_capacity`), the
     #: configured value standing until there is enough to learn from.
     learn: bool = True
+    #: For a sown crop past its young days, the share of the root zone, from the top, that
+    #: times the watering at the bed's refill point, the refill still to the whole zone, as
+    #: when roots stop short (`rooted`). The roots are densest at the top, a third of the
+    #: depth holding over half of them, and on a hot day that third runs short while the zone
+    #: as a whole has water to spare. None: the whole zone times it.
+    timing_share: float | None = None
     #: How far from the configured value learning may take it, either way; None, as far as
     #: it reads. Without a tension sensor a probe's drain-downs read a wet summer's capacity
     #: high and a hot, dry soil's low (`learned_capacity`). Tried at 0.05 on 2026-10-19
@@ -221,6 +227,8 @@ class Bed:
             raise ValueError("the rain that skips a watering is more than none, mm")
         if self.young_fraction is not None and not 0 < self.young_fraction < 1:
             raise ValueError("a young crop's depletion fraction is between 0 and 1, or None")
+        if self.timing_share is not None and not 0 < self.timing_share < 1:
+            raise ValueError("the share of the root zone that times the watering is between 0 and 1")
         if self.learn_within is not None and not 0 < self.learn_within < 0.2:
             raise ValueError("learning is bounded by a positive fraction under 0.2, or None")
         if self.crop is not None and self.plantings:
@@ -1701,6 +1709,9 @@ def _context_base(state, bed: Bed, at: _dt.datetime, *, held, capacities: dict):
         signs = root_signs(state, bed, at, capacities)
         stop_mm, seen_m, blocked_m = rooted(curve_mm, signs, held)
         timing_mm = min(young_mm, stop_mm)
+        if (bed.timing_share is not None and not young(bed, at.date())
+                and any(CROPS.get(crop, {}).get("season_days") for crop, _ in found)):
+            timing_mm = min(timing_mm, curve_mm * bed.timing_share)
         bed = replace(bed, timing_depth_mm=timing_mm if timing_mm < curve_mm else None)
     root_m = bed.root_depth_mm / 1000.0
     probes = probes_of(state, bed, at)

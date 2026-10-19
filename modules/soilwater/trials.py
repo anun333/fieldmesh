@@ -81,26 +81,30 @@ PROBE_BLOCKS = (({"adjust": (True,)}, ()), ({"tension": (True,)}, ()),
                 ({"within": (0.05,)}, ()), ({"adjust": (True,), "within": (0.05,)}, ()),
                 ({"adjust": (True,), "tension": (True,)}, ()))
 TOP_BLOCKS = (({"top": (True,)}, ()), ({"adjust": (True,), "top": (True,)}, ()))
+#: The watering timed by the top third of the root zone (`Bed.timing_share`), alone and with
+#: the hot-day refill point: tried on 2026-10-19 for the crops by probes.
+THIRD_BLOCKS = (({"third": (True,)}, ()), ({"third": (True,), "adjust": (True,)}, ()))
 MEASURES = {
     "bucket, its probe": (({"adjust": (True,)}, ()),),
     "bucket, by the weather": WEATHER_BLOCKS,
-    "tomatoes, probes": PROBE_BLOCKS + TOP_BLOCKS,
+    "tomatoes, probes": PROBE_BLOCKS + TOP_BLOCKS + THIRD_BLOCKS,
     "tomatoes, by the weather": WEATHER_BLOCKS,
-    "lettuce, probes": PROBE_BLOCKS + TOP_BLOCKS,
+    "lettuce, probes": PROBE_BLOCKS + TOP_BLOCKS + THIRD_BLOCKS,
     "lettuce, by the weather": WEATHER_BLOCKS,
     "lawn, its probe": tuple((m, ("p",)) for m, _ in PROBE_BLOCKS),
     "lawn, by the weather": WEATHER_BLOCKS,
     "yard, its probes": tuple((m, ("p",)) for m, _ in PROBE_BLOCKS),
-    "tomatoes over a dense pan, probes": PROBE_BLOCKS,
+    "tomatoes over a dense pan, probes": PROBE_BLOCKS + THIRD_BLOCKS,
 }
 #: Each measure or setting not taken, as the advisory was before 2026-10-19. A backtest's
 #: choices leave it out.
 OFF = {"wind": False, "normal": False, "adjust": False, "tension": False, "within": None,
-       "top": False}
+       "top": False, "third": False}
 #: Each, as the report names it.
 SAID = {"wind": "wind measured", "normal": "the wind's monthly normal",
         "adjust": "hot-day refill point", "tension": "tension sensors",
-        "within": "learning within {}", "top": "a probe at 5 cm"}
+        "within": "learning within {}", "top": "a probe at 5 cm",
+        "third": "watering timed by the top third"}
 #: What each backtest is scored by (`backtest.Score`).
 SCORES = ("applied_mm", "drained_mm", "transpiration_lost_mm", "demand_mm", "stressed_h",
           "below_p_h", "airless_h", "waterlogged_h", "runoff_mm", "stored_change_mm")
@@ -149,6 +153,8 @@ def sealed_configs(bed: str) -> list:
 def _design(bed: str, design: str) -> list:
     if design == "sealed":
         return sealed_configs(bed)
+    if design == "third":
+        return [c for c in configs(bed) if c.get("third")]
     if design == "adjust":
         # The hot-day refill point by probes, tried again once its reading of the crop's use
         # left out a draining soil's (`soilwater.CROP_DRYING_BELOW`): its configurations alone.
@@ -192,7 +198,8 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     picked = {**DEFAULTS, **OFF, **choices}
     S.WEATHER_MARGIN = picked["margin"]
     shallow = picked["p"] if picked["p"] != DEFAULTS["p"] else None
-    settings = {"adjust_p": bool(picked["adjust"]), "learn_within": picked["within"]}
+    settings = {"adjust_p": bool(picked["adjust"]), "learn_within": picked["within"],
+                "timing_share": 1 / 3 if picked["third"] else None}
     lat_elevation = SITES[site]
     climate = ph.RecordedClimate.from_csv(os.path.join(weather, f"{site}-1991-2025.csv"),
                                           seed=1, et0_by="penman", site=lat_elevation)
@@ -370,7 +377,7 @@ def main(argv=None) -> int:
     r.add_argument("--cache", help="a directory to keep each season's forecasts in")
     r.add_argument("--stamp", default="", help="the code the trial runs on, as a commit")
     r.add_argument("--sites", default=",".join(OPEN_SITES), help="comma-separated, of SITES")
-    r.add_argument("--design", choices=("open", "sealed", "adjust"), default="open")
+    r.add_argument("--design", choices=("open", "sealed", "adjust", "third"), default="open")
     p = sub.add_parser("report")
     p.add_argument("results")
     args = ap.parse_args(argv)

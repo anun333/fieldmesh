@@ -1610,9 +1610,27 @@ class TestWhatTheAuditOf20261018Found(unittest.TestCase):
                                 g.bed.short_fraction * 0.18 * 120)
         self.assertEqual(rule, "soil-weather-water-now")
 
+    def test_watering_can_be_timed_by_the_top_third(self):
+        """`Bed.timing_share`: tomatoes in mid-season, roots to 60 cm, the 10 cm probe at
+        half its water and the 30 cm one near field capacity. The zone as a whole has water
+        to spare; its top third, where most of the roots are, is past its refill point."""
+        g = Garden()
+        g.bed = S.Bed(g.land, 0.30, 0.12, crop="tomato", planted=_dt.date(2026, 5, 1))
+        g.probe(lambda h: 0.21, depth=0.10)
+        g.probe(lambda h: 0.29, depth=0.30)
+        self.assertNotEqual(g.advice()[0], "soil-water-now")
+        g.bed = S.replace(g.bed, timing_share=1 / 3)
+        rule, d = g.advice()
+        self.assertEqual(rule, "soil-water-now")
+        self.assertEqual(d["context"]["timing_depth_mm"], 200.0)
+        young = S.replace(g.bed, planted=_dt.date(2026, 7, 1))
+        c = S.Advisor(Log()).judge(g.state, young, MORNING)["context"]
+        self.assertEqual(c["timing_depth_mm"], c["root_depth_mm"], "a young crop: all its roots")
+
     def test_a_bed_configured_past_sense_is_refused(self):
         for bad in (dict(skip_rain_mm=0.0), dict(rain_share=1.5), dict(rain_share=-0.1),
-                    dict(use_scale=0.0), dict(young_fraction=0.0), dict(et_scale=-1.0)):
+                    dict(use_scale=0.0), dict(young_fraction=0.0), dict(et_scale=-1.0),
+                    dict(timing_share=1.0), dict(timing_share=0.0)):
             with self.assertRaises(ValueError, msg=str(bad)):
                 S.Bed(uuid7(), 0.30, 0.12, **bad)
 
