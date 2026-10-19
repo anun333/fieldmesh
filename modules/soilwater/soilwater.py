@@ -102,7 +102,12 @@ class Bed:
     #: p (Eq. 8.5 in the 2025 revision): `p + 0.04 (5 − ETc)`, ETc in mm a day, held
     #: between 0.1 and 0.8, never above `depletion_fraction`. The crop's roots are densest at
     #: the top, so on a hot day the top of the zone runs short while the zone as a whole has
-    #: water to spare. ETc is the probes' drying rate, or by the weather the day's Kc · ETo.
+    #: water to spare. By probes alone, ETc their drying on a day the soil was not draining
+    #: (`CROP_DRYING_BELOW`); by the weather it is not used. Tried on 2026-10-19 (README,
+    #: what the trials show): at Davis it cut tomatoes' lost transpiration by 1.8 mm a summer
+    #: and tomatoes over a dense pan's by 4.3, lettuce's not at all, so it is not the default;
+    #: read from any day's drying it had taken a wet summer's drainage for the crop's use and
+    #: doubled six McAllister tomato summers' water.
     adjust_p: bool = False
     #: The depletion fraction while any planting is in its initial stage, its few roots
     #: mostly in the soil the sun dries; None keeps `depletion_fraction` throughout. A
@@ -133,7 +138,12 @@ class Bed:
     learn: bool = True
     #: How far from the configured value learning may take it, either way; None, as far as
     #: it reads. Without a tension sensor a probe's drain-downs read a wet summer's capacity
-    #: high and a hot, dry soil's low (`learned_capacity`).
+    #: high and a hot, dry soil's low (`learned_capacity`). Tried at 0.05 on 2026-10-19
+    #: (README): it cut a Davis lawn's lost transpiration by 15 mm a summer and saved
+    #: McAllister's crops 10 to 40 mm of water, but added half a millimetre to Davis's
+    #: lettuce, and it holds back a bed whose configured values are badly wrong (a note says
+    #: so, `Advisor.learning_held_note`), so it is not the default. A tension sensor beside
+    #: the probe measures field capacity instead, unbounded.
     learn_within: float | None = None
     #: What covers the soil (`model.SURFACES`: bare, organic or inorganic mulch, plastic,
     #: turf) and what grows in it (`PLANTINGS`). The bed's record, written into each
@@ -834,14 +844,21 @@ def weights(depths_m: list, root_depth_m: float) -> list:
     return out
 
 
-def _drying_mm_per_day(rows, at, root_depth_mm, capacity: float | None = None) -> float:
+#: The crop's own use is read from a day that began at least this far below field capacity
+#: (`Bed.adjust_p`): nearer, the soil is still draining, and drainage is not the crop's.
+CROP_DRYING_BELOW = 0.02
+
+
+def _drying_mm_per_day(rows, at, root_depth_mm, capacity: float | None = None,
+                       below: float | None = None) -> float:
     """How fast the root zone is drying: its loss over the last whole day, each end the
     mean of the readings within two hours of it. A crop draws by day and hardly at night, so
     any part of a day misstates the rate: a fit over the night since the soil left field
     capacity read a heat wave's 8 mm a day as 1.3, and the advice did not look ahead to it.
     A day with a wetting in it (a three-hour mean 0.02 over the day's start) says nothing,
     and the day before is used. With `capacity`, a day that started above field capacity
-    starts there, so drainage does not count as the crop's."""
+    starts there, so drainage does not count as the crop's; with `below` too, a day that
+    started less than that below it says nothing either, and if neither day may, 0."""
     def near(t):
         values = [v for u, v in rows if abs((u - t) / HOUR) <= 2.0]
         return sum(values) / len(values) if len(values) >= 2 else None
@@ -855,6 +872,8 @@ def _drying_mm_per_day(rows, at, root_depth_mm, capacity: float | None = None) -
         day = [v for u, v in rows if begin < u <= end]
         means = [sum(w) / 3.0 for w in zip(day, day[1:], day[2:])]
         if any(m > a + 0.02 for m in means):
+            continue
+        if below is not None and capacity is not None and a > capacity - below:
             continue
         if capacity is not None:
             a = min(a, capacity)
@@ -1431,8 +1450,9 @@ def _capacity(state, bed: Bed, ds, depth_m: float, wilting: float, rows: list,
         configured = bed.limits_at(depth_m)[0]
         held = min(configured + bed.learn_within,
                    max(configured - bed.learn_within, found["field_capacity"]))
-        found = {**found, "field_capacity": round(held, 3),
-                 "bounded": held != found["field_capacity"]}
+        if abs(held - found["field_capacity"]) > 1e-9:
+            found = {**found, "field_capacity": round(held, 3), "bounded": True,
+                     "would_learn": found["field_capacity"]}
     return {**found, "datastream": ds.id, "depth_m": depth_m}
 
 
@@ -1714,8 +1734,11 @@ def _context_base(state, bed: Bed, at: _dt.datetime, *, held, capacities: dict):
             "days_to_water": NO_ESTIMATE, "probes": len(in_zone), "probes_carried": 0,
             "field_capacity": bed.field_capacity, "wilting_point": bed.wilting_point,
             "learned_probes": 0, "measured_probes": 0, "layered": False, "layers_configured": bool(bed.layers),
+            "learning_held": False, "held_cm": 0, "held_fc_percent": 0.0,
+            "configured_fc_percent": 0.0, "held_bound_points": 0.0,
             "by_weather": False, "weather_missing_days": 0, "watering_recorded": False,
             "anchored": False, "probe_silent_hours": 0.0, "drying_mm_per_day": 0.0,
+            "crop_drying_mm_per_day": 0.0,
             "corrected": False, "et_percent": 100.0, "reference_days": 0}
     inputs = {"bed": str(bed.feature), "observations": [], "forecast": None}
     inputs.update({k: getattr(bed, k) for k in ("surface", "planting") if getattr(bed, k)})
@@ -1857,8 +1880,15 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
                + sum(w * wp for w, _, _, (_, wp) in extra)) / total
     learned = [{"datastream": str(c["datastream"]),
                 "how": "measured" if c.get("measured") else "learned",
-                **{k: c[k] for k in ("depth_m", "field_capacity", "drains", "half_drain_h")}}
+                **{k: c[k] for k in ("depth_m", "field_capacity", "drains", "half_drain_h")},
+                **({"would_learn": c["would_learn"]} if c.get("bounded") else {})}
                for c in capacities if c]
+    held = next((x for x in learned if "would_learn" in x), None)
+    if held is not None:
+        base.update({"learning_held": True, "held_cm": round(held["depth_m"] * 100.0),
+                     "held_fc_percent": round(held["would_learn"] * 100.0, 1),
+                     "configured_fc_percent": round(bed.limits_at(held["depth_m"])[0] * 100.0, 1),
+                     "held_bound_points": round((bed.learn_within or 0.0) * 100.0, 1)})
     bed = replace(bed, field_capacity=capacity, wilting_point=wilting)
     if len(learned) >= 2:
         top, bottom = learned[0], learned[-1]
@@ -1875,6 +1905,11 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
                  + sum(w * max(0.0, (c["field_capacity"] if c else fc) - v)
                        for w, v, c, (fc, _) in extra)) / total * bed.root_depth_mm
     drying = _drying_mm_per_day(history, at, bed.root_depth_mm, bed.field_capacity)
+    # From the lower of the learned capacity and the configured: a wet summer's learning
+    # reads high, and the soil draining from there down to its own is not the crop's use.
+    configured = sum(w * fc for (w, _), (fc, _) in zip(series, limits)) / sum(w for w, _ in series)
+    crop_drying = _drying_mm_per_day(history, at, bed.root_depth_mm,
+                                     min(bed.field_capacity, configured), below=CROP_DRYING_BELOW)
     # The zone the watering is timed by: the probes in it, or, where it is shallower than any,
     # the shallowest, the nearest there is to it; the youngest planting's own, where it names
     # them.
@@ -1938,7 +1973,8 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
         "left_percent": round(100.0 * max(0.0, 1.0 - max(depletion / bed.taw_mm,
                                                          timing_depletion / timing_taw)), 0),
         "rain_mm": round(rain, 1), "days_to_water": round(days, 1),
-        "drying_mm_per_day": round(drying, 2)})
+        "drying_mm_per_day": round(drying, 2),
+        "crop_drying_mm_per_day": round(crop_drying, 2)})
 
 
 # ----------------------------------------------------------------- advisor
@@ -2024,12 +2060,17 @@ class Advisor:
                                       assumed=assumed, reference=reference,
                                       held=self._held(bed, at), rain_gauge=self.rain_gauge)
         timing = context["timing_depth_mm"]
-        if bed.adjust_p:
-            etc = (context["drying_mm_per_day"] if not context["by_weather"]
-                   else context.get("eto_mm", 0.0) * bed.crop_coefficient * bed.et_scale)
-            p = min(bed.depletion_fraction, adjusted_p(bed.depletion_fraction, etc))
-            bed = replace(bed, depletion_fraction=p, short_fraction=max(bed.short_fraction, p))
-            context["depletion_fraction"] = round(p, 3)
+        if bed.adjust_p and not context["by_weather"]:
+            # By probes alone, from their drying on a day the soil was not draining
+            # (`CROP_DRYING_BELOW`): on the open sites' trial a refill point read from any
+            # day's drying took a wet summer's drainage for the crop's use, watered daily,
+            # and kept it draining, doubling six McAllister tomato summers' water. By the
+            # weather it lost no bed less and put on more water.
+            etc = context["crop_drying_mm_per_day"]
+            p = adjusted_p(bed.depletion_fraction, etc)
+            if p < bed.depletion_fraction:
+                bed = replace(bed, depletion_fraction=p, short_fraction=max(bed.short_fraction, p))
+                context["depletion_fraction"] = round(p, 3)
         timing_p = None
         if bed.young_fraction is not None and young(bed, at.date()):
             p = min(bed.depletion_fraction, bed.young_fraction)
@@ -2102,7 +2143,8 @@ class Advisor:
                                   reference=by_land.get(bed.reference))
             out.append(self.log.append(R.DECISION, decision))
             for note in (self.layering(decision, bed, at), self.roots_note(decision, bed, at),
-                         self.out_of_soil_note(decision, bed, at)):
+                         self.out_of_soil_note(decision, bed, at),
+                         self.learning_held_note(decision, bed, at)):
                 if note is not None:
                     out.append(self.log.append(R.DECISION, note))
         return out
@@ -2138,6 +2180,22 @@ class Advisor:
         return d
 
     @staticmethod
+    def learning_held_note(decision: dict, bed: Bed, at: _dt.datetime) -> dict | None:
+        """When a probe would learn a field capacity further from the bed's configured one
+        than `Bed.learn_within` lets it, a note that says so, and how to settle it: the
+        bound keeps learning from running away where drainage reads it wrong, and would
+        also keep it from a soil whose survey is wrong. None otherwise."""
+        context = decision["context"]
+        if not context.get("learning_held"):
+            return None
+        names = ("learning_held", "held_cm", "held_fc_percent", "configured_fc_percent",
+                 "held_bound_points")
+        d = R.judge(learning_held_rule(), {k: context[k] for k in names}, decision["inputs"], at)
+        d.update({"subject": str(bed.feature), "topic": f"learning/{bed.feature}",
+                  "valid_until": (at + _dt.timedelta(days=1)).isoformat()})
+        return d
+
+    @staticmethod
     def layering(decision: dict, bed: Bed, at: _dt.datetime) -> dict | None:
         """When two of a bed's probes have learned field capacities `LAYER_GAP` or more
         apart and the bed was given one soil's values, a note that it is layered: one
@@ -2169,6 +2227,15 @@ def out_of_soil_rule() -> R.Rule:
                   message_params={"depth": "out_of_soil_cm", "reading": "out_of_soil_percent",
                                   "floor": "soil_floor_percent"},
                   unit_params={"depth": "cm"})
+
+
+def learning_held_rule() -> R.Rule:
+    return R.Rule("soil-learning-held", "1", "learning_held", {},
+                  alert_key="soilwater.learning_held", subject_param="bed",
+                  unit_params={"depth": "cm"},
+                  message_params={"depth": "held_cm", "learned": "held_fc_percent",
+                                  "configured": "configured_fc_percent",
+                                  "bound": "held_bound_points"})
 
 
 def layering_rule() -> R.Rule:

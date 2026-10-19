@@ -62,9 +62,11 @@ BEDS = {
     "yard, its probes": {"p": SHALLOW},
     "tomatoes over a dense pan, probes": {},
 }
-#: The advisory as built: margin `WEATHER_MARGIN`, a third of the water before watering. A
-#: young crop's refill point held by its roots and the root signs stay on: tried on
-#: 2026-10-17 (README), not again.
+#: The advisory as built, before the choices of 2026-10-19: margin `WEATHER_MARGIN`, a third
+#: of the water before watering, neither the hot-day refill point nor the bound on learning
+#: (`OFF`), which each backtest sets explicitly, so a result stands whatever the code's
+#: defaults have since become. A young crop's refill point held by its roots and the root
+#: signs stay on: tried on 2026-10-17 (README), not again.
 DEFAULTS = {"margin": 0.2, "p": 1 / 3}
 
 #: Besides `BEDS`' choices: what a farm might measure or set, each bed's blocks, each block
@@ -91,7 +93,8 @@ MEASURES = {
     "yard, its probes": tuple((m, ("p",)) for m, _ in PROBE_BLOCKS),
     "tomatoes over a dense pan, probes": PROBE_BLOCKS,
 }
-#: Each measure or setting not taken. A backtest's choices leave it out.
+#: Each measure or setting not taken, as the advisory was before 2026-10-19. A backtest's
+#: choices leave it out.
 OFF = {"wind": False, "normal": False, "adjust": False, "tension": False, "within": None,
        "top": False}
 #: Each, as the report names it.
@@ -124,11 +127,42 @@ def configs(bed: str) -> list:
     return out
 
 
-def jobs(sites=OPEN_SITES) -> list:
-    """Every backtest of the trial on `sites`: `(bed, choices, site, year, draw)`."""
+#: The defaults chosen on 2026-10-19 by rules written before the open sites' trial ran:
+#: none changed. The hot-day refill point did not cut lettuce's lost transpiration at Davis;
+#: learning within 0.05 raised it by just over the half millimetre the rules allowed.
+CHOSEN = {}
+
+
+def sealed_configs(bed: str) -> list:
+    """What the sealed sites try on `bed`, once: the bed as built (with the defaults chosen,
+    `CHOSEN`), and with the hardware the open sites' trial recommends for a probe bed (a
+    tension sensor beside each probe) or, by the weather, the wind measured."""
+    built = {n: DEFAULTS[n] for n in BEDS[bed]}
+    if "weather" in bed:
+        return [built, {**built, "wind": True}]
+    chosen = {**built, **CHOSEN}
+    if bed == "bucket, its probe":
+        return [built] + ([chosen] if chosen != built else [])
+    return [built] + ([chosen] if chosen != built else []) + [{**chosen, "tension": True}]
+
+
+def _design(bed: str, design: str) -> list:
+    if design == "sealed":
+        return sealed_configs(bed)
+    if design == "adjust":
+        # The hot-day refill point by probes, tried again once its reading of the crop's use
+        # left out a draining soil's (`soilwater.CROP_DRYING_BELOW`): its configurations alone.
+        return [c for c in configs(bed) if c.get("adjust") and "weather" not in bed]
+    return configs(bed)
+
+
+def jobs(sites=OPEN_SITES, design: str = "open") -> list:
+    """Every backtest of the trial on `sites`: `(bed, choices, site, year, draw)`; with
+    `design` "sealed", the sealed sites' (`sealed_configs`); "adjust", the hot-day refill
+    point's by probes again."""
     out = []
     for bed in BEDS:
-        for choices in configs(bed):
+        for choices in _design(bed, design):
             for site in sites:
                 for year in YEARS:
                     for draw in DRAWS:
@@ -158,8 +192,7 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     picked = {**DEFAULTS, **OFF, **choices}
     S.WEATHER_MARGIN = picked["margin"]
     shallow = picked["p"] if picked["p"] != DEFAULTS["p"] else None
-    settings = {k: v for k, v in (("adjust_p", picked["adjust"]),
-                                  ("learn_within", picked["within"])) if v}
+    settings = {"adjust_p": bool(picked["adjust"]), "learn_within": picked["within"]}
     lat_elevation = SITES[site]
     climate = ph.RecordedClimate.from_csv(os.path.join(weather, f"{site}-1991-2025.csv"),
                                           seed=1, et0_by="penman", site=lat_elevation)
@@ -218,7 +251,8 @@ def _run(job_and_args):
     run_one(job, weather, out, stamp)
 
 
-def run(weather: str, out: str, workers: int, stamp: str, sites=OPEN_SITES) -> int:
+def run(weather: str, out: str, workers: int, stamp: str, sites=OPEN_SITES,
+        design: str = "open") -> int:
     from multiprocessing import Pool
     done = set()
     if os.path.exists(out):
@@ -229,7 +263,7 @@ def run(weather: str, out: str, workers: int, stamp: str, sites=OPEN_SITES) -> i
                     raise SystemExit(f"{out} holds backtests on code {r.get('stamp')!r}, "
                                      f"not {stamp!r}: write to a file of its own")
                 done.add(_key(r["bed"], r["choices"], r["site"], r["year"], r["draw"]))
-    todo = [j for j in jobs(sites) if _key(*j) not in done]
+    todo = [j for j in jobs(sites, design) if _key(*j) not in done]
     random.Random(1).shuffle(todo)                     # long seasons and short ones mixed
     print(f"{len(todo)} backtests to run, {len(done)} done", flush=True)
     with Pool(workers, maxtasksperchild=1) as pool:
@@ -297,10 +331,12 @@ def report(path: str) -> str:
                        f"{mean('stored_change_mm'):+.0f} mm |")
     out += ["", "| bed | against the bed as built | summers | water | lost transpiration | "
             "hours waterlogged |", "| --- | --- | --- | --- | --- | --- |"]
+    present = {(r["bed"], _choices(r["choices"])) for r in rows}
     for bed, options in BEDS.items():
         base = {n: DEFAULTS[n] for n in options}
-        for tried in configs(bed):
-            if tried == base:
+        tries = configs(bed) + [c for c in sealed_configs(bed) if c not in configs(bed)]
+        for tried in tries:
+            if tried == base or (bed, _choices(tried)) not in present:
                 continue
             what = [SAID[n].format(_shown(tried[n])) for n in sorted(tried) if n in OFF]
             what += [f"{n} {_shown(tried[n])}" for n in sorted(options) if tried[n] != DEFAULTS[n]]
@@ -334,6 +370,7 @@ def main(argv=None) -> int:
     r.add_argument("--cache", help="a directory to keep each season's forecasts in")
     r.add_argument("--stamp", default="", help="the code the trial runs on, as a commit")
     r.add_argument("--sites", default=",".join(OPEN_SITES), help="comma-separated, of SITES")
+    r.add_argument("--design", choices=("open", "sealed", "adjust"), default="open")
     p = sub.add_parser("report")
     p.add_argument("results")
     args = ap.parse_args(argv)
@@ -343,7 +380,7 @@ def main(argv=None) -> int:
         sites = tuple(s for s in args.sites.split(",") if s)
         if any(s not in SITES for s in sites):
             raise SystemExit(f"sites are of {sorted(SITES)}")
-        return run(args.weather, args.out, args.workers, args.stamp, sites)
+        return run(args.weather, args.out, args.workers, args.stamp, sites, args.design)
     print(report(args.results))
     return 0
 

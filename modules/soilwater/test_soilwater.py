@@ -370,6 +370,24 @@ class TestLearnedCapacity(unittest.TestCase):
         self.assertEqual(d["context"]["field_capacity"], 0.30)
         self.assertEqual(rule, "soil-water-now")
 
+    @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+    def test_learning_within_005_goes_no_further_and_says_so(self):
+        """The same sandy fill under a survey's 0.30, the bed's learning held within 0.05
+        (`Bed.learn_within`): it learns 0.25, and a note says the probe reads 22%."""
+        points = dict(_drains(4))
+        last = 12 + 3 * 72 + 24
+        g = Garden()
+        g.bed = S.replace(g.bed, learn_within=0.05)
+        g.probe(lambda h: points[h], hours=last)
+        events = S.Advisor(Log()).advise(g.state, [g.bed], T0 + last * HOUR)
+        self.assertAlmostEqual(events[0].payload["context"]["field_capacity"], 0.25, places=3)
+        [note] = [e.payload for e in events[1:] if e.payload["rule"] == "soil-learning-held"]
+        self.assertEqual(note["topic"], f"learning/{g.land}")
+        g.state.add(Label(uuid7(), g.land, "bed 3", T0, language="en"))
+        text = S.render(note, "en", g.state)
+        self.assertIn("bed 3's probe at 20 cm drains back to 22% water", text)
+        self.assertIn("holds 30%", text)
+
     def test_a_bed_can_give_each_layers_values(self):
         bed = S.Bed(uuid7(), 0.38, 0.25, layers=((0.10, 0.20, 0.09),))
         self.assertEqual(bed.limits_at(0.05), (0.20, 0.09))
@@ -1578,14 +1596,17 @@ def _june(year: int) -> _dt.datetime:
     return _dt.datetime(year, 6, 1, tzinfo=_dt.timezone.utc)
 
 
-def _yard(year, depths, learn, configured=(0.30, 0.12), layers=()):
-    """The builder's yard: 10 cm of sandy loam over compacted clay, 15 cm of roots."""
+def _yard(year, depths, learn, configured=(0.30, 0.12), layers=(), within=None):
+    """The builder's yard: 10 cm of sandy loam over compacted clay, 15 cm of roots. Its
+    learning unbounded (`Bed.learn_within` None) unless `within` is given, as a bed is set
+    up when its soil's values are known to be the survey's guess."""
     import physics as ph
     yard = ph.LayeredBed(name="yard", depth_mm=150,
                          horizons=(ph.Horizon(100, **ph.SANDY_LOAM),
                                    ph.Horizon(500, **ph.COMPACTED_CLAY)))
     return B.backtest(_summer(year), _june(year), 92, seed=1, soil=yard, depths=depths,
-                      configured=configured, learn=learn, layers=layers)
+                      configured=configured, learn=learn, layers=layers,
+                      settings={"learn_within": within})
 
 
 def _drill(year):
@@ -1625,6 +1646,8 @@ BACKTESTS = {
     "yard 2013, one probe, the survey": lambda: _yard(2013, (0.05,), False),
     "yard 2013, one probe, the survey, learning": lambda: _yard(2013, (0.05,), True),
     "yard 2012, two probes, the survey, learning": lambda: _yard(2012, (0.05, 0.12), True),
+    "yard 2012, two probes, the survey, learning held": lambda: _yard(
+        2012, (0.05, 0.12), True, within=0.05),
     "yard 2012, two probes, each layer's values, learning": lambda: _yard(
         2012, (0.05, 0.12), True, (0.38, 0.25), ((0.10, 0.20, 0.09),)),
 }
@@ -1878,6 +1901,14 @@ class TestLearningOnTheVirtualFarm(unittest.TestCase):
         self.assertAlmostEqual(learned[0.12]["field_capacity"], 0.40, delta=0.02)
         self.assertTrue(self.survey_2012["layered"])
 
+    def test_held_by_the_bound_it_is_short_longer_and_says_so(self):
+        """Its learning held within 0.05 (`Bed.learn_within`), the survey's 0.30 holds the
+        clay's capacity at 0.35 where it drains to 0.41: the yard is short about twice as long
+        as unbounded, and a note says so each morning."""
+        held = backtested("yard 2012, two probes, the survey, learning held")
+        self.assertGreater(held["stressed_h"], 1.5 * self.survey_2012["stressed_h"])
+        self.assertTrue(any(x.get("would_learn") for x in held["learned"]))
+
     def test_given_each_layers_values_as_the_note_asks_it_waits_less(self):
         """One wilting point for two soils counts water the clay holds and the roots
         cannot take, so through the dry summer of 2012 the advice waited too long. With each
@@ -2115,6 +2146,20 @@ class TestTheWateringCheck(unittest.TestCase):
                             set(range(0, 92, 2)))
         self.assertEqual((got["missed"], got["false"]), (0, 0))
         self.assertGreater(got["caught"], 0)
+
+    def test_smaller_waterings_are_harder_to_check(self):
+        """With the hot-day refill point (`Bed.adjust_p`), waterings in the 2012 drought are
+        smaller, and one that arrived, its top soil dry, rose its probe at 20 cm by 1.2
+        points of the 4.6 expected and was said not to have: a false alarm in fifteen."""
+        import physics as ph
+        path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
+        blocked = frozenset(range(0, 92, 2))
+        r = B.backtest(ph.RecordedClimate.from_csv(path, seed=1),
+                       _dt.datetime(2012, 6, 1, tzinfo=_dt.timezone.utc), 92, seed=1,
+                       check=S.watering_check(), blocked=blocked, settings={"adjust_p": True})
+        false = [c for c in r["checks"] if c["day"] not in blocked and c["alert"]]
+        self.assertLessEqual(len(false), 2)
+        self.assertTrue(all(c["expected_percent"] < 6.0 for c in false))
 
     def test_with_the_valve_reporting_it_says_which_of_the_two_it_was(self):
         """An OpenSprinkler's station through the MQTT bridge: on a blocked day the valve

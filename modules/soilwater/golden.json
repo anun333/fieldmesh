@@ -193,6 +193,22 @@
   "stressed_h": 60.9,
   "transpiration_lost_mm": 1.0
  },
+ "yard 2012, two probes, the survey, learning held": {
+  "advice": {
+   "soil-enough": 42,
+   "soil-rain-coming": 6,
+   "soil-too-wet": 25,
+   "soil-water-now": 32,
+   "soil-water-soon": 79
+  },
+  "airless_h": 7.2,
+  "applied_mm": 305.4,
+  "below_p_h": 89.3,
+  "drained_mm": 137.3,
+  "field_capacity": 0.293,
+  "stressed_h": 150.1,
+  "transpiration_lost_mm": 2.1
+ },
  "yard 2013, one probe, the survey": {
   "advice": {
    "soil-enough": 53,
