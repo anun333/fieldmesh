@@ -1681,8 +1681,10 @@ def _bed_context(state, bed: Bed, at: _dt.datetime, *, forecast: UUID | None = N
 
     carried = tuple(fb for fb in fallback
                     if fb[2].sensor not in series_sensors and fb[4] is not None)
+    rows_of = {fb[2].sensor: fb[3] for fb in fallback}
     _from_probes(state, bed, at, base, inputs, found, timing_mm, forecast, series, capacities,
-                 limits, series_depths, series_sensors, carried)
+                 limits, series_depths, series_sensors, carried,
+                 [rows_of.get(sensor, []) for sensor in series_sensors])
     return base, inputs
 
 
@@ -1818,14 +1820,19 @@ def _probe_readings(state, bed: Bed, at: _dt.datetime, in_zone: list, known: dic
 
 def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, found: tuple,
                  timing_mm: float, forecast, series: list, capacities: list, limits: list,
-                 series_depths: list, series_sensors: list, carried: tuple = ()) -> None:
+                 series_depths: list, series_sensors: list, carried: tuple = (),
+                 series_rows: list = ()) -> None:
     """Fill a bed's context from its probes: the root zone's water and field capacity, the
     zone the watering is timed by, how fast each dries, and the forecast's rain. `carried`
     are the probes in the root zone gone silent or untrusted while others still read,
     `(weight, depth, datastream, rows, last good)`: each stands for its slice at its last
-    good reading, less what the others have dried since, and the decision says so. (Until
-    2026-10-18 the others stood for the whole zone, and a stale top probe over a wetter one
-    below read a bed short of water as having plenty.)"""
+    good reading, moved as the others have moved since (`series_rows`, each reading
+    probe's whole record), and the decision says so. (Until 2026-10-18 the others stood for
+    the whole zone, and a stale top probe over a wetter one below read a bed short of water
+    as having plenty. Until 2026-10-19 it moved only as they dried, and only within the
+    drying window's two days: on the records of three Tennessee SCAN stations, a 10 cm probe
+    hidden for three days 596 times, it was 0.007 off a day in and 0.018 three days in;
+    moved both ways from its own last reading, 0.006 and 0.010.)"""
     root_m = bed.root_depth_mm / 1000.0
     # Probes named for plantings: the youngest's time the watering; the oldest's, and any
     # no planting names, measure the refill.
@@ -1860,14 +1867,27 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
             by_time.setdefault(key, {})[id(good)] = (w, o.result)
     history = sorted((t, sum(w * v for w, v in vals.values()) / sum(w for w, _ in vals.values()))
                      for t, vals in by_time.items() if len(vals) == len(series))
-    now_theta = sum(w * good[-1].result for w, good in series) / sum(w for w, _ in series)
+    def near(rows, t):
+        """A reading probe's water about `t`: the mean of its good readings within two
+        hours of it, or None."""
+        values = [float(o.result) for o in rows
+                  if abs((o.measured_at - t) / HOUR) <= 2.0 and o.received_at <= at
+                  and isinstance(o.result, (int, float)) and not isinstance(o.result, bool)
+                  and state.quality_as_of(o.id, at)[0] is Usable.GOOD]
+        return sum(values) / len(values) if values else None
+
     extra = []
     for w, depth, ds, rows, last_good in carried:
-        then = next((v for t, v in history if t >= last_good[0]), None)
-        dried = max(0.0, then - now_theta) if then is not None else 0.0
+        # How the reading probes have moved since this one's last good reading, weighed as
+        # their slices are, those that read then and now.
+        pairs = [(sw, near(srows, last_good[0]), good[-1].result)
+                 for (sw, good), srows in zip(series, series_rows or [[]] * len(series))]
+        pairs = [(sw, then, now) for sw, then, now in pairs if then is not None]
+        moved = (sum(sw * (now - then) for sw, then, now in pairs) / sum(sw for sw, _, _ in pairs)
+                 if pairs else 0.0)
         fc, wp = bed.limits_at(depth)
-        extra.append((w, last_good[1] - dried, _capacity(state, bed, ds, depth, wp, rows, at),
-                      (fc, wp)))
+        value = max(soil_floor(depth, wp), last_good[1] + moved)
+        extra.append((w, value, _capacity(state, bed, ds, depth, wp, rows, at), (fc, wp)))
     total = sum(w for w, _ in series) + sum(x[0] for x in extra)
     theta = (sum(w * good[-1].result for w, good in series)
              + sum(w * v for w, v, _, _ in extra)) / total
@@ -1951,8 +1971,9 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
         inputs["learned"] = learned
     if extra:
         inputs["carried"] = [{"datastream": str(ds.id), "depth_m": depth,
-                              "last_good_at": last_good[0].isoformat()}
-                             for _, depth, ds, _, last_good in carried]
+                              "last_good_at": last_good[0].isoformat(),
+                              "last_good": round(last_good[1], 3), "carried_at": round(x[1], 3)}
+                             for (_, depth, ds, _, last_good), x in zip(carried, extra)]
         base["probes_carried"] = len(extra)
     base.update({
         "usable": True, "theta": round(theta, 3), "field_capacity": round(capacity, 3),

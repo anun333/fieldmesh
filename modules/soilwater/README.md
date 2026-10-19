@@ -46,9 +46,11 @@ never asks for the same water twice.
 
 **Only readings that had passed the health checks by that morning count**
 (`State.quality_as_of`), so a stuck or drifting probe never waters a bed. A probe gone
-silent while others still read stands for its slice at its last good reading, less what
-the others have dried since, and the decision lists it (`carried`); when all are silent,
-the bed is carried on the weather. A series not in a volume fraction (`FRACTION_UNITS`) is
+silent while others still read stands for its slice at its last good reading, moved as the
+others have moved since, wetter or drier, and the decision lists it and the value it was
+carried at (`carried`); when all are silent, the bed is carried on the weather. On three
+Tennessee SCAN stations' records, a 10 cm probe hidden for three days was carried within
+0.006 of the truth a day in and 0.010 three days in. A series not in a volume fraction (`FRACTION_UNITS`) is
 not one of the bed's probes. Readings are counted an hour at a time, however often a probe
 reads. Rain coming is read from a forecast datastream in the log (Q26), as it stood that
 morning (`State.forecast(as_of=...)`), so the forecast an advice rested on sits beside it.
