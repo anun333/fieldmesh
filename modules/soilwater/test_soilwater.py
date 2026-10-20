@@ -1481,6 +1481,35 @@ class TestAProbesOutageInTheBacktest(unittest.TestCase):
         self.assertIn(first + 20 * HOUR, hours)
 
 
+class TestAProbeGoneWrongInTheBacktest(unittest.TestCase):
+    def readings(self, **fault):
+        """The 10 cm probe's readings in a tomato bed, layered, over four days of 2013."""
+        june, kept = _june(2013), {}
+
+        def hook(state, when, station):
+            kept["state"] = state
+        B.backtest(_summer(2013), june, 4, seed=1, depths=(0.10, 0.30), crop="tomato",
+                   planted=june.date() - _dt.timedelta(days=40), before_advice=hook, **fault)
+        state = kept["state"]
+        [top] = [ds for ds in state.datastreams.values()
+                 if ds.kind is DatastreamKind.DERIVED and state.installation_of(ds.sensor, june).depth_m == 0.10]
+        return {o.measured_at: o.result for o in state.live_observations_of(top.id)}
+
+    def test_a_drift_reaches_its_total_and_holds(self):
+        june = _june(2013)
+        plain = self.readings()
+        drifted = self.readings(drifts=((0.10, june + 24 * HOUR, 1, -0.03),))
+        self.assertEqual(drifted[june + 12 * HOUR], plain[june + 12 * HOUR], "before it starts")
+        self.assertAlmostEqual(drifted[june + 36 * HOUR] - plain[june + 36 * HOUR], -0.015, delta=0.0011)
+        self.assertAlmostEqual(drifted[june + 60 * HOUR] - plain[june + 60 * HOUR], -0.03, delta=0.0011)
+
+    def test_a_misplaced_probe_reads_where_it_lies(self):
+        plain, shallow = self.readings(), self.readings(misplaced={0.10: 0.05})
+        self.assertEqual(set(plain), set(shallow), "recorded at 10 cm all the same")
+        moved = sum(1 for t in plain if plain[t] != shallow[t])
+        self.assertGreater(moved, len(plain) // 2, "read where it lies, in another layer")
+
+
 class TestTheCarryTrialsOutages(unittest.TestCase):
     def test_four_apart_from_day_50_the_same_for_a_summer_and_a_crops_float_season(self):
         import trials as TR

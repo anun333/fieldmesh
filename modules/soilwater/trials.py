@@ -39,7 +39,10 @@ SIM = os.path.join(HERE, os.pardir, os.pardir, "sim")
 #: hot desert farmland, and Kearney, Nebraska, continental and semi-arid.
 SITES = {"mcallister": (35.06445, 243.0), "davis": (38.5382, 16.0),
          "bushland": (35.186, 1170.0), "tifton": (31.475, 116.0),
-         "yuma": (32.69, 60.0), "kearney": (40.70, 650.0)}
+         "yuma": (32.69, 60.0), "kearney": (40.70, 650.0),
+         # sealed on 2026-10-20 for the next default trial (its weather fetched, not run)
+         "fivepoints": (36.34, 85.0), "prosser": (46.25, 270.0),
+         "gainesville": (29.65, 30.0), "grandforks": (47.92, 254.0)}
 #: The sites the defaults are chosen on; the rest are sealed.
 OPEN_SITES = ("mcallister", "davis")
 YEARS = range(1991, 2026)
@@ -102,7 +105,8 @@ MEASURES = {
 #: Each measure or setting not taken, as the advisory was before 2026-10-19. A backtest's
 #: choices leave it out.
 OFF = {"wind": False, "normal": False, "adjust": False, "tension": False, "within": None,
-       "top": False, "third": False, "hot": False, "outage": False, "carry": None, "survey": 0.0}
+       "top": False, "third": False, "hot": False, "outage": False, "carry": None, "survey": 0.0,
+       "fault": None}
 #: Each, as the report names it.
 SAID = {"wind": "wind measured", "normal": "the wind's monthly normal",
         "adjust": "hot-day refill point", "tension": "tension sensors",
@@ -110,7 +114,13 @@ SAID = {"wind": "wind measured", "normal": "the wind's monthly normal",
         "third": "watering timed by the top third",
         "hot": "watering timed by the top third on a hot day",
         "outage": "the 10 cm probe silent four times", "carry": "carried by the {}",
-        "survey": "the survey {} off"}
+        "survey": "the survey {} off", "fault": "the 10 cm probe {}"}
+#: The top probe's faults of 2026-10-20's trial, from day 60: reading 0.03 drier or wetter,
+#: reached over 28 days, or lying at 5 or 15 cm where it is recorded at 10.
+FAULT_FROM_DAY = 60
+FAULTS = {"dry": {"drifts": ((0.10, FAULT_FROM_DAY, 28, -0.03),)},
+          "wet": {"drifts": ((0.10, FAULT_FROM_DAY, 28, 0.03),)},
+          "shallow": {"misplaced": {0.10: 0.05}}, "deep": {"misplaced": {0.10: 0.15}}}
 #: The crop beds by probes, and the lawns.
 CROP_PROBES = ("tomatoes, probes", "tomatoes over a dense pan, probes", "lettuce, probes")
 LAWNS = ("lawn, its probe", "yard, its probes")
@@ -179,6 +189,10 @@ def _design(bed: str, design: str) -> list:
         # 2026-10-19: a silent probe carried by the rule, and at Timestral's forecast of it;
         # the tomato beds, lettuce's 10 cm probe having no other in its root zone.
         return ([{"outage": True}, {"outage": True, "carry": "forecast"}]
+                if bed in CROP_PROBES[:2] else [])
+    if design == "topfault":
+        # 2026-10-20: the hot-day top third, now the default, with its top probe gone wrong.
+        return ([{"fault": f, **c} for f in FAULTS for c in ({}, {"hot": True})]
                 if bed in CROP_PROBES[:2] else [])
     if design == "carry2":
         # 2026-10-20: the same, the forecast given the bed's own waterings.
@@ -259,6 +273,13 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     if picked["outage"]:
         probe_only["outages"] = outages(site, year, draw, may,
                                         S.CROPS["lettuce" if "lettuce" in bed else "tomato"]["season_days"])
+    if picked["fault"]:
+        fault = FAULTS[picked["fault"]]
+        if "drifts" in fault:
+            probe_only["drifts"] = tuple((d, may + _dt.timedelta(days=first), days, total)
+                                         for d, first, days, total in fault["drifts"])
+        else:
+            probe_only["misplaced"] = fault["misplaced"]
     if picked["carry"]:
         probe_only["before_advice"] = silent_forecaster(with_water=picked["carry"] == "forecast+water")
         settings["carry_forecasts"] = True
@@ -469,7 +490,7 @@ def main(argv=None) -> int:
     r.add_argument("--stamp", default="", help="the code the trial runs on, as a commit")
     r.add_argument("--sites", default=",".join(OPEN_SITES), help="comma-separated, of SITES")
     r.add_argument("--design", choices=("open", "sealed", "adjust", "third", "hot", "carry", "carry2",
-                                        "hot2", "hotsealed", "lawn", "survey"), default="open")
+                                        "hot2", "hotsealed", "lawn", "survey", "topfault"), default="open")
     r.add_argument("--draws", default=",".join(map(str, DRAWS)), help="comma-separated farms a summer")
     p = sub.add_parser("report")
     p.add_argument("results")

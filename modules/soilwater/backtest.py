@@ -284,7 +284,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              farm: VirtualFarm = NOMINAL, tension: bool = False, tension_noise: float = 0.05,
              depletion_fraction: float | None = None,
              young_fraction: float | None = 0.2, settings: dict | None = None,
-             rate_mm_per_h: float = 12.0, outages: tuple = (), before_advice=None) -> dict:
+             rate_mm_per_h: float = 12.0, outages: tuple = (), before_advice=None,
+             drifts: tuple = (), misplaced: dict | None = None) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
@@ -341,6 +342,9 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     `tension_noise` each hour). `settings` are further fields of the advice's `Bed`. The
     result's `second_stressed_h` is the second planting's hours short.
 
+    `drifts` are `(depth, first hour, days, total)`: the probe at that depth reads off by
+    `total`, reached evenly over `days` from that hour, then held. `misplaced` is `{depth:
+    true depth}`, a probe recorded at one depth and lying at another.
     `outages` are `(depth, first hour, hours)`: the probe at that depth sends nothing
     through them, as a node whose radio is down. `before_advice(state, when, station)` runs
     before each advice (a forecast of a silent probe written into the log, say); with it, a
@@ -498,8 +502,11 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                 if any(d == depth and first <= when < first + hours * HOUR for d, first, hours in outages):
                     continue
                 patch = b2 if b2 is not None and in_patch else b
-                truth = patch.theta_at(depth) if hasattr(patch, "theta_at") else patch.theta
-                read = (truth + probe_bias + offset[probe.id]
+                lies = (misplaced or {}).get(depth, depth)
+                truth = patch.theta_at(lies) if hasattr(patch, "theta_at") else patch.theta
+                drift = sum(total * min(1.0, max(0.0, (when - first) / (days * 24 * HOUR)))
+                            for d, first, days, total in drifts if d == depth)
+                read = (truth + probe_bias + offset[probe.id] + drift
                         + noise[probe.id].gauss(0.0, probe_noise))
                 state.add(Observation(uuid7(), probe.id, when, 60.0, when, round(read, 3),
                                       ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
