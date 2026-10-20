@@ -161,8 +161,11 @@ of what it would have drawn, and the hours it was waterlogged (under a twentieth
   summers' water.
 * **Learning held within 0.05 of the configured field capacity** (`Bed.learn_within`) cut
   the lawn's loss at Davis by 15 mm and saved McAllister's crops 10 to 40 mm of water, but
-  added half a millimetre to Davis's lettuce, past what the rules allowed, and holds back
-  a bed whose survey is badly wrong; an option ([below](#the-beds-own-soil)).
+  added half a millimetre to Davis's lettuce, past what the rules allowed. Tried for lawns
+  alone, it cut Yuma's lawn's loss by 36 mm a summer, but with the survey 0.06 too low it
+  cost the yard 5.4 mm more at McAllister, held near the wrong value: an option, for a farm
+  that trusts its survey ([below](#the-beds-own-soil);
+  [record](../../docs/notes/soilwater-backtests.md#learning-held-within-005-for-lawns-2026-10-19)).
 * **The watering timed by the top third of the root zone** (`Bed.timing_share`), where
   over half the roots are, halved tomatoes' lost transpiration at Davis (3.8 mm a summer of
   7.3) for no more water, but gave tomatoes over a dense pan 12% more water in McAllister's

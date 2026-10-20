@@ -1956,3 +1956,74 @@ not. The sealed sites were not run, nothing having been chosen, and stay sealed.
 at Davis might narrow the intervals; run after seeing these, they would not be the test the
 rules set, and would need rules of their own written first.
 
+## The top third on a hot day, on more farms, 2026-10-19
+
+The intervals at Davis ending just past 0, more farms were drawn: Davis 1991-2025, draws 2
+and 3, never run before, the two tomato beds by probes, the bed as built against C (280
+backtests, code 7a496bf). Judged on those draws alone, draw 1 having been seen. The rule,
+written before they ran:
+
+    C becomes the default for a sown crop if, on draws 2 and 3, at Davis it cuts both
+    tomato beds' mean lost transpiration with the 90% interval below 0. (McAllister's
+    rules it passed on draw 1; lettuce it cannot change.) If chosen: Yuma and Kearney,
+    sealed, run once, the bed as built against C for the three crop beds by probes, and C
+    undone if at either it raises a bed's mean lost transpiration with the interval above 0.
+
+```
+tomatoes, probes, Davis, draws 2-3                   n  70  lost -2.13 (-3.29 to -1.17) of 7.3 | water -5.7 (-0.5%) of 1151
+tomatoes over a dense pan, probes, Davis, draws 2-3  n  70  lost -5.17 (-6.91 to -3.59) of 13.6 | water -6.3 (-0.6%) of 1135
+
+-> C is chosen: run Yuma and Kearney once for the crop beds
+```
+
+C is chosen: on the new farms it cut plain tomatoes' loss by 2.1 mm a summer and the dense
+pan's by 5.2, both intervals well below 0, for a little less water.
+
+## Learning held within 0.05, for lawns, 2026-10-19
+
+The open sites' trial found learning held within 0.05 of the configured field capacity cut
+the lawn's loss at Davis by 15 mm. That is why it was a candidate, so the open sites could
+not decide it. Candidate L: `learn_within` 0.05 the default for a lawn ("lawn, its probe",
+"yard, its probes"), crops unchanged. The rule, written before the runs:
+
+    (a) Yuma and Kearney, sealed, run once for the two lawn beds: as built against L.
+    (b) A survey badly wrong, new runs at the open sites: each lawn bed's configured field
+        capacity 0.06 above and 0.06 below its soil's, learning free against L.
+
+    L becomes the default for lawns if (a) at each sealed site, for each lawn bed, it raises
+    neither the mean lost transpiration with the 90% interval above 0 nor the mean water by
+    more than a tenth, and at one site at least it cuts the lawn's mean lost with the
+    interval below 0 or its mean water by a twentieth; and (b) with the survey 0.06 off
+    either way, at either open site, it raises neither lawn bed's mean lost by more than
+    2 mm nor its water by more than a tenth.
+
+840 backtests, code 7a496bf:
+
+```
+(a) the sealed sites
+  lawn, its probe, yuma                                n  35  lost -35.88 (-42.24 to -29.47) of 114.7 | water +51.2 (+9.1%) of 566
+  yard, its probes, yuma                               n  35  lost -0.85 (-1.64 to -0.24) of 52.3 | water +1.6 (+0.2%) of 694
+  lawn, its probe, kearney                             n  35  lost -0.01 (-0.02 to +0.00) of 3.0 | water +0.3 (+0.1%) of 289
+  yard, its probes, kearney                            n  35  lost +0.49 (-0.19 to +1.36) of 5.4 | water -2.7 (-0.8%) of 361
+(b) the survey 0.06 off
+  lawn, its probe, mcallister, survey +0.06            n  35  lost -0.01 (-0.02 to -0.00) of 0.0 | water +10.3 (+5.6%) of 185
+  yard, its probes, mcallister, survey +0.06           n  35  lost -0.01 (-0.03 to +0.01) of 0.4 | water +8.9 (+3.1%) of 284
+  lawn, its probe, davis, survey +0.06                 n  35  lost -14.67 (-20.18 to -10.03) of 19.9 | water +49.7 (+8.6%) of 579
+  yard, its probes, davis, survey +0.06                n  35  lost -1.74 (-3.26 to -0.61) of 7.2 | water +6.8 (+1.1%) of 645
+  lawn, its probe, mcallister, survey -0.06            n  35  lost +0.30 (+0.08 to +0.57) of 0.5 | water -26.5 (-17.2%) of 155
+  yard, its probes, mcallister, survey -0.06           n  35  lost +5.38 (+3.42 to +7.51) of 6.1 | water -65.2 (-28.4%) of 229  FAILS lost up over 2 mm
+  lawn, its probe, davis, survey -0.06                 n  35  lost -1.48 (-2.70 to -0.36) of 127.5 | water +1.8 (+0.4%) of 429
+  yard, its probes, davis, survey -0.06                n  35  lost +2.33 (+0.10 to +5.24) of 97.7 | water -2.8 (-0.5%) of 517  FAILS lost up over 2 mm
+
+-> L is not chosen: lawns stay as built
+```
+
+L is not the default. At the sealed sites it did what the open ones said: it cut Yuma's
+lawn's loss by 36 mm a summer of 115, for 9% more water, and changed little at Kearney. It
+failed where it was feared to. With the survey 0.06 too low, held near that wrong value,
+the yard lost 5.4 mm more at McAllister and 2.3 more at Davis, past the 2 mm allowed: held,
+it gave the yard 28% less water at McAllister than learning free did. With the survey too
+high, holding helped. A farm whose survey
+it trusts may set it; fieldmesh cannot know whose is right. Yuma and Kearney are now spent
+for the lawn beds, not for the crops.
+

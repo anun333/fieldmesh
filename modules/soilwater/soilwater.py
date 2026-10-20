@@ -154,7 +154,8 @@ class Bed:
     #: (README): it cut a Davis lawn's lost transpiration by 15 mm a summer and saved
     #: McAllister's crops 10 to 40 mm of water, but added half a millimetre to Davis's
     #: lettuce, and it holds back a bed whose configured values are badly wrong (a note says
-    #: so, `Advisor.learning_held_note`), so it is not the default. A tension sensor beside
+    #: so, `Advisor.learning_held_note`): a yard's survey 0.06 too low, it lost 5.4 mm more a
+    #: summer at McAllister than learning free. Not the default, for lawns either. A tension sensor beside
     #: the probe measures field capacity instead, unbounded.
     learn_within: float | None = None
     #: What covers the soil (`model.SURFACES`: bare, organic or inorganic mulch, plastic,
