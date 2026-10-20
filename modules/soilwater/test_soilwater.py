@@ -1481,6 +1481,18 @@ class TestAProbesOutageInTheBacktest(unittest.TestCase):
         self.assertIn(first + 20 * HOUR, hours)
 
 
+class TestTheCarryTrialsOutages(unittest.TestCase):
+    def test_four_apart_from_day_50_the_same_for_a_summer_and_a_crops_float_season(self):
+        import trials as TR
+        may = _dt.datetime(2013, 5, 1, tzinfo=_dt.timezone.utc)
+        a = TR.outages("davis", 2013, 1, may, S.CROPS["tomato"]["season_days"])
+        self.assertEqual(a, TR.outages("davis", 2013, 1, may, S.CROPS["tomato"]["season_days"]))
+        self.assertEqual(len(a), TR.OUTAGES)
+        starts = [first for _, first, _ in a]
+        self.assertTrue(all(may + _dt.timedelta(days=TR.OUTAGE_FROM_DAY) <= t for t in starts))
+        self.assertTrue(all(b - a > _dt.timedelta(hours=TR.OUTAGE_H) for a, b in zip(starts, starts[1:])))
+
+
 class TestWhatTheAuditOf20261018Found(unittest.TestCase):
     """The advice as an adversarial reading of it on 2026-10-18 found it wrong, each case as
     it was built then, and what it says now."""

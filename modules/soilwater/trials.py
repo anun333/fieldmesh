@@ -302,7 +302,7 @@ def outages(site: str, year: int, draw: int, start: _dt.datetime, season_days: i
     """The summer's silences of the 10 cm probe, `(depth, first hour, hours)`, drawn from the
     summer's farm: the same for every choice tried on it, and none overlapping."""
     rng = random.Random(f"{farm_seed(site, year, draw)} outages")
-    span = OUTAGE_H // 24 + 1
+    span, season_days = OUTAGE_H // 24 + 1, int(season_days)
     while True:
         days = sorted(rng.randrange(OUTAGE_FROM_DAY, season_days - span) for _ in range(OUTAGES))
         if all(b - a > span for a, b in zip(days, days[1:])):
