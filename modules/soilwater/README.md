@@ -55,7 +55,8 @@ the truth a day in and 0.011 three days in, where it had been 0.007 and 0.018; a
 time-series model given the same neighbours did better again ([Timestral](../../docs/notes/timestral.md)).
 That model's forecast, an optional add-on (`tools/probe_forecast.py`), was tried in place of
 the rule in the backtests and lost the crop more at Davis: 0.3 mm a summer for tomatoes
-and 1.2 over a dense pan, each interval above 0, so the advice does not take it
+and 1.2 over a dense pan, each interval above 0. Given the bed's own waterings too, it
+still lost the dense pan 1.0 mm more. So the advice does not take it
 ([record](../../docs/notes/soilwater-backtests.md#a-silent-probe-carried-at-a-forecast-2026-10-20)).
 A series not in a volume fraction (`FRACTION_UNITS`) is
 not one of the bed's probes. Readings are counted an hour at a time, however often a probe

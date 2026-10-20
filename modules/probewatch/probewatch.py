@@ -79,16 +79,27 @@ def probe_context(model, state, bed: WatchBed, probe, depth_m: float, others: li
                "readings": sum(1 for r in readings if r is not None),
                "depth_cm": round(depth_m * 100), "wetter": departure > 0,
                "departure_points": round(abs(departure) * 100.0, 1),
-               "band_points": round(sum(b - a for a, b in zip(lo, hi)) / WINDOW_H * 100.0, 1)}
+               "band_points": round(sum(b - a for a, b in zip(lo, hi)) / WINDOW_H * 100.0, 1),
+               # set by `Watch._tie_break` in a bed of two whose probes are both off
+               "pair_likely": False, "pair_other": False, "pair_both": False, "other_depth_cm": 0}
     return context, {"probe": str(probe.id), "receipt": receipt}
 
 
 def rule() -> R.Rule:
-    return R.Rule("soil-probe-off", "1", "off", {}, alert_key="probewatch.probe_drier",
+    """Version 2 (2026-10-20): in a bed of two whose probes are both off, the message says
+    which is the likelier one off, or that it cannot be told (`Watch._tie_break`)."""
+    return R.Rule("soil-probe-off", "2", "off", {}, alert_key="probewatch.probe_drier",
                   message_params={"depth": "depth_cm", "hours": "hours_outside",
-                                  "points": "departure_points"},
-                  message_variants=(("wetter", "probewatch.probe_wetter"),),
-                  subject_param="bed", unit_params={"depth": "cm"})
+                                  "points": "departure_points", "other": "other_depth_cm"},
+                  message_variants=(
+                      ("pair_likely && wetter", "probewatch.probe_wetter_likely"),
+                      ("pair_likely", "probewatch.probe_drier_likely"),
+                      ("pair_other && wetter", "probewatch.probe_wetter_other"),
+                      ("pair_other", "probewatch.probe_drier_other"),
+                      ("pair_both && wetter", "probewatch.probe_wetter_both"),
+                      ("pair_both", "probewatch.probe_drier_both"),
+                      ("wetter", "probewatch.probe_wetter")),
+                  subject_param="bed", unit_params={"depth": "cm", "other": "cm"})
 
 
 class Watch:
@@ -110,18 +121,37 @@ class Watch:
             else:
                 self._standing.pop(key, None)
 
+    def _tie_break(self, state, bed: WatchBed, judged: list, at: _dt.datetime) -> None:
+        """A bed of two whose probes are both off: a drift in one moves the other's forecast
+        too. Each is judged again against the station's rain and air alone, no neighbour; the
+        one still off while the other is not is the likelier one off, and if both or neither
+        are, it cannot be told. Tried on 2026-10-20 by rules written first: on six stations'
+        records it named the drifting probe in 94% of such days, and on three held out 93%,
+        never the wrong one there; a clean day judged so was said off 2% of the time."""
+        if len(judged) != 2 or not all(c["off"] for _, _, c, _ in judged) or not (bed.rain or bed.air):
+            return
+        alone = [probe_context(self.model, state, bed, p, d, [], at) for p, d, _, _ in judged]
+        for k, (_, _, context, inputs) in enumerate(judged):
+            mine, theirs = alone[k][0]["off"], alone[1 - k][0]["off"]
+            context.update({"pair_likely": mine and not theirs, "pair_other": theirs and not mine,
+                            "pair_both": mine == theirs, "other_depth_cm": judged[1 - k][2]["depth_cm"]})
+            inputs["alone"] = {"off": mine, "receipt": alone[k][1]["receipt"]}
+
     def check(self, state, beds, at: _dt.datetime) -> list:
         written = []
         for bed in beds:
             probes = TS.soil_probes(state, bed.feature, at)
             reading = [(p, d) for p, d in probes if TS.last_good(state, p.id, at, READING_H)]
+            judged = []
             for probe, depth in reading:
                 others = [(p, d) for p, d in reading if p.id != probe.id]
                 if not others:
                     continue
                 context, inputs = probe_context(self.model, state, bed, probe, depth, others, at)
-                if context["readings"] < RUN_H:
-                    continue
+                if context["readings"] >= RUN_H:
+                    judged.append((probe, depth, context, inputs))
+            self._tie_break(state, bed, judged, at)
+            for probe, depth, context, inputs in judged:
                 d = R.judge(rule(), context, inputs, at)
                 key = (str(bed.feature), context["depth_cm"])
                 if d["alert"] == (key in self._standing):

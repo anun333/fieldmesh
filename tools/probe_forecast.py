@@ -20,7 +20,9 @@ probe, it lost a tomato crop more at Davis in the backtests of 2026-10-20
 On ISMN's records of six SCAN stations a probe hidden three days was carried this way 40
 to 65% closer to the truth than by any rule (docs/notes/timestral.md). The day ahead was
 0.0067 off where the forecast at the run's time held was 0.0070: a little better in the
-Southwest, no better in Tennessee. Nothing is
+Southwest, no better in Tennessee. Through a storm of 40 mm or more it is no better than
+the rule, and it ends too dry; given the rain since the silence began it does a little
+better. `--water`, the bed's own watering, is an input a farm's meter gives. Nothing is
 scheduled by this tool; adding it to cron, hourly say, is the farm's decision.
 """
 from __future__ import annotations

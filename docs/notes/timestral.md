@@ -231,6 +231,39 @@ the 10 cm probe, in the bed of three and with the 20 cm probe taken away:
   alarms against 4% and 6.5%; both caught 15%, with none. Not adopted: it would be chosen
   on what it was scored on, and needs a station held out.
 
+## Tried again: storms, soil temperature, slow drifts, a bed of two (2026-10-20)
+
+Rules for each were written before any of these ran. A method chosen on the six stations
+above was adopted only if it held at three stations named then and read only after the
+first results were written: Watkinsville #1 (Georgia), Levelland (Texas) and Walnut
+Gulch #1 (Arizona). Water readings ISMN flagged count only as good (the runs above read the
+Southwest's flagged spikes as readings too, which could only have raised their false alarms,
+0 to 3%). `tools/timestral/storms.py` and `modules/probewatch/watch_tests.py`; the second
+checks itself against `probewatch.probe_context` on its first stretches at each station.
+
+* **A probe silent through a storm.** 180 silences of 72 hours at the Tennessee stations,
+  each with 20 mm of rain or more: the forecast was 0.016 off the truth, fieldmesh's rule
+  0.024, the last reading held 0.046; the forecast was closer in 137 of the 180. Given the
+  rain since the silence began too, 0.0155. All of them ended too dry, and in the 57
+  heaviest, 40 mm or more, the forecast was no better than the rule (0.024 against 0.025)
+  and drier at the end (0.021 against 0.013): the storm of 10 October was the far end of
+  this, not a one-off.
+* **Soil temperature as an input.** It made the silent probe's forecast a little worse, on
+  the six stations (0.00364 against 0.00351) and on the three held out (0.00334 against
+  0.00329), and changed the watch's alarms not at all. Not taken.
+* **Slow drifts.** A probe drifting 0.02 over two weeks, or 0.03 over four or eight, was
+  said off under 1% of the time by the watch's day, and 3 to 7% by a week's look. The model
+  reads the drift in the 1,024 hours before the day it judges, and forecasts it. The watch
+  does not see a slow drift; a reference probe, or a check against a trusted stretch kept
+  from before, would be needed. Neither look is taken.
+* **Which probe of two.** In a bed of two, where both are said off, each was judged again
+  against the rain and the air alone: the drifting one named in 94% of 90 such days on the
+  six stations and 93% of 27 on the three held out, never the wrong one there; a clean day
+  judged so was said off 0 to 2% of the time. The first to leave the band did as well on
+  the six (93%), and the rules had not said which, if both held: the first was chosen
+  before the held-out stations were read. **The watch now says which is the likelier one
+  off** (`Watch._tie_break`, rule version 2), where the bed has a station's rain or air.
+
 ## Reproducing
 
 The scripts are [tools/timestral/](../../tools/timestral/). The archive is downloaded data:

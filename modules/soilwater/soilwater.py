@@ -154,8 +154,10 @@ class Bed:
     timing_share_hot: bool = True
     #: Carry a silent probe at a forecast of it (`tools/probe_forecast.py`) in place of the
     #: rule, where the forecast was given the bed's own waterings (its inputs name `water`).
-    #: Off: a forecast given only the other probes, the rain and the air lost the crop more
-    #: at Davis than the rule (2026-10-20); one given the waterings is on trial.
+    #: Off, by two trials of 2026-10-20 (docs/notes/soilwater-backtests.md): given the other
+    #: probes, the rain and the air, the forecast lost Davis's tomatoes more than the rule;
+    #: given the waterings too, it still lost a dense pan's 1 mm a summer more. Kept for the
+    #: trial (`trials.py` carry2), not for a farm.
     carry_forecasts: bool = False
     #: How far from the configured value learning may take it, either way; None, as far as
     #: it reads. Without a tension sensor a probe's drain-downs read a wet summer's capacity

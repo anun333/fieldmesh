@@ -20,7 +20,9 @@ try:
 except ImportError:
     HAVE_CEL = False
 
+import fixtures as FX  # noqa: E402
 import test_tsfm as T  # noqa: E402
+import vocab as V  # noqa: E402
 from ids import uuid7  # noqa: E402
 from log import Log  # noqa: E402
 from model import Label  # noqa: E402
@@ -102,6 +104,49 @@ class TestTheWatch(unittest.TestCase):
         T.probe(alone, feature, 0.10, [0.3] * 61)
         self.assertEqual(PW.Watch(Log(), model).check(alone, [PW.WatchBed(feature)], T0 + 60 * HOUR), [])
         self.assertEqual(model.calls, [])
+
+
+def steady(state, prop, unit, value, hours=120):
+    """A station's series, the same every hour."""
+    ds = FX.raw_datastream(unit=unit, observed_property=prop, expected_interval=3600.0)
+    state.add(ds)
+    for h in range(hours):
+        state.add(FX.observation(ds, result=value, measured_at=T0 + h * HOUR, seq=h))
+    return ds
+
+
+@unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+class TestABedOfTwo(unittest.TestCase):
+    """A drift in one probe moves the other's forecast, so both are said off; judged against
+    the rain and the air alone, the drifting one still is and the other is not."""
+
+    def watch(self, station=True):
+        state, feature = State(), uuid7()
+        state.add(Label(uuid7(), feature, "bed 3", T0, language="en"))
+        T.probe(state, feature, 0.05, [0.30] * 120)
+        T.probe(state, feature, 0.10, [0.28 + wetter_from_40_to_60(h) for h in range(120)])
+        bed = PW.WatchBed(feature)
+        if station:
+            bed = PW.WatchBed(feature, rain=steady(state, V.PRECIPITATION_DEPTH, "mm", 0.0).id,
+                              air=steady(state, V.AIR_TEMPERATURE, "Cel", 20.0).id)
+        events = PW.Watch(Log(), T.FakeModel()).check(state, [bed], T0 + 60 * HOUR)
+        return state, {e.payload["context"]["depth_cm"]: e.payload for e in events}
+
+    def test_the_likelier_one_is_named(self):
+        state, by_depth = self.watch()
+        self.assertEqual(set(by_depth), {5, 10}, "both said off")
+        self.assertEqual(by_depth[10]["message"]["key"], "probewatch.probe_wetter_likely")
+        self.assertEqual(by_depth[5]["message"]["key"], "probewatch.probe_drier_other")
+        self.assertEqual(by_depth[5]["version"], "2")
+        self.assertIn("receipt", by_depth[10]["inputs"]["alone"])
+        said = PW.render(by_depth[5], "en", state)
+        self.assertIn("But the other, at 10 cm, is the likelier one off", said)
+        self.assertIn("Pero la otra, a 4 pulgadas,", PW.render(by_depth[5], "es", state, units="us"))
+
+    def test_without_a_station_it_does_not_say(self):
+        _, by_depth = self.watch(station=False)
+        self.assertEqual({d: p["message"]["key"] for d, p in by_depth.items()},
+                         {5: "probewatch.probe_drier", 10: "probewatch.probe_wetter"})
 
 
 if __name__ == "__main__":

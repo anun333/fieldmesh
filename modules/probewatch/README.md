@@ -75,7 +75,24 @@ records the healthy probe was said off beside a drifting one 27 to 57% of the ti
 of two cannot tell which probe is off. In a bed of three it was 10 to 40% for the probe
 just above, and 3 to 10% for the one below. Nor do the points tell which: when both were
 said off, the drifting probe was off by more only 15 times in 32 in a bed of three, 8 in 40
-in a bed of two. When two probes are said off together, check both.
+in a bed of two.
+
+**In a bed of two the watch says which is the likelier one off** (since 2026-10-20, rule
+version 2), where the bed has the station's rain or air. Both said off, each is judged
+again against the rain and the air alone: the one still off while the other is not is
+named, and if both or neither are, the message says to check both. Chosen by rules written
+before it was tried: it named the drifting probe in 94% of 90 such days on six stations
+and in 93% of 27 on three stations held out, never the wrong one there.
+
+> For 13 of the last 24 hours, bed 3's probe at 5 cm read drier than the probe beside it,
+> the rain and the air say it should, by about 3.9 points of water content. But the other,
+> at 10 cm, is the likelier one off: judged against the rain and the air alone, it is, and
+> this one is not. Check that one first.
+
+**What it does not see: a slow drift.** A probe drifting 0.02 over two weeks or 0.03 over
+eight was said off under 1% of the time: the model reads the drift in the weeks before the
+day it judges, and forecasts it. A week's look did no better (3 to 7%). A reference probe,
+or a stretch the farm trusts kept to judge against, would be needed.
 
 ## What it was tried on
 

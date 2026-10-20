@@ -2090,3 +2090,35 @@ Why the forecast that tracked real probes closer lost the crop more here is not 
 forecast is given the neighbouring probes, the rain and the air, but not the bed's own
 watering, which in a dry place is most of what wets it; a farm knows its own waterings
 ahead, and they could be given as a known future. That is not tried.
+
+## The same, the forecast given the bed's waterings, 2026-10-20
+
+The forecast in the trial above was never given the bed's own watering, in a dry place
+most of what wets it. A farm with a recorded valve or a zone's meter knows it. So the trial
+again, its forecast arm (FW) also given the bed's watering hour by hour through the run's
+time, against the rule (R), both run fresh: 280 backtests, code 77083c2. The rule, written
+before it ran:
+
+    soilwater takes such a forecast again (one whose inputs include the bed's waterings)
+    if, in no group and for no bed, FW raises the mean lost transpiration over R with the
+    90% interval above 0, nor adds more than a tenth to the mean water; and at Davis it
+    cuts at least one bed's mean lost with the interval below 0. Otherwise it carries by
+    the rule.
+
+```
+tomatoes, probes, McAllister 1991–2020: forecast+water against rule n  30  lost +0.00 (+0.00 to +0.00) of 0.1 | water -3.2 (-0.6%) of 566
+tomatoes, probes, McAllister 2021–2025: forecast+water against rule n   5  lost +0.00 (+0.00 to +0.01) of 0.1 | water -25.4 (-3.8%) of 671
+tomatoes, probes, Davis: forecast+water against rule n  35  lost -0.13 (-0.49 to +0.11) of 8.3 | water -8.7 (-0.8%) of 1152
+tomatoes over a dense pan, probes, McAllister 1991–2020: forecast+water against rule n  30  lost +0.00 (+0.00 to +0.00) of 0.8 | water -2.3 (-0.4%) of 565
+tomatoes over a dense pan, probes, McAllister 2021–2025: forecast+water against rule n   5  lost +0.00 (+0.00 to +0.00) of 0.7 | water +0.0 (+0.0%) of 552
+tomatoes over a dense pan, probes, Davis: forecast+water against rule n  35  lost +0.96 (+0.28 to +1.77) of 17.5 | water -9.7 (-0.8%) of 1140  FAILS lost up, interval above 0
+FAILS: at Davis it cut neither bed's loss with the interval below 0
+
+-> soilwater carries by the rule
+```
+
+The waterings were part of it: plain tomatoes at Davis went from 0.3 mm a summer more lost
+than the rule to 0.1 less, the interval across 0. Over the dense pan the forecast still
+lost 1.0 mm more (+0.3 to +1.8), and nowhere did it cut a loss clearly. `soilwater` carries
+a silent probe by the rule. `Bed.carry_forecasts` stays, off, so the trial can be run again.
+
