@@ -1627,6 +1627,19 @@ class TestWhatTheAuditOf20261018Found(unittest.TestCase):
         c = S.Advisor(Log()).judge(g.state, young, MORNING)["context"]
         self.assertEqual(c["timing_depth_mm"], c["root_depth_mm"], "a young crop: all its roots")
 
+    def test_on_a_hot_day_the_top_third_times_it_where_it_has_its_own_probe(self):
+        """`Bed.timing_share_hot`: the same tomatoes, the top third's probe at half its water;
+        drying 7 mm a day the top times the watering; drying 1.5, the zone as a whole."""
+        for per_h, hot in ((0.0004, True), (0.0001, False)):
+            g = Garden()
+            g.bed = S.Bed(g.land, 0.30, 0.12, crop="tomato", planted=_dt.date(2026, 5, 1),
+                          timing_share=1 / 3, timing_share_hot=True)
+            g.probe(lambda h: 0.22 - per_h * h, depth=0.10)
+            g.probe(lambda h: 0.28 - per_h * h, depth=0.30)
+            rule, d = g.advice()
+            self.assertEqual(d["context"]["timing_by_top"], hot, per_h)
+            self.assertEqual(rule == "soil-water-now", hot, per_h)
+
     def test_a_bed_configured_past_sense_is_refused(self):
         for bad in (dict(skip_rain_mm=0.0), dict(rain_share=1.5), dict(rain_share=-0.1),
                     dict(use_scale=0.0), dict(young_fraction=0.0), dict(et_scale=-1.0),

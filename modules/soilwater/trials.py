@@ -85,7 +85,8 @@ PROBE_BLOCKS = (({"adjust": (True,)}, ()), ({"tension": (True,)}, ()),
 TOP_BLOCKS = (({"top": (True,)}, ()), ({"adjust": (True,), "top": (True,)}, ()))
 #: The watering timed by the top third of the root zone (`Bed.timing_share`), alone and with
 #: the hot-day refill point: tried on 2026-10-19 for the crops by probes.
-THIRD_BLOCKS = (({"third": (True,)}, ()), ({"third": (True,), "adjust": (True,)}, ()))
+THIRD_BLOCKS = (({"third": (True,)}, ()), ({"third": (True,), "adjust": (True,)}, ()),
+                ({"hot": (True,)}, ()))
 MEASURES = {
     "bucket, its probe": (({"adjust": (True,)}, ()),),
     "bucket, by the weather": WEATHER_BLOCKS,
@@ -101,12 +102,13 @@ MEASURES = {
 #: Each measure or setting not taken, as the advisory was before 2026-10-19. A backtest's
 #: choices leave it out.
 OFF = {"wind": False, "normal": False, "adjust": False, "tension": False, "within": None,
-       "top": False, "third": False}
+       "top": False, "third": False, "hot": False}
 #: Each, as the report names it.
 SAID = {"wind": "wind measured", "normal": "the wind's monthly normal",
         "adjust": "hot-day refill point", "tension": "tension sensors",
         "within": "learning within {}", "top": "a probe at 5 cm",
-        "third": "watering timed by the top third"}
+        "third": "watering timed by the top third",
+        "hot": "watering timed by the top third on a hot day"}
 #: What each backtest is scored by (`backtest.Score`).
 SCORES = ("applied_mm", "drained_mm", "transpiration_lost_mm", "demand_mm", "stressed_h",
           "below_p_h", "airless_h", "waterlogged_h", "runoff_mm", "stored_change_mm")
@@ -155,6 +157,8 @@ def sealed_configs(bed: str) -> list:
 def _design(bed: str, design: str) -> list:
     if design == "sealed":
         return sealed_configs(bed)
+    if design == "hot":
+        return [c for c in configs(bed) if c.get("hot")]
     if design == "third":
         return [c for c in configs(bed) if c.get("third")]
     if design == "adjust":
@@ -201,7 +205,8 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     S.WEATHER_MARGIN = picked["margin"]
     shallow = picked["p"] if picked["p"] != DEFAULTS["p"] else None
     settings = {"adjust_p": bool(picked["adjust"]), "learn_within": picked["within"],
-                "timing_share": 1 / 3 if picked["third"] else None}
+                "timing_share": 1 / 3 if picked["third"] or picked["hot"] else None,
+                "timing_share_hot": bool(picked["hot"])}
     lat_elevation = SITES[site]
     climate = ph.RecordedClimate.from_csv(os.path.join(weather, f"{site}-1991-2025.csv"),
                                           seed=1, et0_by="penman", site=lat_elevation)
@@ -379,7 +384,7 @@ def main(argv=None) -> int:
     r.add_argument("--cache", help="a directory to keep each season's forecasts in")
     r.add_argument("--stamp", default="", help="the code the trial runs on, as a commit")
     r.add_argument("--sites", default=",".join(OPEN_SITES), help="comma-separated, of SITES")
-    r.add_argument("--design", choices=("open", "sealed", "adjust", "third"), default="open")
+    r.add_argument("--design", choices=("open", "sealed", "adjust", "third", "hot"), default="open")
     p = sub.add_parser("report")
     p.add_argument("results")
     args = ap.parse_args(argv)

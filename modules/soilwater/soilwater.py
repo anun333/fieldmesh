@@ -142,6 +142,10 @@ class Bed:
     #: depth holding over half of them, and on a hot day that third runs short while the zone
     #: as a whole has water to spare. None: the whole zone times it.
     timing_share: float | None = None
+    #: With `timing_share`, only on a day the crop draws more than `HOT_ETC_MM` (its drying on
+    #: a day the soil was not draining, `CROP_DRYING_BELOW`), and only where a probe lies in
+    #: that share of the zone and another below it: the top read apart from the rest.
+    timing_share_hot: bool = False
     #: How far from the configured value learning may take it, either way; None, as far as
     #: it reads. Without a tension sensor a probe's drain-downs read a wet summer's capacity
     #: high and a hot, dry soil's low (`learned_capacity`). Tried at 0.05 on 2026-10-19
@@ -852,6 +856,9 @@ def weights(depths_m: list, root_depth_m: float) -> list:
     return out
 
 
+#: A hot day, for `Bed.timing_share_hot`: the crop drawing more than this, mm a day, FAO-56's
+#: pivot for its `p` (the hot-day refill point, `adjusted_p`).
+HOT_ETC_MM = 5.0
 #: The crop's own use is read from a day that began at least this far below field capacity
 #: (`Bed.adjust_p`): nearer, the soil is still draining, and drainage is not the crop's.
 CROP_DRYING_BELOW = 0.02
@@ -1702,6 +1709,7 @@ def _context_base(state, bed: Bed, at: _dt.datetime, *, held, capacities: dict):
     inputs, plantings, probes in the zone, the youngest roots' depth, the timing depth)`."""
     bed = grown(bed, at.date())
     curve_mm, seen_m, blocked_m = bed.root_depth_mm, 0.0, None
+    shared_mm = None
     young_mm = bed.timing_depth_mm if bed.timing_depth_mm is not None else curve_mm
     timing_mm = young_mm
     found = plantings_of(bed)
@@ -1711,7 +1719,10 @@ def _context_base(state, bed: Bed, at: _dt.datetime, *, held, capacities: dict):
         timing_mm = min(young_mm, stop_mm)
         if (bed.timing_share is not None and not young(bed, at.date())
                 and any(CROPS.get(crop, {}).get("season_days") for crop, _ in found)):
-            timing_mm = min(timing_mm, curve_mm * bed.timing_share)
+            if bed.timing_share_hot:
+                shared_mm = curve_mm * bed.timing_share       # decided by `_from_probes`
+            else:
+                timing_mm = min(timing_mm, curve_mm * bed.timing_share)
         bed = replace(bed, timing_depth_mm=timing_mm if timing_mm < curve_mm else None)
     root_m = bed.root_depth_mm / 1000.0
     probes = probes_of(state, bed, at)
@@ -1752,7 +1763,8 @@ def _context_base(state, bed: Bed, at: _dt.datetime, *, held, capacities: dict):
             "by_weather": False, "weather_missing_days": 0, "watering_recorded": False,
             "anchored": False, "probe_silent_hours": 0.0, "drying_mm_per_day": 0.0,
             "crop_drying_mm_per_day": 0.0,
-            "corrected": False, "et_percent": 100.0, "reference_days": 0}
+            "corrected": False, "et_percent": 100.0, "reference_days": 0,
+            "timing_shared_mm": round(shared_mm, 1) if shared_mm else 0.0, "timing_by_top": False}
     inputs = {"bed": str(bed.feature), "observations": [], "forecast": None}
     inputs.update({k: getattr(bed, k) for k in ("surface", "planting") if getattr(bed, k)})
     if len(found) > 1:
@@ -1948,6 +1960,14 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
     configured = sum(w * fc for (w, _), (fc, _) in zip(series, limits)) / sum(w for w, _ in series)
     crop_drying = _drying_mm_per_day(history, at, bed.root_depth_mm,
                                      min(bed.field_capacity, configured), below=CROP_DRYING_BELOW)
+    shared_mm = base.get("timing_shared_mm")
+    if (shared_mm and shared_mm < timing_mm and crop_drying > HOT_ETC_MM
+            and any(d * 1000.0 < shared_mm for d in series_depths)
+            and any(shared_mm <= d * 1000.0 for d in series_depths)):
+        # A hot day, and the top of the zone read apart from the rest: the top times it.
+        timing_mm = shared_mm
+        base.update({"timing_depth_mm": round(timing_mm, 1),
+                     "timing_depth_cm": round(timing_mm / 10.0), "timing_by_top": True})
     # The zone the watering is timed by: the probes in it, or, where it is shallower than any,
     # the shallowest, the nearest there is to it; the youngest planting's own, where it names
     # them.
