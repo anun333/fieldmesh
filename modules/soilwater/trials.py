@@ -115,8 +115,9 @@ SAID = {"wind": "wind measured", "normal": "the wind's monthly normal",
 CROP_PROBES = ("tomatoes, probes", "tomatoes over a dense pan, probes", "lettuce, probes")
 LAWNS = ("lawn, its probe", "yard, its probes")
 #: The silences of 2026-10-19's carry trial: the 10 cm probe, four times a summer, 72 hours
-#: each, from its third week (the forecast wants some history).
-OUTAGES, OUTAGE_H, OUTAGE_DEPTH, OUTAGE_FROM_DAY = 4, 72, 0.10, 14
+#: each, from day 50, when the tomatoes' 30 cm probe is in the root zone to carry it from
+#: (from about day 44). A probe with none beside it in the zone is not carried at all.
+OUTAGES, OUTAGE_H, OUTAGE_DEPTH, OUTAGE_FROM_DAY = 4, 72, 0.10, 50
 #: A survey badly wrong: the configured field capacity this far either way.
 SURVEY_OFF = 0.06
 #: The Timestral server the carry trial's forecasts come from (`tools/timestral/serve.py`).
@@ -170,9 +171,10 @@ def _design(bed: str, design: str) -> list:
     if design == "sealed":
         return sealed_configs(bed)
     if design == "carry":
-        # 2026-10-19: a silent probe carried by the rule, and at Timestral's forecast of it.
+        # 2026-10-19: a silent probe carried by the rule, and at Timestral's forecast of it;
+        # the tomato beds, lettuce's 10 cm probe having no other in its root zone.
         return ([{"outage": True}, {"outage": True, "carry": "forecast"}]
-                if bed in CROP_PROBES else [])
+                if bed in CROP_PROBES[:2] else [])
     if design == "hot2":
         # 2026-10-19: the top third on a hot day on farms not yet drawn, the tomato beds.
         return [{}, {"hot": True}] if bed in CROP_PROBES[:2] else []
