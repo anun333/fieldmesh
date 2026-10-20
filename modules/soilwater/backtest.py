@@ -284,7 +284,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
              farm: VirtualFarm = NOMINAL, tension: bool = False, tension_noise: float = 0.05,
              depletion_fraction: float | None = None,
              young_fraction: float | None = 0.2, settings: dict | None = None,
-             rate_mm_per_h: float = 12.0) -> dict:
+             rate_mm_per_h: float = 12.0, outages: tuple = (), before_advice=None) -> dict:
     """§11: the advisory on a recorded summer, watering when it says to and skipping when
     it says rain is coming, scored like `sim/irrigation_drill.py`'s policies — water
     applied, water drained past the roots, crop stress — so it can be set beside the
@@ -339,7 +339,13 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     `virtual_crop` is what the virtual bed truly grows, where it differs from `crop`. With
     `tension`, a tension sensor beside each probe in a layered soil (`TENSION_SD`, and
     `tension_noise` each hour). `settings` are further fields of the advice's `Bed`. The
-    result's `second_stressed_h` is the second planting's hours short."""
+    result's `second_stressed_h` is the second planting's hours short.
+
+    `outages` are `(depth, first hour, hours)`: the probe at that depth sends nothing
+    through them, as a node whose radio is down. `before_advice(state, when, station)` runs
+    before each advice (a forecast of a silent probe written into the log, say); with it, a
+    station beside the bed reports each hour's rain and the air's temperature, `station`
+    their datastreams, `{"rain": id, "air": id}`."""
     import statistics
 
     sys.path.insert(0, os.path.join(HERE, os.pardir, os.pardir, "sim"))
@@ -445,6 +451,15 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                            max_latency=3600.0)
         state.add(gauge)
     advisor = Advisor(Log(), rain_gauge=gauge.id if gauge else None)
+    station, station_rain = {}, 0.0
+    if before_advice is not None:
+        site = uuid7()
+        for name, prop, unit in (("rain", V.PRECIPITATION_DEPTH, "mm"), ("air", V.AIR_TEMPERATURE, "Cel")):
+            ds = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(), observed_property=prop,
+                            feature=site, kind=DatastreamKind.RAW, unit=unit,
+                            expected_interval=3600.0, max_latency=3600.0)
+            state.add(ds)
+            station[name] = ds.id
     noise = dict(zip((p.id for p, _, _ in probes),
                      noise_streams(seed, [f"{d} {patch}" for _, d, patch in probes])))
     offset = {p.id: farm.offset(f"{d} {patch}") for p, d, patch in probes}
@@ -476,6 +491,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                     grow(b2, second[0], (when.date() - second[1]).days, hardpan_mm, farm=farm)
         if when.minute == 0:
             for probe, depth, in_patch in probes:
+                if any(d == depth and first <= when < first + hours * HOUR for d, first, hours in outages):
+                    continue
                 patch = b2 if b2 is not None and in_patch else b
                 truth = patch.theta_at(depth) if hasattr(patch, "theta_at") else patch.theta
                 read = (truth + probe_bias + offset[probe.id]
@@ -492,6 +509,8 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                                       ClockQuality.GPS, node="!soil", boot=1, seq=n & 0xFFFF,
                                       calibration=cal))
         if when.hour in decide_hours and when.minute == 0:
+            if before_advice is not None:
+                before_advice(state, when, station)
             # Through `advise`, as the module's own process runs, so each morning is in the
             # advisor's log for the next to read (`Advisor._held`).
             d = next(e.payload for e in advisor.advise(state, [bed], when, forecast=fc.id)
@@ -532,6 +551,13 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                                "rise_percent": e.payload["context"].get("rise_percent"),
                                "expected_percent": round(e.payload["context"]["expected_percent"], 1)})
         tick = world.step()
+        if station:
+            station_rain += tick.weather.rain_mm
+            if world.when.minute == 0:
+                for name, value in (("rain", round(station_rain, 2)), ("air", round(tick.weather.air_temp_c, 1))):
+                    state.add(Observation(uuid7(), station[name], world.when, 60.0, world.when, value,
+                                          ClockQuality.NETWORK, node="station", boot=1, seq=n & 0xFFFF))
+                station_rain = 0.0
         if gauge is not None:
             rain_hour += tick.weather.rain_mm
             if (world.when.minute == 0):

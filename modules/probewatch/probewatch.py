@@ -56,13 +56,16 @@ class WatchBed:
 
 
 def probe_context(model, state, bed: WatchBed, probe, depth_m: float, others: list,
-                  at: _dt.datetime) -> tuple:
-    """`(context, inputs)` for one probe: its last `WINDOW_H` hours against the band."""
+                  at: _dt.datetime, *, ablate: bool = True) -> tuple:
+    """`(context, inputs)` for one probe: its last `WINDOW_H` hours against the band.
+    Without `ablate` the receipt does not say how far each input moved the forecast, and
+    the model runs once, not once and again for each input."""
     end = at.replace(minute=0, second=0, microsecond=0)
     start = end - WINDOW_H * HOUR
     covariates = {f"probe at {round(d * 100)} cm": p.id for p, d in others}
     covariates.update({name: ds for name, ds in (("rain", bed.rain), ("air", bed.air)) if ds})
-    forecast, receipt = TS.run(model, state, probe.id, covariates, start, WINDOW_H, at)
+    forecast, receipt = TS.run(model, state, probe.id, covariates, start, WINDOW_H, at,
+                               ablate=ablate)
     readings = TS.hourly(state, probe.id, start, WINDOW_H, at)
     lo, hi, mid = forecast.at(BAND[0]), forecast.at(BAND[1]), forecast.median
     outside = [r is not None and not a <= r <= b for r, a, b in zip(readings, lo, hi)]

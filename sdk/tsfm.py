@@ -112,6 +112,41 @@ def load(repo: str = DEFAULT_MODEL, *, accept_weights_licence: bool = False,
                      forecaster=TimestralForecaster.from_pretrained(path))
 
 
+class Remote:
+    """A model served by another process over a Unix socket (`tools/timestral/serve.py`),
+    as a gateway without PyTorch reaches one in a container. Its `forecast` is a loaded
+    model's; its repo, weights and package are the server's, for the receipt. One JSON
+    message a line each way: `{"target", "covariates", "horizon"}`, missing hours null."""
+
+    def __init__(self, path: str, timeout_s: float = 120.0) -> None:
+        import socket
+        self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self._sock.settimeout(timeout_s)
+        self._sock.connect(path)
+        self._file = self._sock.makefile("rwb")
+        about = self._call({"about": True})
+        self.repo, self.weights, self.package = about["repo"], about["weights"], about["package"]
+
+    def _call(self, message: dict) -> dict:
+        self._file.write(json.dumps(message).encode() + b"\n")
+        self._file.flush()
+        reply = json.loads(self._file.readline())
+        if "error" in reply:
+            raise RuntimeError(f"the model's server: {reply['error']}")
+        return reply
+
+    def forecast(self, target: list, covariates: list, horizon: int) -> tuple:
+        clean = lambda row: [None if v is None or (isinstance(v, float) and math.isnan(v)) else v
+                             for v in row]
+        reply = self._call({"target": clean(target), "covariates": [clean(r) for r in covariates],
+                            "horizon": horizon})
+        return reply["quantiles"], tuple(reply["levels"])
+
+    def close(self) -> None:
+        self._file.close()
+        self._sock.close()
+
+
 def hourly(state, datastream_id, first: _dt.datetime, hours: int, at: _dt.datetime) -> list:
     """A series' good readings by `at`, one an hour from `first`, the hour's mean, None
     for an hour with none."""

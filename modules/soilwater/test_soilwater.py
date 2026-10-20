@@ -1456,6 +1456,31 @@ class TestAVirtualFarmThatDeparts(unittest.TestCase):
         self.assertEqual(B.NOMINAL.offset("0.1 False"), 0.0)
 
 
+class TestAProbesOutageInTheBacktest(unittest.TestCase):
+    def test_the_probe_is_silent_through_it_and_the_hook_sees_the_station(self):
+        """The 10 cm probe silent from the second day for 20 hours; before each advice the
+        hook is given the state, the moment and the station's rain and air, hour by hour."""
+        june = _june(2013)
+        seen = []
+
+        def hook(state, when, station):
+            readings = [o for o in state.live_observations_of(station["air"])]
+            seen.append((when, set(station), len(readings), state))
+        first = june + 30 * HOUR
+        B.backtest(_summer(2013), june, 4, seed=1, depths=(0.10, 0.30),
+                   outages=((0.10, first, 20),), before_advice=hook)
+        self.assertEqual(len(seen), 8, "two advices a day")
+        self.assertEqual(seen[0][1], {"rain", "air"})
+        self.assertEqual(seen[-1][2], 85, "an air reading each hour to the last advice, 13:00 on day 4")
+        state = seen[-1][3]
+        [top] = [ds for ds in state.datastreams.values()
+                 if ds.kind is DatastreamKind.DERIVED and state.installation_of(ds.sensor, june).depth_m == 0.10]
+        hours = {o.measured_at for o in state.live_observations_of(top.id)}
+        self.assertFalse(any(first <= h < first + 20 * HOUR for h in hours))
+        self.assertIn(first - HOUR, hours)
+        self.assertIn(first + 20 * HOUR, hours)
+
+
 class TestWhatTheAuditOf20261018Found(unittest.TestCase):
     """The advice as an adversarial reading of it on 2026-10-18 found it wrong, each case as
     it was built then, and what it says now."""

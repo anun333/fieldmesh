@@ -16,7 +16,9 @@ depth, so the soil advisory, carrying the silent probe, takes it in place of its
 (`soilwater._probe_forecast`); each value carries the run's receipt as its provenance.
 
 On ISMN's records of six SCAN stations a probe hidden three days was carried this way 40
-to 65% closer to the truth than by any rule (docs/notes/timestral.md). Nothing is
+to 65% closer to the truth than by any rule (docs/notes/timestral.md). The day ahead was
+0.0067 off where the forecast at the run's time held was 0.0070: a little better in the
+Southwest, no better in Tennessee. Nothing is
 scheduled by this tool; adding it to cron, hourly say, is the farm's decision.
 """
 from __future__ import annotations
@@ -65,8 +67,10 @@ def ensure_stream(log, state, probe, feature, depth_m: float, at: _dt.datetime):
 
 
 def forecast_silent(log, state, model, at: _dt.datetime, *, station: dict | None = None,
-                    stale_h: int = 6, max_silence_h: int = 168, ahead_h: int = 24) -> list:
-    """One run: `[(probe id, hours forecast, receipt)]` for each silent probe forecast."""
+                    stale_h: int = 6, max_silence_h: int = 168, ahead_h: int = 24,
+                    ablate: bool = True) -> list:
+    """One run: `[(probe id, hours forecast, receipt)]` for each silent probe forecast.
+    Without `ablate`, the receipt does not say how far each input moved it (`tsfm.run`)."""
     done = []
     for feature in sorted({inst.feature for inst in state.installations.values()}, key=lambda u: u.int):
         probes = TS.soil_probes(state, feature, at)
@@ -83,7 +87,7 @@ def forecast_silent(log, state, model, at: _dt.datetime, *, station: dict | None
             start = last + HOUR
             horizon = int((at - start) / HOUR) + 1 + ahead_h
             forecast, receipt = TS.run(model, state, ds.id, {**others, **(station or {})}, start,
-                                       horizon, at)
+                                       horizon, at, ablate=ablate)
             stream = ensure_stream(log, state, ds, feature, depth, at)
             FC.ingest(log, state, stream.id, at.replace(minute=0, second=0, microsecond=0),
                       list(zip(forecast.hours, forecast.median)), uncertainty_s=1800.0, received_at=at,

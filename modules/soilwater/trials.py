@@ -102,13 +102,25 @@ MEASURES = {
 #: Each measure or setting not taken, as the advisory was before 2026-10-19. A backtest's
 #: choices leave it out.
 OFF = {"wind": False, "normal": False, "adjust": False, "tension": False, "within": None,
-       "top": False, "third": False, "hot": False}
+       "top": False, "third": False, "hot": False, "outage": False, "carry": None, "survey": 0.0}
 #: Each, as the report names it.
 SAID = {"wind": "wind measured", "normal": "the wind's monthly normal",
         "adjust": "hot-day refill point", "tension": "tension sensors",
         "within": "learning within {}", "top": "a probe at 5 cm",
         "third": "watering timed by the top third",
-        "hot": "watering timed by the top third on a hot day"}
+        "hot": "watering timed by the top third on a hot day",
+        "outage": "the 10 cm probe silent four times", "carry": "carried by the {}",
+        "survey": "the survey {} off"}
+#: The crop beds by probes, and the lawns.
+CROP_PROBES = ("tomatoes, probes", "tomatoes over a dense pan, probes", "lettuce, probes")
+LAWNS = ("lawn, its probe", "yard, its probes")
+#: The silences of 2026-10-19's carry trial: the 10 cm probe, four times a summer, 72 hours
+#: each, from its third week (the forecast wants some history).
+OUTAGES, OUTAGE_H, OUTAGE_DEPTH, OUTAGE_FROM_DAY = 4, 72, 0.10, 14
+#: A survey badly wrong: the configured field capacity this far either way.
+SURVEY_OFF = 0.06
+#: The Timestral server the carry trial's forecasts come from (`tools/timestral/serve.py`).
+FORECAST_SOCKET = os.environ.get("FIELDMESH_TSFM_SOCKET", "")
 #: What each backtest is scored by (`backtest.Score`).
 SCORES = ("applied_mm", "drained_mm", "transpiration_lost_mm", "demand_mm", "stressed_h",
           "below_p_h", "airless_h", "waterlogged_h", "runoff_mm", "stored_change_mm")
@@ -157,6 +169,20 @@ def sealed_configs(bed: str) -> list:
 def _design(bed: str, design: str) -> list:
     if design == "sealed":
         return sealed_configs(bed)
+    if design == "carry":
+        # 2026-10-19: a silent probe carried by the rule, and at Timestral's forecast of it.
+        return ([{"outage": True}, {"outage": True, "carry": "forecast"}]
+                if bed in CROP_PROBES else [])
+    if design == "hot2":
+        # 2026-10-19: the top third on a hot day on farms not yet drawn, the tomato beds.
+        return [{}, {"hot": True}] if bed in CROP_PROBES[:2] else []
+    if design == "lawn":
+        # 2026-10-19: learning held within 0.05 for a lawn, at the sealed sites.
+        return [{"p": DEFAULTS["p"]}, {"p": DEFAULTS["p"], "within": 0.05}] if bed in LAWNS else []
+    if design == "survey":
+        # 2026-10-19: the same with the survey badly wrong, either way.
+        return ([{"p": DEFAULTS["p"], "survey": off, **w} for off in (SURVEY_OFF, -SURVEY_OFF)
+                 for w in ({}, {"within": 0.05})] if bed in LAWNS else [])
     if design == "hot":
         return [c for c in configs(bed) if c.get("hot")]
     if design == "third":
@@ -168,7 +194,7 @@ def _design(bed: str, design: str) -> list:
     return configs(bed)
 
 
-def jobs(sites=OPEN_SITES, design: str = "open") -> list:
+def jobs(sites=OPEN_SITES, design: str = "open", draws=DRAWS) -> list:
     """Every backtest of the trial on `sites`: `(bed, choices, site, year, draw)`; with
     `design` "sealed", the sealed sites' (`sealed_configs`); "adjust", the hot-day refill
     point's by probes again."""
@@ -177,7 +203,7 @@ def jobs(sites=OPEN_SITES, design: str = "open") -> list:
         for choices in _design(bed, design):
             for site in sites:
                 for year in YEARS:
-                    for draw in DRAWS:
+                    for draw in draws:
                         out.append((bed, choices, site, year, draw))
     return out
 
@@ -215,9 +241,15 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
     may = _dt.datetime(year, 5, 1, tzinfo=_dt.timezone.utc)
     june = _dt.datetime(year, 6, 1, tzinfo=_dt.timezone.utc)
     common = dict(seed=seed, farm=farm, settings=settings)
+    probe_only = {}
+    if picked["outage"]:
+        probe_only["outages"] = outages(site, year, draw, may,
+                                        S.CROPS["lettuce" if "lettuce" in bed else "tomato"]["season_days"])
+    if picked["carry"] == "forecast":
+        probe_only["before_advice"] = silent_forecaster()
     weather_too = dict(common, record_valve=False, site=lat_elevation, wind=picked["wind"],
                        wind_normal=picked["normal"])
-    probes_too = dict(common, tension=picked["tension"])
+    probes_too = dict(common, tension=picked["tension"], **probe_only)
     top = (0.05,) if picked["top"] else ()
     if bed == "bucket, its probe":
         r = B.backtest(climate, june, 92, **common)
@@ -232,7 +264,10 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
         r = B.weather_backtest(climate, may, S.CROPS[crop]["season_days"], crop=crop,
                                planted=may.date(), knows_crop=True, **weather_too)
     elif bed == "lawn, its probe":
-        r = B.backtest(climate, june, 92, soil=LD.lawn("native"), crop="turf_cool",
+        lawn = LD.lawn("native")
+        survey = ((lawn.field_capacity + picked["survey"], lawn.wilting_point)
+                  if picked["survey"] else None)
+        r = B.backtest(climate, june, 92, soil=lawn, crop="turf_cool", configured=survey,
                        knows_crop=True, hardpan_mm=LD.ROOTS_MM, knows_hardpan=True,
                        depths=(0.07,), depletion_fraction=shallow, **probes_too)
     elif bed == "lawn, by the weather":
@@ -244,8 +279,9 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
         yard = ph.LayeredBed(name="yard", depth_mm=150,
                              horizons=(ph.Horizon(100, **ph.SANDY_LOAM),
                                        ph.Horizon(500, **ph.COMPACTED_CLAY)))
+        off = picked["survey"]
         r = B.backtest(climate, june, 92, soil=yard, depths=(0.05, 0.12),
-                       configured=(0.38, 0.25), learn=True, layers=((0.10, 0.20, 0.09),),
+                       configured=(0.38 + off, 0.25), learn=True, layers=((0.10, 0.20 + off, 0.09),),
                        depletion_fraction=shallow, **probes_too)
     elif bed == "tomatoes over a dense pan, probes":
         r = B.backtest(climate, may, S.CROPS["tomato"]["season_days"],
@@ -260,13 +296,43 @@ def run_one(job: tuple, weather: str, out: str, stamp: str) -> None:
         h.write(json.dumps(line) + "\n")
 
 
+def outages(site: str, year: int, draw: int, start: _dt.datetime, season_days: int) -> tuple:
+    """The summer's silences of the 10 cm probe, `(depth, first hour, hours)`, drawn from the
+    summer's farm: the same for every choice tried on it, and none overlapping."""
+    rng = random.Random(f"{farm_seed(site, year, draw)} outages")
+    span = OUTAGE_H // 24 + 1
+    while True:
+        days = sorted(rng.randrange(OUTAGE_FROM_DAY, season_days - span) for _ in range(OUTAGES))
+        if all(b - a > span for a, b in zip(days, days[1:])):
+            break
+    return tuple((OUTAGE_DEPTH, start + _dt.timedelta(days=d, hours=rng.randrange(24)), OUTAGE_H)
+                 for d in days)
+
+
+def silent_forecaster():
+    """Before each advice: each silent probe forecast by Timestral, served at
+    `FORECAST_SOCKET`, into the backtest's log (`tools/probe_forecast.forecast_silent`)."""
+    sys.path.insert(0, os.path.join(HERE, os.pardir, os.pardir, "tools"))
+    import probe_forecast as PF
+    import tsfm as TS
+    from log import Log
+    if not FORECAST_SOCKET:
+        raise SystemExit("the carry trial's forecasts come from a Timestral server: "
+                         "set FIELDMESH_TSFM_SOCKET (tools/timestral/serve.py)")
+    model, log = TS.Remote(FORECAST_SOCKET), Log()
+
+    def before_advice(state, when, station):
+        PF.forecast_silent(log, state, model, when, station=station, ablate=False)
+    return before_advice
+
+
 def _run(job_and_args):
     job, weather, out, stamp = job_and_args
     run_one(job, weather, out, stamp)
 
 
 def run(weather: str, out: str, workers: int, stamp: str, sites=OPEN_SITES,
-        design: str = "open") -> int:
+        design: str = "open", draws=DRAWS) -> int:
     from multiprocessing import Pool
     done = set()
     if os.path.exists(out):
@@ -277,7 +343,7 @@ def run(weather: str, out: str, workers: int, stamp: str, sites=OPEN_SITES,
                     raise SystemExit(f"{out} holds backtests on code {r.get('stamp')!r}, "
                                      f"not {stamp!r}: write to a file of its own")
                 done.add(_key(r["bed"], r["choices"], r["site"], r["year"], r["draw"]))
-    todo = [j for j in jobs(sites, design) if _key(*j) not in done]
+    todo = [j for j in jobs(sites, design, draws) if _key(*j) not in done]
     random.Random(1).shuffle(todo)                     # long seasons and short ones mixed
     print(f"{len(todo)} backtests to run, {len(done)} done", flush=True)
     with Pool(workers, maxtasksperchild=1) as pool:
@@ -384,7 +450,9 @@ def main(argv=None) -> int:
     r.add_argument("--cache", help="a directory to keep each season's forecasts in")
     r.add_argument("--stamp", default="", help="the code the trial runs on, as a commit")
     r.add_argument("--sites", default=",".join(OPEN_SITES), help="comma-separated, of SITES")
-    r.add_argument("--design", choices=("open", "sealed", "adjust", "third", "hot"), default="open")
+    r.add_argument("--design", choices=("open", "sealed", "adjust", "third", "hot", "carry", "hot2",
+                                        "lawn", "survey"), default="open")
+    r.add_argument("--draws", default=",".join(map(str, DRAWS)), help="comma-separated farms a summer")
     p = sub.add_parser("report")
     p.add_argument("results")
     args = ap.parse_args(argv)
@@ -394,7 +462,8 @@ def main(argv=None) -> int:
         sites = tuple(s for s in args.sites.split(",") if s)
         if any(s not in SITES for s in sites):
             raise SystemExit(f"sites are of {sorted(SITES)}")
-        return run(args.weather, args.out, args.workers, args.stamp, sites, args.design)
+        draws = tuple(int(d) for d in args.draws.split(",") if d)
+        return run(args.weather, args.out, args.workers, args.stamp, sites, args.design, draws)
     print(report(args.results))
     return 0
 
