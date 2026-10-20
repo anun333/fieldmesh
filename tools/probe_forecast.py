@@ -12,8 +12,10 @@ same bed still reads: the model forecasts its reading from its last good hour to
 `--ahead-h` (24) past now, from its last 1,024 hours, the other probes in the bed and the
 station's rain and air (`--rain`, `--air`) through those hours. The median goes into the
 log as a forecast (Q26) on a datastream of its own, installed in the bed at the probe's
-depth, so the soil advisory, carrying the silent probe, takes it in place of its own rule
-(`soilwater._probe_forecast`); each value carries the run's receipt as its provenance.
+depth, each value carrying the run's receipt as its provenance: for a person to read. The
+soil advisory does not take it. Tried in place of its own rule for carrying the silent
+probe, it lost a tomato crop more at Davis in the backtests of 2026-10-20
+(docs/notes/soilwater-backtests.md), though closer to the truth on real records.
 
 On ISMN's records of six SCAN stations a probe hidden three days was carried this way 40
 to 65% closer to the truth than by any rule (docs/notes/timestral.md). The day ahead was

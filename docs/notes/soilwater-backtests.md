@@ -1979,6 +1979,27 @@ tomatoes over a dense pan, probes, Davis, draws 2-3  n  70  lost -5.17 (-6.91 to
 C is chosen: on the new farms it cut plain tomatoes' loss by 2.1 mm a summer and the dense
 pan's by 5.2, both intervals well below 0, for a little less water.
 
+**The sealed sites**, run once (420 backtests, code 2d66ddc): Yuma and Kearney, the three crop
+beds by probes, as built against C. C undone if at either it raised a bed's mean lost
+transpiration with the interval above 0:
+
+```
+tomatoes, probes, yuma                               n  35  lost -3.52 (-6.16 to -1.28) of 11.5 | water -32.6 (-2.3%) of 1445
+tomatoes over a dense pan, probes, yuma              n  35  lost -6.33 (-9.79 to -3.34) of 22.4 | water +7.5 (+0.5%) of 1389
+lettuce, probes, yuma                                n  35  lost +0.00 (+0.00 to +0.00) of 29.4 | water +0.0 (+0.0%) of 664
+tomatoes, probes, kearney                            n  35  lost -0.15 (-0.31 to -0.03) of 0.6 | water -3.4 (-0.5%) of 743
+tomatoes over a dense pan, probes, kearney           n  35  lost -0.91 (-1.35 to -0.50) of 1.9 | water -1.2 (-0.2%) of 756
+lettuce, probes, kearney                             n  35  lost +0.00 (+0.00 to +0.00) of 0.9 | water +0.0 (+0.0%) of 354
+
+-> C stands: the default for a sown crop
+```
+
+C stands, the default for a sown crop since 2026-10-20 (`Bed.timing_share` 1/3,
+`Bed.timing_share_hot`): at Yuma it cut tomatoes' loss by 3.5 mm a summer and the dense
+pan's by 6.3, at Kearney by less, every interval below 0, for no more water. Lettuce, with
+no probe of its own in the top third, it does not touch. Yuma and Kearney are now spent for
+the crop beds as well as the lawns.
+
 ## Learning held within 0.05, for lawns, 2026-10-19
 
 The open sites' trial found learning held within 0.05 of the configured field capacity cut
@@ -2027,3 +2048,45 @@ high, holding helped. A farm whose survey
 it trusts may set it; fieldmesh cannot know whose is right. Yuma and Kearney are now spent
 for the lawn beds, not for the crops.
 
+## A silent probe carried at a forecast, 2026-10-20
+
+`tools/probe_forecast.py` forecasts a silent probe from its neighbours, the rain and the air
+by Timestral; on real records it was 40 to 65% closer to the truth than the rule. Whether
+the advice should carry the probe at that forecast was tried in the backtests: the 10 cm
+probe of the two tomato beds silent four times a summer, 72 hours each, drawn from the
+summer's farm and the same in both arms; carried (R) by the rule, as built, and (F) at the
+forecast, written before each advice by the model served from a container. McAllister
+1991-2025 and Davis, draw 1, 280 backtests, code a6799b5. The rule, written before it ran:
+
+    The forecast carry stays in `soilwater` if, in no group and for no bed, F raises the
+    mean lost transpiration over R with the 90% interval above 0, nor adds more than a tenth
+    to the mean water. Otherwise `soilwater` takes no forecast and carries by the rule, and
+    the note says why. An add-on, never a default: no sealed site is spent on it.
+
+Amended before it ran, after a check on one summer outside the trial: a silent probe is
+carried only where another reads in the root zone. Lettuce's 30 cm probe lies below its
+roots all season, so its 10 cm probe is never carried, by either arm, and lettuce was left
+out; tomatoes' 30 cm probe enters the zone from about day 44, so the outages were drawn
+from day 50, not day 14. The rule was unchanged.
+
+```
+tomatoes, probes, McAllister 1991–2020: forecast against rule n  30  lost +0.00 (+0.00 to +0.00) of 0.1 | water -3.9 (-0.7%) of 566 | rule against no outage, lost +0.00
+tomatoes, probes, McAllister 2021–2025: forecast against rule n   5  lost +0.00 (+0.00 to +0.01) of 0.1 | water -25.6 (-3.8%) of 671 | rule against no outage, lost -0.01
+tomatoes, probes, Davis: forecast against rule       n  35  lost +0.28 (+0.06 to +0.54) of 8.3 | water -7.0 (-0.6%) of 1152 | rule against no outage, lost +0.99  FAILS lost up, interval above 0
+tomatoes over a dense pan, probes, McAllister 1991–2020: forecast against rule n  30  lost +0.00 (+0.00 to +0.00) of 0.8 | water -2.3 (-0.4%) of 565 | rule against no outage, lost +0.02
+tomatoes over a dense pan, probes, McAllister 2021–2025: forecast against rule n   5  lost +0.00 (+0.00 to +0.00) of 0.7 | water +0.0 (+0.0%) of 552 | rule against no outage, lost +0.17
+tomatoes over a dense pan, probes, Davis: forecast against rule n  35  lost +1.21 (+0.52 to +2.01) of 17.5 | water -8.4 (-0.7%) of 1140 | rule against no outage, lost +4.17  FAILS lost up, interval above 0
+
+-> soilwater stops taking forecasts: carried by the rule
+```
+
+The last column sets R beside the same summers with no outage (the open sites' trial, as
+built): at Davis the outages cost a summer's tomatoes 1.0 mm and the dense pan 4.2 even
+carried by the rule; at McAllister next to nothing. The forecast made Davis worse: 0.3 mm
+more lost for tomatoes and 1.2 over the dense pan, each interval above 0, for slightly less
+water. So `soilwater` takes no forecast: a silent probe is carried by the rule.
+
+Why the forecast that tracked real probes closer lost the crop more here is not known. The
+forecast is given the neighbouring probes, the rain and the air, but not the bed's own
+watering, which in a dry place is most of what wets it; a farm knows its own waterings
+ahead, and they could be given as a known future. That is not tried.

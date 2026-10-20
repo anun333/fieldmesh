@@ -140,14 +140,18 @@ class Bed:
     #: times the watering at the bed's refill point, the refill still to the whole zone, as
     #: when roots stop short (`rooted`). The roots are densest at the top, a third of the
     #: depth holding over half of them, and on a hot day that third runs short while the zone
-    #: as a whole has water to spare. None: the whole zone times it.
-    timing_share: float | None = None
+    #: as a whole has water to spare. None: the whole zone times it. A third, with
+    #: `timing_share_hot`, the default since 2026-10-20.
+    timing_share: float | None = 1 / 3
     #: With `timing_share`, only on a day the crop draws more than `HOT_ETC_MM` (its drying on
     #: a day the soil was not draining, `CROP_DRYING_BELOW`), and only where a probe lies in
-    #: that share of the zone and another below it: the top read apart from the rest. Not
-    #: the default: on the open sites' summers it cut tomatoes' loss at Davis by 2.3 and 3.9
-    #: mm, its intervals just past 0 (docs/notes/soilwater-backtests.md).
-    timing_share_hot: bool = False
+    #: that share of the zone and another below it: the top read apart from the rest. The
+    #: default since 2026-10-20, by rules written before its trials ran: on Davis's farms not
+    #: drawn before it cut tomatoes' lost transpiration by 2.1 mm a summer and 5.2 over a
+    #: dense pan, and at the sealed sites by 3.5 and 6.3 at Yuma, less at Kearney, each
+    #: interval below 0, for no more water (docs/notes/soilwater-backtests.md). Without it,
+    #: `timing_share` times every day by the top third, which gave a dense pan 12% more water.
+    timing_share_hot: bool = True
     #: How far from the configured value learning may take it, either way; None, as far as
     #: it reads. Without a tension sensor a probe's drain-downs read a wet summer's capacity
     #: high and a hot, dry soil's low (`learned_capacity`). Tried at 0.05 on 2026-10-19
@@ -1794,34 +1798,6 @@ def _hourly(rows: list) -> list:
     return out
 
 
-def _probe_forecast(state, bed: Bed, probe, depth_m: float, since: _dt.datetime,
-                    at: _dt.datetime):
-    """A forecast of a silent probe's reading, where the farm runs one: a soil-water
-    forecast whose source is installed in the bed within `PAIR_DEPTH_M` of the probe's
-    depth (`tools/probe_forecast.py`, a time-series model given the probes still reading,
-    the rain and the air), issued since the probe's last good reading and not failing its
-    range check. One whose provenance names the probe it forecasts (`target`) must name
-    this one: two probes at one depth are not each other's. `(value for the hour of `at`,
-    datastream id, issued at)`, or None. On ISMN's records of six SCAN stations such a
-    forecast carried a probe hidden three days 40 to 65% closer to the truth than the rule
-    (docs/notes/timestral.md)."""
-    hour = at.replace(minute=0, second=0, microsecond=0)
-    for ds in state.datastreams.values():
-        if ds.kind is not DatastreamKind.FORECAST or ds.observed_property != V.SOIL_WATER:
-            continue
-        inst = state.installation_of(ds.sensor, at)
-        if (inst is None or inst.feature != bed.feature or inst.depth_m is None
-                or abs(inst.depth_m - depth_m) > PAIR_DEPTH_M):
-            continue
-        live = state.forecast(ds.id, hour, hour + HOUR, as_of=at)
-        if (live and live[0].issued_at >= since and isinstance(live[0].result, (int, float))
-                and not isinstance(live[0].result, bool)
-                and live[0].provenance.get("target", str(probe.id)) == str(probe.id)
-                and state.quality_as_of(live[0].id, at)[0] is Usable.GOOD):
-            return float(live[0].result), ds.id, live[0].issued_at
-    return None
-
-
 def _probe_readings(state, bed: Bed, at: _dt.datetime, in_zone: list, known: dict):
     """Each probe in the root zone's readings by `at`: the newest's time, the flags on the
     newest that failed, readings out of the soil, the last good reading to carry the bed
@@ -1940,27 +1916,28 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
         # How the reading probes have moved since this one's last good reading, weighed as
         # their slices are, those that read then and now: drier as they all dried, wetter
         # only as those at or below it wetted. Water seen below has passed through it;
-        # water seen only above it may never come down so far.
+        # water seen only above it may never come down so far. A time-series model's
+        # forecast of the silent probe (tools/probe_forecast.py), closer to the truth on
+        # real records, was tried in place of this on 2026-10-20 and lost the crop more at
+        # Davis (docs/notes/soilwater-backtests.md): not taken.
         pairs = [(sw, near(srows, last_good[0]), good[-1].result, sd)
                  for (sw, good), srows, sd in zip(series, series_rows or [[]] * len(series),
                                                    series_depths)]
         pairs = [x for x in pairs if x[1] is not None]
         moved = min(0.0, change(pairs)) + max(0.0, change([x for x in pairs if x[3] >= depth]))
         fc, wp = bed.limits_at(depth)
-        forecast = _probe_forecast(state, bed, ds, depth, last_good[0], at)
-        value = max(soil_floor(depth, wp), forecast[0] if forecast else last_good[1] + moved)
-        extra.append((w, value, _capacity(state, bed, ds, depth, wp, rows, at), (fc, wp),
-                      forecast))
+        value = max(soil_floor(depth, wp), last_good[1] + moved)
+        extra.append((w, value, _capacity(state, bed, ds, depth, wp, rows, at), (fc, wp)))
     total = sum(w for w, _ in series) + sum(x[0] for x in extra)
     theta = (sum(w * good[-1].result for w, good in series)
-             + sum(x[0] * x[1] for x in extra)) / total
+             + sum(w * v for w, v, _, _ in extra)) / total
     # Each probe's slice of the root zone at its own soil's limits, the field capacity
     # learned where there is enough to learn from.
     capacity = (sum(w * (c["field_capacity"] if c else fc)
                     for (w, _), c, (fc, _) in zip(series, capacities, limits))
-                + sum(w * (c["field_capacity"] if c else fc) for w, _, c, (fc, _), _ in extra)) / total
+                + sum(w * (c["field_capacity"] if c else fc) for w, _, c, (fc, _) in extra)) / total
     wilting = (sum(w * wp for (w, _), (_, wp) in zip(series, limits))
-               + sum(w * wp for w, _, _, (_, wp), _ in extra)) / total
+               + sum(w * wp for w, _, _, (_, wp) in extra)) / total
     learned = [{"datastream": str(c["datastream"]),
                 "how": "measured" if c.get("measured") else "learned",
                 **{k: c[k] for k in ("depth_m", "field_capacity", "drains", "half_drain_h")},
@@ -1986,7 +1963,7 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
     depletion = (sum(w * max(0.0, (c["field_capacity"] if c else fc) - good[-1].result)
                      for (w, good), c, (fc, _) in zip(series, capacities, limits))
                  + sum(w * max(0.0, (c["field_capacity"] if c else fc) - v)
-                       for w, v, c, (fc, _), _ in extra)) / total * bed.root_depth_mm
+                       for w, v, c, (fc, _) in extra)) / total * bed.root_depth_mm
     drying = _drying_mm_per_day(history, at, bed.root_depth_mm, bed.field_capacity)
     # From the lower of the learned capacity and the configured: a wet summer's learning
     # reads high, and the soil draining from there down to its own is not the crop's use.
@@ -2043,9 +2020,7 @@ def _from_probes(state, bed: Bed, at: _dt.datetime, base: dict, inputs: dict, fo
     if extra:
         inputs["carried"] = [{"datastream": str(ds.id), "depth_m": depth,
                               "last_good_at": last_good[0].isoformat(),
-                              "last_good": round(last_good[1], 3), "carried_at": round(x[1], 3),
-                              **({"by": "forecast", "forecast": str(x[4][1]),
-                                  "issued_at": x[4][2].isoformat()} if x[4] else {"by": "rule"})}
+                              "last_good": round(last_good[1], 3), "carried_at": round(x[1], 3)}
                              for (_, depth, ds, _, last_good), x in zip(carried, extra)]
         base["probes_carried"] = len(extra)
     base.update({

@@ -6,7 +6,8 @@ on 2026-10-15. This note tries it, zero-shot, on what a farm's soil-moisture pro
 forecaster: carrying a probe that has fallen silent, and telling a probe that has gone wrong
 from a soil that has changed. One thing it showed is now in fieldmesh's own code
 (`soilwater`, [below](#what-fieldmesh-took)). The model itself is only an optional add-on
-([below](#using-it-as-an-add-on)), never a dependency.
+([below](#using-it-as-an-add-on)), never a dependency, and the soil advice does not take its
+forecasts: closer to the truth on real records, they lost the crop more in the backtests.
 
 ## What it is
 
@@ -147,9 +148,11 @@ of the three parts below refuses to load the model otherwise.
   forecast covers the hours from its last good reading to a day ahead, and goes into the
   log as a forecast on a datastream of its own. That datastream is installed in the bed at
   the probe's depth (a forecast is never written as a measurement, Q26).
-  `soilwater` takes such a forecast in place of its own rule when carrying the probe. It
-  takes one only if it names that probe, was issued since the probe's last good reading and
-  passed its range check. The decision says which carried it (`carried[].by`: `forecast` or `rule`).
+  `soilwater` took such a forecast in place of its own rule for a day. In the backtests,
+  with the 10 cm probe of a tomato bed silent four times a summer, that lost the crop more
+  at Davis than the rule did, so the advice no longer takes it
+  ([record](soilwater-backtests.md#a-silent-probe-carried-at-a-forecast-2026-10-20)). The
+  forecasts stay in the log for a person to read.
 * [`modules/probewatch/`](../../modules/probewatch/), a layer-2 module, says when a probe
   has read outside the band for three hours running in the last day, and says when it is
   back.

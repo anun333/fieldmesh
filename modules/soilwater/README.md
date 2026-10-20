@@ -53,10 +53,11 @@ it may not come down so far), and the decision lists it and the value it was car
 SCAN stations' records, a 10 cm probe hidden for three days was carried within 0.006 of
 the truth a day in and 0.011 three days in, where it had been 0.007 and 0.018; a
 time-series model given the same neighbours did better again ([Timestral](../../docs/notes/timestral.md)).
-Where a farm runs that model, an optional add-on (`tools/probe_forecast.py`), a silent
-probe is carried at its forecast instead of by the rule. The forecast must be that probe's
-own, installed at its depth, issued since its last good reading, and pass its range check. Each
-probe carried says which carried it (`by`). A series not in a volume fraction (`FRACTION_UNITS`) is
+That model's forecast, an optional add-on (`tools/probe_forecast.py`), was tried in place of
+the rule in the backtests and lost the crop more at Davis: 0.3 mm a summer for tomatoes
+and 1.2 over a dense pan, each interval above 0, so the advice does not take it
+([record](../../docs/notes/soilwater-backtests.md#a-silent-probe-carried-at-a-forecast-2026-10-20)).
+A series not in a volume fraction (`FRACTION_UNITS`) is
 not one of the bed's probes. Readings are counted an hour at a time, however often a probe
 reads. Rain coming is read from a forecast datastream in the log (Q26), as it stood that
 morning (`State.forecast(as_of=...)`), so the forecast an advice rested on sits beside it.
@@ -171,10 +172,11 @@ of what it would have drawn, and the hours it was waterlogged (under a twentieth
   7.3) for no more water, but gave tomatoes over a dense pan 12% more water in McAllister's
   last five summers, and did nothing for lettuce, whose 10 cm probe reads its zone and its
   top third alike. Timed so only on a hot day, by a probe of its own in the top third
-  (`Bed.timing_share_hot`), it added under 1% over the dense pan and still cut both tomato
-  beds' loss at Davis, by 2.3 and 3.9 mm a summer, but neither interval came wholly below
-  0. Options, not the default
-  ([record](../../docs/notes/soilwater-backtests.md#the-top-third-on-a-hot-day-2026-10-19)).
+  (`Bed.timing_share_hot`), it added under 1% over the dense pan and cut both tomato beds'
+  loss at Davis, by 2.1 and 5.2 mm a summer on farms not drawn before, and at the sealed
+  sites: **the default for a sown crop since 2026-10-20**
+  ([above](#hot-days-and-beds-under-cover);
+  [record](../../docs/notes/soilwater-backtests.md#the-top-third-on-a-hot-day-on-more-farms-2026-10-19)).
 * **Young crops and the root signs** were tried on 2026-10-17 and not again
   ([record](../../docs/notes/soilwater-backtests.md#the-trials-of-2026-10-17)).
 
@@ -396,6 +398,18 @@ transpiration by 1.8 mm a summer and tomatoes over a dense pan's by 4.3, lettuce
 all ([what the trials show](#what-the-trials-show)). Its smaller waterings are harder for
 the watering check to tell from none: in the 2012 drought one that arrived, over a dry top,
 was said not to have.
+
+**On a hot day a sown crop is watered by the top of its root zone** (since 2026-10-20).
+Past its young days, on a day it draws more than 5 mm (`HOT_ETC_MM`), and where a probe lies
+in the top third of its root zone with another below it, the top third reaching the refill
+point times the watering; the refill still goes to the whole zone (`Bed.timing_share` a
+third, `Bed.timing_share_hot`). The roots are densest at the top, and on a hot day the top
+runs short while the zone as a whole has water to spare. Chosen by rules written before its
+trials: on Davis's farms it cut tomatoes' lost transpiration by 2.1 mm a summer and over a
+dense pan by 5.2, at the sealed sites by 3.5 and 6.3 at Yuma, less at Kearney, for no more
+water. A bed without a probe inside its top third and another below it, as lettuce's
+(probes at 10 and 30 cm, roots to 30), is timed by the whole zone as before. `timing_share=None` turns it off; `timing_share_hot=False` times every day by the top
+third, which gave a dense pan 12% more water in McAllister's last five summers.
 
 **A bed under cover.** Rain forecast for the farm does not reach a bed under a tunnel or
 a roof, and "rain is coming: wait" is the wrong advice for it. `Bed.rain_share` says how
@@ -643,10 +657,10 @@ drying; this records why.
   not yet tried; separating slow drainage from the crop's drying needs the day's sun;
 * why probe-led beds lose more than the weather's in a dry place: the top of the root zone
   runs short first on a hot day; timed by the top third it halved tomatoes' loss and did
-  nothing for lettuce, read by one probe, and timed so on hot days alone it cut 2.3 and
-  3.9 mm with intervals just past 0; the hot-day refill point with a probe at 5 cm cut
-  tomatoes' loss at Davis by 3.7 mm a summer and lettuce's by 3.8, more than either alone,
-  and was not tried at the sealed sites; Yuma and Kearney are kept sealed for the next;
+  nothing for lettuce, read by one probe, and timed so on hot days alone, now the default,
+  it cut 2 to 6 mm; the hot-day refill point with a probe at 5 cm cut tomatoes' loss at
+  Davis by 3.7 mm a summer and lettuce's by 3.8, more than either alone, and was not tried
+  at the sealed sites; Yuma and Kearney are spent, and the next choice needs new ones;
 * root signs that judge a probe's level against what the roots' density predicts at its
   depth: with roots densest at the top, a deep probe reads near level with no pan at all
   ([above](#roots-that-stop));

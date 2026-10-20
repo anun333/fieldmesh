@@ -121,6 +121,8 @@ OUTAGES, OUTAGE_H, OUTAGE_DEPTH, OUTAGE_FROM_DAY = 4, 72, 0.10, 50
 #: A survey badly wrong: the configured field capacity this far either way.
 SURVEY_OFF = 0.06
 #: The Timestral server the carry trial's forecasts come from (`tools/timestral/serve.py`).
+#: The trial (2026-10-20) found the forecast lost the crop more at Davis, and the advice no
+#: longer takes it, so run again the carry design's two arms are the same.
 FORECAST_SOCKET = os.environ.get("FIELDMESH_TSFM_SOCKET", "")
 #: What each backtest is scored by (`backtest.Score`).
 SCORES = ("applied_mm", "drained_mm", "transpiration_lost_mm", "demand_mm", "stressed_h",
@@ -150,8 +152,11 @@ def configs(bed: str) -> list:
 
 #: The defaults chosen on 2026-10-19 by rules written before the open sites' trial ran:
 #: none changed. The hot-day refill point did not cut lettuce's lost transpiration at Davis;
-#: learning within 0.05 raised it by just over the half millimetre the rules allowed.
-CHOSEN = {}
+#: learning within 0.05 raised it by just over the half millimetre the rules allowed. On
+#: 2026-10-20, the watering of a sown crop timed by the top third on a hot day (`hot`),
+#: chosen on Davis's farms not drawn before and standing at Yuma and Kearney. A backtest's
+#: choices still set it explicitly, so the bed "as built" stays as it was built.
+CHOSEN = {"hot": True}
 
 
 def sealed_configs(bed: str) -> list:

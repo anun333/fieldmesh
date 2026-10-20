@@ -8,9 +8,11 @@ employer, had global revenue over $20 million in the preceding month**. A farm t
 it says so (`load(accept_weights_licence=True)`); nothing here downloads or runs it
 otherwise.
 
-What it is used for, as tried on ISMN's records of six SCAN stations: carrying a probe
-gone silent from its neighbours, the rain and the air (`tools/probe_forecast.py`), and
-seeing a probe drift from what they say it should read (`modules/probewatch`). This module
+What it is used for, as tried on ISMN's records of six SCAN stations: forecasting a probe
+gone silent from its neighbours, the rain and the air, for a person to read
+(`tools/probe_forecast.py`; the soil advice does not take it, having lost the crop more
+with it in the backtests), and seeing a probe drift from what they say it should read
+(`modules/probewatch`). This module
 reads the farm's state into the model's inputs, runs it, and writes the receipt a
 decision resting on it carries: which model and weights, which series and hours, a hash of
 the inputs, and how far the forecast moves with each input taken away. The model is
