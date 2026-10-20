@@ -144,7 +144,9 @@ class Bed:
     timing_share: float | None = None
     #: With `timing_share`, only on a day the crop draws more than `HOT_ETC_MM` (its drying on
     #: a day the soil was not draining, `CROP_DRYING_BELOW`), and only where a probe lies in
-    #: that share of the zone and another below it: the top read apart from the rest.
+    #: that share of the zone and another below it: the top read apart from the rest. Not
+    #: the default: on the open sites' summers it cut tomatoes' loss at Davis by 2.3 and 3.9
+    #: mm, its intervals just past 0 (docs/notes/soilwater-backtests.md).
     timing_share_hot: bool = False
     #: How far from the configured value learning may take it, either way; None, as far as
     #: it reads. Without a tension sensor a probe's drain-downs read a wet summer's capacity

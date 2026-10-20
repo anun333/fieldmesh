@@ -167,8 +167,11 @@ of what it would have drawn, and the hours it was waterlogged (under a twentieth
   over half the roots are, halved tomatoes' lost transpiration at Davis (3.8 mm a summer of
   7.3) for no more water, but gave tomatoes over a dense pan 12% more water in McAllister's
   last five summers, and did nothing for lettuce, whose 10 cm probe reads its zone and its
-  top third alike. An option, not the default
-  ([record](../../docs/notes/soilwater-backtests.md#the-top-third-2026-10-19)).
+  top third alike. Timed so only on a hot day, by a probe of its own in the top third
+  (`Bed.timing_share_hot`), it added under 1% over the dense pan and still cut both tomato
+  beds' loss at Davis, by 2.3 and 3.9 mm a summer, but neither interval came wholly below
+  0. Options, not the default
+  ([record](../../docs/notes/soilwater-backtests.md#the-top-third-on-a-hot-day-2026-10-19)).
 * **Young crops and the root signs** were tried on 2026-10-17 and not again
   ([record](../../docs/notes/soilwater-backtests.md#the-trials-of-2026-10-17)).
 
@@ -637,7 +640,8 @@ drying; this records why.
   not yet tried; separating slow drainage from the crop's drying needs the day's sun;
 * why probe-led beds lose more than the weather's in a dry place: the top of the root zone
   runs short first on a hot day; timed by the top third it halved tomatoes' loss and did
-  nothing for lettuce, read by one probe; the hot-day refill point with a probe at 5 cm cut
+  nothing for lettuce, read by one probe, and timed so on hot days alone it cut 2.3 and
+  3.9 mm with intervals just past 0; the hot-day refill point with a probe at 5 cm cut
   tomatoes' loss at Davis by 3.7 mm a summer and lettuce's by 3.8, more than either alone,
   and was not tried at the sealed sites; Yuma and Kearney are kept sealed for the next;
 * root signs that judge a probe's level against what the roots' density predicts at its

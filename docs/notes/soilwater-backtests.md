@@ -1897,3 +1897,62 @@ nothing (`weights`) and the one at 10 cm reads both the zone and its top third: 
 water, the same decision. Timing by the top third wants a probe in it apart from the rest.
 The sealed sites were not run, nothing having been chosen: they wait, sealed, for the next.
 
+## The top third on a hot day, 2026-10-19
+
+`Bed.timing_share_hot`: the top third's timing only on a day the crop draws more than 5 mm,
+and only where a probe lies in the top third with another below it, on the same farms and
+summers for the three crop beds by probes (210 backtests, code 2bbcde5), against the bed as
+built from the open sites' trial (three of its rows run again on this code: the same to the
+bit). The rules, written before it ran:
+
+The top third's first trial halved tomatoes' lost transpiration at Davis for no more water,
+but gave tomatoes over a dense pan 12% more water in McAllister's last five summers, and
+could not change lettuce, whose one probe in the root zone reads the zone and its top third
+alike. The candidate now, for a sown crop past its young days:
+
+  C  the watering timed by the top third of the root zone at the bed's refill point
+     (`Bed.timing_share` 1/3), the refill to the whole zone, only where a probe lies in
+     the top third and another below it in the root zone, and only on a day the crop is
+     drawing more than 5 mm (its drying on a day the soil was not draining, as the hot-day
+     refill point reads it; `Bed.timing_share_hot`)
+
+Beds: tomatoes by probes and tomatoes over a dense pan, where it can act; lettuce by
+probes, where it cannot, as a check that it does nothing there. Against the bed as built,
+same summers and farms, in each group (McAllister 1991-2020, 2021-2025, Davis).
+
+C becomes the default (`timing_share` 1/3 with `timing_share_hot`) for a sown crop if at
+Davis it cuts both tomato beds' mean lost transpiration with the 90% interval below 0; in
+neither McAllister group raises any of the three beds' mean lost by more than 0.5 mm or
+adds more than a tenth to its mean water; and lettuce's mean water and lost move by no more
+than 1 mm in any group.
+
+Sealed since 2026-10-19 18:11 and run once if C is chosen: Yuma, Arizona, and Kearney,
+Nebraska, the bed as built against C, for the three beds; reported as they come, and C
+undone if at either it raises a bed's mean lost transpiration with the interval above 0.
+
+What it found, against the bed as built, pair by pair:
+
+```
+tomatoes, probes                   Davis                  n  35  lost -2.32 (-5.33 to +0.09) of 7.3 | water +2.0 (+0.2%) of 1135  FAILS 1: not cut at Davis
+tomatoes, probes                   McAllister 1991–2020   n  30  lost -0.05 (-0.10 to -0.02) of 0.1 | water -5.7 (-1.0%) of 551
+tomatoes, probes                   McAllister 2021–2025   n   5  lost -0.01 (-0.02 to +0.00) of 0.1 | water -7.1 (-1.0%) of 673
+tomatoes over a dense pan, probes  Davis                  n  35  lost -3.92 (-8.54 to +0.04) of 13.3 | water +10.6 (+0.9%) of 1124  FAILS 1: not cut at Davis
+tomatoes over a dense pan, probes  McAllister 1991–2020   n  30  lost -0.52 (-0.83 to -0.27) of 0.8 | water +0.8 (+0.2%) of 557
+tomatoes over a dense pan, probes  McAllister 2021–2025   n   5  lost -0.18 (-0.34 to -0.05) of 0.5 | water +5.4 (+0.9%) of 569
+lettuce, probes                    Davis                  n  35  lost +0.00 (+0.00 to +0.00) of 11.5 | water +0.0 (+0.0%) of 504
+lettuce, probes                    McAllister 1991–2020   n  30  lost +0.00 (+0.00 to +0.00) of 0.3 | water +0.0 (+0.0%) of 252
+lettuce, probes                    McAllister 2021–2025   n   5  lost +0.00 (+0.00 to +0.00) of 0.0 | water +0.0 (+0.0%) of 352
+
+-> C is not chosen: the beds stay as built
+```
+
+C is not the default. It mended what sank the first: over the dense pan in McAllister's
+last five summers it added 0.9% water, not 12%, and it cut the loss there as before. At
+Davis it cut the mean loss of both tomato beds, by 2.3 mm a summer of 7.3 and 3.9 of 13.3,
+but each interval reaches just past 0 (to +0.09 and +0.04 mm), and the rule asked for both
+below. Timed so on hot days alone, it kept less of plain tomatoes' gain (2.3 mm to the
+first's 3.8) and more of the dense pan's (3.9 to 2.3). Lettuce did not move, as it could
+not. The sealed sites were not run, nothing having been chosen, and stay sealed. More draws
+at Davis might narrow the intervals; run after seeing these, they would not be the test the
+rules set, and would need rules of their own written first.
+
