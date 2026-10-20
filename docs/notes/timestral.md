@@ -264,6 +264,32 @@ checks itself against `probewatch.probe_context` on its first stretches at each 
   before the held-out stations were read. **The watch now says which is the likelier one
   off** (`Watch._tie_break`, rule version 2), where the bed has a station's rain or air.
 
+## A slow drift, against a stretch kept from before it (2026-10-20)
+
+The watch reads a slow drift as the soil's own course. Three looks judged the last week
+against a stretch trusted from 60 days before, before any of the drifts began
+(`tools/timestral/slow_drift.py`; rules written first): (soak) the probe's reading a day
+after each soaking rain against its neighbours', the last 60 days against the 180 before;
+(regression) a fit on the other probes over the 60 days that ended 60 days before; and
+(Timestral) the probe forecast as though silent since that stretch. The six drifts, 0.02
+over two weeks to 0.03 over eight, wetter and drier, on the six stations; a look had to
+catch 60% of them with clean stretches said off no more than 5% of the time:
+
+| look | drifts caught | clean stretches said off |
+| --- | --- | --- |
+| soak | 18% | 11% |
+| regression | 74% | 49% |
+| Timestral | 45% | 39% |
+
+None passed, so none went to the stations held out, which stay unread. The regression saw
+most drifts and half the clean stretches as drifts too; Timestral did worse on both; the
+soak look seldom had rain enough to judge, in the Southwest almost never. In two months the
+probes' relation to one another changes with the season, and a stretch kept from then is no
+longer a fair measure of now. Telling a slow drift from the season needs something that
+does not drift with it: a second probe at the same depth, or a check against a reference
+probe now and then ([UNTESTED](../UNTESTED.md)). The stretches were few where a station's
+record has gaps (89 in all; each needs some 300 days nearly whole).
+
 ## Reproducing
 
 The scripts are [tools/timestral/](../../tools/timestral/). The archive is downloaded data:

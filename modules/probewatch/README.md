@@ -91,8 +91,13 @@ and in 93% of 27 on three stations held out, never the wrong one there.
 
 **What it does not see: a slow drift.** A probe drifting 0.02 over two weeks or 0.03 over
 eight was said off under 1% of the time: the model reads the drift in the weeks before the
-day it judges, and forecasts it. A week's look did no better (3 to 7%). A reference probe,
-or a stretch the farm trusts kept to judge against, would be needed.
+day it judges, and forecasts it. A week's look did no better (3 to 7%). Judging against a
+stretch kept from 60 days before did not serve either: a regression on the other probes
+caught 74% of slow drifts but called half of all clean stretches drifts too, the model 45%
+and 39%, readings after soaking rain 18% and 11%. In two months the season changes how the
+probes read against each other. A second probe at the same depth, or a reference probe now
+and then, would be needed
+([docs/notes/timestral.md](../../docs/notes/timestral.md#a-slow-drift-against-a-stretch-kept-from-before-it-2026-10-20)).
 
 ## What it was tried on
 

@@ -2122,3 +2122,45 @@ than the rule to 0.1 less, the interval across 0. Over the dense pan the forecas
 lost 1.0 mm more (+0.3 to +1.8), and nowhere did it cut a loss clearly. `soilwater` carries
 a silent probe by the rule. `Bed.carry_forecasts` stays, off, so the trial can be run again.
 
+## The hot-day top third with its top probe gone wrong, 2026-10-20
+
+Since 2026-10-20 the probe in a sown crop's top third times its watering on a hot day, and
+the probe watch cannot see a slow drift. So the default was tried with that probe faulty:
+the two tomato beds by probes at Davis, 1991-2025, the 10 cm probe from day 60 reading 0.03
+drier, or 0.03 wetter, reached over 28 days and held; or lying at 5 or at 15 cm where it
+is recorded at 10. Under each, the bed as built before against the default (560 backtests,
+code caf0134). The rule, written before it ran:
+
+    The default stands with no guard if, under each fault, for each bed, C raises neither
+    the mean lost transpiration with the 90% interval above 0, nor the mean water by more
+    than a tenth, against the bed as built under the same fault. Otherwise the README says
+    now which fault harms it, and a guard is designed and tried by rules written then.
+
+```
+tomatoes, probes, top probe dry                      n  35  lost -3.61 (-6.71 to -1.06) of 7.2 | water +19.1 (+1.6%) of 1198
+tomatoes over a dense pan, probes, top probe dry     n  35  lost -2.58 (-5.08 to -0.15) of 9.1 | water +16.3 (+1.3%) of 1216
+tomatoes, probes, top probe wet                      n  35  lost -1.51 (-4.35 to +0.65) of 8.2 | water -11.8 (-1.1%) of 1121
+tomatoes over a dense pan, probes, top probe wet     n  35  lost -3.33 (-8.95 to +1.31) of 19.7 | water +4.2 (+0.4%) of 1094
+tomatoes, probes, top probe shallow                  n  35  lost -0.74 (-1.74 to +0.08) of 4.0 | water -13.3 (-1.1%) of 1191
+tomatoes over a dense pan, probes, top probe shallow n  35  lost -0.93 (-2.22 to +0.12) of 6.6 | water +12.5 (+1.0%) of 1270
+tomatoes, probes, top probe deep                     n  35  lost -2.09 (-4.35 to -0.29) of 11.3 | water -25.4 (-2.2%) of 1137
+tomatoes over a dense pan, probes, top probe deep    n  35  lost -4.38 (-7.04 to -2.34) of 27.5 | water +13.9 (+1.3%) of 1063
+
+-> the default stands, no guard
+```
+
+The default stands, with no guard. Under every fault it lost the crop less than the bed as
+built under the same fault, or as little, for water within 2% either way: a top probe
+reading 0.03 dry cut plain tomatoes' loss by 3.6 mm a summer for 1.6% more water. A faulty
+top probe costs a bed with or without the top third's timing; the timing does not make it
+worse.
+
+## Sealed for the next default trial, 2026-10-20
+
+Yuma and Kearney being spent, four sites were chosen and their weather fetched from NASA
+POWER, 1991-2025, before any candidate for them existed: Five Points, California (36.34 N,
+120.11 W, 85 m), irrigated and dry; Prosser, Washington (46.25 N, 119.73 W, 270 m), the
+irrigated Northwest; Gainesville, Florida (29.65 N, 82.32 W, 30 m), humid and sandy; Grand
+Forks, North Dakota (47.92 N, 97.07 W, 254 m), the northern Plains (`trials.SITES`). Not
+run, until a candidate is chosen on the open sites by rules written first.
+

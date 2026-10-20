@@ -410,7 +410,10 @@ trials: on Davis's farms it cut tomatoes' lost transpiration by 2.1 mm a summer 
 dense pan by 5.2, at the sealed sites by 3.5 and 6.3 at Yuma, less at Kearney, for no more
 water. A bed without a probe inside its top third and another below it, as lettuce's
 (probes at 10 and 30 cm, roots to 30), is timed by the whole zone as before. `timing_share=None` turns it off; `timing_share_hot=False` times every day by the top
-third, which gave a dense pan 12% more water in McAllister's last five summers.
+third, which gave a dense pan 12% more water in McAllister's last five summers. With its top
+probe faulty, reading 0.03 drier or wetter or lying 5 cm off its recorded depth, it lost
+the crop no more than the bed as built with the same fault, mostly less
+([record](../../docs/notes/soilwater-backtests.md#the-hot-day-top-third-with-its-top-probe-gone-wrong-2026-10-20)).
 
 **A bed under cover.** Rain forecast for the farm does not reach a bed under a tunnel or
 a roof, and "rain is coming: wait" is the wrong advice for it. `Bed.rain_share` says how
