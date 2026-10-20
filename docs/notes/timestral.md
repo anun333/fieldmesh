@@ -185,6 +185,49 @@ The run also found that loading the weights had asked the cache for the whole re
 its README too, and failed offline on a cache holding only the two files the model is made
 from. It now asks for those two (`tsfm.WEIGHT_FILES`).
 
+## Tried further: six stations, two probes, rain, the day ahead (2026-10-19)
+
+Rules for what each result could change were written before any of these ran.
+`verify_timestral.py` on 30 stretches at each of three Tennessee stations and three in the
+Southwest. Each probe was judged on a clean day and with a drift of 0.0025 an hour put into
+the 10 cm probe, in the bed of three and with the 20 cm probe taken away:
+
+| station | silent 72 h: forecast, held | clean days said off (3 probes, 2) | drift caught (3, 2) | the healthy 5 cm said off beside it (3, 2) | day ahead: as built, true weather, held |
+| --- | --- | --- | --- | --- | --- |
+| McAllister Farm | 0.0046, 0.0180 | 1%, 2% | 97%, 93% | 27%, 40% | 0.0096, 0.0097, 0.0094 |
+| Allen Farms | 0.0048, 0.0189 | 3%, 3% | 100%, 97% | 10%, 27% | 0.0119, 0.0118, 0.0106 |
+| Eastview Farm | 0.0046, 0.0140 | 3%, 3% | 100%, 100% | 40%, 57% | 0.0065, 0.0065, 0.0066 |
+| Cochora Ranch | 0.0034, 0.0073 | 2%, 2% | 93%, 93% | 3%, 10% | 0.0054, 0.0053, 0.0068 |
+| Jornada | 0.0025, 0.0043 | 0%, 3% | 97%, 97% | 0%, 3% | 0.0039, 0.0038, 0.0049 |
+| Los Lunas | 0.0023, 0.0036 | 0%, 0% | 100%, 100% | 0%, 0% | 0.0029, 0.0029, 0.0035 |
+
+* **Dry country.** Clean days in the Southwest were said off 0 to 3% of the time, as in
+  Tennessee. The fault run above counted one hour outside the band as a catch, and there
+  24% of the Southwest's clean hours were; the watch asks for three hours running.
+* **Two probes, or a neighbour off.** A drift in one probe moves the forecast of the probe
+  beside it, so the healthy one is said off too: up to 40% of the time in a Tennessee bed of
+  three, and in a bed of two up to 57% (Eastview), more than half. A bed of two cannot tell
+  which probe is off; a bed of three mostly can. The points do not say which: when both
+  were said off, the drifting probe was off by more only 15 times in 32 in a bed of three,
+  8 in 40 in a bed of two.
+* **Rain.** Drifts on a day with a millimetre of rain or more were caught 25 times in 28
+  (89%), on dry days 99%.
+* **The day ahead.** Over the 180 stretches the 24 hours past the run's time were 0.0067
+  off, against 0.0070 for the forecast at that time held. So `--ahead-h` stays at 24 by
+  the rule written first. But the edge is the Southwest's: in Tennessee holding did as well
+  or better. Given the true rain and air through those hours, the model did no better
+  (0.0067).
+* **The NWS as the known future.** On McAllister's live record (ISMN's archive to 8
+  October, then the farm's own log, the two the same to rounding over their 139 shared
+  hours), for the 20 NWS issues of 9 to 18 October: 0.0304 off as built, 0.0300 with the
+  issue's rain and temperature, 0.0315 held. Ten days, so nothing changes. The errors were
+  large because the storm of 10 October (32 mm) fell inside the silence: the hidden 10 cm
+  probe was forecast up to 0.09 too dry for three days after it.
+* **The band and the regression together**, on the faults ISMN flagged in Tennessee: either
+  caught 59%, against 48% for the regression alone and 26% for the band, with 11% false
+  alarms against 4% and 6.5%; both caught 15%, with none. Not adopted: it would be chosen
+  on what it was scored on, and needs a station held out.
+
 ## Reproducing
 
 The scripts are [tools/timestral/](../../tools/timestral/). The archive is downloaded data:

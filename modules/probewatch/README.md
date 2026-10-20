@@ -69,8 +69,13 @@ It forecasts the probe's day from these. The decision carries the receipt of tha
 With `moved_by`, a reader can see the forecast rested on the probe at 10 cm, say, and not
 on the rain.
 
-With only two probes in a bed, each is the other's only neighbour. When one drifts, both
-may be said to be off. A third probe tells which one it is.
+A drift in one probe moves the forecast of the probe beside it, so the healthy one may be
+said to be off too. In a bed of two, each is the other's only neighbour: on Tennessee's
+records the healthy probe was said off beside a drifting one 27 to 57% of the time, so a bed
+of two cannot tell which probe is off. In a bed of three it was 10 to 40% for the probe
+just above, and 3 to 10% for the one below. Nor do the points tell which: when both were
+said off, the drifting probe was off by more only 15 times in 32 in a bed of three, 8 in 40
+in a bed of two. When two probes are said off together, check both.
 
 ## What it was tried on
 
@@ -90,10 +95,14 @@ On the jumps ISMN's own quality control flagged, it caught 30% to the regression
 the Southwest's one-hour spikes it did no better than chance. Spikes are layer zero's. The
 trial judged three-day stretches; the watch judges the last day at each look.
 
-Run through this module's own code with the real model on McAllister Farm's record
-(`verify_timestral.py`, 2026-10-19): of 30 days, one clean day was said off; with a drift
-of 0.0025 an hour put in, 29 of the 30 were, all wetter. The one missed came in a wet
-spell, when the band was 8.9 points wide.
+Run through this module's own code with the real model (`verify_timestral.py`,
+2026-10-19), 30 days at each of six stations, three in Tennessee and three in the
+Southwest
+([docs/notes/timestral.md](../../docs/notes/timestral.md#tried-further-six-stations-two-probes-rain-the-day-ahead-2026-10-19)):
+
+* a clean day was said off 0 to 3% of the time, in the Southwest as in Tennessee;
+* a drift of 0.0025 an hour put in was caught 93 to 100% of the time;
+* on a day with rain, 25 drifts in 28 (89%), against 99% on dry days.
 
 **Not tried:** a real farm's probes and faults; soils other than these stations'; probes
 below 20 cm. Whether three hours outside the band is the right line for a farm is a

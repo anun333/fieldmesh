@@ -206,6 +206,27 @@ warned, six false alerts in six and a half months. The season was a cold one: 38
 reached −2.2 °C by this dusk-to-morning count (33 frost spells, where hours within six of
 each other are one), down to −12 °C in January.
 
+## Rain days: the farm's own NWS forecasts against its station (2026-10-19)
+
+The backtests' forecaster misses a rain day (1 mm or more) a quarter of the time at a day's
+lead, and forecasts a dry day wet one time in twelve (`backtest.forecast_skill`): round
+numbers, chosen to be worse than the drill's hourly skill alone. `tools/rain_event_score.py`
+scores the forecasts the cron has collected against McAllister Farm's own gauge, day by day
+at that lead. From 9 to 18 October: 18 issues over 9 days, 4 of them for a rain day.
+
+| | the farm's NWS forecasts | 90% interval | the harness assumes |
+| --- | --- | --- | --- |
+| a rain day forecast dry | 0 of 4 | 0 to 0.40 | 0.25 |
+| a dry day forecast wet | 0 of 14 | 0 to 0.16 | 0.08 |
+
+Both assumed rates lie inside the intervals, so nothing changes; ten October days cannot
+tell them apart. The one big rain, 32 mm on 10 October, was forecast at 21 and 38 mm by the
+two issues before it. A season of issues would say more ([UNTESTED](../UNTESTED.md)).
+
+The first scoring read the station's rain as millimetres. SCAN reports inches, so 32 mm
+became 1.2 and a rain day looked like a forecast four times too wet. The tool now converts
+by each datastream's unit and refuses one it does not know.
+
 ## Watering by forecast, and by soil
 
 `irrigation_drill.py` puts one bed — a 30 cm root zone in silt loam, full canopy — through
