@@ -344,8 +344,9 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
     `outages` are `(depth, first hour, hours)`: the probe at that depth sends nothing
     through them, as a node whose radio is down. `before_advice(state, when, station)` runs
     before each advice (a forecast of a silent probe written into the log, say); with it, a
-    station beside the bed reports each hour's rain and the air's temperature, `station`
-    their datastreams, `{"rain": id, "air": id}`."""
+    station beside the bed reports each hour's rain and the air's temperature, and the
+    bed's valve its watering, `station` their datastreams, `{"rain": id, "air": id,
+    "water": id}`."""
     import statistics
 
     sys.path.insert(0, os.path.join(HERE, os.pardir, os.pardir, "sim"))
@@ -451,10 +452,13 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                            max_latency=3600.0)
         state.add(gauge)
     advisor = Advisor(Log(), rain_gauge=gauge.id if gauge else None)
-    station, station_rain = {}, 0.0
+    station, station_rain, station_water = {}, 0.0, 0.0
     if before_advice is not None:
         site = uuid7()
-        for name, prop, unit in (("rain", V.PRECIPITATION_DEPTH, "mm"), ("air", V.AIR_TEMPERATURE, "Cel")):
+        for name, prop, unit in (("rain", V.PRECIPITATION_DEPTH, "mm"), ("air", V.AIR_TEMPERATURE, "Cel"),
+                                 # the bed's watering, mm an hour, on the term a zone's meter
+                                 # reports its flow by: the model reads its shape, not its unit
+                                 ("water", V.FLOW_RATE, "mm/h")):
             ds = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(), observed_property=prop,
                             feature=site, kind=DatastreamKind.RAW, unit=unit,
                             expected_interval=3600.0, max_latency=3600.0)
@@ -538,6 +542,7 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
                 mm = rate_mm_per_h * minutes / 60.0
                 if day not in blocked:
                     world.irrigate(b.name, mm)
+                    station_water += mm
                     if b2 is not None:
                         world.irrigate(b2.name, mm)
                 applied += mm
@@ -554,10 +559,11 @@ def backtest(climate, start: _dt.datetime, days: float, *, seed: int = 1,
         if station:
             station_rain += tick.weather.rain_mm
             if world.when.minute == 0:
-                for name, value in (("rain", round(station_rain, 2)), ("air", round(tick.weather.air_temp_c, 1))):
+                for name, value in (("rain", round(station_rain, 2)), ("air", round(tick.weather.air_temp_c, 1)),
+                                    ("water", round(station_water, 2))):
                     state.add(Observation(uuid7(), station[name], world.when, 60.0, world.when, value,
                                           ClockQuality.NETWORK, node="station", boot=1, seq=n & 0xFFFF))
-                station_rain = 0.0
+                station_rain = station_water = 0.0
         if gauge is not None:
             rain_hour += tick.weather.rain_mm
             if (world.when.minute == 0):

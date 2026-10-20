@@ -108,6 +108,7 @@ def main(argv=None) -> int:
     ap.add_argument("--offline", action="store_true", help="the weights from the cache alone")
     ap.add_argument("--rain", help="the station's rain datastream")
     ap.add_argument("--air", help="the station's air temperature datastream")
+    ap.add_argument("--water", help="the bed's watering: its zone's flow meter or recorded valve")
     ap.add_argument("--at", help="the run's time, ISO 8601; now by default")
     args = ap.parse_args(argv)
     try:
@@ -118,7 +119,8 @@ def main(argv=None) -> int:
         return 2
     at = (_dt.datetime.fromisoformat(args.at) if args.at
           else _dt.datetime.now(tz=_dt.timezone.utc)).replace(second=0, microsecond=0)
-    station = {name: uuid.UUID(v) for name, v in (("rain", args.rain), ("air", args.air)) if v}
+    station = {name: uuid.UUID(v) for name, v in (("rain", args.rain), ("air", args.air),
+                                                   ("water", args.water)) if v}
     log = L.Log(args.log)
     state = P.state_from_log(log)
     for probe, horizon, receipt in forecast_silent(log, state, model, at, station=station):

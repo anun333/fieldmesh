@@ -1470,7 +1470,7 @@ class TestAProbesOutageInTheBacktest(unittest.TestCase):
         B.backtest(_summer(2013), june, 4, seed=1, depths=(0.10, 0.30),
                    outages=((0.10, first, 20),), before_advice=hook)
         self.assertEqual(len(seen), 8, "two advices a day")
-        self.assertEqual(seen[0][1], {"rain", "air"})
+        self.assertEqual(seen[0][1], {"rain", "air", "water"})
         self.assertEqual(seen[-1][2], 85, "an air reading each hour to the last advice, 13:00 on day 4")
         state = seen[-1][3]
         [top] = [ds for ds in state.datastreams.values()
@@ -1559,28 +1559,36 @@ class TestWhatTheAuditOf20261018Found(unittest.TestCase):
         [c] = g.advice(T0 + 150 * HOUR)[1]["inputs"]["carried"]
         self.assertAlmostEqual(c["carried_at"], 0.28 - 0.001 * 40 - 0.110, delta=0.003)
 
-    def test_a_forecast_of_a_silent_probe_is_not_taken_in_place_of_the_rule(self):
-        """A forecast of the probe installed at its depth (tools/probe_forecast.py): carried
-        by the rule all the same, as the trial of 2026-10-20 found the forecast lost the crop
-        more at Davis."""
-        g = Garden()
-        g.bed = S.replace(g.bed, root_depth_mm=300.0)
-        g.probe(lambda h: 0.30 - 0.001 * h, depth=0.05)
-        silent, _ = g.probe(lambda h: 0.28 - 0.001 * h, depth=0.10, hours=40)
-        g.probe(lambda h: 0.32 - 0.0005 * h, depth=0.20)
-        [rule] = g.advice()[1]["inputs"]["carried"]
-        fc = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(), feature=g.land,
-                        observed_property=V.SOIL_WATER, kind=DatastreamKind.FORECAST,
-                        unit="cm3/cm3", expected_interval=3600.0, max_latency=3600.0)
-        g.state.add(fc)
-        g.state.add(Installation(uuid7(), fc.sensor, g.land, T0 + 41 * HOUR, depth_m=0.10))
-        issued = T0 + 50 * HOUR
-        for h in range(41, 80):
-            g.state.add(FX.observation(fc, result=0.21, measured_at=T0 + h * HOUR, received_at=issued,
-                                       issued_at=issued, seq=h, provenance={"target": str(silent.id)}))
-        [c] = g.advice()[1]["inputs"]["carried"]
-        self.assertEqual(c, rule)
-        self.assertNotEqual(c["carried_at"], 0.21)
+    def test_a_forecast_of_a_silent_probe_is_taken_only_if_asked_and_given_the_waterings(self):
+        """A forecast of the probe installed at its depth (tools/probe_forecast.py): by
+        default carried by the rule all the same, the trial of 2026-10-20 having found a
+        forecast of the other probes, the rain and the air lost the crop more at Davis. With
+        `Bed.carry_forecasts`, carried at a forecast that was given the bed's waterings too;
+        one that was not, still by the rule."""
+        def carried(covariates, **bed):
+            g = Garden()
+            g.bed = S.replace(g.bed, root_depth_mm=300.0, **bed)
+            g.probe(lambda h: 0.30 - 0.001 * h, depth=0.05)
+            silent, _ = g.probe(lambda h: 0.28 - 0.001 * h, depth=0.10, hours=40)
+            g.probe(lambda h: 0.32 - 0.0005 * h, depth=0.20)
+            fc = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(), feature=g.land,
+                            observed_property=V.SOIL_WATER, kind=DatastreamKind.FORECAST,
+                            unit="cm3/cm3", expected_interval=3600.0, max_latency=3600.0)
+            g.state.add(fc)
+            g.state.add(Installation(uuid7(), fc.sensor, g.land, T0 + 41 * HOUR, depth_m=0.10))
+            issued = T0 + 50 * HOUR
+            for h in range(41, 80):
+                g.state.add(FX.observation(fc, result=0.21, measured_at=T0 + h * HOUR, received_at=issued,
+                                           issued_at=issued, seq=h,
+                                           provenance={"target": str(silent.id), "covariates": covariates}))
+            [c] = g.advice()[1]["inputs"]["carried"]
+            return c
+        with_water = {"probe at 5 cm": "a", "rain": "b", "water": "c"}
+        self.assertEqual(carried(with_water)["by"], "rule", "not asked")
+        asked = carried(with_water, carry_forecasts=True)
+        self.assertEqual((asked["by"], asked["carried_at"]), ("forecast", 0.21))
+        self.assertEqual(carried({"probe at 5 cm": "a", "rain": "b"}, carry_forecasts=True)["by"], "rule",
+                         "a forecast not given the bed's waterings")
 
     def test_a_wet_subsoil_does_not_cancel_a_dry_top(self):
         """Two thirds of the top's water gone over water perched at 0.48: it said too wet."""
