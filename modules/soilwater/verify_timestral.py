@@ -7,7 +7,10 @@ others reading through it). At 24, 48 and 71 hours into the gap `soilwater.bed_c
 runs, and the value `_from_probes` carries the 10 cm probe at is taken from inside it. Set
 beside the truth and beside gapfill.py's copy of the rule.
 
-    python -I verify_fieldmesh.py DATA_DIR gap-28M.json
+    python -I modules/soilwater/verify_timestral.py DATA_DIR gap-28M.json
+
+Here, not with the other Timestral scripts in tools/timestral/, because it imports this
+module, and layer zero never imports a module (tools/test_layering.py).
 """
 import datetime as dt
 import json
@@ -17,7 +20,7 @@ import sys
 REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, os.pardir)
 for p in ("modules/soilwater", "sdk", "sim", "modules/rules"):
     sys.path.insert(0, os.path.join(REPO, p))
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(REPO, "tools", "timestral"))
 DATA, SAVED = sys.argv[1], sys.argv[2]
 TARGET = sys.argv[3] if len(sys.argv) > 3 else "sm_10"
 sys.argv = [sys.argv[0], DATA, "/dev/null", "none", "1", "1024", TARGET]

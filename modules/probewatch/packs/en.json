@@ -1,0 +1,14 @@
+{
+ "_meta": {
+  "language": "en",
+  "module": "probewatch",
+  "license": "AGPL-3.0-or-later",
+  "note": "The probe watch's strings, merged over layer zero's pack at load. Every key starts with `probewatch.`."
+ },
+ "strings": {
+  "probewatch.probe_drier": "For {hours:.0f} of the last 24 hours, {bed}'s probe at {depth:.0f} cm read drier than the probes beside it, the rain and the air say it should, by about {points:.1f} points of water content. Check it: moved, out of the soil, an air gap around it, or drifting.",
+  "probewatch.probe_drier.us": "For {hours:.0f} of the last 24 hours, {bed}'s probe at {depth:.0f} inches read drier than the probes beside it, the rain and the air say it should, by about {points:.1f} points of water content. Check it: moved, out of the soil, an air gap around it, or drifting.",
+  "probewatch.probe_wetter": "For {hours:.0f} of the last 24 hours, {bed}'s probe at {depth:.0f} cm read wetter than the probes beside it, the rain and the air say it should, by about {points:.1f} points of water content. Check it: moved, out of the soil, flooded at its cable, or drifting.",
+  "probewatch.probe_wetter.us": "For {hours:.0f} of the last 24 hours, {bed}'s probe at {depth:.0f} inches read wetter than the probes beside it, the rain and the air say it should, by about {points:.1f} points of water content. Check it: moved, out of the soil, flooded at its cable, or drifting."
+ }
+}

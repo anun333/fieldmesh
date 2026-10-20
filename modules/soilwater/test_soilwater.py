@@ -34,7 +34,7 @@ import fixtures as FX  # noqa: E402
 import vocab as V  # noqa: E402
 from ids import uuid7  # noqa: E402
 from log import Log  # noqa: E402
-from model import Datastream, DatastreamKind, Installation, Label, QualityFlag  # noqa: E402
+from model import Datastream, DatastreamKind, Installation, Label, QualityFlag, Usable  # noqa: E402
 from project import State  # noqa: E402
 
 import soilwater as S  # noqa: E402
@@ -1521,6 +1521,43 @@ class TestWhatTheAuditOf20261018Found(unittest.TestCase):
         g.bed = S.replace(g.bed, root_depth_mm=300.0, field_capacity=0.35, wilting_point=0.08)
         [c] = g.advice(T0 + 150 * HOUR)[1]["inputs"]["carried"]
         self.assertAlmostEqual(c["carried_at"], 0.28 - 0.001 * 40 - 0.110, delta=0.003)
+
+    def test_a_silent_probe_is_carried_at_a_forecast_of_it_where_the_farm_runs_one(self):
+        """A forecast installed at its depth and issued since it fell silent
+        (tools/probe_forecast.py): carried at that, not by the rule. One issued before its
+        last reading, one at another depth, one its range check failed, or one that names
+        another probe as the one it forecasts, is not taken."""
+        def garden(issued_h, depth, value=0.21, target=None):
+            g = Garden()
+            g.bed = S.replace(g.bed, root_depth_mm=300.0)
+            g.probe(lambda h: 0.30 - 0.001 * h, depth=0.05)
+            silent, _ = g.probe(lambda h: 0.28 - 0.001 * h, depth=0.10, hours=40)
+            g.probe(lambda h: 0.32 - 0.0005 * h, depth=0.20)
+            fc = Datastream(id=uuid7(), thing=uuid7(), sensor=uuid7(), feature=g.land,
+                            observed_property=V.SOIL_WATER, kind=DatastreamKind.FORECAST,
+                            unit="cm3/cm3", expected_interval=3600.0, max_latency=3600.0)
+            g.state.add(fc)
+            g.state.add(Installation(uuid7(), fc.sensor, g.land, T0 + 41 * HOUR, depth_m=depth))
+            issued = T0 + issued_h * HOUR
+            for h in range(41, 80):
+                o = FX.observation(fc, result=value, measured_at=T0 + h * HOUR,
+                                   received_at=issued, issued_at=issued, seq=h,
+                                   provenance={"target": str(target or silent.id)})
+                g.state.add(o)
+                if value > 0.6:
+                    g.state.add(FX.assertion(o.id, flags=(QualityFlag.OUT_OF_RANGE,), check="range",
+                                             usable=Usable.BAD, asserted_at=issued))
+            return g.advice()[1]["inputs"]["carried"][0]
+
+        c = garden(50, 0.10)
+        self.assertEqual((c["by"], c["carried_at"]), ("forecast", 0.21))
+        self.assertEqual(c["issued_at"], (T0 + 50 * HOUR).isoformat())
+        rule = garden(30, 0.10)
+        self.assertEqual(rule["by"], "rule", "issued before its last reading")
+        self.assertNotEqual(rule["carried_at"], 0.21)
+        self.assertEqual(garden(50, 0.40)["by"], "rule", "another depth's")
+        self.assertEqual(garden(50, 0.10, value=0.7)["by"], "rule", "its range check failed")
+        self.assertEqual(garden(50, 0.10, target=uuid7())["by"], "rule", "another probe's")
 
     def test_a_wet_subsoil_does_not_cancel_a_dry_top(self):
         """Two thirds of the top's water gone over water perched at 0.48: it said too wet."""

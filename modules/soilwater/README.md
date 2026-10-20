@@ -52,7 +52,11 @@ it may not come down so far), and the decision lists it and the value it was car
 (`carried`); when all are silent, the bed is carried on the weather. On three Tennessee
 SCAN stations' records, a 10 cm probe hidden for three days was carried within 0.006 of
 the truth a day in and 0.011 three days in, where it had been 0.007 and 0.018; a
-time-series model given the same neighbours did better again ([Timestral](../../docs/notes/timestral.md)). A series not in a volume fraction (`FRACTION_UNITS`) is
+time-series model given the same neighbours did better again ([Timestral](../../docs/notes/timestral.md)).
+Where a farm runs that model, an optional add-on (`tools/probe_forecast.py`), a silent
+probe is carried at its forecast instead of by the rule. The forecast must be that probe's
+own, installed at its depth, issued since its last good reading, and pass its range check. Each
+probe carried says which carried it (`by`). A series not in a volume fraction (`FRACTION_UNITS`) is
 not one of the bed's probes. Readings are counted an hour at a time, however often a probe
 reads. Rain coming is read from a forecast datastream in the log (Q26), as it stood that
 morning (`State.forecast(as_of=...)`), so the forecast an advice rested on sits beside it.

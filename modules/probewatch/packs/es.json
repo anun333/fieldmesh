@@ -1,0 +1,14 @@
+{
+ "_meta": {
+  "language": "es",
+  "module": "probewatch",
+  "license": "AGPL-3.0-or-later",
+  "note": "Las cadenas de la vigilancia de sondas, fusionadas sobre el paquete de la capa cero al cargar. Cada clave empieza con `probewatch.`."
+ },
+ "strings": {
+  "probewatch.probe_drier": "Durante {hours:.0f} de las últimas 24 horas, la sonda de {bed} a {depth:.0f} cm leyó más seca de lo que dicen las sondas a su lado, la lluvia y el aire, por unos {points:.1f} puntos de humedad. Revísela: movida, fuera del suelo, con aire a su alrededor o con deriva.",
+  "probewatch.probe_drier.us": "Durante {hours:.0f} de las últimas 24 horas, la sonda de {bed} a {depth:.0f} pulgadas leyó más seca de lo que dicen las sondas a su lado, la lluvia y el aire, por unos {points:.1f} puntos de humedad. Revísela: movida, fuera del suelo, con aire a su alrededor o con deriva.",
+  "probewatch.probe_wetter": "Durante {hours:.0f} de las últimas 24 horas, la sonda de {bed} a {depth:.0f} cm leyó más húmeda de lo que dicen las sondas a su lado, la lluvia y el aire, por unos {points:.1f} puntos de humedad. Revísela: movida, fuera del suelo, con agua por el cable o con deriva.",
+  "probewatch.probe_wetter.us": "Durante {hours:.0f} de las últimas 24 horas, la sonda de {bed} a {depth:.0f} pulgadas leyó más húmeda de lo que dicen las sondas a su lado, la lluvia y el aire, por unos {points:.1f} puntos de humedad. Revísela: movida, fuera del suelo, con agua por el cable o con deriva."
+ }
+}

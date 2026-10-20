@@ -35,6 +35,7 @@ test:
 	@cd modules/zoneflow && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/sowing && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/salinity && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
+	@cd modules/probewatch && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/twin && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/notify && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/board && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q

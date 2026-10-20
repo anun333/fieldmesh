@@ -1,0 +1,7 @@
+# The probe watch judges its rule through modules/rules, which needs cel-python.
+-r ../rules/requirements.txt
+# And it runs Timestral, an optional add-on, not fieldmesh's own dependency: the package
+# (Apache-2.0) and PyTorch and NumPy, and weights under Mistral AI's Modified MIT licence,
+# which gives no rights to anyone whose company or employer had global revenue over $20
+# million in the preceding month (sdk/tsfm.py). Install only if that is not you:
+#   pip install "git+https://github.com/mistralai/timestral.git"

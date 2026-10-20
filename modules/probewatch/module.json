@@ -1,0 +1,17 @@
+{
+ "name": "probewatch",
+ "version": "1",
+ "layer": 2,
+ "description": "Probe watch, an optional add-on: each soil probe against what the probes beside it, the rain and the air say it should read, by a time-series model (Timestral); a probe that leaves that band for three hours is said to be off: moved, out of the soil, or drifting.",
+ "reads": {
+  "observed_properties": [
+   "http://vocab.nerc.ac.uk/standard_name/volume_fraction_of_condensed_water_in_soil/",
+   "http://vocab.nerc.ac.uk/standard_name/lwe_thickness_of_precipitation_amount/",
+   "http://vocab.nerc.ac.uk/standard_name/air_temperature/"
+  ]
+ },
+ "writes": [
+  "decision"
+ ],
+ "commands": []
+}

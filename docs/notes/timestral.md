@@ -4,8 +4,9 @@
 *Written 2026-10-19.* Mistral released Timestral, a family of time-series forecasting models,
 on 2026-10-15. This note tries it, zero-shot, on what a farm's soil-moisture probes need from a
 forecaster: carrying a probe that has fallen silent, and telling a probe that has gone wrong
-from a soil that has changed. It is not in fieldmesh's code; one thing it showed is
-(`soilwater`, [below](#what-fieldmesh-took)).
+from a soil that has changed. One thing it showed is now in fieldmesh's own code
+(`soilwater`, [below](#what-fieldmesh-took)). The model itself is only an optional add-on
+([below](#using-it-as-an-add-on)), never a dependency.
 
 ## What it is
 
@@ -130,6 +131,60 @@ says why. The licence makes it a farm's choice, never fieldmesh's default.
 **Not tried:** a real farm's probes, with their own faults; soils other than these stations';
 probes below 20 cm; forecasting ahead, not filling in; fine-tuning on a farm's own records.
 
+## Using it, as an add-on
+
+Added 2026-10-19. Nothing here installs Timestral or downloads its weights. A farm that
+wants it installs the package (`pip install "git+https://github.com/mistralai/timestral.git"`,
+which brings PyTorch and NumPy) and accepts the weights' licence in so many words. Each
+of the three parts below refuses to load the model otherwise.
+
+* [`sdk/tsfm.py`](../../sdk/tsfm.py) reads the farm's state into the model's inputs: good
+  readings only, as they stood at the moment asked about, an hour at a time, with None
+  for an hour with none. It runs the model and writes the receipt.
+* [`tools/probe_forecast.py`](../../tools/probe_forecast.py), run from cron (hourly, say),
+  forecasts each silent probe. A probe counts as silent when it has given no good reading
+  for six hours but did within a week, while another probe in its bed still reads. The
+  forecast covers the hours from its last good reading to a day ahead, and goes into the
+  log as a forecast on a datastream of its own. That datastream is installed in the bed at
+  the probe's depth (a forecast is never written as a measurement, Q26).
+  `soilwater` takes such a forecast in place of its own rule when carrying the probe. It
+  takes one only if it names that probe, was issued since the probe's last good reading and
+  passed its range check. The decision says which carried it (`carried[].by`: `forecast` or `rule`).
+* [`modules/probewatch/`](../../modules/probewatch/), a layer-2 module, says when a probe
+  has read outside the band for three hours running in the last day, and says when it is
+  back.
+
+**The receipt.** Each forecast value's provenance, and each probe-watch decision's inputs,
+carry:
+
+* the model, the weights' commit and the package's version;
+* each series by its datastream id, and the hours read;
+* a SHA-256 of the inputs;
+* how far the median moved with each input taken away (`moved_by`).
+
+The model is deterministic, so anyone holding the log and the same weights can check a
+decision.
+
+**Run through this code, with the real model** (2026-10-19,
+[`modules/probewatch/verify_timestral.py`](../../modules/probewatch/verify_timestral.py)).
+McAllister Farm's record gave 30 stretches, each built into a fieldmesh state.
+
+* **The silent probe.** The 10 cm probe was hidden 72 hours and forecast by
+  `probe_forecast.forecast_silent`. Over the 72 hours it was 0.0046 off the truth on average,
+  where its last reading held was 0.018 off.
+* **The same as the trial.** Each forecast matched the forecaster called directly, as the
+  trial called it, bit for bit.
+* **The day ahead.** The hours past the run's time, which the model forecasts without its
+  inputs, were finite in all 30. How good they are was not tried.
+* **The probe watch.** On the day before each silence, `probewatch.probe_context` said a
+  probe off in 1 of the 30 clean days. With a drift put in, 0.0025 an hour, it said 29 of
+  the 30, all wetter. The one it missed came in a wet spell, its band 8.9 points wide.
+* **Speed.** 1.4 seconds a silent probe on four threads, the receipt's ablations included.
+
+The run also found that loading the weights had asked the cache for the whole repository,
+its README too, and failed offline on a cache holding only the two files the model is made
+from. It now asks for those two (`tsfm.WEIGHT_FILES`).
+
 ## Reproducing
 
 The scripts are [tools/timestral/](../../tools/timestral/). The archive is downloaded data:
@@ -146,9 +201,18 @@ FETCH=1 ~/dev/fieldmesh/tools/timestral/run.sh tsfm/data tsfm/out tsfm/hf \
 python3 -I ~/dev/fieldmesh/tools/timestral/summarize.py tsfm/out/gap-28M.json
 ```
 
+The check through fieldmesh's own code mounts the repository in the same container:
+
+```sh
+docker run --rm --network none --cpus 4 --memory 6g -e HF_HOME=/hf -e HF_HUB_OFFLINE=1 \
+    -v "$PWD/tsfm/data":/data:ro -v "$PWD/tsfm/out":/out -v "$PWD/tsfm/hf":/hf:ro \
+    -v ~/dev/fieldmesh:/repo:ro fieldmesh-timestral \
+    python /repo/modules/probewatch/verify_timestral.py /data/McAllister_Farm.csv /out/verify.json 30
+```
+
 `faults.py` and `faults_real.py` run as `gapfill.py` does; `verify.py` and `determinism.py`
-check it; `verify_fieldmesh.py` and `rule_variants.py` run outside the container, beside the
-repository.
+check it; [`modules/soilwater/verify_timestral.py`](../../modules/soilwater/verify_timestral.py)
+and `rule_variants.py` run outside the container, beside the repository.
 
 ## Sources
 
