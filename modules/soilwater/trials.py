@@ -178,6 +178,9 @@ def _design(bed: str, design: str) -> list:
     if design == "hot2":
         # 2026-10-19: the top third on a hot day on farms not yet drawn, the tomato beds.
         return [{}, {"hot": True}] if bed in CROP_PROBES[:2] else []
+    if design == "hotsealed":
+        # 2026-10-20: the top third on a hot day, chosen on hot2's farms, at the sealed sites.
+        return [{}, {"hot": True}] if bed in CROP_PROBES else []
     if design == "lawn":
         # 2026-10-19: learning held within 0.05 for a lawn, at the sealed sites.
         return [{"p": DEFAULTS["p"]}, {"p": DEFAULTS["p"], "within": 0.05}] if bed in LAWNS else []
@@ -453,7 +456,7 @@ def main(argv=None) -> int:
     r.add_argument("--stamp", default="", help="the code the trial runs on, as a commit")
     r.add_argument("--sites", default=",".join(OPEN_SITES), help="comma-separated, of SITES")
     r.add_argument("--design", choices=("open", "sealed", "adjust", "third", "hot", "carry", "hot2",
-                                        "lawn", "survey"), default="open")
+                                        "hotsealed", "lawn", "survey"), default="open")
     r.add_argument("--draws", default=",".join(map(str, DRAWS)), help="comma-separated farms a summer")
     p = sub.add_parser("report")
     p.add_argument("results")
