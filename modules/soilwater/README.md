@@ -159,6 +159,12 @@ of what it would have drawn, and the hours it was waterlogged (under a twentieth
   the lawn's loss at Davis by 15 mm and saved McAllister's crops 10 to 40 mm of water, but
   added half a millimetre to Davis's lettuce, past what the rules allowed, and holds back
   a bed whose survey is badly wrong; an option ([below](#the-beds-own-soil)).
+* **The watering timed by the top third of the root zone** (`Bed.timing_share`), where
+  over half the roots are, halved tomatoes' lost transpiration at Davis (3.8 mm a summer of
+  7.3) for no more water, but gave tomatoes over a dense pan 12% more water in McAllister's
+  last five summers, and did nothing for lettuce, whose 10 cm probe reads its zone and its
+  top third alike. An option, not the default
+  ([record](../../docs/notes/soilwater-backtests.md#the-top-third-2026-10-19)).
 * **Young crops and the root signs** were tried on 2026-10-17 and not again
   ([record](../../docs/notes/soilwater-backtests.md#the-trials-of-2026-10-17)).
 
@@ -626,10 +632,10 @@ drying; this records why.
   summer's high ([above](#the-beds-own-soil)), and whether a soak test reads it better is
   not yet tried; separating slow drainage from the crop's drying needs the day's sun;
 * why probe-led beds lose more than the weather's in a dry place: the top of the root zone
-  runs short first on a hot day; a refill point timed by the top third, where most roots
-  are, is not yet tried; the hot-day refill point with a probe at 5 cm cut tomatoes' loss
-  at Davis by 3.7 mm a summer and lettuce's by 3.8, more than either alone, and was not
-  tried at the sealed sites;
+  runs short first on a hot day; timed by the top third it halved tomatoes' loss and did
+  nothing for lettuce, read by one probe; the hot-day refill point with a probe at 5 cm cut
+  tomatoes' loss at Davis by 3.7 mm a summer and lettuce's by 3.8, more than either alone,
+  and was not tried at the sealed sites; Yuma and Kearney are kept sealed for the next;
 * root signs that judge a probe's level against what the roots' density predicts at its
   depth: with roots densest at the top, a deep probe reads near level with no pan at all
   ([above](#roots-that-stop));

@@ -1832,3 +1832,68 @@ Code: 735d41f. Each summer one farm.
 | yard, its probes | tension sensors, Tifton (sealed) | 35 | -61.2 (-70.5 to -52.0) | +2.3 (+1.0 to +3.8) | -0.1 (-0.2 to +0.0) |
 | tomatoes over a dense pan, probes | tension sensors, Bushland (sealed) | 35 | -95.9 (-128.5 to -65.2) | +1.9 (-1.1 to +4.7) | -3.4 (-5.5 to -1.5) |
 | tomatoes over a dense pan, probes | tension sensors, Tifton (sealed) | 35 | -213.7 (-238.5 to -187.5) | +0.8 (+0.4 to +1.4) | -11.5 (-15.4 to -7.9) |
+
+## The top third, 2026-10-19
+
+`Bed.timing_share`: the watering of a sown crop past its young days timed by the top third
+of its root zone, the refill to the whole zone; alone and with the hot-day refill point,
+on the open sites' farms and summers for the three crop beds by probes (420 backtests, code
+948e201), against the bed as built from the trial above (51dffc9, three of its rows run
+again on 948e201 and the same to the bit). The rules, written before it ran:
+
+The open sites' trials found the probe-led crops in a dry place short because the top of
+the root zone, where most of the roots are, runs short on a hot day before the zone as a
+whole reaches its refill point. Candidates, for a sown crop past its young days:
+
+  A  the watering timed by the top third of the root zone at the bed's refill point
+     (`Bed.timing_share` 1/3), the refill to the whole zone, as a stop in the roots is
+  B  A with the hot-day refill point (`Bed.adjust_p`)
+
+Beds: tomatoes by probes, tomatoes over a dense pan, lettuce by probes. Against the bed as
+built on the same summers and farms, in each group (McAllister 1991-2020, McAllister
+2021-2025, Davis).
+
+A candidate is eligible if at Davis it cuts each of the three beds' mean lost transpiration
+with its 90% interval below 0, and in neither McAllister group raises any of their mean lost
+by more than 0.5 mm, or adds more than a tenth to any of their mean water. Of those
+eligible, the one giving less water at Davis becomes the default for a sown crop; if none
+is, the beds stay as built.
+
+Sealed, their weather fetched after this is written and run once: Yuma, Arizona (32.69 N,
+114.62 W, 60 m), hot desert farmland; Kearney, Nebraska (40.70 N, 99.08 W, 650 m),
+continental and semi-arid. The bed as built against the choice, reported as they come.
+
+What they found, each candidate against the bed as built, pair by pair:
+
+```
+== A, the top third: not eligible; water at Davis +16 mm over the three beds
+  tomatoes, probes                   Davis                  lost -3.8 (-7.2 to -1.3) of 7.3 | water +4 (+0%) of 1135
+  tomatoes, probes                   McAllister 1991–2020   lost -0.1 (-0.2 to -0.0) of 0.1 | water +30 (+5%) of 551
+  tomatoes, probes                   McAllister 2021–2025   lost -0.0 (-0.1 to +0.0) of 0.1 | water -8 (-1%) of 673
+  tomatoes over a dense pan, probes  Davis                  lost -2.3 (-5.4 to +0.9) of 13.3 | water +11 (+1%) of 1124  FAILS: not cut at Davis
+  tomatoes over a dense pan, probes  McAllister 1991–2020   lost -0.7 (-1.2 to -0.4) of 0.8 | water +10 (+2%) of 557
+  tomatoes over a dense pan, probes  McAllister 2021–2025   lost -0.4 (-1.1 to -0.1) of 0.5 | water +66 (+12%) of 569  FAILS: water up a tenth at McAllister
+  lettuce, probes                    Davis                  lost +0.0 (+0.0 to +0.0) of 11.5 | water +0 (+0%) of 504  FAILS: not cut at Davis
+  lettuce, probes                    McAllister 1991–2020   lost +0.0 (+0.0 to +0.0) of 0.3 | water +1 (+0%) of 252
+  lettuce, probes                    McAllister 2021–2025   lost +0.0 (+0.0 to +0.0) of 0.0 | water +0 (+0%) of 352
+
+== B, A with the hot-day refill point: not eligible; water at Davis +17 mm over the three beds
+  tomatoes, probes                   Davis                  lost -3.8 (-7.2 to -1.4) of 7.3 | water +0 (+0%) of 1135
+  tomatoes, probes                   McAllister 1991–2020   lost -0.1 (-0.2 to -0.0) of 0.1 | water +27 (+5%) of 551
+  tomatoes, probes                   McAllister 2021–2025   lost -0.0 (-0.1 to +0.0) of 0.1 | water -5 (-1%) of 673
+  tomatoes over a dense pan, probes  Davis                  lost -4.8 (-7.6 to -2.5) of 13.3 | water +16 (+1%) of 1124
+  tomatoes over a dense pan, probes  McAllister 1991–2020   lost -0.7 (-1.2 to -0.4) of 0.8 | water +10 (+2%) of 557
+  tomatoes over a dense pan, probes  McAllister 2021–2025   lost -0.4 (-1.1 to -0.1) of 0.5 | water +66 (+12%) of 569  FAILS: water up a tenth at McAllister
+  lettuce, probes                    Davis                  lost -0.0 (-2.5 to +2.6) of 11.5 | water -0 (-0%) of 504  FAILS: not cut at Davis
+  lettuce, probes                    McAllister 1991–2020   lost -0.2 (-0.5 to +0.0) of 0.3 | water +4 (+1%) of 252
+  lettuce, probes                    McAllister 2021–2025   lost +0.0 (+0.0 to +0.0) of 0.0 | water +0 (+0%) of 352
+
+-> neither: the beds stay as built
+```
+
+Neither passed: the dense pan took 12% more water in McAllister's last five summers, and
+lettuce did not change at all. Its roots reach 30 cm, so its probe at 30 cm stands for
+nothing (`weights`) and the one at 10 cm reads both the zone and its top third: the same
+water, the same decision. Timing by the top third wants a probe in it apart from the rest.
+The sealed sites were not run, nothing having been chosen: they wait, sealed, for the next.
+

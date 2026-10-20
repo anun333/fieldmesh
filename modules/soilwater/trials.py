@@ -35,9 +35,11 @@ SIM = os.path.join(HERE, os.pardir, os.pardir, "sim")
 #: Each site: its latitude and elevation, m, for the station and the farm's water loss.
 #: McAllister Farm, Tennessee, humid; Davis, California, dry and windier; and, sealed until
 #: the defaults of 2026-10-18 were chosen, Bushland, Texas, semi-arid and windy, and
-#: Tifton, Georgia, humid and hot.
+#: Tifton, Georgia, humid and hot; sealed until the top third's trial chose, Yuma, Arizona,
+#: hot desert farmland, and Kearney, Nebraska, continental and semi-arid.
 SITES = {"mcallister": (35.06445, 243.0), "davis": (38.5382, 16.0),
-         "bushland": (35.186, 1170.0), "tifton": (31.475, 116.0)}
+         "bushland": (35.186, 1170.0), "tifton": (31.475, 116.0),
+         "yuma": (32.69, 60.0), "kearney": (40.70, 650.0)}
 #: The sites the defaults are chosen on; the rest are sealed.
 OPEN_SITES = ("mcallister", "davis")
 YEARS = range(1991, 2026)
