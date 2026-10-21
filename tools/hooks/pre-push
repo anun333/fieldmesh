@@ -1,0 +1,17 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# Before a push: every test but the whole seasons on the virtual farm (`make fast`, a couple
+# of minutes); CI runs them all (`make test`). To use these hooks in a clone:
+#
+#     git config core.hooksPath tools/hooks
+#     git config fieldmesh.cpus 4-7      # optional: keep the tests to these CPUs
+#
+# A push the tests fail is stopped; `git push --no-verify` pushes anyway.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+cpus=$(git config --get fieldmesh.cpus || true)
+echo "pre-push: make fast${cpus:+ on CPUs $cpus}" >&2
+if [ -n "$cpus" ] && command -v taskset >/dev/null 2>&1; then
+    exec taskset -c "$cpus" make fast
+fi
+exec make fast

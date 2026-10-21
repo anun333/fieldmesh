@@ -19,6 +19,27 @@ outright.
 > **Status: pre-release, built against a simulated farm.** There is no hardware in the
 > loop yet, and no pilot farm. Commands — actually driving a pump or valve — are
 > deliberately out of the first release (§6). See [What is not done](#what-is-not-done).
+> Since 2026-10-20 the work is on what a pilot farm needs; choosing the advice's defaults
+> on the simulator is paused until a real season's data exists.
+
+## For a pilot farm
+
+What a farm would run first, and what is still missing. The pilot itself (Q1) is two sites,
+an extension or university plot and one working farm with poor connectivity, to be chosen
+by February 2027 so the hardware goes in before spring.
+
+* **On the farm:** a small Linux computer as the gateway, running the farm's log and each
+  module as its own sandboxed service ([deploy/systemd](deploy/systemd/README.md)); soil
+  probes in the beds, two per bed at least, so each can catch the other's drift
+  ([which probes](docs/notes/soil-sensors.md#what-id-recommend)); a weather station or the
+  nearest public one; phones for the alerts.
+* **What it does today:** the soil-moisture advice each morning, per bed; the livestock
+  water monitor; alerts to people by push, in their language, climbing until someone
+  answers; the farm's own page; every reading's quality judged and kept; everything out
+  in open formats.
+* **What is missing before a pilot:** a real radio and device driver (build step 7); SMS
+  through a real modem (Q29, which blocks the pilot); an install guide tried on one real
+  bed; the legal entity and the liability cover (Q9).
 
 ## Try it
 
@@ -33,7 +54,8 @@ hoop-house twin runs GreenLight in an environment of its own (`modules/twin/requ
 installs. On Windows the `zoneinfo` module also wants `tzdata`.
 
 ```sh
-make test       # every test, about five minutes
+make test       # every test, about ten minutes
+make fast       # every test but the whole seasons, about two (the pre-push hook's)
 make demo       # a log becomes derived state becomes a SensorThings document
 make serve      # a SensorThings 1.1 endpoint over two simulated days, on this machine's :8080
 make drill      # seed sensor faults, score the detectors against ground truth
@@ -67,10 +89,20 @@ Fraunhofer's `frost-sta-client`. Both were used to find defects — see
 | [modules/board/](modules/board/) | **Layer 4, the farm's page**: one read-only page per language of the alerts that stand, who was told and who is on it, today's advice, the latest readings and what cleared. It says so when it has stopped updating |
 | [modules/water/](modules/water/) | **Layer 2, the livestock water monitor**: empty, low, not refilling, unseen, untrusted, per trough, as advisory decisions in English and Spanish. Passes §15's acceptance test on the virtual farm, whose first run found two defects in the node's backlog handling |
 | [modules/soilwater/](modules/soilwater/) | **Layer 2, the soil-moisture advisory**: each morning, per bed, water now and how much, rain coming, water soon, too wet, enough — or why it cannot say. Backtested on a recorded summer: 72% less water than a drip timer with no hour of stress. Its watering check, the first regimen, says when a watering never reached the bed: 25 of 25 such waterings caught on two summers, no false alarm |
-| [modules/twin/](modules/twin/) | **Layer 3, a physics twin for the hoop house** (Q28): Wageningen's GreenLight configured as an unheated single-poly tunnel, on the farm's real weather. It found the virtual farm's tunnel too warm at night (now refitted) and a defect in GreenLight's crop model. Its covered-crop frost watch, backtested on a season, warned of every damaging frost inside a tunnel, and found that a Tennessee winter gets into one most nights; it runs each evening on the farm's forecast. Set beside a tunnel's own sensor, it says when the two part company: a sensor off by 4 °C, a lost sun shield, sides left open |
-| [modules/advise/](modules/advise/) | **The first module above layer zero** (layer 3, decision support): for any point, what grows and when to sow it, which fruit cultivars get their chill and how often frost follows bloom, what the soil needs, bees, livestock heat, and the 2050s — in English and Spanish |
+| [modules/zoneflow/](modules/zoneflow/) | **Layer 2, the zone flow check** *(experimental)*: each irrigation zone's runs beside its usual flow and its heads, a clogged or broken head said; drilled on simulated seasons |
+| [modules/sowing/](modules/sowing/) | **Layer 2, sowing** *(experimental)*: each morning, whether a bed's soil at seed depth is warm enough to sow each crop meant for it, from Harrington's germination tables |
+| [modules/salinity/](modules/salinity/) | **Layer 2, salt** *(experimental)*: a bed's salt from its probe's bulk conductivity, beside its crop's tolerance |
+| [modules/probewatch/](modules/probewatch/) | **Layer 2, the probe watch** *(experimental, optional add-on)*: each soil probe against what its neighbours, the rain and the air say it should read, by Timestral, whose weights' licence the farm must accept; in a bed of two, which probe is the likelier one off. It does not see a slow drift |
+| [modules/twin/](modules/twin/) | **Layer 3, a physics twin for the hoop house** *(experimental)* (Q28): Wageningen's GreenLight configured as an unheated single-poly tunnel, on the farm's real weather. It found the virtual farm's tunnel too warm at night (now refitted) and a defect in GreenLight's crop model. Its covered-crop frost watch, backtested on a season, warned of every damaging frost inside a tunnel, and found that a Tennessee winter gets into one most nights; it runs each evening on the farm's forecast. Set beside a tunnel's own sensor, it says when the two part company: a sensor off by 4 °C, a lost sun shield, sides left open |
+| [modules/advise/](modules/advise/) | **The first module above layer zero** *(experimental)* (layer 3, decision support): for any point, what grows and when to sow it, which fruit cultivars get their chill and how often frost follows bloom, what the soil needs, bees, livestock heat, and the 2050s — in English and Spanish |
 
-About 1,380 tests. The simulator runs a 180-day season in under eight minutes.
+About 1,700 tests. The simulator runs a 180-day season in under eight minutes.
+
+**Maintained** are layer zero (`sdk/`, `server/`, `sim/`, `tools/`, `deploy/`) and the
+modules a pilot runs: rules, notify, board, water and soilwater. **Experimental, frozen
+since 2026-10-20** are advise, twin, zoneflow, sowing, salinity and probewatch with its
+optional Timestral add-on: kept working and tested, no new features until a pilot asks for
+one ([GOVERNANCE](GOVERNANCE.md#which-modules-are-maintained)).
 
 ## A few things this does that are easy to get wrong
 
@@ -106,7 +138,7 @@ licences. The full reasoning is in [LICENSING.md](LICENSING.md).
 | `sdk/`, `sim/`, `tools/`, `deploy/` | Apache-2.0 — embeddable in firmware |
 | `server/` | AGPL-3.0-or-later — so a hosting vendor cannot enclose a farmer-owned stack |
 | `modules/rules/` | AGPL-3.0-or-later, as the reference server |
-| `modules/notify/`, `modules/water/`, `modules/soilwater/`, `modules/twin/`, `modules/board/` | AGPL-3.0-or-later, the same; GreenLight, which the twin installs, is BSD-3-Clause-Clear |
+| `modules/notify/`, `modules/water/`, `modules/soilwater/`, `modules/zoneflow/`, `modules/sowing/`, `modules/salinity/`, `modules/probewatch/`, `modules/twin/`, `modules/board/` | AGPL-3.0-or-later, the same; GreenLight, which the twin installs, is BSD-3-Clause-Clear; Timestral's weights, which the probe watch can load, are under Mistral AI's Modified MIT licence and are not part of fieldmesh |
 | `modules/advise/` | AGPL-3.0-or-later for code, the same reasoning; its data under each source's licence ([MANIFEST](modules/advise/data/MANIFEST.csv)) |
 
 Some of `sdk/` derives from **campus_twin**, by the same author. See
@@ -124,12 +156,17 @@ Plainly, so nobody has to discover it:
 - **No commands.** §6 is deferred until a season of field evidence exists. Of the three
   acceptance apps, the livestock water monitor is built (read-only, so it needs none);
   the irrigation controller waits on §6 and the research logger is not built.
-- **Little above layer zero.** Seven modules exist: rules and alerts and the notifier
-  (layer 1), the livestock water monitor and the soil-moisture advisory (layer 2), the
-  advisor and the hoop-house twin (layer 3), and a read-only farm page (layer 4). There is
-  no field app, and the ecosystem (5) is described in §11 and does not exist; the
-  irrigation rules in `sim/` stand in, and no app writes the farm's records yet. SMS has
-  not met a real modem.
+- **Little above layer zero that a farm has run.** Eleven modules exist. Five are
+  maintained: rules and the notifier (layer 1), the livestock water monitor and the
+  soil-moisture advisory (layer 2), and a read-only farm page (layer 4). Six are
+  experimental and frozen: the zone flow check, sowing, salt and the probe watch (layer
+  2), the advisor and the hoop-house twin (layer 3). There is no field app, and the
+  ecosystem (5) is described in §11 and does not exist; no app writes the farm's records
+  yet. SMS has not met a real modem.
+- **The advice's defaults are chosen on the simulator alone.** Every trial, its sealed
+  sites included, runs on a virtual farm whose physics fieldmesh wrote, so the sealed
+  sites change the weather and not the physics. Choosing more defaults that way is paused
+  (2026-10-20) until a pilot season's data can say whether the simulator is right.
 - **Two rows of the completeness matrix are skipped**, the two that need §6. The farm's
   records exist (land, animals, inputs, treatments, harvests, with offline conflicts), but
   no app writes them yet and nothing projects them to farmOS (Q8).

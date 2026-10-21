@@ -1,9 +1,10 @@
 # fieldmesh — layer zero
 .POSIX:
-.PHONY: help pages test demo world drill siting forecast irrigation q5 q5-points power vocab vocab-resolve packs serve season export frost clean
+.PHONY: help pages test fast demo world drill siting forecast irrigation q5 q5-points power vocab vocab-resolve packs serve season export frost clean
 
 help:
 	@echo "test   run every test (sdk + tools + sim + server + modules)"
+	@echo "fast   every test but the whole seasons, as the pre-push hook runs"
 	@echo "demo   log -> derived state -> SensorThings, no hardware"
 	@echo "world  a day of farm physics through a node to the gateway"
 	@echo "drill  seed faults and score the detectors against ground truth"
@@ -39,6 +40,11 @@ test:
 	@cd modules/twin && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/notify && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
 	@cd modules/board && python3 -W error::ResourceWarning -m unittest discover -p 'test_*.py' -q
+
+# Every test but the whole seasons on the virtual farm (sdk/fixtures.py `slow`): what the
+# pre-push hook runs (tools/hooks/). CI runs `make test`.
+fast:
+	@FIELDMESH_FAST=1 $(MAKE) --no-print-directory test
 
 demo:
 	@cd sdk && python3 demo.py

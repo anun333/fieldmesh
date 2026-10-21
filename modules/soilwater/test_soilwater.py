@@ -45,6 +45,9 @@ T0 = _dt.datetime(2026, 7, 10, tzinfo=_dt.timezone.utc)
 MORNING = T0 + 52 * HOUR          # 04:00 on the third day
 
 
+from fixtures import slow  # noqa: E402
+
+
 class Garden:
     """One bed, with probes whose readings come from `theta(hours)`."""
 
@@ -1438,6 +1441,7 @@ class TestAVirtualFarmThatDeparts(unittest.TestCase):
         self.assertAlmostEqual(bed.crop_coefficient, given.crop_coefficient * 1.1)
         self.assertEqual(given.layers[0], given.horizons[0].field_capacity)
 
+    @slow
     def test_the_farms_station_reads_as_its_sensors_do(self):
         """A pyranometer reading a fifth high: the balance counts more water, and asks it."""
         june = _june(2013)
@@ -1846,6 +1850,7 @@ def _figures(r: dict) -> dict:
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+@slow
 class TestTheGoldenNumbers(unittest.TestCase):
     """Every shared backtest's figures, as golden.json holds them. A change that moves one
     fails here, whatever the tests say of it; when the move is meant, write the file again,
@@ -1867,6 +1872,7 @@ class TestTheGoldenNumbers(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+@slow
 class TestByTheWeatherOnARecordedSummer(unittest.TestCase):
     """The backtest bed with no probe, advised from a station on the farm, on McAllister
     Farm's summer of 2013, its watering unrecorded (`weather_backtest`)."""
@@ -1896,6 +1902,7 @@ class TestWhatTheFarmMeasuresBesides(unittest.TestCase):
 
     FARM = B.VirtualFarm.drawn(5)
 
+    @slow
     def test_a_tension_sensor_measures_field_capacity_where_learning_reads_it_off(self):
         """June 2013, tomatoes: the farm's soil holds 0.30 and a little at field capacity;
         learned from the drain-downs of a wet June it reads 0.35, off the curve 0.31."""
@@ -1909,6 +1916,7 @@ class TestWhatTheFarmMeasuresBesides(unittest.TestCase):
         self.assertGreater(abs(learned["field_capacity"] - truth),
                            abs(measured["field_capacity"] - truth))
 
+    @slow
     def test_an_anemometer_puts_the_days_wind_in_place_of_two_metres_a_second(self):
         """A dry, windy June, 40% humidity and 4 m/s each day: measured, the balance counts
         more water lost. (In McAllister's own humid June the wind hardly moves Penman's ET.)"""
@@ -1936,6 +1944,7 @@ class TestAProbeNearbyOnTheDrought(unittest.TestCase):
     """The backtest bed with no probe through the 2012 drought, its watering unrecorded, a
     bed of the same soil and crop beside it with a probe (`weather_backtest`)."""
 
+    @slow
     def test_a_true_probe_whose_rate_is_below_the_margin_corrects_nothing(self):
         """Watered often on its own advice through the drought, the reference's probe read its
         bed drying below the margin, so the bed was advised as by the weather alone. Taken
@@ -1944,6 +1953,7 @@ class TestAProbeNearbyOnTheDrought(unittest.TestCase):
         self.assertAlmostEqual(r["applied_mm"], alone["applied_mm"], delta=0.5)
         self.assertEqual(r["stressed_h"], 0.0)
 
+    @slow
     def test_a_probe_reading_high_never_learns_and_so_corrects_nothing(self):
         """Uncorrected, such a probe took the bed to 397 stressed hours."""
         r, alone = backtested("weather 2012, reference 0.05 high"), backtested("weather 2012")
@@ -1981,6 +1991,7 @@ class TestASecondPlantingNotYetSown(unittest.TestCase):
     """A planting sown after the backtest starts: its patch is bare until then, and its
     hours short are counted from its sowing day, not from the start."""
 
+    @slow
     def test_its_hours_short_count_from_the_day_it_is_sown(self):
         """The 2012 drought from 20 June, tomatoes sown 50 days before, the advice told only
         of them: lettuce sown on the first day goes short; sown after the run, it is not
@@ -2000,6 +2011,7 @@ class TestASecondPlantingNotYetSown(unittest.TestCase):
         self.assertEqual(later["applied_mm"], sown["applied_mm"], "the probes are the tomatoes'")
 
 
+@slow
 class TestBacktestOnARecordedSummer(unittest.TestCase):
     """§11: backtested on a past season before it goes live. McAllister Farm's summer of
     2013, June to August, the drill's forecasts in the log; the advisory waters when it
@@ -2029,6 +2041,7 @@ class TestBacktestOnARecordedSummer(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+@slow
 class TestLearningOnTheVirtualFarm(unittest.TestCase):
     """A yard the soil survey does not describe: 10 cm of brought-in sandy loam over a
     compacted clay subsoil, roots in the top 15 cm (`physics.LayeredBed`), on McAllister
@@ -2087,6 +2100,7 @@ class TestAProbeThatReadsOff(unittest.TestCase):
     """An uncalibrated probe reads high or low by the same amount all summer, on the
     advisory's backtest bed, McAllister Farm's 2013 (docs/notes/soil-sensors.md)."""
 
+    @slow
     def test_reading_low_it_learns_its_own_full_and_waters_far_less_than_unlearned(self):
         """Learning, its drain-downs say where its full is, 0.05 low too; until it has
         learned, it waters as the unlearned one does."""
@@ -2096,6 +2110,7 @@ class TestAProbeThatReadsOff(unittest.TestCase):
                         0.5 * backtested("probe 2013, 0.05 low, unlearned")["applied_mm"])
         self.assertEqual(low["stressed_h"], 0.0)
 
+    @slow
     def test_reading_high_it_waters_too_little_and_so_never_learns(self):
         """A probe 0.05 high says the bed is fuller than it is, so it is watered late and
         little, so the probe sees too few soakings to learn from: the bed goes dry. A second
@@ -2107,6 +2122,7 @@ class TestAProbeThatReadsOff(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+@slow
 class TestAProbeOutageCarriedOnTheWeather(unittest.TestCase):
     """The backtest bed with its probe and a station, through the 2012 drought, the probe's
     radio down for two weeks in July (`weather_backtest`)."""
@@ -2128,6 +2144,7 @@ class TestAProbeOutageCarriedOnTheWeather(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+@slow
 class TestHarrowBend(unittest.TestCase):
     """Six beds every morning for eight days: the far bed node's radio is out from day 5
     to day 8, and on day 4 a probe is lifted out of bed 6 and pushed into bed 2."""
@@ -2290,6 +2307,7 @@ class TestTheWateringCheck(unittest.TestCase):
         """The days the advice watered on 2013 with nothing blocked."""
         return sorted({c["day"] for c in backtested("probe 2013")["checks"]})
 
+    @slow
     def test_it_catches_every_watering_that_never_arrived_on_2013(self):
         """Every other watering of the summer blocked. A blocked morning's watering is often
         advised again that afternoon, and blocked again: two checks on one day. Watered at
@@ -2304,6 +2322,7 @@ class TestTheWateringCheck(unittest.TestCase):
         self.assertGreater(got["quiet"], 0)
         self.assertLessEqual(r["stressed_h"], 0.5, "the next look's advice waters it again")
 
+    @slow
     def test_and_on_a_summer_it_was_not_tuned_on(self):
         path = os.path.join(HERE, os.pardir, os.pardir, "sim", "data", "mcallister-2012-summer.csv")
         got, _ = self.score(path, _dt.datetime(2012, 6, 1, tzinfo=_dt.timezone.utc),
@@ -2311,6 +2330,7 @@ class TestTheWateringCheck(unittest.TestCase):
         self.assertEqual((got["missed"], got["false"]), (0, 0))
         self.assertGreater(got["caught"], 0)
 
+    @slow
     def test_smaller_waterings_are_harder_to_check(self):
         """With the hot-day refill point (`Bed.adjust_p`), waterings in the 2012 drought are
         smaller, and one that arrived, its top soil dry, rose its probe at 20 cm by 1.2
@@ -2326,6 +2346,7 @@ class TestTheWateringCheck(unittest.TestCase):
         self.assertEqual(false, [], "below the floor (`min_expected`) it is not judged")
         self.assertTrue(all(c["expected_percent"] >= 5.0 for c in r["checks"]))
 
+    @slow
     def test_with_the_valve_reporting_it_says_which_of_the_two_it_was(self):
         """An OpenSprinkler's station through the MQTT bridge: on a blocked day the valve
         ran and no water came; on a forgotten one it never opened."""

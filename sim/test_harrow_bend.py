@@ -33,6 +33,9 @@ from model import (Assertor, ClockQuality,  # noqa: E402
 DAYS = 12.0
 
 
+from fixtures import slow  # noqa: E402
+
+
 class Matrix(unittest.TestCase):
     """Shared season. Every subclass reads the same farm."""
 
@@ -401,6 +404,7 @@ class TestStorage(Matrix):
         self.assertTrue(any(str(e.id) == corrected for e in self.log),
                         "the event it corrects is still in the log")
 
+    @slow
     def test_the_whole_season_replays_from_the_log_alone(self):
         """§7.1: current state is derived from the log."""
         replayed = P.state_from_log(self.log)
@@ -489,6 +493,7 @@ class TestStorage(Matrix):
             self.assertEqual(st.get(bed3).boundary, moved)
             self.assertEqual(st.problems, [])
 
+    @slow
     def test_a_grant_issued_used_and_revoked(self):
         """§7.6 on the farm: the research plot's two probes shared with a partner for a
         study. The grant covers what had arrived when it was made (Q16's default); a
@@ -601,6 +606,7 @@ class TestInterop(Matrix):
             text = handle.read()
         self.assertIn("key parity", text)
 
+    @slow
     def test_a_full_export_round_trip_losing_nothing(self):
         """§7.6 over a whole season, which is the only scale that proves anything.
 

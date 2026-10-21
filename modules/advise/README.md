@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # `modules/advise/` — what to grow here, and when
 
+> **Experimental, frozen since 2026-10-20** ([GOVERNANCE](../../GOVERNANCE.md#which-modules-are-maintained)): kept working and tested, with fixes, but no new features until a pilot farm asks for one.
+
 A **layer-3 module** (spec v0.1 §11, decision support) built on layer zero. Given a point, it
 reads thirty years of the place's weather, its soil and its plant data, and writes a report
 a farmer can act on: which food crops mature and when to sow them, which fruit cultivars

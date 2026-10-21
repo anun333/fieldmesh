@@ -21,9 +21,14 @@ Start with [README.md](README.md) and the specification, [docs/spec/v0.1.md](doc
 
 ```sh
 pip install -r requirements-tools.txt -r modules/rules/requirements.txt   # what CI installs
-make test     # every test: sdk, tools, sim, server, modules (about five minutes)
+make test     # every test: sdk, tools, sim, server, modules (about ten minutes)
+make fast     # the same without the whole seasons on the virtual farm (about two)
 make packs    # language packs complete and sound
 ```
+
+`git config core.hooksPath tools/hooks` runs `make fast` before each push and stops a push
+it fails; CI runs `make test`. A test that runs a season is marked `slow`
+(`sdk/fixtures.py`), so `make fast` leaves it out.
 
 Tests that need a dependency you have not installed skip and say which; GreenLight's runs
 need the twin's own environment (`modules/twin/requirements.txt`).

@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # `modules/zoneflow/` — irrigation zone flow: a clogged head, a broken one (layer 2)
 
+> **Experimental, frozen since 2026-10-20** ([GOVERNANCE](../../GOVERNANCE.md#which-modules-are-maintained)): kept working and tested, with fixes, but no new features until a pilot farm asks for one.
+
 A zone's flow is the sum of its heads' flows. With a flow meter on the irrigation line,
 every run of every zone has a measured flow. OpenSprinkler reports it as each zone closes
 (`station/<n>`, `"flow"`: the run's average, in the unit its flow pulse rate implies).

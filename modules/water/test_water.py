@@ -36,6 +36,9 @@ MIN = _dt.timedelta(minutes=1)
 T0 = _dt.datetime(2026, 7, 14, 6, tzinfo=_dt.timezone.utc)
 
 
+from fixtures import slow  # noqa: E402
+
+
 class Paddock:
     """One trough's series in a fresh state, filled by `level(minutes)`."""
 
@@ -196,6 +199,7 @@ class TestMonitor(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+@slow
 class TestAcceptanceOnHarrowBend(unittest.TestCase):
     """§15: "Livestock water monitor — newest reading first after an outage."
 

@@ -24,6 +24,21 @@ largest gap between what the project says and what it is.
 * **What has not been tested is listed.** Every claim not yet checked is in
   [docs/UNTESTED.md](docs/UNTESTED.md).
 
+## Which modules are maintained
+
+One maintainer cannot keep eleven modules moving. Since 2026-10-20 there are two kinds:
+
+* **Maintained:** layer zero (`sdk/`, `server/`, `sim/`, `tools/`, `deploy/`) and the
+  modules a pilot farm runs first: `rules`, `notify`, `board`, `water` and `soilwater`.
+  These get the work: fixes, features, documentation, and the pilot's hardware.
+* **Experimental, frozen:** `advise`, `twin`, `zoneflow`, `sowing`, `salinity` and
+  `probewatch` (with its optional Timestral add-on). They stay in the repository, keep
+  their tests passing and get fixes, but no new features until a pilot farm asks for one.
+  Each says so at the top of its README.
+
+A module moves from frozen to maintained when a pilot farm runs it, and from maintained to
+frozen when no farm does and the maintainer says so here, with the date.
+
 ## What is meant to change
 
 These are intentions. None of them has happened yet.

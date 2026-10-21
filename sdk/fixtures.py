@@ -13,6 +13,8 @@ irrigation controller and the research logger both depend on.
 from __future__ import annotations
 
 import datetime as _dt
+import os
+import unittest
 
 import vocab as V
 from ids import uuid7
@@ -27,6 +29,17 @@ UTC = _dt.timezone.utc
 SOIL_MOISTURE = V.SOIL_WATER
 T0 = _dt.datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
+
+#: `FIELDMESH_FAST=1` leaves out the slow tests (`slow`): whole seasons on the virtual farm,
+#: some seconds to most of a minute each. `make test` and CI run everything; `make fast` and
+#: the pre-push hook (tools/hooks/) leave them out.
+FAST = os.environ.get("FIELDMESH_FAST") == "1"
+
+
+def slow(test):
+    """A test, or a class of them, that runs a season or more: skipped with
+    `FIELDMESH_FAST=1`, and a class's setup with it."""
+    return unittest.skipIf(FAST, "a whole season: left out by FIELDMESH_FAST=1")(test)
 
 def at(minutes: float = 0, *, base: _dt.datetime = T0) -> _dt.datetime:
     return base + _dt.timedelta(minutes=minutes)

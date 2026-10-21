@@ -1,11 +1,18 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
-# The soil-moisture advisory's backtests, 2026-10-11 to 2026-10-19
+# The soil-moisture advisory's backtests, 2026-10-11 to 2026-10-20
 
 *The record of what the [soil-moisture advisory](../../modules/soilwater/README.md) was
 tried on, on the virtual farm as each day had it, and what each try showed: the tables
 that once stood in its README, kept here as they were last written. The README holds what
 the advisory does now and the evidence for it as it is now, from `trials.py`; this keeps
 how it got there.*
+
+> **Paused on 2026-10-20.** Every trial here, its sealed sites included, ran on a virtual
+> farm whose physics fieldmesh wrote: a sealed site changes the weather, not the physics,
+> so it cannot catch a default that only suits the simulator. Of a dozen candidates tried
+> here from 2026-10-18 to 2026-10-20, one was taken, the hot-day top third. No more defaults
+> are chosen this way until a pilot season's data can say where the simulator is right.
+> Four sites stay sealed for that trial ([below](#sealed-for-the-next-default-trial-2026-10-20)).
 
 *Read each table with its date. The simulator changed under them: on 2026-10-15 its soil
 began to move water below field capacity; on 2026-10-16 its crop began to use its water as

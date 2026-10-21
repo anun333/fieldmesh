@@ -9,6 +9,10 @@ import unittest
 import siting_drill as D
 
 
+from fixtures import slow  # noqa: E402
+
+
+@slow
 class TestSitingDrill(unittest.TestCase):
 
     @classmethod
@@ -101,6 +105,7 @@ class TestNodePosition(unittest.TestCase):
                                          self.farm.world.when, self.geo)
         self.assertEqual(finding.verdict, self.S.CONSISTENT, finding.reason)
 
+    @slow
     def test_carried_to_another_bed_unlogged_it_is_displaced(self):
         farm = self.hb.build()
         self.hb.season(farm, days=1, events=False)
@@ -116,6 +121,7 @@ class TestDisplacedProbeReadingsAreFlagged(unittest.TestCase):
     """End to end on the farm: an unlogged lift ends with the probe's moisture
     readings — the ones an irrigation decision would use — marked suspect."""
 
+    @slow
     def test_moisture_readings_from_a_lifted_probe_become_suspect(self):
         import os, sys
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),

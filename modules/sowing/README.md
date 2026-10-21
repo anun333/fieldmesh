@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # `modules/sowing/` — is the soil warm enough to sow? (layer 2)
 
+> **Experimental, frozen since 2026-10-20** ([GOVERNANCE](../../GOVERNANCE.md#which-modules-are-maintained)): kept working and tested, with fixes, but no new features until a pilot farm asks for one.
+
 Each morning, for each bed and each crop the farmer means to sow in it: the soil's
 temperature at seed depth over the last three days, against the temperatures that crop's
 seed germinates at, and about how many days the seedlings take to come up. A seed sown

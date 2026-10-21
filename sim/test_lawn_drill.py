@@ -15,6 +15,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
 
 
+from fixtures import slow  # noqa: E402
+
+
 def summer(year: int, policy: str, soil: str, soil_set: float = L.SOIL_SET_SHARE) -> dict:
     key = (year, policy, soil, soil_set)
     if key not in _CACHE:
@@ -26,6 +29,7 @@ def summer(year: int, policy: str, soil: str, soil_set: float = L.SOIL_SET_SHARE
     return _CACHE[key]
 
 
+@slow
 class TestTheAddOns(unittest.TestCase):
 
     def test_a_rain_sensor_skips_the_waterings_after_rain_and_costs_the_lawn_nothing(self):

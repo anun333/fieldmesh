@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # `modules/salinity/` — salt building up in a bed (layer 2)
 
+> **Experimental, frozen since 2026-10-20** ([GOVERNANCE](../../GOVERNANCE.md#which-modules-are-maintained)): kept working and tested, with fixes, but no new features until a pilot farm asks for one.
+
 Under a tunnel no soaking rain washes salts below the roots, while fertilizer, compost and
 hard water keep adding them, so salt builds up season after season
 ([University of Maryland Extension](https://extension.umd.edu/resource/salinity-matters-high-tunnels-and-growing-media-how-interpret-salinity-test-results)).

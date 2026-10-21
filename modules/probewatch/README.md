@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # `modules/probewatch/` — a soil probe gone off (layer 2, optional add-on)
 
+> **Experimental, frozen since 2026-10-20** ([GOVERNANCE](../../GOVERNANCE.md#which-modules-are-maintained)): kept working and tested, with fixes, but no new features until a pilot farm asks for one.
+
 A probe can go wrong in ways its own readings do not show. It can be pulled up by a hoe,
 lose contact through an air gap after a dry spell, take water down its cable, or drift. Each
 reading still looks like soil water. Layer zero's checks see a probe stuck flat, a reading

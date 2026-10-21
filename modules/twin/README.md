@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # `modules/twin/` — a physics twin for the hoop house (layer 3, Q28)
 
+> **Experimental, frozen since 2026-10-20** ([GOVERNANCE](../../GOVERNANCE.md#which-modules-are-maintained)): kept working and tested, with fixes, but no new features until a pilot farm asks for one.
+
 [GreenLight](https://github.com/davkat1/GreenLight) (Katzin et al., Wageningen University &
 Research; BSD-3-Clause-Clear) models a greenhouse's climate from first principles: the
 cover's shortwave and long-wave exchanges, the air and the space above it, ventilation by

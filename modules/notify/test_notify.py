@@ -42,6 +42,9 @@ MARIA, SAM = uuid7(), uuid7()
 TROUGH = uuid7()
 
 
+from fixtures import slow  # noqa: E402
+
+
 def roster(**changes) -> dict:
     doc = {"farm": "Harrow Bend", "timezone": "America/Chicago",
            "people": {"maria": {"id": str(MARIA), "name": "María", "language": "es",
@@ -539,6 +542,7 @@ class TestChannels(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_CEL, "cel-python is not installed (modules/rules/requirements.txt)")
+@slow
 class TestOnHarrowBend(unittest.TestCase):
     """The water monitor's season on Harrow Bend — the radio out for twelve hours on day
     2, the south trough's float stuck on day 9 — with the notifier looking every ten
